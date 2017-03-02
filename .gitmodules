@@ -1,0 +1,12 @@
+[submodule "director"]
+	path = director
+	url = https://github.com/RobotLocomotion/director.git
+[submodule "drake"]
+	path = drake
+	url = https://github.com/RobotLocomotion/drake.git
+[submodule "drivers/drake-iiwa-driver"]
+	path = drivers/drake-iiwa-driver
+	url = https://github.com/RobotLocomotion/drake-iiwa-driver.git
+[submodule "drivers/drake-schunk-driver"]
+	path = drivers/drake-schunk-driver
+	url = https://github.com/RobotLocomotion/drake-schunk-driver.git

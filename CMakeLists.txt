@@ -1,0 +1,61 @@
+cmake_minimum_required(VERSION 3.5)
+project(spartan)
+
+# Set default build type
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+    "The type of build. Options are: Debug Release RelWithDebInfo MinSizeRel."
+    FORCE)
+endif()
+
+# Build shared libraries by default
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+
+# Set default install prefix
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING
+    "Prefix for installation of sub-packages (note: required during build!)"
+    FORCE)
+endif()
+
+
+include(ExternalProject)
+
+set_property(DIRECTORY PROPERTY EP_PREFIX ${CMAKE_BINARY_DIR})
+
+set(source_dir ${CMAKE_SOURCE_DIR})
+set(build_dir ${CMAKE_BINARY_DIR})
+set(install_dir ${CMAKE_BINARY_DIR}/install)
+
+
+ExternalProject_Add(drake
+  SOURCE_DIR ${source_dir}/drake
+  BINARY_DIR ${build_dir}/drake
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    -DWITH_GUROBI:BOOL=OFF
+    -DWITH_FCL:BOOL=OFF
+    -DWITH_SNOPT:BOOL=ON
+    -DWITH_DIRECTOR:BOOL=OFF
+    -DCMAKE_INSTALL_PREFIX:PATH=${install_dir}
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+  INSTALL_COMMAND ""
+)
+
+ExternalProject_Add(director
+  SOURCE_DIR ${source_dir}/director/distro/superbuild
+  BINARY_DIR ${build_dir}/director
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    -DUSE_EXTERNAL_INSTALL:BOOL=ON
+    -DUSE_DRAKE:BOOL=ON
+    -DUSE_LCM:BOOL=ON
+    -DUSE_LIBBOT:BOOL=ON
+    -DUSE_SYSTEM_EIGEN:BOOL=ON
+    -DUSE_SYSTEM_LCM:BOOL=ON
+    -DUSE_SYSTEM_LIBBOT:BOOL=ON
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+  INSTALL_COMMAND ""
+  DEPENDS drake
+)
