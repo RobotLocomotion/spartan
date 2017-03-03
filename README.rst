@@ -1,9 +1,11 @@
 Spartan
 =======
 
-This is a project repository for students of the Robot Locomotion Group at MIT.
-It contains work for robotics research and applications leveraging Drake and
-Director.
+This is a project repository for robotics research and applications using
+Drake_ and Director_.
+
+.. _Drake: https://www.github.com/RobotLocomotion/drake
+.. _Director: https://www.github.com/RobotLocomotion/director
 
 
 Build instructions
