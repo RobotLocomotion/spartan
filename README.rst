@@ -10,18 +10,18 @@ Build instructions
 ==================
 
 First, you should install the required dependencies to compile Drake and other
-submodules. Follow the platform setup instructions in the Drake documentation:
+submodules. Follow the platform setup instructions in the Drake documentation::
 
     http://drake.mit.edu/from_source.html#mandatory-platform-specific-instructions
 
-Make sure your submodules are up to date.  The recommended command is:
+Make sure your submodules are up to date.  The recommended command is::
 
     git submodule update --init
 
 You should avoid adding the `--recursive` flag to the git submodule command,
 since Drake will automatically manage its recursive submodules at build time.
 
-Next, create a new build directory and configure with cmake. For example:
+Next, create a new build directory and configure with cmake. For example::
 
     mkdir build
     cd build
@@ -30,7 +30,7 @@ Next, create a new build directory and configure with cmake. For example:
 There is no requirement on the location of the build directory, you don't
 have to place it inside the source directory as shown in the above example.
 
-Finally, run the build:
+Finally, run the build::
 
     make
 
@@ -45,7 +45,7 @@ After you configure the build you will find a file named `setup_environment.sh`
 inside the build folder.  You can source this file in your ~/.bashrc file to
 setup your environment for development.  However, it is highly recommended that
 you do not automatically source the file, as it may conflict with other projects.
-Instead, you can add code like this to your ~/.bashrc file:
+Instead, you can add code like this to your ~/.bashrc file::
 
     use_spartan()
     {
@@ -63,26 +63,26 @@ useful aliases for developers.
 Testing
 =======
 
-The environment file defines some commands to run tests inside sub-projects:
+The environment file defines some commands to run tests inside sub-projects::
 
     run_tests_drake
     run_tests_director
 
 The above commands move into the build directory of the sub-project and run
 its tests.  You can pass additional commands which will be given to the test
-driver (ctest), for example, to print a list of available tests:
+driver (ctest), for example, to print a list of available tests::
 
     run_tests_director -N
 
-To run tests in verbose mode:
+To run tests in verbose mode::
 
     run_tests_director -V
 
-To run a specific test matching a name or regex:
+To run a specific test matching a name or regex::
 
     run_tests_director -R testPyDrakeIk
 
-To run tests in parallel:
+To run tests in parallel::
 
     run_tests_drake -j12
 
