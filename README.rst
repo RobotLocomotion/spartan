@@ -20,7 +20,7 @@ Make sure your submodules are up to date.  The recommended command is::
 
     git submodule update --init
 
-You should avoid adding the `--recursive` flag to the git submodule command,
+You should avoid adding the ``--recursive`` flag to the git submodule command,
 since Drake will automatically manage its recursive submodules at build time.
 
 Next, create a new build directory and configure with cmake. For example::
@@ -43,7 +43,7 @@ build tools like ninja.
 Environment setup
 =================
 
-After you configure the build you will find a file named `setup_environment.sh`
+After you configure the build you will find a file named ``setup_environment.sh``
 inside the build folder.  You can source this file in your ~/.bashrc file to
 setup your environment for development.  However, it is highly recommended that
 you do not automatically source the file, as it may conflict with other projects.
@@ -55,9 +55,9 @@ Instead, you can add code like this to your ~/.bashrc file::
     }
 
 With this method, the environment file will be sourced when you execute the
-command `use_spartan` in a terminal, but by default new terminals will be clean.
+command ``use_spartan`` in a terminal, but by default new terminals will be clean.
 
-You should read the contents of `setup_environment.sh` to see what it does.
+You should read the contents of ``setup_environment.sh`` to see what it does.
 In addition to modifying your PATH and other variables, it also defines some
 useful aliases for developers.
 
@@ -65,14 +65,15 @@ useful aliases for developers.
 Testing
 =======
 
-The environment file defines some commands to run tests inside sub-projects::
+You can run ``ctest`` in the build director to run tests. Additionally, the
+environment file adds some commands to run tests for sub-projects::
 
     run_tests_drake
     run_tests_director
 
 The above commands move into the build directory of the sub-project and run
-its tests.  You can pass additional commands which will be given to the test
-driver (ctest), for example, to print a list of available tests::
+its tests.  You can pass additional arguments to the test driver (ctest). For
+example, to print a list of available tests::
 
     run_tests_director -N
 
