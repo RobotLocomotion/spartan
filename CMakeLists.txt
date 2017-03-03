@@ -31,6 +31,7 @@ include(ExternalProject)
 set_property(DIRECTORY PROPERTY EP_PREFIX ${CMAKE_BINARY_DIR})
 set(source_dir ${CMAKE_SOURCE_DIR})
 set(build_dir ${CMAKE_BINARY_DIR})
+include(cmake/set-python-args.cmake)
 
 foreach(proj drake director)
   if(NOT EXISTS ${source_dir}/${proj}/.git)
@@ -73,6 +74,17 @@ ExternalProject_Add(director
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   INSTALL_COMMAND ""
   DEPENDS drake
+)
+
+ExternalProject_Add(signal-scope
+  SOURCE_DIR ${source_dir}/signal-scope
+  BINARY_DIR ${build_dir}/signal-scope
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${python_args}
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+  DEPENDS director
 )
 
 # Add tests
