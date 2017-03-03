@@ -65,7 +65,7 @@ useful aliases for developers.
 Testing
 =======
 
-You can run ``ctest`` in the build director to run tests. Additionally, the
+You can run ``ctest`` in the build directory to run tests. Additionally, the
 environment file adds some commands to run tests for sub-projects::
 
     run_tests_drake
