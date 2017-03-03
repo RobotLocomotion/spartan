@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(spartan)
 
+enable_testing()
+
 # Set default build type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING
@@ -18,6 +20,8 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     FORCE)
 endif()
 
+# Configure the environment file
+configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environment.sh @ONLY)
 
 include(ExternalProject)
 
@@ -59,3 +63,6 @@ ExternalProject_Add(director
   INSTALL_COMMAND ""
   DEPENDS drake
 )
+
+# Add tests
+add_subdirectory(tests)

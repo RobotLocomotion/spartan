@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd $SPARTAN_BUILD_DIR/director/src/director-build || exit
+ctest $*
