@@ -23,15 +23,17 @@ endif()
 # Configure the environment file
 configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environment.sh @ONLY)
 
+# Options
+option(WITH_PERCEPTION "Build with perception libraries and tools." OFF)
+
+# Setup external projects
 include(ExternalProject)
-
 set_property(DIRECTORY PROPERTY EP_PREFIX ${CMAKE_BINARY_DIR})
-
 set(source_dir ${CMAKE_SOURCE_DIR})
 set(build_dir ${CMAKE_BINARY_DIR})
 set(install_dir ${CMAKE_BINARY_DIR}/install)
 
-
+# Add external projects
 ExternalProject_Add(drake
   SOURCE_DIR ${source_dir}/drake
   BINARY_DIR ${build_dir}/drake
@@ -60,6 +62,9 @@ ExternalProject_Add(director
     -DUSE_SYSTEM_LIBBOT:BOOL=ON
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+    -DUSE_PCL:BOOL=${WITH_PERCEPTION}
+    -DUSE_APRILTAGS:BOOL=${WITH_PERCEPTION}
+    -DUSE_KINECT:BOOL=${WITH_PERCEPTION}
   INSTALL_COMMAND ""
   DEPENDS drake
 )
