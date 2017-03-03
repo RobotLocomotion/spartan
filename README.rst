@@ -9,15 +9,33 @@ Director.
 Build instructions
 ==================
 
-Configure and build with cmake.  For example:
+First, you should install the required dependencies to compile Drake and other
+submodules. Follow the platform setup instructions in the Drake documentation:
+
+    http://drake.mit.edu/from_source.html#mandatory-platform-specific-instructions
+
+Make sure your submodules are up to date.  The recommended command is:
+
+    git submodule update --init
+
+You should avoid adding the `--recursive` flag to the git submodule command,
+since Drake will automatically manage its recursive submodules at build time.
+
+Next, create a new build directory and configure with cmake. For example:
 
     mkdir build
     cd build
     cmake ../
-    make
 
 There is no requirement on the location of the build directory, you don't
 have to place it inside the source directory as shown in the above example.
+
+Finally, run the build:
+
+    make
+
+By default, cmake generates a Makefile, but it's possible to use other
+build tools like ninja.
 
 
 Environment setup
