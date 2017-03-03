@@ -31,7 +31,6 @@ include(ExternalProject)
 set_property(DIRECTORY PROPERTY EP_PREFIX ${CMAKE_BINARY_DIR})
 set(source_dir ${CMAKE_SOURCE_DIR})
 set(build_dir ${CMAKE_BINARY_DIR})
-set(install_dir ${CMAKE_BINARY_DIR}/install)
 
 foreach(proj drake director)
   if(NOT EXISTS ${source_dir}/${proj}/.git)
@@ -50,7 +49,7 @@ ExternalProject_Add(drake
     -DWITH_FCL:BOOL=OFF
     -DWITH_SNOPT:BOOL=ON
     -DWITH_DIRECTOR:BOOL=OFF
-    -DCMAKE_INSTALL_PREFIX:PATH=${install_dir}
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   INSTALL_COMMAND ""
 )
