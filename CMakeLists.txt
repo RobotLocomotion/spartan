@@ -33,6 +33,12 @@ set(source_dir ${CMAKE_SOURCE_DIR})
 set(build_dir ${CMAKE_BINARY_DIR})
 set(install_dir ${CMAKE_BINARY_DIR}/install)
 
+foreach(proj drake director)
+  if(NOT EXISTS ${source_dir}/${proj}/.git)
+    message(FATAL_ERROR "\nThe ${proj} submodule is not available.\nPlease run: git submodule update --init")
+  endif()
+endforeach()
+
 # Add external projects
 ExternalProject_Add(drake
   SOURCE_DIR ${source_dir}/drake
