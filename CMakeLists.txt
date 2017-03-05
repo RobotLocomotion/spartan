@@ -33,7 +33,7 @@ set(source_dir ${CMAKE_SOURCE_DIR})
 set(build_dir ${CMAKE_BINARY_DIR})
 include(cmake/set-python-args.cmake)
 
-foreach(proj drake director)
+foreach(proj drake director signal-scope)
   if(NOT EXISTS ${source_dir}/${proj}/.git)
     message(FATAL_ERROR "\nThe ${proj} submodule is not available.\nPlease run: git submodule update --init")
   endif()
