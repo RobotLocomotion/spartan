@@ -85,6 +85,7 @@ ExternalProject_Add(signal-scope
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   DEPENDS director
+)
 
 ExternalProject_Add(ContactParticleFilter
   SOURCE_DIR ${source_dir}/src/ContactParticleFilter
