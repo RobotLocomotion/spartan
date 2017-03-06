@@ -1,0 +1,143 @@
+{
+  "modelName" : "pr2",
+  "urdfConfig": {
+    "default": "../pr2.urdf",
+    "robotState": "../pr2.urdf",
+    "ik":         "../pr2_drake_planning.urdf",
+    "chull":      "../pr2.urdf",
+    "playback":   "../pr2.urdf",
+    "teleop":     "../pr2.urdf"
+  },
+
+  "teleopJointGroups" : [
+      { "name" : "Base",
+        "joints" : [
+          "base_x",
+          "base_y",
+          "base_z",
+          "base_roll",
+          "base_pitch",
+          "base_yaw"
+          ],
+        "labels" : ["x", "y", "z", "roll", "pitch", "yaw"]
+      },
+
+      { "name" : "Left Arm",
+        "joints" : ["l_shoulder_pan_joint",
+                    "l_shoulder_lift_joint",
+                    "l_upper_arm_roll_joint",
+                    "l_elbow_flex_joint",
+                    "l_forearm_roll_joint",
+                    "l_wrist_flex_joint",
+                    "l_wrist_roll_joint"],
+        "labels" : ["sh_pan","sh_lift", "upper_roll", "elb", "forearm_roll", "wr_flex", "wr_roll"]
+      },
+
+      { "name" : "Right Arm",
+        "joints" : ["r_shoulder_pan_joint",
+                    "r_shoulder_lift_joint",
+                    "r_upper_arm_roll_joint",
+                    "r_elbow_flex_joint",
+                    "r_forearm_roll_joint",
+                    "r_wrist_flex_joint",
+                    "r_wrist_roll_joint"],
+        "labels" : ["sh_pan","sh_lift", "upper_roll", "elb", "forearm_roll", "wr_flex", "wr_roll"]
+      },
+
+      { "name" : "Back",
+        "joints" : ["torso_lift_joint"],
+        "labels" : ["toros_lift"]
+      },
+
+      { "name" : "Neck",
+        "joints" : ["head_pan_joint", "head_tilt_joint", "laser_tilt_mount_joint"],
+        "labels" : ["pan", "tilt", "laser_tilt"]
+      }
+
+    ],
+
+  "mirrorJointSignFlips" : [
+    "l_shoulder_pan_joint",
+    "l_upper_arm_roll_joint",
+    "l_forearm_roll_joint",
+    "l_wrist_roll_joint",
+    "r_shoulder_pan_joint",
+    "r_upper_arm_roll_joint",
+    "r_forearm_roll_joint",
+    "r_wrist_roll_joint"
+  ],
+
+  "drakeJointNames": [
+    "base_x",
+    "base_y",
+    "base_z",
+    "base_roll",
+    "base_pitch",
+    "base_yaw",
+    "torso_lift_joint",
+    "head_pan_joint",
+    "head_tilt_joint",
+    "laser_tilt_mount_joint",
+    "r_shoulder_pan_joint",
+    "r_shoulder_lift_joint",
+    "r_upper_arm_roll_joint",
+    "r_elbow_flex_joint",
+    "r_forearm_roll_joint",
+    "r_wrist_flex_joint",
+    "r_wrist_roll_joint",
+    "l_shoulder_pan_joint",
+    "l_shoulder_lift_joint",
+    "l_upper_arm_roll_joint",
+    "l_elbow_flex_joint",
+    "l_forearm_roll_joint",
+    "l_wrist_flex_joint",
+    "l_wrist_roll_joint"
+  ],
+
+  "robotStateJointNames": [
+    "torso_lift_joint",
+    "head_pan_joint",
+    "head_tilt_joint",
+    "laser_tilt_mount_joint",
+    "r_shoulder_pan_joint",
+    "r_shoulder_lift_joint",
+    "r_upper_arm_roll_joint",
+    "r_elbow_flex_joint",
+    "r_forearm_roll_joint",
+    "r_wrist_flex_joint",
+    "r_wrist_roll_joint",
+    "l_shoulder_pan_joint",
+    "l_shoulder_lift_joint",
+    "l_upper_arm_roll_joint",
+    "l_elbow_flex_joint",
+    "l_forearm_roll_joint",
+    "l_wrist_flex_joint",
+    "l_wrist_roll_joint"
+  ],
+
+  "fixedPointFile" : "nominal_pose.csv",
+  "postureDatabaseFile" : "stored_poses.json",
+
+  "handCombinations" : [
+    { "side" : "left",
+      "handType" : "left_pr2",
+      "handLinkName" : "l_wrist_roll_link",
+      "handUrdf" : "../pr2_left_gripper.urdf",
+      "handRootLink" : "l_gripper_palm_link",
+      "robotMountLink" : "l_wrist_roll_link",
+      "palmLink" : "l_gripper_tool_frame"
+    },
+
+    { "side" : "right",
+      "handType" : "right_pr2",
+      "handLinkName" : "r_wrist_roll_link",
+      "handUrdf" : "../pr2_right_gripper.urdf",
+      "handRootLink" : "r_gripper_palm_link",
+      "robotMountLink" : "r_wrist_roll_link",
+      "palmLink" : "r_gripper_tool_frame"
+    }
+  ],
+
+  "userConfig" : [],
+  "planningMode" : "pydrake"
+}
