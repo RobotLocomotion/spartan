@@ -1,0 +1,26 @@
+group "0.ContactParticleFilter" {
+
+  cmd "0.drake-visualizer" {
+    exec = "python drake/examples/ContactParticleFilter/python/director_cpf_launch.py";
+    host = "localhost";
+  }
+
+
+  cmd "1.contact-filter" {
+    exec = "build/install/bin/directorPython drake/examples/ContactParticleFilter/python/contact_filter_app.py --director_config drake/examples/kuka_iiwa_arm/director_config.json";
+    host = "localhost";
+  }
+
+  cmd "2.iiwa_status_to_residual_translator" {
+    exec = "build/drake/examples/ContactParticleFilter/src/iiwa_status_to_residual";
+    host = "localhost";
+  }
+
+  cmd "3.signal-scope" {
+    exec = "build/install/bin/signal-scope drake/examples/ContactParticleFilter/config/contact_filter_plotting.py";
+    host = "localhost";
+  }
+
+
+
+}
