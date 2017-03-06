@@ -1,7 +1,6 @@
 import director
 import math
 import textwrap
-import robotlocomotion as robotlocomotion_lcmtypes
 import time
 import drake as lcmdrake
 import bot_core as lcmbotcore
@@ -11,6 +10,8 @@ from director import transformUtils
 from director import visualization as vis
 from director import objectmodel as om
 from director import lcmUtils
+import robotlocomotion as robotlocomotion_lcmtypes
+import cpf_lcmtypes
 
 from director.debugVis import DebugData
 
@@ -77,11 +78,11 @@ class ExternalForce(object):
         self.estimatedResidual = None
 
     def addSubscribers(self):
-        # lcmUtils.addSubscriber('CONTACT_FILTER_POINT_ESTIMATE', robotlocomotion_lcmtypes.contact_filter_estimate_t, self.onContactEstimate)
-        lcmUtils.addSubscriber('RESIDUAL_OBSERVER_STATE', robotlocomotion_lcmtypes.residual_observer_state_t, self.onResidualObserverState)
+        # lcmUtils.addSubscriber('CONTACT_FILTER_POINT_ESTIMATE', cpf_lcmtypes.contact_filter_estimate_t, self.onContactEstimate)
+        lcmUtils.addSubscriber('RESIDUAL_OBSERVER_STATE', cpf_lcmtypes.residual_observer_state_t, self.onResidualObserverState)
 
 
-        # lcmUtils.addSubscriber("CONTACT_FILTER_BODY_WRENCH_ESTIMATE", robotlocomotion_lcmtypes.contact_filter_body_wrench_estimate_t, self.onActiveLinkContactEstimate)
+        # lcmUtils.addSubscriber("CONTACT_FILTER_BODY_WRENCH_ESTIMATE", cpf_lcmtypes.contact_filter_body_wrench_estimate_t, self.onActiveLinkContactEstimate)
         # lcmUtils.addSubscriber("EXTERNAL_FORCE_TORQUE", lcmdrake.lcmt_external_force_torque(), self.onActiveLinkContactEstimate)
 
     def createMeshDataAndLocators(self):
@@ -278,9 +279,9 @@ class ExternalForce(object):
 
         tol = 1e-3
         numExternalForces = 0
-        msg = robotlocomotion_lcmtypes.external_force_torque_t()
+        msg = cpf_lcmtypes.external_force_torque_t()
 
-        msgMultipleContactLocations = robotlocomotion_lcmtypes.multiple_contact_location_t()
+        msgMultipleContactLocations = cpf_lcmtypes.multiple_contact_location_t()
         trueResidual = np.zeros((self.drakeModel.numJoints,))
 
         # make sure we call doKinematics before we do all the geometricJacobian stuff
@@ -315,7 +316,7 @@ class ExternalForce(object):
             force = val['forceMagnitude']*val['forceDirection']
             forceInWorld = linkFrame.TransformPoint(force)
 
-            msgContactLocation = robotlocomotion_lcmtypes.single_contact_filter_estimate_t()
+            msgContactLocation = cpf_lcmtypes.single_contact_filter_estimate_t()
             msgContactLocation.body_name = linkName
             msgContactLocation.contact_position = val['forceLocation']
             msgContactLocation.contact_force = force
@@ -342,7 +343,7 @@ class ExternalForce(object):
         # this message is for debugging
         if self.options['debug']['publishTrueResidual']:
             self.trueResidual = trueResidual
-            residualMsg = robotlocomotion_lcmtypes.residual_observer_state_t()
+            residualMsg = cpf_lcmtypes.residual_observer_state_t()
             residualMsg.utime = self.getUtime()
             residualMsg.num_joints = len(self.jointNames)
             residualMsg.joint_name = self.jointNames
@@ -393,15 +394,15 @@ class ExternalForce(object):
 
 
     def publishTwoStepEstimateData(self, twoStepEstimateData, actualContactLocationsMsg):
-        msg = robotlocomotion_lcmtypes.actual_and_estimated_contact_locations_t()
+        msg = cpf_lcmtypes.actual_and_estimated_contact_locations_t()
         msg.utime = self.getUtime()
         msg.actual_contact_location = actualContactLocationsMsg
 
-        estMsg = robotlocomotion_lcmtypes.multiple_contact_location_t()
+        estMsg = cpf_lcmtypes.multiple_contact_location_t()
         estMsg.num_contacts = len(twoStepEstimateData)
 
         for linkName, data in twoStepEstimateData.iteritems():
-            tmpMsg = robotlocomotion_lcmtypes.single_contact_filter_estimate_t()
+            tmpMsg = cpf_lcmtypes.single_contact_filter_estimate_t()
             tmpMsg.body_name = linkName
             tmpMsg.contact_normal = data['force']
 

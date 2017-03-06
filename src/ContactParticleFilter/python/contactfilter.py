@@ -31,6 +31,7 @@ from director import ioUtils
 
 #CPF imports
 import robotlocomotion as robotlocomotion_lcmtypes
+import cpf_lcmtypes
 import contactpointlocator
 import contactfilterutils as cfUtils
 import qpsolver
@@ -106,15 +107,15 @@ class ContactFilter(object):
     def addSubscribers(self):
         if self.options['debug']['useTrueResidual']:
             print "WARNIING: using true residual from externalforce.py"
-            lcmUtils.addSubscriber('RESIDUAL_ACTUAL', robotlocomotion_lcmtypes.residual_observer_state_t,
+            lcmUtils.addSubscriber('RESIDUAL_ACTUAL', cpf_lcmtypes.residual_observer_state_t,
                                    self.onResidualObserverState)
         else:
-            lcmUtils.addSubscriber('RESIDUAL_OBSERVER_STATE', robotlocomotion_lcmtypes.residual_observer_state_t,
+            lcmUtils.addSubscriber('RESIDUAL_OBSERVER_STATE', cpf_lcmtypes.residual_observer_state_t,
                                    self.onResidualObserverState)
-        lcmUtils.addSubscriber('EXTERNAL_FORCE_TORQUE', robotlocomotion_lcmtypes.external_force_torque_t,
+        lcmUtils.addSubscriber('EXTERNAL_FORCE_TORQUE', cpf_lcmtypes.external_force_torque_t,
                                self.onExternalForceTorque)
 
-        lcmUtils.addSubscriber("EXTERNAL_CONTACT_LOCATION", robotlocomotion_lcmtypes.multiple_contact_location_t, self.onExternalContactLocation)
+        lcmUtils.addSubscriber("EXTERNAL_CONTACT_LOCATION", cpf_lcmtypes.multiple_contact_location_t, self.onExternalContactLocation)
 
     def initializePublishChannels(self):
 
@@ -1058,7 +1059,7 @@ class ContactFilter(object):
     #
     #     self.trueResidual = residual
     #
-    #     msg = robotlocomotion_lcmtypes.residual_observer_state_t()
+    #     msg = cpf_lcmtypes.residual_observer_state_t()
     #     msg.utime = self.currentUtime
     #     msg.num_joints = self.drakeModel.numJoints
     #     msg.joint_name = self.drakeModel.jointNames
@@ -1088,14 +1089,14 @@ class ContactFilter(object):
     def publishEstimate(self, solnData):
 
         if solnData is None:
-            msg = robotlocomotion_lcmtypes.contact_filter_estimate_t()
+            msg = cpf_lcmtypes.contact_filter_estimate_t()
             msg.utime = self.currentUtime
             msg.num_contact_points = 0
             msg.logLikelihood = self.squaredErrorNoContacts(verbose=False)
             lcmUtils.publish(self.contactEstimatePublishChannel, msg)
             return
 
-        msg = robotlocomotion_lcmtypes.contact_filter_estimate_t()
+        msg = cpf_lcmtypes.contact_filter_estimate_t()
         msg.utime = self.currentUtime
         msg.num_contact_points = solnData['numContactPoints']
 
@@ -1106,7 +1107,7 @@ class ContactFilter(object):
 
         msg.single_contact_estimate = [None]*msg.num_contact_points
 
-        msgEstimatedContactLocations = robotlocomotion_lcmtypes.multiple_contact_location_t()
+        msgEstimatedContactLocations = cpf_lcmtypes.multiple_contact_location_t()
         msgEstimatedContactLocations.num_contacts = msg.num_contact_points
 
         for i in xrange(0, msg.num_contact_points):
@@ -1116,14 +1117,14 @@ class ContactFilter(object):
 
         lcmUtils.publish(self.contactEstimatePublishChannel, msg)
 
-        msgAllContactLocations = robotlocomotion_lcmtypes.actual_and_estimated_contact_locations_t()
+        msgAllContactLocations = cpf_lcmtypes.actual_and_estimated_contact_locations_t()
         msgAllContactLocations.utime = self.currentUtime
         msgAllContactLocations.actual_contact_location = self.externalContactLocationMsg
         msgAllContactLocations.estimated_contact_location = msgEstimatedContactLocations
         lcmUtils.publish("ACTUAL_AND_ESTIMATED_CONTACT_LOCATIONS", msgAllContactLocations)
 
     def msgFromSolnCFPData(self, d):
-        msg = robotlocomotion_lcmtypes.single_contact_filter_estimate_t()
+        msg = cpf_lcmtypes.single_contact_filter_estimate_t()
 
         cfpData = d['ContactFilterPoint']
         msg.body_name = d['ContactFilterPoint'].linkName
@@ -1798,7 +1799,7 @@ class ContactFilter(object):
             print "particle is of type", type(particle)
         assert type(particle) is ContactFilterParticle
 
-        msg = robotlocomotion_lcmtypes.CPF_particle_t()
+        msg = cpf_lcmtypes.CPF_particle_t()
         msg.utime = utime
         msg.link_name = particle.cfp.linkName
         msg.contact_location = particle.cfp.contactLocation.tolist()
@@ -1815,7 +1816,7 @@ class ContactFilter(object):
     def encodeParticleSet(utime, particleSet):
         assert type(particleSet) is SingleContactParticleSet
 
-        msg = robotlocomotion_lcmtypes.CPF_particle_set_t()
+        msg = cpf_lcmtypes.CPF_particle_set_t()
         msg.utime = utime
 
         msg.num_particles = particleSet.getNumberOfParticles()
@@ -1834,7 +1835,7 @@ class ContactFilter(object):
     @staticmethod
     def encodeCPFData(utime, particleSetList):
 
-        msg = robotlocomotion_lcmtypes.CPF_data_t()
+        msg = cpf_lcmtypes.CPF_data_t()
         msg.utime = utime
 
         msg.num_particle_sets = len(particleSetList)

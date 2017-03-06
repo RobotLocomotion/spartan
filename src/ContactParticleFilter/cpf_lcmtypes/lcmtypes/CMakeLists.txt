@@ -20,7 +20,16 @@ lcm_wrap_types(
   CREATE_CPP_AGGREGATE_HEADER
   ${python_args}
   ${java_args}
+  actual_and_estimated_contact_locations_t.lcm
+  contact_filter_body_wrench_estimate_t.lcm
+  contact_filter_estimate_t.lcm
+  CPF_data_t.lcm
+  CPF_particle_set_t.lcm
+  CPF_particle_t.lcm
   external_force_torque_t.lcm
+  multiple_contact_location_t.lcm
+  residual_observer_state_t.lcm
+  single_contact_filter_estimate_t.lcm
 )
 
 lcm_add_library(lcmtypes_cpf-lcm C ${c_sources} ${c_install_headers})

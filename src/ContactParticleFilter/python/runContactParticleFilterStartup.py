@@ -17,6 +17,7 @@ import sys
 SPARTAN_SOURCE_DIR = os.getenv('SPARTAN_SOURCE_DIR')
 sys.path.append(os.path.join(SPARTAN_SOURCE_DIR, 'src/ContactParticleFilter/python'))
 
+
 import contactparticlefilterstartup
 contactparticlefilterstartup.startup(robotSystem, globals())
 

@@ -5,21 +5,11 @@ from director import consoleapp
 
 import contactfilter
 
-
-def makeRobotSystem(view):
-    factory = robotsystem.RobotSystemFactory()
-    options = factory.getDisabledOptions()
-    factory.setDependentOptions(options, usePlannerPublisher=False,
-                                         useTeleop=True)
-    return factory.construct(view=view, options=options)
-
-
 # create a default mainwindow app
-app = mainwindowapp.MainWindowAppFactory().construct(globalsDict=globals())
-mainwindowapp.MainWindowPanelFactory().construct(app=app.app, view=app.view)
+app = mainwindowapp.construct(globalsDict=globals())
 
 # load a minimal robot system with ik planning
-robotSystem = makeRobotSystem(app.view)
+robotSystem = robotsystem.create(app.view, planningOnly=True)
 
 
 # set the default camera view

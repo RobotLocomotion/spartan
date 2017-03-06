@@ -11,6 +11,7 @@ from director.debugVis import DebugData
 from director import visualization as vis
 from director import objectmodel as om
 import robotlocomotion as robotlocomotion_lcmtypes
+import cpf_lcmtypes
 
 
 class ContactFilterVisualizer(object):
@@ -29,7 +30,7 @@ class ContactFilterVisualizer(object):
         self.visualize = False
 
     def addSubscribers(self):
-        subscriber = lcmUtils.addSubscriber("CONTACT_PARTICLE_FILTER_DATA", robotlocomotion_lcmtypes.CPF_data_t, self.onContactFilterMsg)
+        subscriber = lcmUtils.addSubscriber("CONTACT_PARTICLE_FILTER_DATA", cpf_lcmtypes.CPF_data_t, self.onContactFilterMsg)
         subscriber.setSpeedLimit(10)
 
     def getCurrentPose(self):
