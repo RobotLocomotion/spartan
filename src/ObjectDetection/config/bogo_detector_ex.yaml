@@ -1,0 +1,4 @@
+models:
+  - urdf: "models/cube_unit.urdf"
+    q0: [0.1, 0, 2, 0.2, -0.2, 0.5]
+points: "test_data/cube_unit_sim.pcd"
