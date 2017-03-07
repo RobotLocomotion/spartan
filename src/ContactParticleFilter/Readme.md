@@ -23,10 +23,10 @@ To choose a solver edit the solverType field in config/contact_particle_filter_c
 
 # Running the algorithm in simulation
 
-1. source drake-distro/drake_environment.sh
+1. Make sure you have sourced spartan environment setup file in spartan/build/setup_environment.sh
 
-2. Launch procman from drake-distro folder.
-	- $ bot-procman-sheriff -l drake/examples/ContactParticleFilter/config/kuka_contact_particle_filter.pmd
+2. run cpf_kuka_demo from command line (this is a script installed in build/install/bin)
+
 3. Start entire ContactParticleFilter group in procman.
 	- It's ok not to run the iiwa_status_to_residual translator when doing simulation, only needed for hardware.
 
