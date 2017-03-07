@@ -88,6 +88,17 @@ ExternalProject_Add(signal-scope
   DEPENDS director
 )
 
+ExternalProject_Add(json
+  SOURCE_DIR ${source_dir}/externals/json
+  BINARY_DIR ${build_dir}/json
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS 
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX} 
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+    -DBuildTests:BOOL=FALSE
+  UPDATE_COMMAND ""
+  INSTALL_COMMAND make install)
+
 ExternalProject_Add(ContactParticleFilter
   SOURCE_DIR ${source_dir}/src/ContactParticleFilter
   BINARY_DIR ${build_dir}/ContactParticleFilter
@@ -98,6 +109,15 @@ ExternalProject_Add(ContactParticleFilter
   DEPENDS drake
 )
 
+ExternalProject_Add(RemoteTreeViewer
+  SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
+  BINARY_DIR ${build_dir}/RemoteTreeViewer
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+  DEPENDS drake
+)
 
 if (WITH_DRIVERS)
 
