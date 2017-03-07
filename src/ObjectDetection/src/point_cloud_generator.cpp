@@ -6,10 +6,10 @@
 #include <random>
 #include <unistd.h>
 
-#include "drake/multibody/rigid_body_tree.h"
-#include "drake/multibody/parsers/urdf_parser.h"
 #include "drake/common/eigen_types.h"
 #include "drake/lcm/drake_lcm.h"
+#include "drake/multibody/parsers/urdf_parser.h"
+#include "drake/multibody/rigid_body_tree.h"
 
 #include "yaml-cpp/yaml.h"
 #include "common/common.hpp"

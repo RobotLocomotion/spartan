@@ -7,14 +7,19 @@
 #include "point_cloud_generator.hpp"
 #include "RemoteTreeViewerWrapper.hpp"
 
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_cloud.h>
+
 using namespace std;
 using namespace Eigen;
+
+typedef pcl::PointXYZ PointType;
 
 int main(int argc, char** argv) {
   srand(getUnixTime());
 
-  if (argc != 2){
-    printf("Use: run_point_cloud_generator <config file>\n");
+  if (argc < 2){
+    printf("Use: run_point_cloud_generator <config file> <optional output_file>\n");
     exit(-1);
   }
 
@@ -24,6 +29,8 @@ int main(int argc, char** argv) {
   cout << "***************************" << endl;
   cout << "Point Cloud Generator Interface" << asctime(curtime);
   cout << "Config file " << string(argv[1]) << endl;
+  if (argc > 2)
+    cout << "Output file " << string(argv[2]) << endl;
   cout << "***************************" << endl << endl;
 
   // Bring in config file
@@ -45,5 +52,14 @@ int main(int argc, char** argv) {
   rm.publishPointCloud(scene_pts, {"scene_pts"});
   rm.publishRigidBodyTree(pcg.get_robot(), pcg.get_q_robot(), Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
 
+  if (argc > 2){
+    string outputFilename = string(argv[2]);
+    pcl::PointCloud<pcl::PointXYZ> cloud;
+    for (int i=0; i<scene_pts.cols(); i++){
+      cloud.push_back( PointType(scene_pts(0, i), scene_pts(1, i), scene_pts(2, i)) );
+    }
+    pcl::io::savePCDFileASCII(outputFilename, cloud);
+    cout << "Saved " << cloud.size() << " points to " << outputFilename << endl;
+  }
   return 0;
 }

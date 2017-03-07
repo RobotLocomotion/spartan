@@ -14,7 +14,7 @@ point_cloud_generator_options:
     max_range: 10.0
 
     models:
-       - urdf: "../models/urdf/cubes_jointed.urdf"
+       - urdf: "models/urdf/cubes_jointed.urdf"
          q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2, 0.2]
        #- urdf: "../urdf/cubes.urdf"
        #  q0: [0.5, 0, 0, 0, 0, 0.2, 0.1, 0, 0, 0, 0, -0.2]

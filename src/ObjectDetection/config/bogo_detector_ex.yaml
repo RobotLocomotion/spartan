@@ -1,4 +1,4 @@
 models:
-  - urdf: "models/cube_unit.urdf"
-    q0: [0.1, 0, 2, 0.2, -0.2, 0.5]
-points: "test_data/cube_unit_sim.pcd"
+  - urdf: "models/urdf/cubes_jointed.urdf"
+    q0: [0.1, 0, 2, 0.2, -0.2, 0.5, 0.2]
+point_cloud: "tmp/cube_samples.pcd"
