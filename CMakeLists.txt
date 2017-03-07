@@ -25,6 +25,7 @@ configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environm
 
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." OFF)
+option(WITH_DRIVERS "Build the hardware lcm driver." OFF)
 
 # Setup external projects
 include(ExternalProject)
@@ -96,6 +97,22 @@ ExternalProject_Add(ContactParticleFilter
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   DEPENDS drake
 )
+
+
+if (WITH_DRIVERS)
+
+  ExternalProject_Add(drake-iiwa-driver
+    SOURCE_DIR ${source_dir}/drivers/drake-iiwa-driver
+    BINARY_DIR ${build_dir}/drake-iiwa-driver
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+    DEPENDS drake
+  )
+
+endif()
+
 
 # Add tests
 add_subdirectory(tests)
