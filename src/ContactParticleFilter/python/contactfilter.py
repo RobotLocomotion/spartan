@@ -107,10 +107,10 @@ class ContactFilter(object):
     def addSubscribers(self):
         if self.options['debug']['useTrueResidual']:
             print "WARNIING: using true residual from externalforce.py"
-            lcmUtils.addSubscriber('RESIDUAL_ACTUAL', cpf_lcmtypes.residual_observer_state_t,
+            lcmUtils.addSubscriber('RESIDUAL_ACTUAL', robotlocomotion_lcmtypes.residual_observer_state_t,
                                    self.onResidualObserverState)
         else:
-            lcmUtils.addSubscriber('RESIDUAL_OBSERVER_STATE', cpf_lcmtypes.residual_observer_state_t,
+            lcmUtils.addSubscriber('RESIDUAL_OBSERVER_STATE', robotlocomotion_lcmtypes.residual_observer_state_t,
                                    self.onResidualObserverState)
         lcmUtils.addSubscriber('EXTERNAL_FORCE_TORQUE', cpf_lcmtypes.external_force_torque_t,
                                self.onExternalForceTorque)
@@ -1059,7 +1059,7 @@ class ContactFilter(object):
     #
     #     self.trueResidual = residual
     #
-    #     msg = cpf_lcmtypes.residual_observer_state_t()
+    #     msg = robotlocomotion_lcmtypes.residual_observer_state_t()
     #     msg.utime = self.currentUtime
     #     msg.num_joints = self.drakeModel.numJoints
     #     msg.joint_name = self.drakeModel.jointNames

@@ -11,12 +11,12 @@ group "0.ContactParticleFilter" {
   }
 
   cmd "2.iiwa_status_to_residual_translator" {
-    exec = "$SPARTAN_BUILD_DIR/drake/drake/examples/ContactParticleFilter/src/iiwa_status_to_residual";
+    exec = "$SPARTAN_BUILD_DIR/install/bin/iiwa_status_to_residual";
     host = "localhost";
   }
 
   cmd "3.signal-scope" {
-    exec = "build/install/bin/signal-scope drake/examples/ContactParticleFilter/config/contact_filter_plotting.py";
+    exec = "signal-scope $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/config/contact_filter_plotting.py";
     host = "localhost";
   }
 

@@ -79,7 +79,7 @@ class ExternalForce(object):
 
     def addSubscribers(self):
         # lcmUtils.addSubscriber('CONTACT_FILTER_POINT_ESTIMATE', cpf_lcmtypes.contact_filter_estimate_t, self.onContactEstimate)
-        lcmUtils.addSubscriber('RESIDUAL_OBSERVER_STATE', cpf_lcmtypes.residual_observer_state_t, self.onResidualObserverState)
+        lcmUtils.addSubscriber('RESIDUAL_OBSERVER_STATE', robotlocomotion_lcmtypes.residual_observer_state_t, self.onResidualObserverState)
 
 
         # lcmUtils.addSubscriber("CONTACT_FILTER_BODY_WRENCH_ESTIMATE", cpf_lcmtypes.contact_filter_body_wrench_estimate_t, self.onActiveLinkContactEstimate)
@@ -343,7 +343,7 @@ class ExternalForce(object):
         # this message is for debugging
         if self.options['debug']['publishTrueResidual']:
             self.trueResidual = trueResidual
-            residualMsg = cpf_lcmtypes.residual_observer_state_t()
+            residualMsg = robotlocomotion_lcmtypes.residual_observer_state_t()
             residualMsg.utime = self.getUtime()
             residualMsg.num_joints = len(self.jointNames)
             residualMsg.joint_name = self.jointNames
