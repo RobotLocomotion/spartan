@@ -1,4 +1,4 @@
-find_package(drake)
+find_package(drake REQUIRED)
 
 add_executable(iiwa_status_to_residual
     run_iiwa_status_to_residual.cc
