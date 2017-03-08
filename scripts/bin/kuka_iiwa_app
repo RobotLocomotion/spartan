@@ -1,3 +1,1 @@
-#!/bin/bash
-
-directorPython $SPARTAN_SOURCE_DIR/drake/drake/examples/kuka_iiwa_arm/director_ik_app.py --iiwa-drake $*
+../../apps/iiwa/runapp.sh
