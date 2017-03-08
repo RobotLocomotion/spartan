@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="wsg_50">
+
+  <xacro:include filename="$(find schunk_description)/urdf/wsg/visual_collisions.xacro" />
+
+  <link name="palm">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+    </inertial>
+    <xacro:palm_pretty_visual/>
+    <xacro:palm_simple_collision/>
+  </link>
+
+
+  <joint name="wsg_50_finger_left_joint" type="prismatic" >
+    <origin xyz="0 -0.0719 0" rpy="0 1.5707 0"/>
+    <parent link="palm" />
+    <child link="wsg_50_finger_left_link" />
+    <axis xyz="0 0 -1" />
+    <!--<limit effort="10" lower="-0.001" upper="0.109" velocity="1.0"/>-->
+  </joint>
+
+  <link name="wsg_50_finger_left_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+    </inertial>
+    <!-- <xacro:left_finger_pretty_visual/> -->
+  </link>
+
+
+  <joint name="wsg_50_finger_right_joint" type="prismatic" >
+    <origin xyz="0 -0.0719 0.0" rpy="3.1415 -1.5707 0"/>
+    <parent link="palm" />
+    <child link="wsg_50_finger_right_link" />
+    <axis xyz="0 0 1" />
+    <!--<limit effort="10" lower="-0.001" upper="0.109" velocity="1.0"/> -->
+  </joint>
+
+  <link name="wsg_50_finger_right_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+    </inertial>
+    <!-- <xacro:right_finger_pretty_visual/> -->
+    <xacro:right_finger_pretty_visual/>
+    <xacro:right_finger_simple_collision/>
+  </link>
+
+  <!-- extensions -->
+  <transmission name="wsg_50_finger_left_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="wsg_50_finger_left_joint"/>
+    <actuator name="wsg_50_finger_left_motor">
+      <hardwareInterface>EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  
+  <transmission name="wsg_50_finger_right_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="wsg_50_finger_right_joint"/>
+    <actuator name="wsg_50_finger_right_motor">
+      <hardwareInterface>EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+</robot>

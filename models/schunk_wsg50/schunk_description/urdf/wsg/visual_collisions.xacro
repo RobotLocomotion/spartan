@@ -1,0 +1,131 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="wsg_50">
+
+  <!-- MATERIALS -->
+  <material name="Blue">
+    <color rgba="0 0 1 1"/>
+    </material>
+
+    <material name="Red">
+      <color rgba="1 0 0 1"/>
+    </material>
+
+    <material name="Green">
+        <color rgba="0 1 0 1"/>
+  </material>
+
+  <material name="Yellow">
+    <color rgba="1 1 0 1"/>
+    </material>
+
+    <material name="LightGrey">
+      <color rgba="0.6 0.6 0.6 1.0"/>
+  </material>
+    <!-- END OF MATERIALS -->
+
+  <!-- XACRO MACROS FOR VISUALS AND COLLISIONS -->
+  <xacro:macro name="visual_offset_box" params="s_x s_y s_z o_x o_y o_z">
+    <visual>
+      <geometry>
+        <box size="${s_x} ${s_y} ${s_z}"/>
+      </geometry>
+      <origin xyz="${o_x} ${o_y} ${o_z}" rpy="0 0 0"/>
+    </visual>
+  </xacro:macro>
+  <xacro:macro name="collision_offset_box" params="s_x s_y s_z o_x o_y o_z">
+    <collision>
+      <geometry>
+        <box size="${s_x} ${s_y} ${s_z}"/>
+      </geometry>
+      <origin xyz="${o_x} ${o_y} ${o_z}" rpy="0 0 0"/>
+    </collision>
+  </xacro:macro>
+
+
+
+  <xacro:macro name="palm_pretty_visual" params="">
+    <visual>
+      <geometry>
+        <mesh filename="package://schunk_description/meshes/wsg_50/palm.stl"/>
+      </geometry>
+    </visual>
+  </xacro:macro>
+  <xacro:macro name="palm_pretty_collision" params="">
+    <collision>
+      <geometry>
+        <mesh filename="package://schunk_description/meshes/wsg_50/palm.stl"/>
+      </geometry>
+    </collision>
+  </xacro:macro>
+  <xacro:macro name="palm_simple_visual" params="">
+    <!-- The gripper itself -->
+    <xacro:visual_offset_box s_x="0.1453" s_y="0.0725" s_z="0.049" o_x="0.00" o_y="-0.0351" o_z="0.0"/>
+    <!-- the larger mounting plate -->
+    <xacro:visual_offset_box s_x="0.05" s_y="0.0064" s_z="0.095" o_x="0.00" o_y="0.007" o_z="0"/>
+  </xacro:macro>
+  <xacro:macro name="palm_simple_collision" params="">
+    <!-- The gripper itself -->
+    <xacro:collision_offset_box s_x="0.1453" s_y="0.0725" s_z="0.049" o_x="0.00" o_y="-0.0351" o_z="0.0"/>
+    <!-- the larger mounting plate -->
+    <xacro:collision_offset_box s_x="0.05" s_y="0.0064" s_z="0.095" o_x="0.00" o_y="0.007" o_z="0"/>
+  </xacro:macro>
+
+  <xacro:macro name="left_finger_pretty_visual" params="">
+    <visual>
+      <geometry>
+        <mesh filename="package://schunk_description/meshes/wsg_50/finger_without_gelsight.stl"/>
+        <material name="mostly_transparent">
+          <color rgb="255 255 255" alpha="0.1"/>
+        </material>
+      </geometry>
+    </visual>
+  </xacro:macro>
+  <xacro:macro name="left_finger_pretty_collision" params="">
+    <collision>
+      <geometry>
+        <mesh filename="package://schunk_description/meshes/wsg_50/finger_without_gelsight.stl"/>
+      </geometry>
+    </collision>
+  </xacro:macro>
+  <xacro:macro name="left_finger_simple_visual" params="">
+    <xacro:visual_offset_box s_x="0.0365" s_y="0.117" s_z="0.0122" o_x="0.003" o_y="-0.0585" o_z="-0.0106"/>
+  </xacro:macro>
+  <xacro:macro name="left_finger_simple_collision" params="">
+    <xacro:collision_offset_box s_x="0.0365" s_y="0.117" s_z="0.0122" o_x="0.003" o_y="-0.0585" o_z="-0.0106"/>
+  </xacro:macro>
+
+  <xacro:macro name="right_finger_pretty_visual" params="">
+    <visual>
+      <geometry>
+        <mesh filename="package://schunk_description/meshes/wsg_50/finger_with_gelsight.stl"/>
+      </geometry>
+    </visual>
+  </xacro:macro>
+  <xacro:macro name="right_finger_pretty_collision" params="">
+    <collision>
+      <geometry>
+        <mesh filename="package://schunk_description/meshes/wsg_50/finger_with_gelsight.stl"/>
+      </geometry>
+    </collision>
+  </xacro:macro>
+  <xacro:macro name="right_finger_simple_visual" params="">
+    <!-- Finger adapter and aluminum adapter block -->
+    <xacro:visual_offset_box s_x="0.030" s_y="0.0344" s_z="0.0344" o_x="0.0" o_y="0.0172" o_z="0.0172"/>
+    <!-- Stick to gelsight box and backplate / optotrak marker mount -->
+    <xacro:visual_offset_box s_x="0.036" s_y="0.0883" s_z="0.0207" o_x="0.0" o_y="0.0750" o_z="0.0250"/>
+    <!-- Gelsight box -->
+    <xacro:visual_offset_box s_x="0.0318" s_y="0.0318" s_z="0.037" o_x="-0.0055" o_y="0.1005" o_z="0.01231"/>
+  </xacro:macro>
+  
+  <xacro:macro name="right_finger_simple_collision" params="">
+    <!-- Finger adapter and aluminum adapter block -->
+    <xacro:collision_offset_box s_x="0.030" s_y="0.0344" s_z="0.0344" o_x="0.0" o_y="0.0172" o_z="0.0172"/>
+    <!-- Stick to gelsight box and backplate / optotrak marker mount -->
+    <xacro:collision_offset_box s_x="0.036" s_y="0.0883" s_z="0.0207" o_x="0.0" o_y="0.0750" o_z="0.0250"/>
+    <!-- Gelsight box -->
+    <xacro:collision_offset_box s_x="0.0318" s_y="0.0318" s_z="0.037" o_x="-0.0055" o_y="0.1005" o_z="0.01231"/>
+  </xacro:macro>
+
+  <!-- END OF XACRO MACROS -->
+
+</robot>
