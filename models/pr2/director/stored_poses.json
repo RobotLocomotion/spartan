@@ -1,0 +1,64 @@
+{
+  "General": [
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "l_elbow_flex_joint": 0.0,
+        "l_forearm_roll_joint": 0.0,
+        "l_shoulder_lift_joint": 0.0,
+        "l_shoulder_pan_joint": 0.0,
+        "l_upper_arm_roll_joint": 0.0,
+        "l_wrist_flex_joint": 0.0,
+        "l_wrist_roll_joint": 0.0
+      },
+      "name": "q_nom",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "l_elbow_flex_joint": 0.0,
+        "l_forearm_roll_joint": 0.0,
+        "l_shoulder_lift_joint": 0.0,
+        "l_shoulder_pan_joint": 0.0,
+        "l_upper_arm_roll_joint": 0.0,
+        "l_wrist_flex_joint": 0.0,
+        "l_wrist_roll_joint": 0.0
+      },
+      "name": "q_zero",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "r_elbow_flex_joint": -2.01531,
+        "r_forearm_roll_joint": -1.57888,
+        "r_shoulder_lift_joint": 0.0426,
+        "r_shoulder_pan_joint": -0.91698,
+        "r_upper_arm_roll_joint": -1.5,
+        "r_wrist_flex_joint": -1.653,
+        "r_wrist_roll_joint": -2.04511
+      },
+      "name": "front pre-grasp",
+      "nominal_handedness": "right"
+    },
+    {
+      "allow_mirror": true,
+      "description": "low tuck",
+      "joints": {
+        "l_elbow_flex_joint": -1.7943649291992188,
+        "l_forearm_roll_joint": 0.9173450469970703,
+        "l_shoulder_lift_joint": 0.8721672892570496,
+        "l_shoulder_pan_joint": 1.8083981275558472,
+        "l_upper_arm_roll_joint": 1.9400999546051025,
+        "l_wrist_flex_joint": -0.7936260104179382,
+        "l_wrist_roll_joint": -0.15079644322395325
+      },
+      "name": "low tuck",
+      "nominal_handedness": "left"
+    }
+  ]
+}

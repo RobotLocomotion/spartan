@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+  <xacro:macro name="schunk_wsg_50_transmission" params="name">
+
+    <transmission name="${name}_finger_left_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${name}_finger_left_joint"/>
+      <actuator name="${name}_finger_left_motor">
+        <hardwareInterface>EffortJointInterface</hardwareInterface>
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+    
+    <transmission name="${name}_finger_right_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${name}_finger_right_joint"/>
+      <actuator name="${name}_finger_right_motor">
+        <hardwareInterface>EffortJointInterface</hardwareInterface>
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+
+  </xacro:macro>
