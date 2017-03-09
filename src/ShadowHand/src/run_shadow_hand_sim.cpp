@@ -70,9 +70,16 @@ int main(int argc, char ** argv){
               500.0})
   );
 
-  const double dt = 0.1;
+  const double dt = 0.0333;
   double t = 0.0;
   double start_time = getUnixTime();
+
+
+  // Kick off vis
+  Affine3d tf_robot;
+  tf_robot.setIdentity();
+  rm.publishRigidBodyTree(tree, q_robot, Vector4d(0.3, 0.3, 1.0, 1.0), {"shadow_hand_sim_gt"});
+
   while (t < 10.0){
     double t_actual = getUnixTime();
     if (t_actual - start_time < t){
@@ -95,10 +102,7 @@ int main(int argc, char ** argv){
     }
     cout << "q robot " << q_robot.transpose() << endl;
 
-    Affine3d tf_robot;
-    tf_robot.setIdentity();
-    rm.publishRigidBodyTree(tree, q_robot, Vector4d(0.3, 0.3, 1.0, 1.0), {"shadow_hand_sim_gt"});
-    
+    rm.updateRigidBodyTree(tree, q_robot, {"shadow_hand_sim_gt"});
     t += dt;
   }
 

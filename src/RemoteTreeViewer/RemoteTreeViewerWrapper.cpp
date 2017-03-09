@@ -182,6 +182,30 @@ void RemoteTreeViewerWrapper::publishRigidBodyTree(const RigidBodyTree<double>& 
   }
 }
 
+void RemoteTreeViewerWrapper::updateRigidBodyTree(const RigidBodyTree<double>& tree, const Eigen::VectorXd q, std::vector<std::string> path, bool visual){
+  auto kinematics_cache = tree.doKinematics(q);
+  for (const auto& body : tree.bodies) {
+    if (visual){
+      for (const auto& element : body->get_visual_elements()){
+        if (element.hasGeometry()){
+          vector<string> full_name = path;
+          full_name.push_back(body->get_name());
+          updateTransform(tree.relativeTransform(kinematics_cache, 0, body->get_body_index()) * element.getLocalTransform(), full_name);
+        }
+      }
+    } else {
+      for (const auto& collision_elem_id : body->get_collision_element_ids()) {
+        auto element = tree.FindCollisionElement(collision_elem_id);
+        if (element->hasGeometry()){
+          vector<string> full_name = path;
+          full_name.push_back(body->get_name());
+          updateTransform(tree.relativeTransform(kinematics_cache, 0, body->get_body_index()) * element->getLocalTransform(), full_name);
+        }
+      }
+    }
+  }
+}
+
 void RemoteTreeViewerWrapper::publishRigidBody(const RigidBody<double>& body, Affine3d tf, const Vector4d color, vector<string> path){
 }
 
@@ -275,6 +299,49 @@ void RemoteTreeViewerWrapper::publishGeometry(const Geometry& geometry, Affine3d
       return;
   }
 
+
+  auto msg = viewer2_comms_t();
+  msg.utime = now;
+  msg.format = "treeviewer_json";
+  msg.format_version_major = 1;
+  msg.format_version_minor = 0;
+  msg.data.clear();
+  for (auto& c : j.dump())
+    msg.data.push_back(c);
+  msg.num_bytes = j.dump().size();
+  // Use channel 0 for remote viewer communications.
+  lcm_.get_lcm_instance()->publish("DIRECTOR_TREE_VIEWER_REQUEST_<0>", &msg);
+}
+
+
+void RemoteTreeViewerWrapper::updateTransform(const Eigen::Affine3d tf, std::vector<std::string> path){
+  long long int now = getUnixTime() * 1000 * 1000;
+
+  // Extract std::vector-formatted translation and quaternion from the tf
+  vector<double> translation = {
+    tf.translation()[0], 
+    tf.translation()[1], 
+    tf.translation()[2]};
+  Quaterniond q(tf.rotation());
+  vector<double> rotation = { q.w(), q.x(), q.y(), q.z() };
+
+  // Format a JSON string for this settransform call
+  json j = {
+    {"timestamp", now},
+    {"setgeometry", json({})},
+    {"settransform", 
+      {{
+        {"path", path},
+        {"transform", 
+          {
+            {"translation", translation},
+            {"quaternion", rotation}
+          }
+        }
+      }}
+    },
+    {"delete", json({})}
+  };
 
   auto msg = viewer2_comms_t();
   msg.utime = now;
