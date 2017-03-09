@@ -96,8 +96,7 @@ ExternalProject_Add(json
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX} 
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     -DBuildTests:BOOL=FALSE
-  UPDATE_COMMAND ""
-  INSTALL_COMMAND make install)
+  INSTALL_COMMAND make install && mkdir -p ${CMAKE_INSTALL_PREFIX}/../include/nlohmann && cp -s ${CMAKE_INSTALL_PREFIX}/include/nlohmann/json.hpp ${CMAKE_INSTALL_PREFIX}/../include/nlohmann/json.hpp)
 
 ExternalProject_Add(ContactParticleFilter
   SOURCE_DIR ${source_dir}/src/ContactParticleFilter
@@ -116,7 +115,7 @@ ExternalProject_Add(RemoteTreeViewer
   CMAKE_CACHE_ARGS
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-  DEPENDS drake
+  DEPENDS drake json
 )
 
 if (WITH_DRIVERS)
