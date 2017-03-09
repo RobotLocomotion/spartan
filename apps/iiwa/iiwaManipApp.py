@@ -17,7 +17,12 @@ from director import fieldcontainer
 from director import framevisualization
 from director import drcargs
 
-import mytaskpanel
+
+# todo-
+# the optitrack driver build system needs to lcm gen and install python files
+# for now, set PYTHONPATH manually in order to find and import the optitrack lcmtypes
+sys.path.append(os.path.join(os.environ['SPARTAN_SOURCE_DIR'], 'drivers/optitrack'))
+from director.optitrackvisualizer import OptitrackVisualizer
 
 import PythonQt
 from PythonQt import QtCore, QtGui
@@ -221,6 +226,20 @@ def makeDrakeSimObjectSync(drakeSimName, affordanceName):
     return t
 
 
+# todo
+# write a OPTITRACK_TO_FRAMES bot-frames translator
+# add bot-frames to iiwaManip.cfg file for robot_to_optitrack_body, and optitrack_to_world.
+# state translator uses bot-frames to set floating base joint in EST_ROBOT_STATE
+def setRobotPoseFromOptitrack(robotToBodyOffset=[0.0, -0.035, 0.0, -90, -90.5, 0], optitrackBodyName='Body 1'):
+    bodyToWorld = om.findObjectByName(optitrackBodyName + ' frame').transform
+    robotToBody = transformUtils.frameFromPositionAndRPY(robotToBodyOffset[:3], robotToBodyOffset[3:])
+    robotToWorld = transformUtils.concatenateTransforms([robotToBody, bodyToWorld])
+    pos, quat = transformUtils.poseFromTransform(robotToWorld)
+    rpy = transformUtils.quaternionToRollPitchYaw(quat)
+    robotSystem.robotStateJointController.q[:6] = np.hstack((pos,rpy))
+    robotSystem.robotStateJointController.push()
+
+
 #####################################################
 
 
@@ -231,6 +250,9 @@ roboturdf.addPathsFromPackageMap(packageMap)
 robotSystem = makeRobotSystem(view)
 
 
+optitrackVis = OptitrackVisualizer('OPTITRACK_FRAMES')
+optitrackVis.setEnabled(True)
+applogic.MenuActionToggleHelper('Tools', optitrackVis.name, optitrackVis.isEnabled, optitrackVis.setEnabled)
 
 app.addWidgetToDock(robotSystem.teleopPanel.widget, QtCore.Qt.RightDockWidgetArea).hide()
 app.addWidgetToDock(robotSystem.playbackPanel.widget, QtCore.Qt.BottomDockWidgetArea).hide()
@@ -243,6 +265,8 @@ setGripperJointPositions(robotSystem.playbackRobotModel, 0.04)
 
 
 if havePerceptionDrivers():
+
+    import mytaskpanel
 
     imageManager = initImageManager()
     openniDepthPointCloud = initDepthPointCloud(imageManager, view)
