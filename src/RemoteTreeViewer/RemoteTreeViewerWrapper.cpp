@@ -152,18 +152,31 @@ void RemoteTreeViewerWrapper::publishRawMesh(const Matrix3Xd verts, std::vector<
   lcm_.get_lcm_instance()->publish("DIRECTOR_TREE_VIEWER_REQUEST_<0>", &msg);
 }
 
-void RemoteTreeViewerWrapper::publishRigidBodyTree(const RigidBodyTree<double>& tree, const VectorXd q, const Vector4d color, vector<string> path){
+void RemoteTreeViewerWrapper::publishRigidBodyTree(const RigidBodyTree<double>& tree, const VectorXd q, const Vector4d color, vector<string> path, bool visual){
   auto kinematics_cache = tree.doKinematics(q);
   for (const auto& body : tree.bodies) {
-    for (const auto& collision_elem_id : body->get_collision_element_ids()) {
-      auto element = tree.FindCollisionElement(collision_elem_id);
-      if (element->hasGeometry()){
-        vector<string> full_name = path;
-        full_name.push_back(body->get_name());
-        publishGeometry(element->getGeometry(),
-          tree.relativeTransform(kinematics_cache, 0, body->get_body_index()) * element->getLocalTransform(), 
-          color,
-          full_name);
+    if (visual){
+      for (const auto& element : body->get_visual_elements()){
+        if (element.hasGeometry()){
+          vector<string> full_name = path;
+          full_name.push_back(body->get_name());
+          publishGeometry(element.getGeometry(),
+            tree.relativeTransform(kinematics_cache, 0, body->get_body_index()) * element.getLocalTransform(), 
+            color,
+            full_name);
+        }
+      }
+    } else {
+      for (const auto& collision_elem_id : body->get_collision_element_ids()) {
+        auto element = tree.FindCollisionElement(collision_elem_id);
+        if (element->hasGeometry()){
+          vector<string> full_name = path;
+          full_name.push_back(body->get_name());
+          publishGeometry(element->getGeometry(),
+            tree.relativeTransform(kinematics_cache, 0, body->get_body_index()) * element->getLocalTransform(), 
+            color,
+            full_name);
+        }
       }
     }
   }
@@ -247,6 +260,7 @@ void RemoteTreeViewerWrapper::publishGeometry(const Geometry& geometry, Affine3d
       const Mesh * mesh = static_cast<const Mesh *>(&geometry);
       j["setgeometry"][0]["geometry"]["type"] = string("mesh_file");
       j["setgeometry"][0]["geometry"]["filename"] = mesh->resolved_filename_;
+      j["setgeometry"][0]["geometry"]["scale"] = vector<double>({mesh->scale_[0], mesh->scale_[1], mesh->scale_[2]});
       }
       break;
     case CAPSULE:      {
