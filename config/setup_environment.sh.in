@@ -5,7 +5,7 @@ export SPARTAN_INSTALL_DIR=@CMAKE_INSTALL_PREFIX@
 export LD_LIBRARY_PATH=$SPARTAN_INSTALL_DIR/lib:$LD_LIBRARY_PATH
 export PYTHONPATH=$PYTHONPATH:$SPARTAN_INSTALL_DIR/lib/python2.7/site-packages:$SPARTAN_INSTALL_DIR/lib/python2.7/dist-packages
 export PATH=$SPARTAN_INSTALL_DIR/bin:$SPARTAN_SOURCE_DIR/scripts/bin:$PATH
-
+export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$SPARTAN_SOURCE_DIR/models
 alias makedirector='make -C $SPARTAN_BUILD_DIR/director/src/director-build install'
 alias makedrake='make -C $SPARTAN_BUILD_DIR/drake/drake install'
 

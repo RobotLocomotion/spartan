@@ -116,6 +116,17 @@ ExternalProject_Add(RemoteTreeViewer
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   DEPENDS drake json
+  INSTALL_COMMAND make install
+)
+
+ExternalProject_Add(ShadowHand
+  SOURCE_DIR ${source_dir}/src/ShadowHand
+  BINARY_DIR ${build_dir}/ShadowHand
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+  DEPENDS drake json RemoteTreeViewer
 )
 
 if (WITH_DRIVERS)
