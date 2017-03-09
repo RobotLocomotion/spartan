@@ -43,7 +43,7 @@ debug:
 
   # toggles whether to use residual publish on "RESIDUAL_OBSERVER_STATE" or
   # or "RESIDUAL_ACTUAL"
-  useTrueResidual: True
+  useTrueResidual: False
   # placeholder for now, not in use
   residualChannel: "RESIDUAL_OBSERVER_STATE" # alternate channel is "RESIDUAL_ACTUAL"
   maxNumParticleSets: 1
