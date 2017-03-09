@@ -9,6 +9,11 @@ group "1.vision-drivers" {
     exec = "drc-apriltags-driver --quiet=true --window=false --config=$SPARTAN_SOURCE_DIR/apps/iiwa/tri_iiwa_apriltags.yaml";
     host = "localhost";
   }
+
+  cmd "0.optitrack-driver" {
+    exec = "python $SPARTAN_SOURCE_DIR/drivers/optitrack/optitrack_client.py";
+    host = "localhost";
+  }
 }
 
 group "2.iiwa-drivers" {
@@ -51,7 +56,7 @@ cmd "6.signal-scope" {
   host = "localhost";
 }
 
-group "5.ContactParticleFilter" {
+group "7.ContactParticleFilter" {
 
   cmd "0.drake-visualizer with CPF" {
     exec = "python $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/director_cpf_launch.py";
