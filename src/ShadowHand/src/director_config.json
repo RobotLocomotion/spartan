@@ -1,0 +1,41 @@
+{
+  "modelName" : "shadow_hand",
+  "urdfConfig": {
+    "default": "models/shadow_hand/hand/shadow_hand_lite.urdf",
+    "robotState": "models/shadow_hand/hand/shadow_hand_lite.urdf",
+    "ik":         "models/shadow_hand/hand/shadow_hand_lite.urdf",
+    "chull":      "models/shadow_hand/hand/shadow_hand_lite.urdf",
+    "playback":   "models/shadow_hand/hand/shadow_hand_lite.urdf",
+    "teleop":     "models/shadow_hand/hand/shadow_hand_lite.urdf"
+  },
+
+  "teleopJointGroups" : [
+    { "name" : "All",
+      "joints" : [
+        "rh_FFJ1",
+        "rh_FFJ2",
+        "rh_FFJ3"
+        ],
+      "labels" : ["FFJ1", "FFJ2", "FFJ3"]
+    }
+  ],
+
+ "drakeJointNames": [
+   "base_x",
+   "base_y",
+   "base_z",
+   "base_roll",
+   "base_pitch",
+   "base_yaw"
+ ],
+
+ "robotStateJointNames": [
+ ],
+
+  "planningMode" : "pydrake",
+  "postureDatabaseFile" : "stored_poses.json",
+
+  "handCombinations": [],
+  "userConfig" : ["fixedBaseArm"]
+
+}

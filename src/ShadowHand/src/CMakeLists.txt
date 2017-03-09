@@ -14,5 +14,5 @@ message("Eigen3 include dir" ${EIGEN3_INCLUDE_DIR})
 find_package(drake REQUIRED)
 
 add_executable(run_shadow_hand_sim run_shadow_hand_sim.cpp)
-target_link_libraries(run_shadow_hand_sim lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp z pthread)
+target_link_libraries(run_shadow_hand_sim lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeTrajectories drakeLCMUtil drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp z pthread)
 install(TARGETS run_shadow_hand_sim DESTINATION bin)
