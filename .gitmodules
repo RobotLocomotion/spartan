@@ -16,3 +16,6 @@
 [submodule "externals/json"]
 	path = externals/json
 	url = https://github.com/nlohmann/json
+[submodule "models/shadow_hand"]
+	path = models/shadow_hand
+	url = https://github.com/gizatt/shadow_hand_models
