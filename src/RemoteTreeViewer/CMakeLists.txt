@@ -3,7 +3,6 @@ project(RemoteTreeViewer)
 set(CMAKE_CXX_STANDARD 11)
 
 find_package(drake REQUIRED)
-find_package(nlohmann_json REQUIRED)
 
 add_library(RemoteTreeViewerWrapper SHARED RemoteTreeViewerWrapper.cpp)
 target_link_libraries(RemoteTreeViewerWrapper lcm drakeRBM drakeJoints drakeShapes drakeCommon z pthread)

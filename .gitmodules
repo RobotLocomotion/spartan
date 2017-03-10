@@ -13,6 +13,3 @@
 [submodule "signal-scope"]
 	path = signal-scope
 	url = https://github.com/openhumanoids/signal-scope.git
-[submodule "externals/json"]
-	path = externals/json
-	url = https://github.com/nlohmann/json
