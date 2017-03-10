@@ -21,11 +21,12 @@ def onIiwaStatus(msg):
     fingerJointNames = ['wsg_50_finger_left_joint', 'wsg_50_finger_right_joint']
     fingerJointPositions = [fingerHalfDist, fingerHalfDist]
 
-    armJointNames = ['iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3', 'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6', 'iiwa_joint_7']
+    armJointNames = ['iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3', 'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6', 'iiwa_joint_7',
+                     'iiwa2_joint_1', 'iiwa2_joint_2', 'iiwa2_joint_3', 'iiwa2_joint_4', 'iiwa2_joint_5', 'iiwa2_joint_6', 'iiwa2_joint_7']
     armJointPositions = list(msg.joint_position_measured)
 
-    jointNames = armJointNames + fingerJointNames
-    jointPositions = armJointPositions + fingerJointPositions
+    jointNames = armJointNames# + fingerJointNames
+    jointPositions = armJointPositions# + fingerJointPositions
 
     m = lcmbotcore.robot_state_t()
     m.utime = msg.utime

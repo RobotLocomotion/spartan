@@ -263,6 +263,56 @@ setGripperJointPositions(robotSystem.robotStateModel, 0.04)
 setGripperJointPositions(robotSystem.teleopRobotModel, 0.04)
 setGripperJointPositions(robotSystem.playbackRobotModel, 0.04)
 
+ikPlanner = robotSystem.ikPlanner
+robotStateJointController = robotSystem.robotStateJointController
+
+def getPlanningStartPose():
+    return robotStateJointController.q.copy()
+
+
+def computeBimanualPosture(leftPostureName, rightPostureName):
+    endPose = getPlanningStartPose()
+    endPose = ikPlanner.getMergedPostureFromDatabase(endPose, 'General', leftPostureName, 'left')
+    endPose = ikPlanner.getMergedPostureFromDatabase(endPose, 'General', rightPostureName, 'right')
+    return endPose
+
+def planBimanualPosture(leftPostureName, rightPostureName, startPose=None):
+    if startPose is None:
+        startPose = getPlanningStartPose()
+    endPose = computeBimanualPosture(leftPostureName, rightPostureName)
+    return ikPlanner.computePostureGoal(startPose, endPose)
+
+def planBothZero():
+    planBimanualPosture('q_zero', 'q_zero')
+
+def planBothNominal():
+    planBimanualPosture('q_nom', 'q_nom')
+
+def planLeftZeroRightNominal():
+    planBimanualPosture('q_zero', 'q_nom')
+
+def planLeftNominalRightZero():
+    planBimanualPosture('q_nom', 'q_zero')
+
+def bimanualDemo():
+    from director import pydrakeik
+    pydrakeik.useWarpTime = False
+    poses = [getPlanningStartPose(),
+             computeBimanualPosture('q_nom', 'q_nom'),
+             computeBimanualPosture('q_zero', 'q_zero'),
+             computeBimanualPosture('q_nom', 'q_nom'),
+             computeBimanualPosture('q_zero', 'q_nom'),
+             computeBimanualPosture('q_nom', 'q_zero'),
+             computeBimanualPosture('q_zero', 'q_nom'),
+             computeBimanualPosture('q_nom', 'q_zero'),
+             computeBimanualPosture('q_nom', 'q_nom')]
+    plans = []
+    for a, b in zip(poses, poses[1:]):
+        ikPlanner.computePostureGoal(a, b)
+        plans.append(ikPlanner.lastManipPlan)
+    plan = robotSystem.planPlayback.mergePlanMessages(plans)
+    lcmUtils.publish('CANDIDATE_MANIP_PLAN', plan)
+
 
 if havePerceptionDrivers():
 

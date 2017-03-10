@@ -18,8 +18,13 @@ group "1.vision-drivers" {
 
 group "2.iiwa-drivers" {
 
-  cmd "0.kuka-driver" {
-    exec = "kuka_driver";
+  cmd "0.kuka-driver-dual-1" {
+    exec = "kuka_driver_dual_1";
+    host = "localhost";
+  }
+
+  cmd "0.kuka-driver-dual-2" {
+    exec = "kuka_driver_dual_2";
     host = "localhost";
   }
 
@@ -30,6 +35,11 @@ group "2.iiwa-drivers" {
 
   cmd "2.state-translator" {
     exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py";
+    host = "localhost";
+  }
+
+  cmd "3.status-translator" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_status_translator.py";
     host = "localhost";
   }
 }

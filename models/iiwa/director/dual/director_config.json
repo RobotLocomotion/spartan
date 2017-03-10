@@ -1,0 +1,103 @@
+{
+  "modelName" : "kuka_iiwa",
+  "urdfConfig": {
+    "default":    "../../dual_iiwa_description/iiwa14_simplified_collision.urdf",
+    "robotState": "../../dual_iiwa_description/iiwa14_simplified_collision.urdf",
+    "ik":         "../../dual_iiwa_description/iiwa14_simplified_collision.urdf",
+    "chull":      "../../dual_iiwa_description/iiwa14_simplified_collision.urdf",
+    "playback":   "../../dual_iiwa_description/iiwa14_simplified_collision.urdf",
+    "teleop":     "../../dual_iiwa_description/iiwa14_simplified_collision.urdf"
+  },
+
+  "teleopJointGroups" : [
+    { "name" : "Left Arm",
+      "joints" : [
+        "iiwa_joint_1",
+        "iiwa_joint_2",
+        "iiwa_joint_3",
+        "iiwa_joint_4",
+        "iiwa_joint_5",
+        "iiwa_joint_6",
+        "iiwa_joint_7"
+        ],
+      "labels" : ["1", "2", "3", "4", "5", "6", "7"]
+    },
+    { "name" : "Right Arm",
+      "joints" : [
+        "iiwa2_joint_1",
+        "iiwa2_joint_2",
+        "iiwa2_joint_3",
+        "iiwa2_joint_4",
+        "iiwa2_joint_5",
+        "iiwa2_joint_6",
+        "iiwa2_joint_7"
+        ],
+      "labels" : ["1", "2", "3", "4", "5", "6", "7"]
+    }
+  ],
+
+  "mirrorJointSignFlips" : [
+    "iiwa_joint_1",
+    "iiwa_joint_3",
+    "iiwa_joint_5",
+    "iiwa_joint_7",
+    "iiwa2_joint_1",
+    "iiwa2_joint_3",
+    "iiwa2_joint_5",
+    "iiwa2_joint_7"
+  ],
+
+  "drakeJointNames": [
+    "base_x",
+    "base_y",
+    "base_z",
+    "base_roll",
+    "base_pitch",
+    "base_yaw",
+    "iiwa_joint_1",
+    "iiwa_joint_2",
+    "iiwa_joint_3",
+    "iiwa_joint_4",
+    "iiwa_joint_5",
+    "iiwa_joint_6",
+    "iiwa_joint_7",
+    "iiwa2_joint_1",
+    "iiwa2_joint_2",
+    "iiwa2_joint_3",
+    "iiwa2_joint_4",
+    "iiwa2_joint_5",
+    "iiwa2_joint_6",
+    "iiwa2_joint_7"
+  ],
+
+  "robotStateJointNames": [
+    "iiwa_joint_1",
+    "iiwa_joint_2",
+    "iiwa_joint_3",
+    "iiwa_joint_4",
+    "iiwa_joint_5",
+    "iiwa_joint_6",
+    "iiwa_joint_7",
+    "iiwa2_joint_1",
+    "iiwa2_joint_2",
+    "iiwa2_joint_3",
+    "iiwa2_joint_4",
+    "iiwa2_joint_5",
+    "iiwa2_joint_6",
+    "iiwa2_joint_7"
+  ],
+
+  "planningMode" : "pydrake",
+  "fixedPointFile" : "nominal_pose.csv",
+  "postureDatabaseFile" : "stored_poses.json",
+
+
+  "userConfig" : ["fixedBaseArm"],
+
+  "endEffectorConfig" : {
+    "endEffectorLinkNames": ["iiwa_link_ee", "iiwa2_link_ee"],
+    "graspOffsetFrame" : [[0.185,0.0,0], [-0.3926,0.0,0.0]],
+    "fixedJoints" : ["base_x","base_y","base_z","base_roll","base_pitch","base_yaw"]
+  }
+
+}
