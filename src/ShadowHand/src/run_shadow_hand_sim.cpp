@@ -56,7 +56,7 @@ class RequestedControlPointMonitor : public DrakeLcmMessageHandlerInterface {
     // Either update an old goal or add this new one
     bool found_goal = false;
     for (auto & goal : goals){
-      if (goal.goal_frame = new_goal.goal_frame){
+      if (goal.goal_frame == new_goal.goal_frame){
         goal = new_goal;
         found_goal = true;
         break;
@@ -64,6 +64,9 @@ class RequestedControlPointMonitor : public DrakeLcmMessageHandlerInterface {
     }
     if (!found_goal){
       goals.push_back(new_goal);
+      printf("New goal registered for frame %d -> %s\n", new_goal.goal_frame, msg.body_or_frame_name.c_str());
+    } else {
+      printf("Updated goal for frame %d -> %s\n", new_goal.goal_frame, msg.body_or_frame_name.c_str());
     }
   };
 };
