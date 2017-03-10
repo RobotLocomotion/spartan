@@ -5,7 +5,7 @@
 #include <iostream>
 #include <random>
 #include <unistd.h>
-#include "nlohmann/json.hpp"
+#include "json.hpp"
 
 #include "lcmtypes/robotlocomotion/viewer2_comms_t.hpp"
 
