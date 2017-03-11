@@ -118,7 +118,7 @@ if (WITH_PERCEPTION)
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-    DEPENDS drake RemoteTreeViewer
+    DEPENDS drake director RemoteTreeViewer
   )
 
 endif()
