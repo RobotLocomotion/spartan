@@ -78,6 +78,9 @@ int main(int argc, char** argv) {
     scene_pts(2, i) = cloud.at(i).z;
   }
 
+  // Generate random pose estimate
+  q_robot = VectorXd::Random(q_robot.rows(), 1);
+
   // Visualize the results using the drake visualizer.
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
@@ -86,7 +89,22 @@ int main(int argc, char** argv) {
 
   if (argc > 2){
     string outputFilename = string(argv[2]);
-    cout << "TODO output to file " << outputFilename << endl;
+
+    YAML::Emitter out;
+    out << YAML::BeginSeq;
+    
+    out << YAML::BeginMap;
+    out << YAML::Key << "pose";
+    out << YAML::Value << YAML::Flow << vector<double>(q_robot.data(), q_robot.data() + q_robot.rows());
+    out << YAML::Key << "score";
+    out << YAML::Value << 0.0;
+    out << YAML::EndMap;
+
+    out << YAML::EndSeq;
+
+    ofstream fout(outputFilename);
+    fout << out.c_str();
+    fout.close();
   }
 
   return 0;
