@@ -9,7 +9,7 @@
 	url = https://github.com/RobotLocomotion/drake-iiwa-driver.git
 [submodule "drivers/drake-schunk-driver"]
 	path = drivers/drake-schunk-driver
-	url = https://github.com/RobotLocomotion/drake-schunk-driver.git
+	url = git@github.com:RobotLocomotion/drake-schunk-driver.git
 [submodule "signal-scope"]
 	path = signal-scope
 	url = https://github.com/openhumanoids/signal-scope.git
