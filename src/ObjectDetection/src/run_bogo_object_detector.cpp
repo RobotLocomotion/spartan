@@ -91,16 +91,37 @@ int main(int argc, char** argv) {
     string outputFilename = string(argv[2]);
 
     YAML::Emitter out;
-    out << YAML::BeginSeq;
-    
-    out << YAML::BeginMap;
-    out << YAML::Key << "pose";
-    out << YAML::Value << YAML::Flow << vector<double>(q_robot.data(), q_robot.data() + q_robot.rows());
-    out << YAML::Key << "score";
-    out << YAML::Value << 0.0;
-    out << YAML::EndMap;
+    out << YAML::BeginSeq; {
+      out << YAML::BeginMap; {
+        out << YAML::Key << "score";
+        out << YAML::Value << 0.0;
 
-    out << YAML::EndSeq;
+        out << YAML::Key << "models";
+        out << YAML::Value << YAML::BeginSeq; {
+
+          VectorXd q_robot_this;
+          for (int i = 0; i < robot.get_num_model_instances(); i++) {
+            auto bodies = robot.FindModelInstanceBodies(i);
+            for (const auto& body : bodies){
+              int old_size = q_robot_this.rows();
+              int new_rows = body->getJoint().get_num_positions();
+              q_robot_this.conservativeResize(old_size + new_rows);
+              q_robot_this.block(old_size, 0, new_rows, 1) = 
+                q_robot.block(body->get_position_start_index(), 0, new_rows, 1);
+            }
+
+            out << YAML::BeginMap; {
+              out << YAML::Key << "urdf";
+              // I assume the model instances are in same order as model members in the config yaml...
+              out << YAML::Key << config["models"][i]["urdf"].as<string>();
+              out << YAML::Key << "q";
+              out << YAML::Value << YAML::Flow << vector<double>(q_robot_this.data(), q_robot_this.data() + q_robot_this.rows());
+            }
+
+          } 
+        } out << YAML::EndSeq;
+      } out << YAML::EndMap;
+    } out << YAML::EndSeq;
 
     ofstream fout(outputFilename);
     fout << out.c_str();

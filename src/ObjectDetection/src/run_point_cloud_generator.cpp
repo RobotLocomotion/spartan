@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
   srand(getUnixTime());
 
   if (argc < 2){
-    printf("Use: run_point_cloud_generator <config file> <optional output_file>\n");
+    printf("Use: run_point_cloud_generator <config file> <optional output_file> <optional ground_truth_output_file\n");
     exit(-1);
   }
 
@@ -31,6 +31,9 @@ int main(int argc, char** argv) {
   cout << "Config file " << string(argv[1]) << endl;
   if (argc > 2)
     cout << "Output file " << string(argv[2]) << endl;
+  cout << "***************************" << endl << endl;
+  if (argc > 3)
+    cout << "Ground truth output file " << string(argv[3]) << endl;
   cout << "***************************" << endl << endl;
 
   // Bring in config file
@@ -60,6 +63,15 @@ int main(int argc, char** argv) {
     }
     pcl::io::savePCDFileASCII(outputFilename, cloud);
     cout << "Saved " << cloud.size() << " points to " << outputFilename << endl;
+  }
+
+  if (argc > 3){
+    // Spit out a ground truth annotation file as well
+    // This is very simple... just grab the models node of the point cloud
+    // config and spit that out on its own.
+    ofstream fout(argv[3]);
+    fout << config["point_cloud_generator_options"]["models"];
+    fout.close();
   }
   return 0;
 }
