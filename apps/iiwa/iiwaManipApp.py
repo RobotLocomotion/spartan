@@ -13,10 +13,10 @@ from director import cameraview
 from director import pydrakeik
 from director import packagepath
 from director import roboturdf
+from director import robotlinkselector
 from director import fieldcontainer
 from director import framevisualization
 from director import drcargs
-
 
 # todo-
 # the optitrack driver build system needs to lcm gen and install python files
@@ -262,6 +262,10 @@ setupToolBar()
 setGripperJointPositions(robotSystem.robotStateModel, 0.04)
 setGripperJointPositions(robotSystem.teleopRobotModel, 0.04)
 setGripperJointPositions(robotSystem.playbackRobotModel, 0.04)
+
+
+robotLinkSelector = robotlinkselector.RobotLinkSelector()
+viewBehaviors.addHandler(viewBehaviors.LEFT_DOUBLE_CLICK_EVENT, robotLinkSelector.onLeftDoubleClick)
 
 
 if havePerceptionDrivers():
