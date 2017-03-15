@@ -28,3 +28,7 @@ install(TARGETS run_point_cloud_generator DESTINATION bin)
 add_executable(run_bogo_object_detector run_bogo_object_detector.cpp)
 target_link_libraries(run_bogo_object_detector lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
 install(TARGETS run_bogo_object_detector DESTINATION bin)
+
+add_executable(run_miqp_mesh_model_detector_standalone run_miqp_mesh_model_detector_standalone.cpp)
+target_link_libraries(run_miqp_mesh_model_detector_standalone lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeOptimization drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
+install(TARGETS run_miqp_mesh_model_detector_standalone DESTINATION bin)
