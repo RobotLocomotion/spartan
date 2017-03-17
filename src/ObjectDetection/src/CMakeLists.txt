@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6.0)
 cmake_policy(SET CMP0045 OLD)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11  -std=gnu++14")
 
 include_directories(${CMAKE_INSTALL_PREFIX})
 include_directories(${CMAKE_INSTALL_PREFIX}/include)
@@ -30,5 +30,5 @@ target_link_libraries(run_bogo_object_detector lcm RemoteTreeViewerWrapper drake
 install(TARGETS run_bogo_object_detector DESTINATION bin)
 
 add_executable(run_miqp_mesh_model_detector_standalone run_miqp_mesh_model_detector_standalone.cpp)
-target_link_libraries(run_miqp_mesh_model_detector_standalone lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeOptimization drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
+target_link_libraries(run_miqp_mesh_model_detector_standalone lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeOptimization drakeRotationConstraint drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
 install(TARGETS run_miqp_mesh_model_detector_standalone DESTINATION bin)
