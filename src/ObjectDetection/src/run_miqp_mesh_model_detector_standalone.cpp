@@ -8,6 +8,9 @@
 #include <unistd.h>
 #include <typeinfo>
 
+#include "drake/common/eigen_types.h"
+#include "drake/common/symbolic_formula.h"
+
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 #include "drake/multibody/rigid_body_plant/drake_visualizer.h"
@@ -16,11 +19,7 @@
 #include "drake/solvers/gurobi_solver.h"
 #include "drake/solvers/mosek_solver.h"
 #include "drake/solvers/rotation_constraint.h"
-#include "drake/common/eigen_matrix_compare.h"
-#include "drake/common/eigen_types.h"
 #include "drake/lcm/drake_lcm.h"
-#include "drake/common/symbolic_formula.h"
-#include "drake/common/eigen_types.h"
 
 #include "yaml-cpp/yaml.h"
 #include "common/common.hpp"
@@ -30,7 +29,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/common/geometry.h>
-#include <pcl/common/transforms.h>
+#include <pcl/common/transforms.h>  
 
 #include "RemoteTreeViewerWrapper.hpp"
 
@@ -176,15 +175,15 @@ class MILPMultipleMeshModelDetector {
       auto f = prog.NewBinaryVariables(scene_pts.cols(), F.rows(),"f");
 
       struct TransformationVars {
-        VectorXDecisionVariable T;
-        MatrixXDecisionVariable R;
+        VectorDecisionVariable<3> T;
+        MatrixDecisionVariable<3,3> R;
       };
       std::vector<TransformationVars> transform_by_object;
       for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
         TransformationVars new_tr;
         char name_postfix[100];
         sprintf(name_postfix, "_%s_%d", robot_.get_body(body_i).get_model_name().c_str(), body_i);
-        new_tr.T = prog.NewContinuousVariables(3, string("T")+string(name_postfix));
+        new_tr.T = prog.NewContinuousVariables<3>(string("T")+string(name_postfix));
         prog.AddBoundingBoxConstraint(-100*VectorXd::Ones(3), 100*VectorXd::Ones(3), new_tr.T);
         new_tr.R = NewRotationMatrixVars(&prog, string("R") + string(name_postfix));
 
@@ -215,13 +214,9 @@ class MILPMultipleMeshModelDetector {
           }
         } else {
           // constrain rotations to ground truth
-          // I know I can do this in one constraint with 9 rows, but eigen was giving me trouble
           auto ground_truth_tf = robot_.relativeTransform(robot_kinematics_cache, robot_.get_body(body_i).get_body_index(), 0);
-          for (int i=0; i<3; i++){
-            for (int j=0; j<3; j++){
-              prog.AddLinearEqualityConstraint(Eigen::MatrixXd::Identity(1, 1), ground_truth_tf.rotation()(i, j), new_tr.R.block<1,1>(i, j));
-            }
-          }
+          drake::symbolic::Formula f = new_tr.R == ground_truth_tf.rotation(); // rotation type is Matrix3Xd
+          prog.AddLinearConstraint(f);
         }
 
         transform_by_object.push_back(new_tr);
