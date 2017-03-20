@@ -215,10 +215,11 @@ class MILPMultipleMeshModelDetector {
         } else {
           // constrain rotations to ground truth
           auto ground_truth_tf = robot_.relativeTransform(robot_kinematics_cache, robot_.get_body(body_i).get_body_index(), 0);
-          drake::symbolic::Formula f = new_tr.R == ground_truth_tf.rotation(); // rotation type is Matrix3Xd
-          prog.AddLinearConstraint(f);
+          // Formulas only work for vectors, so implement this constraint column-wise
+          for (int i = 0; i < 3; ++i) {
+            prog.AddLinearEqualityConstraint(new_tr.R.col(i) - ground_truth_tf.rotation().col(i), Eigen::Vector3d::Zero());
+          }
         }
-
         transform_by_object.push_back(new_tr);
       }
 
