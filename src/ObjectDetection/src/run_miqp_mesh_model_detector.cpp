@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
     }
   }
   robot.compile();
-  
+
   // Load point cloud
   pcl::PointCloud<pcl::PointXYZ> cloud;
   pcl::io::loadPCDFile<PointType>( pcdFile, cloud);
@@ -147,8 +147,8 @@ int main(int argc, char** argv) {
   // A possible route for doing that projection
   // would be forming a call to Drake's InverseKin
   // which will do the projection as an NLP.
-  if (argc > 2){
-    string outputFilename = string(argv[2]);
+  if (argc > 3){
+    string outputFilename = string(argv[3]);
 
     YAML::Emitter out;
     out << YAML::BeginSeq;

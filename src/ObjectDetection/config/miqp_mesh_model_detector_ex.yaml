@@ -11,7 +11,7 @@ point_cloud_generator_options:
     sample_distance: 0.05
     
     models:
-       - urdf: "../models/urdf/cubes_jointed.urdf"
+       - urdf: "models/urdf/cubes_jointed.urdf"
          q0: [0.1, 0, 2, 0.2, -0.2, 0.5, 0.2]
        #- urdf: "../urdf/cubes.urdf"
        #  q0: [0.5, 0, 0, 0, 0, 0.2, 0.1, 0, 0, 0, 0, -0.2]
@@ -36,6 +36,8 @@ detector_options:
     use_initial_guess: true
     corruption_amount: 0.00
 
+    downsample_to_this_many_points: 10
+
     gurobi_int_options:
         #MIPFocus: 1
         #PoolSearchMode: 0
@@ -44,14 +46,14 @@ detector_options:
         Threads: 10
 
     gurobi_float_options:
-        TimeLimit: 60
+        TimeLimit: 120
         #PoolGap: 0.0
         FeasRelaxBigM: 100
         MIPGap: 0.0
         #Heuristics: 0.05
 
     models:
-       - urdf: "../models/urdf/cubes_jointed.urdf"
+       - urdf: "models/urdf/cubes_jointed.urdf"
          q0: [0.1, 0, 2, 0.2, -0.2, 0.5, 0.2]
        #- urdf: "../urdf/cubes.urdf"
        #  q0: [0.5, 0, 0, 0, 0, 0.2, 0.1, 0, 0, 0, 0, -0.2]
