@@ -14,11 +14,11 @@
 class MIQPMultipleMeshModelDetector {
   public:
     struct PointCorrespondence {
-      Vector3d scene_pt;
-      Vector3d model_pt;
+      Eigen::Vector3d scene_pt;
+      Eigen::Vector3d model_pt;
       int face_ind;
       int scene_ind;
-      std::vector<Vector3d> model_verts;
+      std::vector<Eigen::Vector3d> model_verts;
       std::vector<double> vert_weights;
       std::vector<int> vert_inds;
     };
@@ -44,13 +44,14 @@ class MIQPMultipleMeshModelDetector {
 
   private:
     RigidBodyTree<double> robot_;
-    VectorXd q_robot_gt_;
+    Eigen::VectorXd q_robot_gt_;
 
     YAML::Node config_;
 
     int optNumRays_ = 10;
     int optRotationConstraint_ = 4;
     int optRotationConstraintNumFaces_ = 2;
+    int optDownsampleToThisManyPoints_ = -1;
     bool optAllowOutliers_ = true;
     double optPhiMax_ = 0.1;
     bool optUseInitialGuess_ = false;

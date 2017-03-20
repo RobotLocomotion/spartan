@@ -46,6 +46,8 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
     optUseInitialGuess_ = config["use_initial_guess"].as<bool>();
   if (config["corruption_amount"])
     optCorruption_ = config["corruption_amount"].as<double>();
+  if (config["downsample_to_this_many_points"])
+    optDownsampleToThisManyPoints_ = config["downsample_to_this_many_points"].as<int>();
 
   config_ = config;
 
@@ -70,7 +72,21 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
   }
 }
 
-std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetection(Eigen::Matrix3Xd scene_pts){
+std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetection(Eigen::Matrix3Xd scene_pts_in){
+  Eigen::Matrix3Xd scene_pts;
+  if (optDownsampleToThisManyPoints_ < 0) {
+    scene_pts = scene_pts_in;
+  } else {
+    scene_pts.resize(3, optDownsampleToThisManyPoints_);
+    VectorXi indices = VectorXi::LinSpaced(scene_pts_in.cols(), 0, scene_pts_in.cols());
+    std::random_shuffle(indices.data(), indices.data() + scene_pts_in.cols());
+    for (int i = 0; i < optDownsampleToThisManyPoints_; i++) {
+      scene_pts.col(i) = scene_pts_in.col(indices[i]);
+    }    
+  }
+  RemoteTreeViewerWrapper rm;
+  rm.publishPointCloud(scene_pts, {"scene_pts_downsampled"});
+
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
 
   // Extract vertices and meshes from the RBT.
