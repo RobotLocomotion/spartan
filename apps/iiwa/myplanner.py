@@ -11,6 +11,7 @@ class MyPlanner(object):
         self.robotModel = robotSystem.robotStateModel
         self.ikPlanner = robotSystem.ikPlanner
         self.objectPicker = pointpicker.ObjectPicker(robotSystem.view)
+        self.affordance_name = None
 
     def reloadModule(self):
         import imp
@@ -20,8 +21,14 @@ class MyPlanner(object):
         iiwaplanning.fitObjectOnSupport()
         iiwaplanning.addGraspFrames()
 
+    def setAffordanceName(self, name):
+        self.affordance_name = name
+
     def getAffordanceName(self):
-        return self.properties.getPropertyEnumValue('Affordance name')
+        if self.affordance_name is not None:
+            return self.affordance_name
+        else:
+            return self.properties.getPropertyEnumValue('Affordance name')
 
     def getGraspFrameSuffix(self):
         return self.graspFrameSuffix
