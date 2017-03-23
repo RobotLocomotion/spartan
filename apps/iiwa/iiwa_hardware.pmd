@@ -11,7 +11,7 @@ group "1.vision-drivers" {
   }
 
   cmd "0.optitrack-driver" {
-    exec = "python $SPARTAN_SOURCE_DIR/drivers/optitrack/optitrack_client.py";
+    exec = "python $SPARTAN_SOURCE_DIR/src/optitrack/optitrack_client.py";
     host = "localhost";
   }
 }
