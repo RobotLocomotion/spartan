@@ -36,7 +36,7 @@ group "2.iiwa-drivers" {
 
 group "3.schunk-driver" {
   cmd "0.schunk-driver" {
-    exec = "$SPARTAN_SOURCE_DIR/drivers/drake-schunk-driver/bazel-bin/src/schunk_driver";
+    exec = "$SPARTAN_BUILD_DIR/externals/drake-schunk-driver/bazel-bin/src/schunk_driver";
     host = "localhost";
   }
 }
