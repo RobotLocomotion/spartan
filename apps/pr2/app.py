@@ -37,5 +37,8 @@ applogic.resetCamera(viewDirection=[-1, 0, 0], view=view)
 # initialize the bhpn translator
 # this listens to JointConf lcm messages from BHPN and translates
 # them into joint states for the PR2 model loaded in drake
+import os
+import sys
+sys.path.append(os.path.dirname(__file__))
 import bhpntranslator
 bhpnTranslator = bhpntranslator.BHPNTranslator(robotSystem.robotStateJointController)
