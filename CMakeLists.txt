@@ -125,12 +125,26 @@ endif()
 if (WITH_DRIVERS)
 
   ExternalProject_Add(drake-iiwa-driver
-    SOURCE_DIR ${source_dir}/drivers/drake-iiwa-driver
+    SOURCE_DIR ${build_dir}/externals/drake-iiwa-driver
     BINARY_DIR ${build_dir}/drake-iiwa-driver
+    GIT_REPOSITORY git@github.com:RobotLocomotion/drake-iiwa-driver.git
+    GIT_TAG 6b26135
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+    DEPENDS drake
+  )
+
+  ExternalProject_Add(drake-schunk-driver
+    SOURCE_DIR ${build_dir}/externals/drake-schunk-driver
+    GIT_REPOSITORY git@github.com:RobotLocomotion/drake-schunk-driver.git
+    GIT_TAG c49829b
+    BUILD_ALWAYS 1
+    BUILD_IN_SOURCE 1
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND bazel build //...
+    INSTALL_COMMAND ""
     DEPENDS drake
   )
 
