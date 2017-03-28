@@ -72,47 +72,55 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
   }
 }
 
-std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetection(Eigen::Matrix3Xd scene_pts_in){
-  Eigen::Matrix3Xd scene_pts;
+void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out){
   if (optDownsampleToThisManyPoints_ < 0) {
-    scene_pts = scene_pts_in;
+    scene_pts_out = scene_pts_in;
   } else {
-    scene_pts.resize(3, optDownsampleToThisManyPoints_);
+    scene_pts_out.resize(3, optDownsampleToThisManyPoints_);
     VectorXi indices = VectorXi::LinSpaced(scene_pts_in.cols(), 0, scene_pts_in.cols());
+    // always seed this the same way
+    srand(0);
     std::random_shuffle(indices.data(), indices.data() + scene_pts_in.cols());
     for (int i = 0; i < optDownsampleToThisManyPoints_; i++) {
-      scene_pts.col(i) = scene_pts_in.col(indices[i]);
+      scene_pts_out.col(i) = scene_pts_in.col(indices[i]);
     }    
   }
+
   RemoteTreeViewerWrapper rm;
-  rm.publishPointCloud(scene_pts, {"scene_pts_downsampled"});
+  rm.publishPointCloud(scene_pts_out, {"scene_pts_downsampled"});
+}
 
-  KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
-
-  // Extract vertices and meshes from the RBT.
-  Matrix3Xd all_vertices;
-  DrakeShapes::TrianglesVector all_faces;
-  vector<int> face_body_map; // maps each face to body index
-  
-  // Collect faces from each body
+void MIQPMultipleMeshModelDetector::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& all_vertices, 
+                              DrakeShapes::TrianglesVector& all_faces, 
+                              std::vector<int>& face_body_map){
+  // Collect faces from each body in our internally-stored RBT,
+  // (except the world, which we skip by starting body_i at 1 instead
+  // of 0).
   for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++) {
     const RigidBody<double>& body = robot_.get_body(body_i);
+    // Extract collision geometry by searching through this body's
+    // corresponding collision element ids.
     auto collision_elems = body.get_collision_element_ids();
     for (const auto& collision_elem : body.get_collision_element_ids()) {
       auto element = robot_.FindCollisionElement(collision_elem);
       if (element->hasGeometry()){
         const DrakeShapes::Geometry & geometry = element->getGeometry();
+
         if (geometry.hasFaces()){
           Matrix3Xd points;
           geometry.getPoints(points);
-          // Transform them into body frame from the geometry-centric frame
+          // Transform these point into body frame from the 
+          // geometry-centric frame.
           points = element->getLocalTransform() * points;
 
+          // Expand all_vertices to contain these new points, and append them.
           all_vertices.conservativeResize(3, points.cols() + all_vertices.cols());
           all_vertices.block(0, all_vertices.cols() - points.cols(), 3, points.cols()) = points;
+
+          // Append the face descriptions as well, being careful to offset the vertex
+          // indices by the preceding number of vertices in all_vertices.
           DrakeShapes::TrianglesVector faces;
           geometry.getFaces(&faces);
-          // Also use this loop to offset the vertex indices to the appropriate all_vertices indices.
           for (auto& face : faces) {
             face[0] += (all_vertices.cols() - points.cols());
             face[1] += (all_vertices.cols() - points.cols());
@@ -124,11 +132,29 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       }
     }
   }
+}
 
-  // And reform those extracted verticies and meshes into
-  // matrices for our optimization
+std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts){
+  KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
+
+  // Extract vertices and meshes from the RBT.
+  Matrix3Xd all_vertices;
+  DrakeShapes::TrianglesVector all_faces;
+  vector<int> face_body_map; // Maps from a face index (into all_faces) to an RBT body index.
+  collectBodyMeshesFromRBT(all_vertices, all_faces, face_body_map);
+
+
+  // See https://www.sharelatex.com/project/5850590c38884b7c6f6aedd1
+  // for details on problem formulation.
+  MathematicalProgram prog;
+
+  // Reform the extracted verticies and meshes into
+  // matrices for our optimization.
+  // F(i, j) is 1 iff vertex j is a member of face i, 0 otherwise.
+  // B(i, j) is 1 iff face j is a member of body i, 0 otherwise.
   MatrixXd F(all_faces.size(), all_vertices.cols());
-  // Don't include the "world" body
+  // (Remember not include the "world" body, so take 1 away from
+  //  robot_.get_num_bodies().)
   MatrixXd B(robot_.get_num_bodies() - 1, all_faces.size());
   B.setZero();
   F.setZero();
@@ -140,10 +166,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     // Don't include the "world" body.
     B(face_body_map[i]-1, i) = 1.0;
   }
-
-  // See https://www.sharelatex.com/project/5850590c38884b7c6f6aedd1
-  // for problem formulation
-  MathematicalProgram prog;
 
   // Allocate slacks to choose minimum L-1 norm over objects
   auto phi = prog.NewContinuousVariables(scene_pts.cols(), 1, "phi");
@@ -417,8 +439,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   }
   */
 
-  double now = getUnixTime();
-
   GurobiSolver gurobi_solver;
   MosekSolver mosek_solver;
 
@@ -531,9 +551,10 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   //  prog.SetSolverOption(SolverType::kGurobi, "TuneResults", 3);
   //prog.SetSolverOption(SolverType::kGurobi, )
 
+  double start_time = getUnixTime();
   auto out = gurobi_solver.Solve(prog);
   string problem_string = "rigidtf";
-  double elapsed = getUnixTime() - now;
+  double elapsed = getUnixTime() - start_time;
 
   //prog.PrintSolution();
   printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);
@@ -604,7 +625,31 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     }
 
     new_solution.objective = prog.GetSolution(phi).sum(); //, sol_i).sum();
+    new_solution.solve_time = elapsed;
     solutions.push_back(new_solution);
+  }
+  return solutions;
+}
+
+std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetection(const Eigen::Matrix3Xd& scene_pts_in){
+  Eigen::Matrix3Xd scene_pts;
+  doScenePointPreprocessing(scene_pts_in, scene_pts);
+
+  // Randomize the rest of this function.
+  srand(time(NULL));
+
+  // Branch on formulation type.
+  std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
+  if (config_["detector_type"] == NULL){
+    runtime_error("MIQPMultipleMeshModelDetector needs a detector type specified.");
+  } else if (config_["detector_type"].as<string>() == 
+             "body_to_world_transforms"){
+    solutions = doObjectDetectionWithWorldToBodyFormulation(scene_pts);
+  } else if (config_["detector_type"].as<string>() == 
+             "world_to_body_transforms"){
+    runtime_error("MIQPMultipleMeshModelDetector has not implemented world_to_body_transforms.");
+  } else {
+    runtime_error("MIQPMultipleMeshModelDetector detector type not understood.");
   }
 
   return solutions;
