@@ -13,6 +13,8 @@ import signal
 def get_miqp_mesh_model_detector_default_options():
   data = dict(
     detector_options = dict(
+      detector_type = "body_to_world_transforms",
+
       # options of rot constraints:
       # 0: constrained to ground truth
       # 1: unconstrained

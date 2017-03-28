@@ -12,7 +12,6 @@
 #include "drake/multibody/parsers/urdf_parser.h"
 #include "drake/multibody/rigid_body_plant/drake_visualizer.h"
 #include "drake/multibody/joints/revolute_joint.h"
-#include "drake/solvers/mathematical_program.h"
 #include "drake/solvers/gurobi_solver.h"
 #include "drake/solvers/mosek_solver.h"
 #include "drake/solvers/rotation_constraint.h"
@@ -30,6 +29,7 @@ using namespace Eigen;
 using namespace drake::parsers::urdf;
 using namespace drake::systems;
 using namespace drake::symbolic;
+using namespace drake::solvers;
 
 const double kBigNumber = 100;
 
@@ -134,6 +134,73 @@ void MIQPMultipleMeshModelDetector::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& a
   }
 }
 
+std::vector<MIQPMultipleMeshModelDetector::TransformationVars> 
+MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalProgram& prog){
+  KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
+  std::vector<TransformationVars> transform_by_object;
+
+  for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
+    TransformationVars new_tr;
+    char name_postfix[100];
+    sprintf(name_postfix, "_%s_%d", robot_.get_body(body_i).get_model_name().c_str(), body_i);
+
+    // Spawn translations and bound them to large but finite values.
+    new_tr.T = prog.NewContinuousVariables<3>(string("T")+string(name_postfix));
+    prog.AddBoundingBoxConstraint(-kBigNumber*VectorXd::Ones(3), kBigNumber*VectorXd::Ones(3), new_tr.T);
+
+    // Spawn rotations and constraint them in according to the configuration.
+    new_tr.R = NewRotationMatrixVars(&prog, string("R") + string(name_postfix));
+    if (optRotationConstraint_ > 0){
+      switch (optRotationConstraint_){
+        case 1:
+          break;
+        case 2:
+          // Columnwise and row-wise L1-norm >=1 constraints
+          for (int k=0; k<3; k++){
+            prog.AddLinearConstraint(Vector3d::Ones().transpose(), 1.0, std::numeric_limits<double>::infinity(), new_tr.R.row(k).transpose());
+            prog.AddLinearConstraint(Vector3d::Ones().transpose(), 1.0, std::numeric_limits<double>::infinity(), new_tr.R.col(k));
+          }
+          break;
+        case 3:
+          addMcCormickQuaternionConstraint(prog, new_tr.R, optRotationConstraintNumFaces_, optRotationConstraintNumFaces_);
+          break;
+        case 4:
+          AddRotationMatrixMcCormickEnvelopeMilpConstraints(&prog, new_tr.R, optRotationConstraintNumFaces_);
+          break;
+        case 5:
+          AddBoundingBoxConstraintsImpliedByRollPitchYawLimits(&prog, new_tr.R, kYaw_0_to_PI_2 | kPitch_0_to_PI_2 | kRoll_0_to_PI_2);
+          break;
+        default:
+          printf("invalid optRotationConstraint_ option!\n");
+          exit(-1);
+          break;
+      }
+    } else {
+      // constrain rotations to ground truth
+      auto ground_truth_tf = robot_.relativeTransform(robot_kinematics_cache, robot_.get_body(body_i).get_body_index(), 0);
+      // Formulas only work for vectors, so implement this constraint column-wise
+      for (int i = 0; i < 3; ++i) {
+        prog.AddLinearEqualityConstraint(new_tr.R.col(i) - ground_truth_tf.rotation().col(i), Eigen::Vector3d::Zero());
+      }
+    }
+    transform_by_object.push_back(new_tr);
+  }
+  return transform_by_object;
+}
+
+/*****************************************************************************
+
+
+        *******************************************************
+
+               This is an elaborate separator so I can find this
+              part of the file. Documentation goes here.
+
+        *******************************************************
+
+
+
+ ****************************************************************************/
 std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
 
@@ -179,54 +246,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   // Binary variable selects which face is being corresponded to
   auto f = prog.NewBinaryVariables(scene_pts.cols(), F.rows(),"f");
 
-  struct TransformationVars {
-    VectorDecisionVariable<3> T;
-    MatrixDecisionVariable<3,3> R;
-  };
-  std::vector<TransformationVars> transform_by_object;
-  for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
-    TransformationVars new_tr;
-    char name_postfix[100];
-    sprintf(name_postfix, "_%s_%d", robot_.get_body(body_i).get_model_name().c_str(), body_i);
-    new_tr.T = prog.NewContinuousVariables<3>(string("T")+string(name_postfix));
-    prog.AddBoundingBoxConstraint(-100*VectorXd::Ones(3), 100*VectorXd::Ones(3), new_tr.T);
-    new_tr.R = NewRotationMatrixVars(&prog, string("R") + string(name_postfix));
-
-    if (optRotationConstraint_ > 0){
-      switch (optRotationConstraint_){
-        case 1:
-          break;
-        case 2:
-          // Columnwise and row-wise L1-norm >=1 constraints
-          for (int k=0; k<3; k++){
-            prog.AddLinearConstraint(Vector3d::Ones().transpose(), 1.0, std::numeric_limits<double>::infinity(), new_tr.R.row(k).transpose());
-            prog.AddLinearConstraint(Vector3d::Ones().transpose(), 1.0, std::numeric_limits<double>::infinity(), new_tr.R.col(k));
-          }
-          break;
-        case 3:
-          addMcCormickQuaternionConstraint(prog, new_tr.R, optRotationConstraintNumFaces_, optRotationConstraintNumFaces_);
-          break;
-        case 4:
-          AddRotationMatrixMcCormickEnvelopeMilpConstraints(&prog, new_tr.R, optRotationConstraintNumFaces_);
-          break;
-        case 5:
-          AddBoundingBoxConstraintsImpliedByRollPitchYawLimits(&prog, new_tr.R, kYaw_0_to_PI_2 | kPitch_0_to_PI_2 | kRoll_0_to_PI_2);
-          break;
-        default:
-          printf("invalid optRotationConstraint_ option!\n");
-          exit(-1);
-          break;
-      }
-    } else {
-      // constrain rotations to ground truth
-      auto ground_truth_tf = robot_.relativeTransform(robot_kinematics_cache, robot_.get_body(body_i).get_body_index(), 0);
-      // Formulas only work for vectors, so implement this constraint column-wise
-      for (int i = 0; i < 3; ++i) {
-        prog.AddLinearEqualityConstraint(new_tr.R.col(i) - ground_truth_tf.rotation().col(i), Eigen::Vector3d::Zero());
-      }
-    }
-    transform_by_object.push_back(new_tr);
-  }
+  auto transform_by_object = addTransformationVarsAndConstraints(prog);
 
   // Optimization pushes on slacks to make them tight (make them do their job)
   prog.AddLinearCost(1.0 * VectorXd::Ones(scene_pts.cols()), phi);
@@ -628,6 +648,121 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     new_solution.solve_time = elapsed;
     solutions.push_back(new_solution);
   }
+  return solutions;
+}
+
+
+/*****************************************************************************
+
+
+        *******************************************************
+
+               This is an elaborate separator so I can find this
+              part of the file. Documentation goes here.
+
+        *******************************************************
+
+
+
+ ****************************************************************************/
+std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts){
+  KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
+
+  // See https://www.sharelatex.com/project/5850590c38884b7c6f6aedd1
+  // for details on problem formulation.
+  MathematicalProgram prog;
+
+  // Each row is a set of affine coefficients relating the scene point to a combination
+  // of vertices on a single face of the model
+  //auto C = prog.NewContinuousVariables(scene_pts.cols(), all_vertices.cols(), "C");
+  // Adds decision variables for the transformations for each body,
+  // and adds their transform-relevant constraints.
+  auto transform_by_object = addTransformationVarsAndConstraints(prog);
+
+  /*
+  printf("Starting to add joint constraints...\n");
+  for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
+    const auto& body = robot_.get_body(body_i);
+    if (body.has_joint() && typeid(body.getJoint()) == typeid(RevoluteJoint)){
+      auto revolute_joint = static_cast<const RevoluteJoint&>(body.getJoint());
+      Vector3d rot_axis = revolute_joint.rotation_axis();
+
+      int parent_id = body.get_parent()->get_body_index();
+      // I'm going to assume that body_id and parent_id are good and not references
+      // to world, as nothing should be revolute-jointed to this world... right?
+
+      // To enforce a pin joint between two bodies described in maximal coordinates
+      // by (R_a, T_a) and (R_b, T_b), we take two points on the rotation axis
+      // in each bodies axis:
+      // p^a_1, p^a_2 (in a's frame)
+      // p^b_1, p^b_2 (in b's frame)
+      // and constrain them to be the same in global coordinates:
+      // R_a * p^a_1 + T_a = R_b * p^b_1 + T_b
+      // R_a * p^a_2 + T_a = R_b * p^b_2 + T_b
+
+      // For one point, we take the origin in the child body
+      Vector3d p_a_1 = Vector3d::Zero();
+      // And for the other, we take a unit length along the rotation axis
+      Vector3d p_a_2 = rot_axis;
+      // Transform them into the parent body's frame
+      // (the kinematics cache is used here is not important and shouldn't affect results)
+      Vector3d p_b_1 = robot_.transformPoints(robot_kinematics_cache, p_a_1, body_i, parent_id);
+      Vector3d p_b_2 = robot_.transformPoints(robot_kinematics_cache, p_a_2, body_i, parent_id);
+
+      // Unfortunately, our decision variable-encoded transforms actually go in the other direction -- 
+      // they transform from global frame to body frame. So we implement this constrain with
+      // one layer of indirection:
+      // R_a * z_i + T_a = p_a_i   for z_i = unconstrained 3x1 decision variable matrix
+      // R_b * z_i + T_b = p_b_i           fuck me that isn't linear
+
+      auto z_a = prog.NewContinuousVariables<3>("z_1");
+      auto z_b = prog.NewContinuousVariables<3>("z_2");
+
+      auto e1_a = transform_by_object[body_i-1].R * z_a + transform_by_object[body_i-1].T;
+      auto e1_b = transform_by_object[body_i-1].R * z_b + transform_by_object[body_i-1].T;
+      auto e2_a = transform_by_object[parent_id-1].R * z_a + transform_by_object[parent_id-1].T;
+      auto e2_b = transform_by_object[parent_id-1].R * z_b + transform_by_object[parent_id-1].T;
+
+      prog.AddLinearEqualityConstraint(e1_a, p_a_1);
+      prog.AddLinearEqualityConstraint(e1_b, p_b_1);
+      prog.AddLinearEqualityConstraint(e2_a, p_a_2);
+      prog.AddLinearEqualityConstraint(e2_b, p_b_2);
+    }
+  }
+  */
+
+  GurobiSolver gurobi_solver;
+  MosekSolver mosek_solver;
+
+  prog.SetSolverOption(SolverType::kGurobi, "OutputFlag", 1);
+  prog.SetSolverOption(SolverType::kGurobi, "LogToConsole", 1);
+  prog.SetSolverOption(SolverType::kGurobi, "LogFile", "loggg.gur");
+  prog.SetSolverOption(SolverType::kGurobi, "DisplayInterval", 5);
+
+  if (config_["gurobi_int_options"]){
+    for (auto iter = config_["gurobi_int_options"].begin();
+         iter != config_["gurobi_int_options"].end();
+         iter++){
+      prog.SetSolverOption(SolverType::kGurobi, iter->first.as<string>(), iter->second.as<int>());
+    }
+  }
+  if (config_["gurobi_float_options"]){
+    for (auto iter = config_["gurobi_float_options"].begin();
+         iter != config_["gurobi_float_options"].end();
+         iter++){
+      prog.SetSolverOption(SolverType::kGurobi, iter->first.as<string>(), iter->second.as<float>());
+    }
+  }
+
+  double start_time = getUnixTime();
+  auto out = gurobi_solver.Solve(prog);
+  string problem_string = "rigidtf";
+  double elapsed = getUnixTime() - start_time;
+
+  //prog.PrintSolution();
+  printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);
+
+  std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
   return solutions;
 }
 

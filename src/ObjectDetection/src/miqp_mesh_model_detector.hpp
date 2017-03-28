@@ -8,6 +8,7 @@
 #include <typeinfo>
 
 #include "drake/multibody/rigid_body_tree.h"
+#include "drake/solvers/mathematical_program.h"
 
 #include "yaml-cpp/yaml.h"
 
@@ -35,6 +36,11 @@ class MIQPMultipleMeshModelDetector {
       double solve_time;
     };
 
+    struct TransformationVars {
+      drake::solvers::VectorDecisionVariable<3> T;
+      drake::solvers::MatrixDecisionVariable<3,3> R;
+    };
+
     MIQPMultipleMeshModelDetector(YAML::Node config);
   
     void doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out);
@@ -43,7 +49,11 @@ class MIQPMultipleMeshModelDetector {
                                   DrakeShapes::TrianglesVector& all_faces, 
                                   std::vector<int>& face_body_map);
 
+
+    std::vector<TransformationVars> addTransformationVarsAndConstraints(drake::solvers::MathematicalProgram& prog);
+
     std::vector<Solution> doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts);
+    std::vector<Solution> doObjectDetectionWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts);
     std::vector<Solution> doObjectDetection(const Eigen::Matrix3Xd& scene_pts);
 
     RigidBodyTree<double> & get_robot() {
