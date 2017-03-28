@@ -48,6 +48,8 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
     optCorruption_ = config["corruption_amount"].as<double>();
   if (config["downsample_to_this_many_points"])
     optDownsampleToThisManyPoints_ = config["downsample_to_this_many_points"].as<int>();
+  if (config["model_sample_rays"])
+    optModelSampleRays_ = config["model_sample_rays"].as<int>();
 
   config_ = config;
 
@@ -88,6 +90,64 @@ void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matri
 
   RemoteTreeViewerWrapper rm;
   rm.publishPointCloud(scene_pts_out, {"scene_pts_downsampled"});
+}
+
+Eigen::Matrix3Xd MIQPMultipleMeshModelDetector::doModelPointSampling(){
+  // Extract vertices and meshes from the RBT.
+  Matrix3Xd all_vertices;
+  DrakeShapes::TrianglesVector all_faces;
+  vector<int> face_body_map; // Maps from a face index (into all_faces) to an RBT body index.
+  collectBodyMeshesFromRBT(all_vertices, all_faces, face_body_map);
+
+  // Collect the area of each face
+  vector<double> face_cumulative_area = {0.0};
+
+  for (const auto& face : all_faces){
+    Vector3d a = all_vertices.col( face[0] );
+    Vector3d b = all_vertices.col( face[1] );
+    Vector3d c = all_vertices.col( face[2] );
+    double area = ((b - a).cross(c - a)).norm() / 2.;
+    face_cumulative_area.push_back(face_cumulative_area[face_cumulative_area.size()-1] + area);
+  }
+
+  // Normalize cumulative areas.
+  for (int i=0; i<face_cumulative_area.size(); i++){
+    face_cumulative_area[i] /= face_cumulative_area[face_cumulative_area.size() - 1];
+  }
+
+  // Always do this the same way.
+  srand(0);
+  Eigen::Matrix3Xd pc(3, optModelSampleRays_);
+  int i = 0;
+  while (i < optModelSampleRays_){
+    // Pick the face we'll sample from
+    double sample = randrange(1E-12, 1.0 - 1E-12);
+    int k = 0;
+    for (k=0; k<face_cumulative_area.size(); k++){
+      if (face_cumulative_area[k] >= sample){
+        break;
+      }
+    }
+    k -= 1;
+
+    Vector3d a = all_vertices.col(all_faces[k][0]);
+    Vector3d b = all_vertices.col(all_faces[k][1]);
+    Vector3d c = all_vertices.col(all_faces[k][2]);
+
+    double s1 = randrange(0.0, 1.0); 
+    double s2 = randrange(0.0, 1.0);
+    if (s1 + s2 <= 1.0){
+      Vector3d pt = a + 
+                    s1 * (b - a) +
+                    s2 * (c - a);
+      pc.col(i) = pt;
+      i++;
+    }
+  }
+
+  RemoteTreeViewerWrapper rm;
+  rm.publishPointCloud(pc, {"model_pts_sampled"});
+  return pc;
 }
 
 void MIQPMultipleMeshModelDetector::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& all_vertices, 
@@ -483,6 +543,9 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   }
 
   if (optUseInitialGuess_){
+    // Randomize this in particular.
+    srand(time(NULL));
+
     // Corruption should be done from q_gt, then recover maximal coordinates from transform queries,
     // get mesh and do projection using get_closest_points in drake 
     VectorXd corruption_vec(q_robot_gt_.rows()); 
@@ -672,12 +735,16 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   // for details on problem formulation.
   MathematicalProgram prog;
 
-  // Each row is a set of affine coefficients relating the scene point to a combination
-  // of vertices on a single face of the model
-  //auto C = prog.NewContinuousVariables(scene_pts.cols(), all_vertices.cols(), "C");
-  // Adds decision variables for the transformations for each body,
-  // and adds their transform-relevant constraints.
+  // Add decision variables for the transformations for each body,
+  // and add their transform-relevant constraints.
   auto transform_by_object = addTransformationVarsAndConstraints(prog);
+
+  // Sample points from surface of model
+  Matrix3Xd all_sampled_pts = doModelPointSampling();
+
+  // Add selection variables corresponding model-sampled points to
+  auto C = prog.NewContinuousVariables(scene_pts.cols(), all_sampled_pts.cols(), "C");
+  
 
   /*
   printf("Starting to add joint constraints...\n");
@@ -770,9 +837,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   Eigen::Matrix3Xd scene_pts;
   doScenePointPreprocessing(scene_pts_in, scene_pts);
 
-  // Randomize the rest of this function.
-  srand(time(NULL));
-
   // Branch on formulation type.
   std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
   if (config_["detector_type"] == NULL){
@@ -782,7 +846,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     solutions = doObjectDetectionWithWorldToBodyFormulation(scene_pts);
   } else if (config_["detector_type"].as<string>() == 
              "world_to_body_transforms"){
-    runtime_error("MIQPMultipleMeshModelDetector has not implemented world_to_body_transforms.");
+    solutions = doObjectDetectionWithBodyToWorldFormulation(scene_pts);
   } else {
     runtime_error("MIQPMultipleMeshModelDetector detector type not understood.");
   }

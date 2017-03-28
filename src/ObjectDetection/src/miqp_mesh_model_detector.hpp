@@ -44,6 +44,7 @@ class MIQPMultipleMeshModelDetector {
     MIQPMultipleMeshModelDetector(YAML::Node config);
   
     void doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out);
+    Eigen::Matrix3Xd doModelPointSampling();
 
     void collectBodyMeshesFromRBT(Eigen::Matrix3Xd& all_vertices, 
                                   DrakeShapes::TrianglesVector& all_faces, 
@@ -74,5 +75,6 @@ class MIQPMultipleMeshModelDetector {
     double optPhiMax_ = 0.1;
     bool optUseInitialGuess_ = false;
     double optCorruption_ = 100.0;
+    int optModelSampleRays_ = 10;
 
 };

@@ -20,7 +20,7 @@ point_cloud_generator_options:
 
 
 detector_options:
-    detector_type: "body_to_world_transforms"
+    detector_type: "world_to_body_transforms"
 
     # options of rot constraints:
     # 0: constrained to ground truth
@@ -38,6 +38,7 @@ detector_options:
     corruption_amount: 0.01
 
     downsample_to_this_many_points: 15
+    model_sample_rays: 30
 
     gurobi_int_options:
         #MIPFocus: 1
