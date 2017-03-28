@@ -20,7 +20,8 @@ point_cloud_generator_options:
 
 
 detector_options:
-    
+    detector_type: "body_to_world_transforms"
+
     # options of rot constraints:
     # 0: constrained to ground truth
     # 1: unconstrained
@@ -28,15 +29,15 @@ detector_options:
     # 3: McCormick quaternion
     # 4: McCormick directly on rotmat
     # 5: Conservative RPY limits
-    rotation_constraint: 0
-    rotation_constraint_num_faces: 3
+    rotation_constraint: 4
+    rotation_constraint_num_faces: 2
 
     allow_outliers: false
-    phi_max: 0.01
-    use_initial_guess: false
-    corruption_amount: 0.00
+    phi_max: 0.05
+    use_initial_guess: true
+    corruption_amount: 0.01
 
-    downsample_to_this_many_points: 50
+    downsample_to_this_many_points: 15
 
     gurobi_int_options:
         #MIPFocus: 1
@@ -53,9 +54,9 @@ detector_options:
         #Heuristics: 0.05
 
     models:
-       - urdf: "models/urdf/cubes_jointed.urdf"
-         q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2, 0.2]
+       #- urdf: "models/urdf/cubes_jointed.urdf"
+       #  q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2, 0.2]
        #- urdf: "../urdf/cubes.urdf"
        #  q0: [0.5, 0, 0, 0, 0, 0.2, 0.1, 0, 0, 0, 0, -0.2]
-       #- urdf: "../urdf/cube.urdf"
-       #  q0: [0.5, 0, 0, 0, 0, 0.2]
+       - urdf: "models/urdf/cube.urdf"
+         q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2]

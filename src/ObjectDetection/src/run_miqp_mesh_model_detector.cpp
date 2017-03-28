@@ -29,7 +29,7 @@ using namespace drake::parsers::urdf;
 typedef pcl::PointXYZ PointType;
 
 int main(int argc, char** argv) {
-  srand(getUnixTime());
+  srand(0);
 
   if (argc < 3){
     printf("Use: run_miqp_mesh_model_detector <point cloud file> <config file> <optional output_file>\n");
@@ -156,6 +156,8 @@ int main(int argc, char** argv) {
       out << YAML::BeginMap; {
         out << YAML::Key << "score";
         out << YAML::Value << solution.objective;
+        out << YAML::Key << "solve_time";
+        out << YAML::Key << solution.solve_time;
 
         out << YAML::Key << "models";
         out << YAML::Value << YAML::BeginSeq; {

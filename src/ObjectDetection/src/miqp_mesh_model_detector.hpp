@@ -32,11 +32,19 @@ class MIQPMultipleMeshModelDetector {
     struct Solution {
       std::vector<ObjectDetection> detections;
       double objective;
+      double solve_time;
     };
 
     MIQPMultipleMeshModelDetector(YAML::Node config);
+  
+    void doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out);
 
-    std::vector<Solution> doObjectDetection(Eigen::Matrix3Xd scene_pts);
+    void collectBodyMeshesFromRBT(Eigen::Matrix3Xd& all_vertices, 
+                                  DrakeShapes::TrianglesVector& all_faces, 
+                                  std::vector<int>& face_body_map);
+
+    std::vector<Solution> doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts);
+    std::vector<Solution> doObjectDetection(const Eigen::Matrix3Xd& scene_pts);
 
     RigidBodyTree<double> & get_robot() {
       return robot_;
