@@ -740,11 +740,32 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   auto transform_by_object = addTransformationVarsAndConstraints(prog);
 
   // Sample points from surface of model
-  Matrix3Xd all_sampled_pts = doModelPointSampling();
+  Matrix3Xd model_pts = doModelPointSampling();
 
   // Add selection variables corresponding model-sampled points to
-  auto C = prog.NewContinuousVariables(scene_pts.cols(), all_sampled_pts.cols(), "C");
-  
+  auto C = prog.NewBinaryVariables(model_pts.cols(), scene_pts.cols(), "C");
+  // Constrain that every row (every model point) must have one active member
+  // (i.e. must correspond to one scene point)
+  for (int i = 0; i < model_pts.cols(); i++) {
+    prog.AddLinearEqualityConstraint(
+      VectorXd::Ones(scene_pts.cols()).transpose() * C.row(i).transpose(), VectorXd::Ones(1.0));
+  }
+
+  // For every model point, add a cost for its correspondence.
+  for (int i = 0; i < model_pts.cols(); i++) {
+    // TODO(gizatt) Generalize for more than 1 object.
+    // This generates a linear expression for the model point transformation into scene frame:
+    Matrix<Expression, 3, 1> transformed_model_pt_expr = transform_by_object[0].R * model_pts.col(i) + transform_by_object[0].T;
+    Matrix<Expression, 3, 1> selected_scene_pt_expr(3, 1);
+    // This generates a linear expression selecting a scene point using our permutation matrix:
+    // TODO(gizatt) This might be able to be made into a one-liner with careful use of a diag() call...
+    selected_scene_pt_expr.block<1, 1>(0, 0) = C.row(i) * scene_pts.row(0).transpose();
+    selected_scene_pt_expr.block<1, 1>(1, 0) = C.row(i) * scene_pts.row(1).transpose();
+    selected_scene_pt_expr.block<1, 1>(2, 0) = C.row(i) * scene_pts.row(2).transpose();
+
+    auto full_cost_expr = (transformed_model_pt_expr - selected_scene_pt_expr).transpose() * (transformed_model_pt_expr - selected_scene_pt_expr);
+    prog.AddQuadraticCost(full_cost_expr);
+  }
 
   /*
   printf("Starting to add joint constraints...\n");
@@ -830,6 +851,61 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);
 
   std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
+
+  for (int sol_i = 0; sol_i < 1; sol_i ++){
+    printf("==================================================\n");
+    printf("======================SOL %d ======================\n", sol_i);
+    printf("==================================================\n");
+    auto C_est = prog.GetSolution(C); //, sol_i);
+
+    MIQPMultipleMeshModelDetector::Solution new_solution;
+
+    for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
+      const RigidBody<double>& body = robot_.get_body(body_i);
+
+      ObjectDetection new_detection;
+      new_detection.obj_ind = body_i;
+  
+      printf("************************************************\n");
+      printf("Concerning model %d (%s):\n", body_i, body.get_name().c_str());
+      printf("------------------------------------------------\n");
+      Vector3d Tf = prog.GetSolution(transform_by_object[body_i-1].T); //, sol_i);
+      Matrix3d Rf = prog.GetSolution(transform_by_object[body_i-1].R); //, sol_i);
+      printf("Transform:\n");
+      printf("\tTranslation: %f, %f, %f\n", Tf(0, 0), Tf(1, 0), Tf(2, 0));
+      printf("\tRotation:\n");
+      printf("\t\t%f, %f, %f\n", Rf(0, 0), Rf(0, 1), Rf(0, 2));
+      printf("\t\t%f, %f, %f\n", Rf(1, 0), Rf(1, 1), Rf(1, 2));
+      printf("\t\t%f, %f, %f\n", Rf(2, 0), Rf(2, 1), Rf(2, 2));
+      printf("------------------------------------------------\n");
+      printf("************************************************\n");
+      new_detection.est_tf.setIdentity();
+      new_detection.est_tf.translation() = Tf;
+      new_detection.est_tf.matrix().block<3,3>(0,0) = Rf;
+      
+      for (int model_i=0; model_i<model_pts.cols(); model_i++) {
+        for (int scene_i=0; scene_i<scene_pts.cols(); scene_i++) {
+          if (C_est(model_i, scene_i) > 0.5) {
+            PointCorrespondence new_corresp;
+            new_corresp.scene_pt = scene_pts.col(scene_i);
+            new_corresp.scene_ind = scene_i;
+            new_corresp.model_pt = model_pts.col(model_i);
+            new_detection.correspondences.push_back(new_corresp);
+          }
+        }
+      }
+
+      // Include this as a detection if we have correspondences
+      // to support it.
+      if (new_detection.correspondences.size() > 0)
+        new_solution.detections.push_back(new_detection);
+    }
+
+    new_solution.objective = -1.0;
+    new_solution.solve_time = elapsed;
+    solutions.push_back(new_solution);
+  }
+
   return solutions;
 }
 
