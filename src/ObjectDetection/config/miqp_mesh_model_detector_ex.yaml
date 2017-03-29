@@ -37,8 +37,8 @@ detector_options:
     use_initial_guess: true
     corruption_amount: 0.01
 
-    downsample_to_this_many_points: 15
-    model_sample_rays: 30
+    downsample_to_this_many_points: 5
+    model_sample_rays: 5
 
     gurobi_int_options:
         #MIPFocus: 1
@@ -48,7 +48,7 @@ detector_options:
         Threads: 10
 
     gurobi_float_options:
-        TimeLimit: 120
+        TimeLimit: 600
         #PoolGap: 0.0
         FeasRelaxBigM: 100
         MIPGap: 0.0

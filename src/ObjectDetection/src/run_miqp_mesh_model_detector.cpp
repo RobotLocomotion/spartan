@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
   // Visualize the scene points and GT, to start with.
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
-  rm.publishPointCloud(scene_pts, {"scene_pts_loaded"});
+  rm.publishPointCloud(scene_pts, {"scene_pts_loaded"}, {0.1, 1.0, 0.1});
   rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
 
 
@@ -114,8 +114,8 @@ int main(int argc, char** argv) {
     stringstream sol_name;
     sol_name << "sol_obj_" << solution.objective;
     for (const auto& detection : solution.detections){
+      // Visualize the estimated body pose
       const RigidBody<double>& body = detector.get_robot().get_body(detection.obj_ind);
-
       for (const auto& collision_elem_id : body.get_collision_element_ids()) {
         stringstream collision_elem_id_str;
         collision_elem_id_str << collision_elem_id;
@@ -128,6 +128,17 @@ int main(int argc, char** argv) {
           rm.publishGeometry(element->getGeometry(), detection.est_tf * element->getLocalTransform(), Vector4d(0.3, 1.0, 0.3, 0.2), path);
         }
       }
+
+      // Also visualize the correspondences that led us to generate this, by publishing
+      // the model points and lines between model and scene points
+      Matrix3Xd model_pts_world(3, detection.correspondences.size());
+      int i = 0;
+      for (const auto& corresp : detection.correspondences) {
+        model_pts_world.col(i) = corresp.model_pt;
+        i++;
+      }
+      model_pts_world = detection.est_tf * model_pts_world;
+      rm.publishPointCloud(model_pts_world, {"correspondences", "model pts", body.get_name()}, {0.1, 0.1, 1.0});
     }
   }
 
