@@ -195,7 +195,7 @@ void MIQPMultipleMeshModelDetector::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& a
 }
 
 std::vector<MIQPMultipleMeshModelDetector::TransformationVars> 
-MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalProgram& prog){
+MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalProgram& prog, bool world_to_body_direction){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
   std::vector<TransformationVars> transform_by_object;
 
@@ -238,6 +238,8 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
     } else {
       // constrain rotations to ground truth
       auto ground_truth_tf = robot_.relativeTransform(robot_kinematics_cache, robot_.get_body(body_i).get_body_index(), 0);
+      if (world_to_body_direction)
+        ground_truth_tf = ground_truth_tf.inverse();
       // Formulas only work for vectors, so implement this constraint column-wise
       for (int i = 0; i < 3; ++i) {
         prog.AddLinearEqualityConstraint(new_tr.R.col(i) - ground_truth_tf.rotation().col(i), Eigen::Vector3d::Zero());
@@ -306,7 +308,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   // Binary variable selects which face is being corresponded to
   auto f = prog.NewBinaryVariables(scene_pts.cols(), F.rows(),"f");
 
-  auto transform_by_object = addTransformationVarsAndConstraints(prog);
+  auto transform_by_object = addTransformationVarsAndConstraints(prog, false);
 
   // Optimization pushes on slacks to make them tight (make them do their job)
   prog.AddLinearCost(1.0 * VectorXd::Ones(scene_pts.cols()), phi);
@@ -359,110 +361,40 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   //         
   for (int i=0; i<C.rows(); i++){
     for (int j=0; j<C.cols(); j++){
-      MatrixXd A(1, F.rows() + 1);
-      A.block(0, 0, 1, F.rows()) = F.col(j).transpose();
-      A(0, F.rows()) = -1.0;
-
-      prog.AddLinearConstraint(A, 0.0, std::numeric_limits<double>::infinity(), {f.row(i).transpose(), C.block<1,1>(i,j)});
+      prog.AddLinearConstraint(C(i,j) <= (F.col(j).transpose() * f.row(i).transpose())(0, 0));
     }
   }
 
-  // I'm adding a dummy var constrained to zero to 
-  // fill out the diagonals of C_i.
-  auto C_dummy = prog.NewContinuousVariables(1, "c_dummy_zero");
-  prog.AddLinearEqualityConstraint(Eigen::MatrixXd::Ones(1, 1), Eigen::MatrixXd::Zero(1, 1), C_dummy);
-
-  // Helper variable to produce linear constraint
-  // alpha_{i, l} +/- (R_l * s_i + T - M C_{i, :}^T) - Big * B_l * f_i >= -Big
-  auto AlphaConstrPos = Eigen::RowVectorXd(1, 1+3+1+all_vertices.cols() + B.cols());    
-  AlphaConstrPos.block<1, 1>(0, 0) = MatrixXd::Ones(1, 1); // multiplies alpha_{i, l} elem
-  AlphaConstrPos.block<1, 1>(0, 4) = -1.0 * MatrixXd::Ones(1, 1); // T bias term
-  auto AlphaConstrNeg = Eigen::RowVectorXd(1, 1+3+1+all_vertices.cols() + B.cols());    
-  AlphaConstrNeg.block<1, 1>(0, 0) = MatrixXd::Ones(1, 1); // multiplies alpha_{i, l} elem
-  AlphaConstrNeg.block<1, 1>(0, 4) = MatrixXd::Ones(1, 1); // T bias term
-
   printf("Starting to add correspondence costs... ");
   for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
-    AlphaConstrPos.block(0, 5+all_vertices.cols(), 1, B.cols()) = -kBigNumber*B.row(body_i-1); // multiplies f_i
-    AlphaConstrNeg.block(0, 5+all_vertices.cols(), 1, B.cols()) = -kBigNumber*B.row(body_i-1); // multiplies f_i
 
     for (int i=0; i<scene_pts.cols(); i++){
       printf("\r\tgenerating guess for body (%d)/(%d), point (%d)/(%d)", body_i, (int)robot_.get_num_bodies(), i, (int)scene_pts.cols());
 
       // constrain L-1 distance slack based on correspondences
       // phi_i >= 1^T alpha_{i}
-      // phi_i - 1&T alpha_{i} >= 0
-      RowVectorXd PhiConstr(1 + 3);
-      PhiConstr.setZero();
-      PhiConstr(0, 0) = 1.0; // multiplies phi
-      PhiConstr.block<1,3>(0,1) = -RowVector3d::Ones(); // multiplies alpha
-      prog.AddLinearConstraint(PhiConstr, 0, std::numeric_limits<double>::infinity(),
-      {phi.block<1,1>(i, 0),
-       alpha.col(i)});
+      prog.AddLinearConstraint(phi(i, 0) >= (RowVector3d::Ones() * alpha.col(i))(0, 0));
 
       // If we're allowing outliers, we need to constrain each phi_i to be bigger than
       // a penalty amount if no faces are selected
       if (optAllowOutliers_){
         // phi_i >= phi_max - (ones * f_i)*BIG
-        // -> phi_ + (ones * f_i)*BIG >= phi_max
-        Eigen::MatrixXd A_phimax = Eigen::MatrixXd::Ones(1, f.cols() + 1);
-        A_phimax.block(0, 0, 1, f.cols()) = Eigen::MatrixXd::Ones(1, f.cols())*kBigNumber;
         for (size_t k=0; k<f.rows(); k++){
-          prog.AddLinearConstraint(A_phimax, optPhiMax_, std::numeric_limits<double>::infinity(), {f.row(k).transpose(), phi.row(k)});
+          prog.AddLinearConstraint(phi(i, 0) >= optPhiMax_ - kBigNumber*(RowVectorXd::Ones(f.cols()) * f.row(k).transpose())(0, 0));
         }
       }
 
-      // Alphaconstr, containing the scene and model points and a translation bias term, is used the constraints
-      // on the three elems of alpha_{i, l}
-      auto s_xyz = scene_pts.col(i);
-      AlphaConstrPos.block<1, 3>(0, 1) = -s_xyz.transpose(); // Multiples R
-      AlphaConstrNeg.block<1, 3>(0, 1) = s_xyz.transpose(); // Multiples R
-
-      AlphaConstrPos.block(0, 5, 1, all_vertices.cols()) = 1.0 * all_vertices.row(0); // multiplies the selection vars
-      prog.AddLinearConstraint(AlphaConstrPos, -kBigNumber, std::numeric_limits<double>::infinity(),
-        {alpha.block<1,1>(0, i),
-         transform_by_object[body_i-1].R.block<1, 3>(0, 0).transpose(), 
-         transform_by_object[body_i-1].T.block<1,1>(0,0),
-         C.row(i).transpose(),
-         f.row(i).transpose()});
-
-      AlphaConstrPos.block(0, 5, 1, all_vertices.cols()) = 1.0 * all_vertices.row(1); // multiplies the selection vars
-      prog.AddLinearConstraint(AlphaConstrPos, -kBigNumber, std::numeric_limits<double>::infinity(),
-        {alpha.block<1,1>(1, i),
-         transform_by_object[body_i-1].R.block<1, 3>(1, 0).transpose(), 
-         transform_by_object[body_i-1].T.block<1,1>(1,0),
-         C.row(i).transpose(),
-         f.row(i).transpose()});
-
-      AlphaConstrPos.block(0, 5, 1, all_vertices.cols()) = 1.0 * all_vertices.row(2); // multiplies the selection vars
-      prog.AddLinearConstraint(AlphaConstrPos, -kBigNumber, std::numeric_limits<double>::infinity(),
-        {alpha.block<1,1>(2, i),
-         transform_by_object[body_i-1].R.block<1, 3>(2, 0).transpose(), 
-         transform_by_object[body_i-1].T.block<1,1>(2,0),
-         C.row(i).transpose(),
-         f.row(i).transpose()});
-
-      AlphaConstrNeg.block(0, 5, 1, all_vertices.cols()) = -1.0 * all_vertices.row(0); // multiplies the selection vars
-      prog.AddLinearConstraint(AlphaConstrNeg, -kBigNumber, std::numeric_limits<double>::infinity(),
-        {alpha.block<1,1>(0, i),
-         transform_by_object[body_i-1].R.block<1, 3>(0, 0).transpose(), 
-         transform_by_object[body_i-1].T.block<1,1>(0,0),
-         C.row(i).transpose(),
-         f.row(i).transpose()});
-      AlphaConstrNeg.block(0, 5, 1, all_vertices.cols()) = -1.0 * all_vertices.row(1); // multiplies the selection vars
-      prog.AddLinearConstraint(AlphaConstrNeg, -kBigNumber, std::numeric_limits<double>::infinity(),
-        {alpha.block<1,1>(1, i),
-         transform_by_object[body_i-1].R.block<1, 3>(1, 0).transpose(), 
-         transform_by_object[body_i-1].T.block<1,1>(1,0),
-         C.row(i).transpose(),
-         f.row(i).transpose()});
-      AlphaConstrNeg.block(0, 5, 1, all_vertices.cols()) = -1.0 * all_vertices.row(2); // multiplies the selection vars
-      prog.AddLinearConstraint(AlphaConstrNeg, -kBigNumber, std::numeric_limits<double>::infinity(),
-        {alpha.block<1,1>(2, i),
-         transform_by_object[body_i-1].R.block<1, 3>(2, 0).transpose(), 
-         transform_by_object[body_i-1].T.block<1,1>(2,0),
-         C.row(i).transpose(),
-         f.row(i).transpose()});
+      // alpha_i >= +(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * f_i)
+      // alpha_i >= -(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * f_i)
+      // (alpha is a slack var to implement the absolute value)
+      Matrix<Expression, 3, 1> l1ErrorPos =
+          transform_by_object[body_i-1].R * scene_pts.col(i) + transform_by_object[body_i-1].T
+             - all_vertices * C.row(i).transpose();
+      Matrix<Expression, 3, 1> selector = Vector3d::Ones() * (kBigNumber * (VectorXd::Ones(1) - B.row(body_i - 1) * f.row(i).transpose()));
+      for (int k=0; k<3; k++){
+        prog.AddLinearConstraint( alpha(k, i) >= l1ErrorPos(k) - selector(k) );
+        prog.AddLinearConstraint( alpha(k, i) >= -l1ErrorPos(k) - selector(k) );
+      }
     }
   }
   printf("\n");
@@ -737,7 +669,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
   // Add decision variables for the transformations for each body,
   // and add their transform-relevant constraints.
-  auto transform_by_object = addTransformationVarsAndConstraints(prog);
+  auto transform_by_object = addTransformationVarsAndConstraints(prog, true);
 
   // Sample points from surface of model
   Matrix3Xd model_pts = doModelPointSampling();

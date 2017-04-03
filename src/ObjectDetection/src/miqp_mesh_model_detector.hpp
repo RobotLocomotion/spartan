@@ -51,7 +51,9 @@ class MIQPMultipleMeshModelDetector {
                                   std::vector<int>& face_body_map);
 
 
-    std::vector<TransformationVars> addTransformationVarsAndConstraints(drake::solvers::MathematicalProgram& prog);
+    std::vector<TransformationVars> addTransformationVarsAndConstraints(
+                            drake::solvers::MathematicalProgram& prog,
+                            bool world_to_body_direction);
 
     std::vector<Solution> doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts);
     std::vector<Solution> doObjectDetectionWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts);
