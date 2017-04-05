@@ -42,3 +42,12 @@ install(TARGETS run_miqp_mesh_model_detector_standalone DESTINATION bin)
 add_executable(run_miqp_mesh_model_detector run_miqp_mesh_model_detector.cpp)
 target_link_libraries(run_miqp_mesh_model_detector lcm RemoteTreeViewerWrapper miqp_mesh_model_detector point_cloud_generator drakeMultibodyParsers drakeOptimization drakeRotationConstraint drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
 install(TARGETS run_miqp_mesh_model_detector DESTINATION bin)
+
+add_executable(run_goicp_detector run_goicp_detector.cpp
+    GoICP_V1.3/jly_goicp.cpp
+    GoICP_V1.3/jly_3ddt.cpp
+    GoICP_V1.3/matrix.cpp
+    GoICP_V1.3/ConfigMap.cpp
+    GoICP_V1.3/StringTokenizer.cpp)
+target_link_libraries(run_goicp_detector lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
+install(TARGETS run_goicp_detector DESTINATION bin)

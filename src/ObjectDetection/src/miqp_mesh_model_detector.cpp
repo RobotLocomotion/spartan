@@ -225,6 +225,7 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
           addMcCormickQuaternionConstraint(prog, new_tr.R, optRotationConstraintNumFaces_, optRotationConstraintNumFaces_);
           break;
         case 4:
+          AddRotationMatrixOrthonormalSocpConstraint(&prog, new_tr.R);
           AddRotationMatrixMcCormickEnvelopeMilpConstraints(&prog, new_tr.R, optRotationConstraintNumFaces_);
           break;
         case 5:
