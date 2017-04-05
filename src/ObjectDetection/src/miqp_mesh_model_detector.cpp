@@ -31,8 +31,6 @@ using namespace drake::systems;
 using namespace drake::symbolic;
 using namespace drake::solvers;
 
-const double kBigNumber = 100;
-
 MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
   if (config["rotation_constraint"])
     optRotationConstraint_ = config["rotation_constraint"].as<int>();
@@ -50,6 +48,8 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
     optDownsampleToThisManyPoints_ = config["downsample_to_this_many_points"].as<int>();
   if (config["model_sample_rays"])
     optModelSampleRays_ = config["model_sample_rays"].as<int>();
+  if (config["big_M"])
+    optBigNumber_ = config["big_M"].as<double>();
 
   config_ = config;
 
@@ -206,7 +206,7 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
 
     // Spawn translations and bound them to large but finite values.
     new_tr.T = prog.NewContinuousVariables<3>(string("T")+string(name_postfix));
-    prog.AddBoundingBoxConstraint(-kBigNumber*VectorXd::Ones(3), kBigNumber*VectorXd::Ones(3), new_tr.T);
+    prog.AddBoundingBoxConstraint(-optBigNumber_*VectorXd::Ones(3), optBigNumber_*VectorXd::Ones(3), new_tr.T);
 
     // Spawn rotations and constraint them in according to the configuration.
     new_tr.R = NewRotationMatrixVars(&prog, string("R") + string(name_postfix));
@@ -298,7 +298,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
   // Allocate slacks to choose minimum L-1 norm over objects
   auto phi = prog.NewContinuousVariables(scene_pts.cols(), 1, "phi");
-  
+
   // And slacks to store term-wise absolute value terms for L-1 norm calculation
   auto alpha = prog.NewContinuousVariables(3, scene_pts.cols(), "alpha");
 
@@ -378,19 +378,25 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       // If we're allowing outliers, we need to constrain each phi_i to be bigger than
       // a penalty amount if no faces are selected
       if (optAllowOutliers_){
+        // I believe Big-M is OK here, as opposed to convex hull reform,
+        // as we wouldn't gain important tightness for the convex hull reform.
+        // (phi_i >= 0 always, as constrained above, which is the tightest 
+        // lower bound we can always enforce).
         // phi_i >= phi_max - (ones * f_i)*BIG
         for (size_t k=0; k<f.rows(); k++){
-          prog.AddLinearConstraint(phi(i, 0) >= optPhiMax_ - kBigNumber*(RowVectorXd::Ones(f.cols()) * f.row(k).transpose())(0, 0));
+          prog.AddLinearConstraint(phi(i, 0) >= optPhiMax_ - optBigNumber_*(RowVectorXd::Ones(f.cols()) * f.row(k).transpose())(0, 0));
         }
       }
 
+      // Similar logic here -- solutions will always bind in a lower bound,
+      // which we've constrained >= 0 above, and can't do any better than.
       // alpha_i >= +(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * f_i)
       // alpha_i >= -(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * f_i)
       // (alpha is a slack var to implement the absolute value)
       Matrix<Expression, 3, 1> l1ErrorPos =
           transform_by_object[body_i-1].R * scene_pts.col(i) + transform_by_object[body_i-1].T
              - all_vertices * C.row(i).transpose();
-      Matrix<Expression, 3, 1> selector = Vector3d::Ones() * (kBigNumber * (VectorXd::Ones(1) - B.row(body_i - 1) * f.row(i).transpose()));
+      Matrix<Expression, 3, 1> selector = Vector3d::Ones() * (optBigNumber_ * (VectorXd::Ones(1) - B.row(body_i - 1) * f.row(i).transpose()));
       for (int k=0; k<3; k++){
         prog.AddLinearConstraint( alpha(k, i) >= l1ErrorPos(k) - selector(k) );
         prog.AddLinearConstraint( alpha(k, i) >= -l1ErrorPos(k) - selector(k) );
