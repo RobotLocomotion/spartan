@@ -78,5 +78,6 @@ class MIQPMultipleMeshModelDetector {
     bool optUseInitialGuess_ = false;
     double optCorruption_ = 100.0;
     int optModelSampleRays_ = 10;
+    double optBigNumber_ = 100;
 
 };
