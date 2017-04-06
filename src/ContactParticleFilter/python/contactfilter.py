@@ -790,6 +790,8 @@ class ContactFilter(object):
         :return:
         """
 
+        # this is all a bit of a hack
+
 
         historicalMostLikelyPositionInWorld = self.getCFPLocationInWorld(particleSet.historicalMostLikely['particle'].cfp)
         mostLikelyPositionInWorld = self.getCFPLocationInWorld(particleSet.mostLikelyParticle.cfp)
@@ -819,7 +821,7 @@ class ContactFilter(object):
 
         #add some particles exactly at the historicalMostLikely location
         historicalMostlikelyParticle = particleSet.historicalMostLikely['particle']
-        for i in range(self.options['proposal']['historical']['numParticlesAtActual']):
+        for i in xrange(self.options['proposal']['historical']['numParticlesAtActual']):
             newParticle = historicalMostlikelyParticle.deepCopy()
             particleSet.addParticle(newParticle)
 
