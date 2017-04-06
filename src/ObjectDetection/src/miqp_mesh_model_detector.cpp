@@ -225,7 +225,6 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
           addMcCormickQuaternionConstraint(prog, new_tr.R, optRotationConstraintNumFaces_, optRotationConstraintNumFaces_);
           break;
         case 4:
-          AddRotationMatrixOrthonormalSocpConstraint(&prog, new_tr.R);
           AddRotationMatrixMcCormickEnvelopeMilpConstraints(&prog, new_tr.R, optRotationConstraintNumFaces_);
           break;
         case 5:
@@ -312,7 +311,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   auto transform_by_object = addTransformationVarsAndConstraints(prog, false);
 
   // Optimization pushes on slacks to make them tight (make them do their job)
-  prog.AddLinearCost(1.0 * VectorXd::Ones(scene_pts.cols()), phi);
+  // (and normalize by number of pts for MSE calculation)
+  prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi);
   /*
   for (int k=0; k<3; k++){
     prog.AddLinearCost(1.0 * VectorXd::Ones(alpha.cols()), {alpha.row(k)});
@@ -646,7 +646,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
         new_solution.detections.push_back(new_detection);
     }
 
-    new_solution.objective = prog.GetSolution(phi).sum(); //, sol_i).sum();
+    new_solution.objective = prog.GetSolution(phi).sum() / (double) scene_pts.cols(); //, sol_i).sum();
     new_solution.solve_time = elapsed;
     solutions.push_back(new_solution);
   }

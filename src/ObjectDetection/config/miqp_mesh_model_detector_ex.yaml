@@ -1,7 +1,4 @@
-# Separate configurations provided for the point cloud generation,
-# and for the actual object detector, to make transition to externally-imported
-# data smoother.
-
+# For running the standalone version, we need pcg options:
 point_cloud_generator_options:
     # Scene sampling mode 0 = center of each face
     # scene sampling mode 1 = num_rays surface points randomly uniformly across faces of specified model, or all of them (don't specify model)
@@ -11,12 +8,12 @@ point_cloud_generator_options:
     sample_distance: 0.05
     
     models:
-       - urdf: "models/urdf/cubes_jointed.urdf"
-         q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2, 0.2]
+       #- urdf: "models/urdf/cubes_jointed.urdf"
+       #  q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2, 0.2]
        #- urdf: "../urdf/cubes.urdf"
        #  q0: [0.5, 0, 0, 0, 0, 0.2, 0.1, 0, 0, 0, 0, -0.2]
-       #- urdf: "../urdf/cube.urdf"
-       #  q0: [0.5, 0, 0, 0, 0, 0.2]
+       - urdf: "../urdf/cube.urdf"
+         q0: [0.5, 0, 0, 0, 0, 0.2]
 
 
 detector_options:
@@ -33,15 +30,15 @@ detector_options:
     rotation_constraint: 4
     rotation_constraint_num_faces: 2
 
-    allow_outliers: true
+    allow_outliers: false
     phi_max: 0.05
     use_initial_guess: false
-    corruption_amount: 0.01
+    corruption_amount: 0.0
 
-    big_M: 10.0
+    big_M: 2.0
 
-    downsample_to_this_many_points: 20
-    model_sample_rays: 20
+    downsample_to_this_many_points: 30
+    model_sample_rays: 30
 
     gurobi_int_options:
         #MIPFocus: 1
@@ -53,8 +50,8 @@ detector_options:
     gurobi_float_options:
         TimeLimit: 3000
         #PoolGap: 0.0
-        FeasRelaxBigM: 10
-        MIPGap: 0.0
+        FeasRelaxBigM: 2
+        MIPGapAbs: 0.0001
         #Heuristics: 0.05
 
     models:

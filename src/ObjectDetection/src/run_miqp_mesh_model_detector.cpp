@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
   RigidBodyTree<double> robot;
   VectorXd q_robot;
   int old_q_robot_size = 0;
-  for (auto iter=config["models"].begin(); iter!=config["models"].end(); iter++){
+  for (auto iter=config["detector_options"]["models"].begin(); iter!=config["detector_options"]["models"].end(); iter++){
     string urdf = (*iter)["urdf"].as<string>();
     AddModelInstanceFromUrdfFileWithRpyJointToWorld(urdf, &robot);
     // And add initial state info that we were passed
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
   rm.publishPointCloud(scene_pts, {"scene_pts_loaded"}, {0.1, 1.0, 0.1});
-  rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
+  rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.1, 0.1), {"robot_gt"});
 
 
   // Load in MIQP Object Detector
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
           path.push_back(sol_name.str());
           path.push_back(body.get_name());
           path.push_back(collision_elem_id_str.str());
-          rm.publishGeometry(element->getGeometry(), detection.est_tf * element->getLocalTransform(), Vector4d(0.3, 1.0, 0.3, 0.2), path);
+          rm.publishGeometry(element->getGeometry(), detection.est_tf * element->getLocalTransform(), Vector4d(0.2, 0.2, 1.0, 0.2), path);
         }
       }
 
@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
         model_pts_world.col(i) = corresp.model_pt;
         i++;
       }
-      model_pts_world = detection.est_tf * model_pts_world;
+      model_pts_world = detection.est_tf.inverse() * model_pts_world;
       rm.publishPointCloud(model_pts_world, {"correspondences", "model pts", body.get_name()}, {0.1, 0.1, 1.0});
     }
   }
