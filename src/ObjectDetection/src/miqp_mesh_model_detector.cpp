@@ -16,6 +16,8 @@
 #include "drake/solvers/mosek_solver.h"
 #include "drake/solvers/rotation_constraint.h"
 
+#include "gurobi_c++.h"
+
 #include "yaml-cpp/yaml.h"
 #include "common/common.hpp"
 #include "optimization_helpers.h"
@@ -30,6 +32,52 @@ using namespace drake::parsers::urdf;
 using namespace drake::systems;
 using namespace drake::symbolic;
 using namespace drake::solvers;
+
+
+GurobiSolver::mipSolCallbackReturn mipSolCallbackFunction(const MathematicalProgram& prog, void * usrdata){
+  return ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipSolCallbackFunction(prog);
+}
+
+GurobiSolver::mipSolCallbackReturn MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const MathematicalProgram& prog){
+  RemoteTreeViewerWrapper rm;
+
+  // Visualize current heuristic sol
+  auto f_est = prog.GetSolution(f_);
+  auto C_est = prog.GetSolution(C_);
+
+  for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
+    const RigidBody<double>& body = robot_.get_body(body_i);
+
+    Vector3d Tf = prog.GetSolution(transform_by_object_[body_i-1].T); //, sol_i);
+    Matrix3d Rf = prog.GetSolution(transform_by_object_[body_i-1].R); //, sol_i);
+
+    Affine3d est_tf;
+    est_tf.setIdentity();
+    est_tf.translation() = Tf;
+    est_tf.matrix().block<3,3>(0,0) = Rf;
+    // And flip it, so that it transforms from world -> model
+    est_tf = est_tf.inverse();
+
+    for (const auto& collision_elem_id : body.get_collision_element_ids()) {
+      stringstream collision_elem_id_str;
+      collision_elem_id_str << collision_elem_id;
+      auto element = robot_.FindCollisionElement(collision_elem_id);
+      if (element->hasGeometry()){
+        vector<string> path;
+        path.push_back("intermed");
+        path.push_back(body.get_name());
+        path.push_back(collision_elem_id_str.str());
+        rm.publishGeometry(element->getGeometry(), est_tf * element->getLocalTransform(), Vector4d(0.2, 0.2, 1.0, 0.2), path);
+      }
+    }
+  }
+
+
+  VectorXd new_vals;
+  VectorXDecisionVariable vars;
+  GurobiSolver::mipSolCallbackReturn ret(new_vals, vars);
+  return ret;  
+}
 
 MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
   if (config["rotation_constraint"])
@@ -197,7 +245,7 @@ void MIQPMultipleMeshModelDetector::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& a
 std::vector<MIQPMultipleMeshModelDetector::TransformationVars> 
 MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalProgram& prog, bool world_to_body_direction){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
-  std::vector<TransformationVars> transform_by_object;
+  transform_by_object_.clear();
 
   for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
     TransformationVars new_tr;
@@ -245,9 +293,9 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
         prog.AddLinearEqualityConstraint(new_tr.R.col(i) - ground_truth_tf.rotation().col(i), Eigen::Vector3d::Zero());
       }
     }
-    transform_by_object.push_back(new_tr);
+    transform_by_object_.push_back(new_tr);
   }
-  return transform_by_object;
+  return transform_by_object_;
 }
 
 /*****************************************************************************
@@ -297,22 +345,22 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   }
 
   // Allocate slacks to choose minimum L-1 norm over objects
-  auto phi = prog.NewContinuousVariables(scene_pts.cols(), 1, "phi");
+  phi_ = prog.NewContinuousVariables(scene_pts.cols(), 1, "phi");
 
   // And slacks to store term-wise absolute value terms for L-1 norm calculation
-  auto alpha = prog.NewContinuousVariables(3, scene_pts.cols(), "alpha");
+  alpha_ = prog.NewContinuousVariables(3, scene_pts.cols(), "alpha");
 
   // Each row is a set of affine coefficients relating the scene point to a combination
   // of vertices on a single face of the model
-  auto C = prog.NewContinuousVariables(scene_pts.cols(), all_vertices.cols(), "C");
+  C_ = prog.NewContinuousVariables(scene_pts.cols(), all_vertices.cols(), "C");
   // Binary variable selects which face is being corresponded to
-  auto f = prog.NewBinaryVariables(scene_pts.cols(), F.rows(),"f");
+  f_ = prog.NewBinaryVariables(scene_pts.cols(), F.rows(),"f");
 
-  auto transform_by_object = addTransformationVarsAndConstraints(prog, false);
+  auto transform_by_object_ = addTransformationVarsAndConstraints(prog, false);
 
   // Optimization pushes on slacks to make them tight (make them do their job)
   // (and normalize by number of pts for MSE calculation)
-  prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi);
+  prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi_);
   /*
   for (int k=0; k<3; k++){
     prog.AddLinearCost(1.0 * VectorXd::Ones(alpha.cols()), {alpha.row(k)});
@@ -320,36 +368,36 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   */
 
   // Constrain slacks nonnegative, to help the estimation of lower bound in relaxation  
-  prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), phi);
+  prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), phi_);
   for (int k=0; k<3; k++){
-    prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), {alpha.row(k).transpose()});
+    prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), {alpha_.row(k).transpose()});
   }
 
   // Constrain each row of C to sum to 1 if a face is selected, to make them proper
   // affine coefficients
-  Eigen::MatrixXd C1 = Eigen::MatrixXd::Ones(1, C.cols()+f.cols());
+  Eigen::MatrixXd C1 = Eigen::MatrixXd::Ones(1, C_.cols()+f_.cols());
   // sum(C_i) = sum(f_i)
   // sum(C_i) - sum(f_i) = 0
-  C1.block(0, C.cols(), 1, f.cols()) = -Eigen::MatrixXd::Ones(1, f.cols());
-  for (size_t k=0; k<C.rows(); k++){
-    prog.AddLinearEqualityConstraint(C1, 0, {C.row(k).transpose(), f.row(k).transpose()});
+  C1.block(0, C_.cols(), 1, f_.cols()) = -Eigen::MatrixXd::Ones(1, f_.cols());
+  for (size_t k=0; k<C_.rows(); k++){
+    prog.AddLinearEqualityConstraint(C1, 0, {C_.row(k).transpose(), f_.row(k).transpose()});
   }
 
   // Constrain each row of f to sum to 1, to force selection of exactly
   // one face to correspond to
-  Eigen::MatrixXd f1 = Eigen::MatrixXd::Ones(1, f.cols());
-  for (size_t k=0; k<f.rows(); k++){
+  Eigen::MatrixXd f1 = Eigen::MatrixXd::Ones(1, f_.cols());
+  for (size_t k=0; k<f_.rows(); k++){
     if (optAllowOutliers_){
-      prog.AddLinearConstraint(f1, 0, 1, f.row(k).transpose()); 
+      prog.AddLinearConstraint(f1, 0, 1, f_.row(k).transpose()); 
     } else {
-      prog.AddLinearEqualityConstraint(f1, 1, f.row(k).transpose());
+      prog.AddLinearEqualityConstraint(f1, 1, f_.row(k).transpose());
     }
   }
 
   // Force all elems of C nonnegative
-  for (int i=0; i<C.rows(); i++){
-    for (int j=0; j<C.cols(); j++){
-      prog.AddBoundingBoxConstraint(0.0, 1.0, C(i, j));
+  for (int i=0; i<C_.rows(); i++){
+    for (int j=0; j<C_.cols(); j++){
+      prog.AddBoundingBoxConstraint(0.0, 1.0, C_(i, j));
     }
   }
 
@@ -360,9 +408,9 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   // or reorganized
   // [0] <= [F_{:, j}^T -1] [f_{i, :}^T C_{i, j}]
   //         
-  for (int i=0; i<C.rows(); i++){
-    for (int j=0; j<C.cols(); j++){
-      prog.AddLinearConstraint(C(i,j) <= (F.col(j).transpose() * f.row(i).transpose())(0, 0));
+  for (int i=0; i<C_.rows(); i++){
+    for (int j=0; j<C_.cols(); j++){
+      prog.AddLinearConstraint(C_(i,j) <= (F.col(j).transpose() * f_.row(i).transpose())(0, 0));
     }
   }
 
@@ -374,7 +422,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
       // constrain L-1 distance slack based on correspondences
       // phi_i >= 1^T alpha_{i}
-      prog.AddLinearConstraint(phi(i, 0) >= (RowVector3d::Ones() * alpha.col(i))(0, 0));
+      prog.AddLinearConstraint(phi_(i, 0) >= (RowVector3d::Ones() * alpha_.col(i))(0, 0));
 
       // If we're allowing outliers, we need to constrain each phi_i to be bigger than
       // a penalty amount if no faces are selected
@@ -384,8 +432,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
         // (phi_i >= 0 always, as constrained above, which is the tightest 
         // lower bound we can always enforce).
         // phi_i >= phi_max - (ones * f_i)*BIG
-        for (size_t k=0; k<f.rows(); k++){
-          prog.AddLinearConstraint(phi(i, 0) >= optPhiMax_ - optBigNumber_*(RowVectorXd::Ones(f.cols()) * f.row(k).transpose())(0, 0));
+        for (size_t k=0; k<f_.rows(); k++){
+          prog.AddLinearConstraint(phi_(i, 0) >= optPhiMax_ - optBigNumber_*(RowVectorXd::Ones(f_.cols()) * f_.row(k).transpose())(0, 0));
         }
       }
 
@@ -395,12 +443,12 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       // alpha_i >= -(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * f_i)
       // (alpha is a slack var to implement the absolute value)
       Matrix<Expression, 3, 1> l1ErrorPos =
-          transform_by_object[body_i-1].R * scene_pts.col(i) + transform_by_object[body_i-1].T
-             - all_vertices * C.row(i).transpose();
-      Matrix<Expression, 3, 1> selector = Vector3d::Ones() * (optBigNumber_ * (VectorXd::Ones(1) - B.row(body_i - 1) * f.row(i).transpose()));
+          transform_by_object_[body_i-1].R * scene_pts.col(i) + transform_by_object_[body_i-1].T
+             - all_vertices * C_.row(i).transpose();
+      Matrix<Expression, 3, 1> selector = Vector3d::Ones() * (optBigNumber_ * (VectorXd::Ones(1) - B.row(body_i - 1) * f_.row(i).transpose()));
       for (int k=0; k<3; k++){
-        prog.AddLinearConstraint( alpha(k, i) >= l1ErrorPos(k) - selector(k) );
-        prog.AddLinearConstraint( alpha(k, i) >= -l1ErrorPos(k) - selector(k) );
+        prog.AddLinearConstraint( alpha_(k, i) >= l1ErrorPos(k) - selector(k) );
+        prog.AddLinearConstraint( alpha_(k, i) >= -l1ErrorPos(k) - selector(k) );
       }
     }
   }
@@ -445,10 +493,10 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       auto z_a = prog.NewContinuousVariables<3>("z_1");
       auto z_b = prog.NewContinuousVariables<3>("z_2");
 
-      auto e1_a = transform_by_object[body_i-1].R * z_a + transform_by_object[body_i-1].T;
-      auto e1_b = transform_by_object[body_i-1].R * z_b + transform_by_object[body_i-1].T;
-      auto e2_a = transform_by_object[parent_id-1].R * z_a + transform_by_object[parent_id-1].T;
-      auto e2_b = transform_by_object[parent_id-1].R * z_b + transform_by_object[parent_id-1].T;
+      auto e1_a = transform_by_object_[body_i-1].R * z_a + transform_by_object_[body_i-1].T;
+      auto e1_b = transform_by_object_[body_i-1].R * z_b + transform_by_object_[body_i-1].T;
+      auto e2_a = transform_by_object_[parent_id-1].R * z_a + transform_by_object_[parent_id-1].T;
+      auto e2_b = transform_by_object_[parent_id-1].R * z_b + transform_by_object_[parent_id-1].T;
 
       prog.AddLinearEqualityConstraint(e1_a, p_a_1);
       prog.AddLinearEqualityConstraint(e1_b, p_b_1);
@@ -497,8 +545,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
     for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
       auto tf = robot_.relativeTransform(robot_kinematics_cache_corrupt, body_i, 0);
-      //prog.SetInitialGuess(transform_by_object[body_i-1].T, tf.translation());
-      //prog.SetInitialGuess(transform_by_object[body_i-1].R, tf.matrix().block<3, 3>(0, 0));
+      //prog.SetInitialGuess(transform_by_object_[body_i-1].T, tf.translation());
+      //prog.SetInitialGuess(transform_by_object_[body_i-1].R, tf.matrix().block<3, 3>(0, 0));
     }
 
     // for every scene point, project it down onto the models at the supplied TF to get closest object, and use 
@@ -564,7 +612,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       }
       // else it's an outlier point
     }
-    prog.SetInitialGuess(f, f0);
+    prog.SetInitialGuess(f_, f0);
   }
 
   //  prog.SetSolverOption(SolverType::kGurobi, "Cutoff", 50.0);
@@ -572,6 +620,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   //  prog.SetSolverOption(SolverType::kGurobi, "TuneJobs", 8);
   //  prog.SetSolverOption(SolverType::kGurobi, "TuneResults", 3);
   //prog.SetSolverOption(SolverType::kGurobi, )
+
+  gurobi_solver.addMIPSolCallback(&mipSolCallbackFunction, this);
 
   double start_time = getUnixTime();
   auto out = gurobi_solver.Solve(prog);
@@ -588,8 +638,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     printf("==================================================\n");
     printf("======================SOL %d ======================\n", sol_i);
     printf("==================================================\n");
-    auto f_est= prog.GetSolution(f); //, sol_i);
-    auto C_est = prog.GetSolution(C); //, sol_i);
+    auto f_est= prog.GetSolution(f_); //, sol_i);
+    auto C_est = prog.GetSolution(C_); //, sol_i);
 
     MIQPMultipleMeshModelDetector::Solution new_solution;
 
@@ -602,8 +652,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       printf("************************************************\n");
       printf("Concerning model %d (%s):\n", body_i, body.get_name().c_str());
       printf("------------------------------------------------\n");
-      Vector3d Tf = prog.GetSolution(transform_by_object[body_i-1].T); //, sol_i);
-      Matrix3d Rf = prog.GetSolution(transform_by_object[body_i-1].R); //, sol_i);
+      Vector3d Tf = prog.GetSolution(transform_by_object_[body_i-1].T); //, sol_i);
+      Matrix3d Rf = prog.GetSolution(transform_by_object_[body_i-1].R); //, sol_i);
       printf("Transform:\n");
       printf("\tTranslation: %f, %f, %f\n", Tf(0, 0), Tf(1, 0), Tf(2, 0));
       printf("\tRotation:\n");
@@ -646,7 +696,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
         new_solution.detections.push_back(new_detection);
     }
 
-    new_solution.objective = prog.GetSolution(phi).sum() / (double) scene_pts.cols(); //, sol_i).sum();
+    new_solution.objective = prog.GetSolution(phi_).sum() / (double) scene_pts.cols(); //, sol_i).sum();
     new_solution.solve_time = elapsed;
     solutions.push_back(new_solution);
   }
@@ -676,7 +726,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
   // Add decision variables for the transformations for each body,
   // and add their transform-relevant constraints.
-  auto transform_by_object = addTransformationVarsAndConstraints(prog, true);
+  auto transform_by_object_ = addTransformationVarsAndConstraints(prog, true);
 
   // Sample points from surface of model
   Matrix3Xd model_pts = doModelPointSampling();
@@ -694,7 +744,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   for (int i = 0; i < model_pts.cols(); i++) {
     // TODO(gizatt) Generalize for more than 1 object.
     // This generates a linear expression for the model point transformation into scene frame:
-    Matrix<Expression, 3, 1> transformed_model_pt_expr = transform_by_object[0].R * model_pts.col(i) + transform_by_object[0].T;
+    Matrix<Expression, 3, 1> transformed_model_pt_expr = transform_by_object_[0].R * model_pts.col(i) + transform_by_object_[0].T;
     Matrix<Expression, 3, 1> selected_scene_pt_expr(3, 1);
     // This generates a linear expression selecting a scene point using our permutation matrix:
     // TODO(gizatt) This might be able to be made into a one-liner with careful use of a diag() call...
@@ -745,10 +795,10 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       auto z_a = prog.NewContinuousVariables<3>("z_1");
       auto z_b = prog.NewContinuousVariables<3>("z_2");
 
-      auto e1_a = transform_by_object[body_i-1].R * z_a + transform_by_object[body_i-1].T;
-      auto e1_b = transform_by_object[body_i-1].R * z_b + transform_by_object[body_i-1].T;
-      auto e2_a = transform_by_object[parent_id-1].R * z_a + transform_by_object[parent_id-1].T;
-      auto e2_b = transform_by_object[parent_id-1].R * z_b + transform_by_object[parent_id-1].T;
+      auto e1_a = transform_by_object_[body_i-1].R * z_a + transform_by_object_[body_i-1].T;
+      auto e1_b = transform_by_object_[body_i-1].R * z_b + transform_by_object_[body_i-1].T;
+      auto e2_a = transform_by_object_[parent_id-1].R * z_a + transform_by_object_[parent_id-1].T;
+      auto e2_b = transform_by_object_[parent_id-1].R * z_b + transform_by_object_[parent_id-1].T;
 
       prog.AddLinearEqualityConstraint(e1_a, p_a_1);
       prog.AddLinearEqualityConstraint(e1_b, p_b_1);
@@ -795,7 +845,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     printf("==================================================\n");
     printf("======================SOL %d ======================\n", sol_i);
     printf("==================================================\n");
-    auto C_est = prog.GetSolution(C); //, sol_i);
+    auto C_est = prog.GetSolution(C_); //, sol_i);
 
     MIQPMultipleMeshModelDetector::Solution new_solution;
 
@@ -808,8 +858,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       printf("************************************************\n");
       printf("Concerning model %d (%s):\n", body_i, body.get_name().c_str());
       printf("------------------------------------------------\n");
-      Vector3d Tf = prog.GetSolution(transform_by_object[body_i-1].T); //, sol_i);
-      Matrix3d Rf = prog.GetSolution(transform_by_object[body_i-1].R); //, sol_i);
+      Vector3d Tf = prog.GetSolution(transform_by_object_[body_i-1].T); //, sol_i);
+      Matrix3d Rf = prog.GetSolution(transform_by_object_[body_i-1].R); //, sol_i);
       printf("Transform:\n");
       printf("\tTranslation: %f, %f, %f\n", Tf(0, 0), Tf(1, 0), Tf(2, 0));
       printf("\tRotation:\n");
