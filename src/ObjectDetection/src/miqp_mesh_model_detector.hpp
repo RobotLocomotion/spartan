@@ -88,4 +88,10 @@ class MIQPMultipleMeshModelDetector {
     drake::solvers::MatrixXDecisionVariable alpha_;
     drake::solvers::MatrixXDecisionVariable C_;
     drake::solvers::MatrixXDecisionVariable f_;
+
+
+    Eigen::Matrix3Xd all_vertices_;
+    DrakeShapes::TrianglesVector all_faces_;
+    std::vector<int> face_body_map_; // Maps from a face index (into all_faces) to an RBT body index.
+    Eigen::Matrix3Xd scene_pts_;
 };
