@@ -26,6 +26,7 @@ configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environm
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_DRIVERS "Build the hardware lcm driver." OFF)
+option(WITH_ISSUE_5456_WORKAROUND "Workaround for RobotLocomotion/drake#5456: Configure but do not build ContactParticleFilter and RemoteTreeViewer" OFF)
 
 # Setup external projects
 include(ExternalProject)
@@ -108,6 +109,10 @@ ExternalProject_Add(RemoteTreeViewer
   DEPENDS drake
 )
 
+if (WITH_ISSUE_5456_WORKAROUND)
+  set_target_properties(RemoteTreeViewer PROPERTIES EXCLUDE_FROM_ALL TRUE)
+endif()
+
 if (WITH_PERCEPTION)
 
   ExternalProject_Add(ObjectDetection
@@ -119,6 +124,10 @@ if (WITH_PERCEPTION)
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     DEPENDS drake director RemoteTreeViewer
   )
+
+  if (WITH_ISSUE_5456_WORKAROUND)
+    set_target_properties(ObjectDetection PROPERTIES EXCLUDE_FROM_ALL TRUE)
+  endif()
 
 endif()
 
@@ -149,7 +158,6 @@ if (WITH_DRIVERS)
   )
 
 endif()
-
 
 # Add tests
 add_subdirectory(tests)

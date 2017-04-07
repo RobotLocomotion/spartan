@@ -49,6 +49,13 @@ Finally, run the build::
 By default, cmake generates a Makefile, but it's possible to use other
 build tools like ninja.
 
+If you encounter an error such as::
+
+    Target "RemoteTreeViewer" links to target "Eigen3::Eigen" but the
+    target was not found.  Perhaps a find_package() call is missing for an
+    IMPORTED target, or an ALIAS target is missing?
+
+then reconfigure CMake with the flag ``-DWITH_ISSUE_5456_WORKAROUND=ON``.
 
 Environment setup
 =================
