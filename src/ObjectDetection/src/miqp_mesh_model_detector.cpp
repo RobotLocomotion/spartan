@@ -8,6 +8,7 @@
 #include "drake/common/eigen_types.h"
 #include "drake/common/symbolic_formula.h"
 
+#include "drake/math/rotation_matrix.h"
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 #include "drake/multibody/rigid_body_plant/drake_visualizer.h"
@@ -32,6 +33,7 @@ using namespace drake::parsers::urdf;
 using namespace drake::systems;
 using namespace drake::symbolic;
 using namespace drake::solvers;
+using namespace drake::math;
 
 
 GurobiSolver::mipSolCallbackReturn mipSolCallbackFunction(const MathematicalProgram& prog, void * usrdata){
@@ -44,6 +46,8 @@ GurobiSolver::mipSolCallbackReturn MIQPMultipleMeshModelDetector::handleMipSolCa
   // Visualize current heuristic sol
   auto f_est = prog.GetSolution(f_);
   auto C_est = prog.GetSolution(C_);
+
+  VectorXd q_robot(robot_.get_num_positions());
 
   for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
     const RigidBody<double>& body = robot_.get_body(body_i);
@@ -58,20 +62,34 @@ GurobiSolver::mipSolCallbackReturn MIQPMultipleMeshModelDetector::handleMipSolCa
     // And flip it, so that it transforms from world -> model
     est_tf = est_tf.inverse();
 
+    // TODO(gizatt) This state vector reconstruction assumes all bodies
+    // have floating bases. Reconstructing joint states will require
+    // more clever and careful optimization...
+
+    q_robot.block<3, 1>(6*(body_i - 1), 0) = est_tf.translation();
+    // tried: 0 1 2 x
+    //        2 0 1 
+    //        1 2 0
+    //        0 2 1
+    //        1 0 2
+    //        2 1 0
+    q_robot.block<3, 1>(6*(body_i - 1) + 3, 0) = rotmat2rpy(est_tf.rotation());
+
     for (const auto& collision_elem_id : body.get_collision_element_ids()) {
       stringstream collision_elem_id_str;
       collision_elem_id_str << collision_elem_id;
       auto element = robot_.FindCollisionElement(collision_elem_id);
       if (element->hasGeometry()){
         vector<string> path;
-        path.push_back("intermed");
+        path.push_back("intermed_maximal");
         path.push_back(body.get_name());
         path.push_back(collision_elem_id_str.str());
         rm.publishGeometry(element->getGeometry(), est_tf * element->getLocalTransform(), Vector4d(0.2, 0.2, 1.0, 0.2), path);
       }
     }
-  }
 
+  }
+  rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.2, 1.0, 0.2), {"intermed"});
 
   VectorXd new_vals;
   VectorXDecisionVariable vars;
