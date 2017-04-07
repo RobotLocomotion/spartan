@@ -9,6 +9,7 @@
 
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/solvers/mathematical_program.h"
+#include "drake/solvers/gurobi_solver.h"
 
 #include "yaml-cpp/yaml.h"
 
@@ -43,6 +44,8 @@ class MIQPMultipleMeshModelDetector {
 
     MIQPMultipleMeshModelDetector(YAML::Node config);
   
+    drake::solvers::GurobiSolver::mipSolCallbackReturn handleMipSolCallbackFunction(const drake::solvers::MathematicalProgram& prog);
+
     void doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out);
     Eigen::Matrix3Xd doModelPointSampling();
 
@@ -80,4 +83,9 @@ class MIQPMultipleMeshModelDetector {
     int optModelSampleRays_ = 10;
     double optBigNumber_ = 100;
 
+    std::vector<MIQPMultipleMeshModelDetector::TransformationVars> transform_by_object_;
+    drake::solvers::MatrixXDecisionVariable phi_;
+    drake::solvers::MatrixXDecisionVariable alpha_;
+    drake::solvers::MatrixXDecisionVariable C_;
+    drake::solvers::MatrixXDecisionVariable f_;
 };
