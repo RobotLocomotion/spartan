@@ -24,7 +24,7 @@ endif()
 configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environment.sh @ONLY)
 
 # Options
-option(WITH_PERCEPTION "Build with perception libraries and tools." OFF)
+option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_DRIVERS "Build the hardware lcm driver." OFF)
 
 # Setup external projects

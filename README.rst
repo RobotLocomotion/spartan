@@ -16,6 +16,16 @@ submodules. Follow the platform setup instructions in the Drake documentation::
 
     http://drake.mit.edu/from_source.html#mandatory-platform-specific-instructions
 
+You will also need the appropriate dependencies for Director. Refer to the
+Director `README`::
+
+    https://github.com/RobotLocomotion/director/#dependencies
+
+For Ubuntu 16.04, you may install a non-conservative set of dependencies for
+Director by running the following script::
+
+    sudo ./setup/ubuntu/16.04/install_prereqs.sh
+
 Make sure your submodules are up to date.  The recommended command is::
 
     git submodule update --init
