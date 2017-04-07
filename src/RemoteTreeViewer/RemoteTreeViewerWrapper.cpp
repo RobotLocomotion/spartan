@@ -271,7 +271,7 @@ void RemoteTreeViewerWrapper::publishGeometry(const Geometry& geometry, Affine3d
       }
       break;
     default:
-      cout << "Unsupported geometry type " << geometry.getShape() << ", sorry!" << cout;
+      cout << "Unsupported geometry type " << geometry.getShape() << ", sorry!" << endl;
       return;
   }
 
