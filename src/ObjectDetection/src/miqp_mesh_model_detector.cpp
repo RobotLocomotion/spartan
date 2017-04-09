@@ -37,11 +37,114 @@ using namespace drake::math;
 
 const double kMaxConsideredICPDistance = 0.5;
 
-GurobiSolver::mipSolCallbackReturn mipSolCallbackFunction(const MathematicalProgram& prog, void * usrdata){
-  return ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipSolCallbackFunction(prog);
+template<typename Scalar>
+Scalar clamp(Scalar a, Scalar amin, Scalar amax){
+  return fmin(fmax(a, amin), amax);
+}
+// Adapted from https://www.gamedev.net/topic/552906-closest-point-on-triangle/
+// and converted to Eigen by gizatt@mit.edu
+Vector3d closesPointOnTriangle( const vector<Vector3d>& triangle, const Vector3d& sourcePosition )
+{
+    Vector3d edge0 = triangle[1] - triangle[0];
+    Vector3d edge1 = triangle[2] - triangle[0];
+    Vector3d v0 = triangle[0] - sourcePosition;
+
+    float a = edge0.transpose() * edge0;
+    float b = edge0.transpose() * edge1;
+    float c = edge1.transpose() * edge1;
+    float d = edge0.transpose() * v0;
+    float e = edge1.transpose() * v0;
+
+    float det = a*c - b*b;
+    float s = b*e - c*d;
+    float t = b*d - a*e;
+
+    if ( s + t < det )
+    {
+        if ( s < 0.f )
+        {
+            if ( t < 0.f )
+            {
+                if ( d < 0.f )
+                {
+                    s = clamp( -d/a, 0.f, 1.f );
+                    t = 0.f;
+                }
+                else
+                {
+                    s = 0.f;
+                    t = clamp( -e/c, 0.f, 1.f );
+                }
+            }
+            else
+            {
+                s = 0.f;
+                t = clamp( -e/c, 0.f, 1.f );
+            }
+        }
+        else if ( t < 0.f )
+        {
+            s = clamp( -d/a, 0.f, 1.f );
+            t = 0.f;
+        }
+        else
+        {
+            float invDet = 1.f / det;
+            s *= invDet;
+            t *= invDet;
+        }
+    }
+    else
+    {
+        if ( s < 0.f )
+        {
+            float tmp0 = b+d;
+            float tmp1 = c+e;
+            if ( tmp1 > tmp0 )
+            {
+                float numer = tmp1 - tmp0;
+                float denom = a-2*b+c;
+                s = clamp( numer/denom, 0.f, 1.f );
+                t = 1-s;
+            }
+            else
+            {
+                t = clamp( -e/c, 0.f, 1.f );
+                s = 0.f;
+            }
+        }
+        else if ( t < 0.f )
+        {
+            if ( a+d > b+e )
+            {
+                float numer = c+e-b-d;
+                float denom = a-2*b+c;
+                s = clamp( numer/denom, 0.f, 1.f );
+                t = 1-s;
+            }
+            else
+            {
+                s = clamp( -e/c, 0.f, 1.f );
+                t = 0.f;
+            }
+        }
+        else
+        {
+            float numer = c+e-b-d;
+            float denom = a-2*b+c;
+            s = clamp( numer/denom, 0.f, 1.f );
+            t = 1.f - s;
+        }
+    }
+
+    return triangle[0] + s * edge0 + t * edge1;
 }
 
-GurobiSolver::mipSolCallbackReturn MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const MathematicalProgram& prog){
+void mipSolCallbackFunction(const MathematicalProgram& prog, void * usrdata, VectorXd& vals, VectorXDecisionVariable& vars){
+  ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipSolCallbackFunction(prog, vals, vars);
+}
+
+void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const MathematicalProgram& prog, VectorXd& vals, VectorXDecisionVariable& vars){
   RemoteTreeViewerWrapper rm;
 
   // Extract current heuristic solution
@@ -208,10 +311,8 @@ GurobiSolver::mipSolCallbackReturn MIQPMultipleMeshModelDetector::handleMipSolCa
     usleep(1000*5);
   }
 
-  VectorXd new_vals;
-  VectorXDecisionVariable vars;
-  GurobiSolver::mipSolCallbackReturn ret(new_vals, vars);
-  return ret;  
+  // Given that solution, generate an initial guess
+  getInitialGuessFromRobotState(q_robot, vals, vars);
 }
 
 MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
@@ -433,6 +534,63 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
   return transform_by_object_;
 }
 
+void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd& q_robot,
+  VectorXd& vals, VectorXDecisionVariable& vars){
+  KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot);
+    
+  /*
+  for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
+    auto tf = robot_.relativeTransform(robot_kinematics_cache, body_i, 0);
+    //prog.SetInitialGuess(transform_by_object_[body_i-1].T, tf.translation());
+    //prog.SetInitialGuess(transform_by_object_[body_i-1].R, tf.matrix().block<3, 3>(0, 0));
+  }*/
+
+  // for every scene point, project it down onto the models at the supplied TF to get closest object, and use 
+  // that face assignment as our guess if the distance isn't too great
+  VectorXd search_phi;
+  Matrix3Xd search_norm;
+  Matrix3Xd search_x;
+  Matrix3Xd search_body_x;
+  vector<int> search_body_idx;
+  robot_.collisionDetectFromPoints(robot_kinematics_cache, scene_pts_, search_phi,
+              search_norm, search_x, search_body_x, search_body_idx, false);
+
+  MatrixXd f0(scene_pts_.cols(), F_.rows());
+  f0.setZero();
+  printf("Starting to backsolve initial guess...\n");
+  for (int i=0; i<scene_pts_.cols(); i++){
+    printf("\r\tgenerating guess for point (%d)/(%d)", i, (int)scene_pts_.cols());
+    // Find the face it's closest to on body i
+    double dist = std::numeric_limits<double>::infinity();
+    int face_ind = 0;
+    Vector3d closest_pt;
+    if (search_body_idx[i] > 0){
+      for (int j=0; j<all_faces_.size(); j++){
+        if (B_(search_body_idx[i]-1, j) < 0.5) continue;
+
+        vector<Vector3d> verts;
+        for (int k=0; k<3; k++){
+          verts.push_back(all_vertices_.col(all_faces_[j](k)));
+        }
+        Vector3d new_closest_pt = closesPointOnTriangle(verts, scene_pts_.col(i));
+        double new_dist = (new_closest_pt - scene_pts_.col(i)).norm();
+        if (new_dist < dist){
+          dist = new_dist;
+          face_ind = j;
+          closest_pt = new_closest_pt;
+        }
+      }
+    }
+    if (dist < optPhiMax_){
+      f0(i, face_ind) = 1;
+    }
+    // else it's an outlier point
+  }
+  vals = f0;
+  vars = f_;
+}
+
+
 /*****************************************************************************
 
 
@@ -464,19 +622,19 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   // matrices for our optimization.
   // F(i, j) is 1 iff vertex j is a member of face i, 0 otherwise.
   // B(i, j) is 1 iff face j is a member of body i, 0 otherwise.
-  MatrixXd F(all_faces_.size(), all_vertices_.cols());
+  F_.resize(all_faces_.size(), all_vertices_.cols());
   // (Remember not include the "world" body, so take 1 away from
   //  robot_.get_num_bodies().)
-  MatrixXd B(robot_.get_num_bodies() - 1, all_faces_.size());
-  B.setZero();
-  F.setZero();
+  B_.resize(robot_.get_num_bodies() - 1, all_faces_.size());
+  B_.setZero();
+  F_.setZero();
   for (int i=0; i<all_faces_.size(); i++){
     // Generate sub-block of face selection matrix F
-    F(i, all_faces_[i][0]) = 1.;
-    F(i, all_faces_[i][1]) = 1.;
-    F(i, all_faces_[i][2]) = 1.;
+    F_(i, all_faces_[i][0]) = 1.;
+    F_(i, all_faces_[i][1]) = 1.;
+    F_(i, all_faces_[i][2]) = 1.;
     // Don't include the "world" body.
-    B(face_body_map_[i]-1, i) = 1.0;
+    B_(face_body_map_[i]-1, i) = 1.0;
   }
 
   // Allocate slacks to choose minimum L-1 norm over objects
@@ -489,7 +647,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   // of vertices on a single face of the model
   C_ = prog.NewContinuousVariables(scene_pts.cols(), all_vertices_.cols(), "C");
   // Binary variable selects which face is being corresponded to
-  f_ = prog.NewBinaryVariables(scene_pts.cols(), F.rows(),"f");
+  f_ = prog.NewBinaryVariables(scene_pts.cols(), F_.rows(),"f");
 
   auto transform_by_object_ = addTransformationVarsAndConstraints(prog, false);
 
@@ -545,7 +703,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   //         
   for (int i=0; i<C_.rows(); i++){
     for (int j=0; j<C_.cols(); j++){
-      prog.AddLinearConstraint(C_(i,j) <= (F.col(j).transpose() * f_.row(i).transpose())(0, 0));
+      prog.AddLinearConstraint(C_(i,j) <= (F_.col(j).transpose() * f_.row(i).transpose())(0, 0));
     }
   }
 
@@ -553,7 +711,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
 
     for (int i=0; i<scene_pts.cols(); i++){
-      printf("\r\tgenerating guess for body (%d)/(%d), point (%d)/(%d)", body_i, (int)robot_.get_num_bodies(), i, (int)scene_pts.cols());
 
       // constrain L-1 distance slack based on correspondences
       // phi_i >= 1^T alpha_{i}
@@ -580,7 +737,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       Matrix<Expression, 3, 1> l1ErrorPos =
           transform_by_object_[body_i-1].R * scene_pts.col(i) + transform_by_object_[body_i-1].T
              - all_vertices_ * C_.row(i).transpose();
-      Matrix<Expression, 3, 1> selector = Vector3d::Ones() * (optBigNumber_ * (VectorXd::Ones(1) - B.row(body_i - 1) * f_.row(i).transpose()));
+      Matrix<Expression, 3, 1> selector = Vector3d::Ones() * (optBigNumber_ * (VectorXd::Ones(1) - B_.row(body_i - 1) * f_.row(i).transpose()));
       for (int k=0; k<3; k++){
         prog.AddLinearConstraint( alpha_(k, i) >= l1ErrorPos(k) - selector(k) );
         prog.AddLinearConstraint( alpha_(k, i) >= -l1ErrorPos(k) - selector(k) );
@@ -678,76 +835,10 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     KinematicsCache<double> robot_kinematics_cache_corrupt = robot_.doKinematics(q_robot_corrupt);
     cout << "q robot corrupt " << q_robot_corrupt.transpose() << endl;
 
-    for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
-      auto tf = robot_.relativeTransform(robot_kinematics_cache_corrupt, body_i, 0);
-      //prog.SetInitialGuess(transform_by_object_[body_i-1].T, tf.translation());
-      //prog.SetInitialGuess(transform_by_object_[body_i-1].R, tf.matrix().block<3, 3>(0, 0));
-    }
-
-    // for every scene point, project it down onto the models at the supplied TF to get closest object, and use 
-    // that face assignment as our guess if the distance isn't too great
-    VectorXd search_phi;
-    Matrix3Xd search_norm;
-    Matrix3Xd search_x;
-    Matrix3Xd search_body_x;
-    vector<int> search_body_idx;
-    robot_.collisionDetectFromPoints(robot_kinematics_cache_corrupt, scene_pts, search_phi,
-                search_norm, search_x, search_body_x, search_body_idx, false);
-
-    MatrixXd f0(scene_pts.cols(), F.rows());
-    f0.setZero();
-    printf("Starting to backsolve initial guess...\n");
-    for (int i=0; i<scene_pts.cols(); i++){
-      printf("\r\tgenerating guess for point (%d)/(%d)", i, (int)scene_pts.cols());
-      // Find the face it's closest to on body i
-      double dist = std::numeric_limits<double>::infinity();
-      int face_ind = 0;
-      Vector3d closest_pt;
-      for (int j=0; j<all_faces_.size(); j++){
-        if (search_body_idx[i] > 0 && B(search_body_idx[i]-1, j) > 0.5){
-          // We're looking for argmin_{pt_proj} ||pt - pt_proj||
-          //   such that pt_proj = verts * C
-          MathematicalProgram prog_proj;
-          auto pt_proj = prog_proj.NewContinuousVariables(3, 1, "pt_proj");
-
-          // pt_proj is an affine combination of vertices
-          Matrix3Xd verts(3, 3);
-          for (int k=0; k<3; k++){
-            verts.col(k) = all_vertices_.col(all_faces_[j][k]);
-          }
-          verts = robot_.transformPoints(robot_kinematics_cache_corrupt, verts, search_body_idx[i], 0);
-          auto C = prog_proj.NewContinuousVariables(3, 1, "C");
-          prog_proj.AddBoundingBoxConstraint(0.0, 1.0, C);
-          prog_proj.AddLinearEqualityConstraint(VectorXd::Ones(3).transpose(), 1.0, C);
-          Matrix3Xd A(3, 3 + 3);
-          A.block(0, 0, 3, 3) = MatrixXd::Identity(3, 3);
-          A.block(0, 3, 3, 3) = -verts;
-          prog_proj.AddLinearEqualityConstraint(A, Vector3d::Zero(), {pt_proj, C});
-
-          // minimize quadratic error between our pt and the projected point
-          prog_proj.AddL2NormCost(MatrixXd::Identity(3, 3), scene_pts.col(i), pt_proj);
-
-          auto out = prog_proj.Solve();
-
-          if (out >= 0){
-            Vector3d pt_proj_sol = prog_proj.GetSolution(pt_proj);
-            double new_dist = (pt_proj_sol - scene_pts.col(i)).norm();
-            if (new_dist < dist){
-              dist = new_dist;
-              face_ind = j;
-              closest_pt = pt_proj_sol;
-            }
-          } else {
-            printf("optimization returned negative number? that should have been feasible!\n");
-          }
-        }
-      }
-      if (dist < 0.1){
-        f0(i, face_ind) = 1;
-      }
-      // else it's an outlier point
-    }
-    prog.SetInitialGuess(f_, f0);
+    VectorXd vals;
+    VectorXDecisionVariable vars;
+    getInitialGuessFromRobotState(q_robot_corrupt, vals, vars);
+    prog.SetInitialGuess(vars, vals);
   }
 
   //  prog.SetSolverOption(SolverType::kGurobi, "Cutoff", 50.0);
@@ -807,7 +898,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
         for (int face_i=0; face_i<f_est.cols(); face_i++){
           // if this face is assigned, and this face is a member of this object,
           // then display this point
-          if (f_est(scene_i, face_i) > 0.5 && B(body_i-1, face_i) > 0.5){
+          if (f_est(scene_i, face_i) > 0.5 && B_(body_i-1, face_i) > 0.5){
             PointCorrespondence new_corresp;
             new_corresp.scene_pt = scene_pts.col(scene_i);
             new_corresp.model_pt = new_detection.est_tf * scene_pts.col(scene_i);
