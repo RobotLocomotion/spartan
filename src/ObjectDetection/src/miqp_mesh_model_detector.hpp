@@ -44,7 +44,8 @@ class MIQPMultipleMeshModelDetector {
 
     MIQPMultipleMeshModelDetector(YAML::Node config);
   
-    drake::solvers::GurobiSolver::mipSolCallbackReturn handleMipSolCallbackFunction(const drake::solvers::MathematicalProgram& prog);
+    void handleMipSolCallbackFunction(const drake::solvers::MathematicalProgram& prog,
+      Eigen::VectorXd& vals, drake::solvers::VectorXDecisionVariable& vars);
 
     void doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out);
     Eigen::Matrix3Xd doModelPointSampling();
@@ -57,6 +58,9 @@ class MIQPMultipleMeshModelDetector {
     std::vector<TransformationVars> addTransformationVarsAndConstraints(
                             drake::solvers::MathematicalProgram& prog,
                             bool world_to_body_direction);
+
+    void getInitialGuessFromRobotState(const Eigen::VectorXd& q_robot, 
+      Eigen::VectorXd& vals, drake::solvers::VectorXDecisionVariable& vars);
 
     std::vector<Solution> doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts);
     std::vector<Solution> doObjectDetectionWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts);
@@ -88,6 +92,8 @@ class MIQPMultipleMeshModelDetector {
     drake::solvers::MatrixXDecisionVariable alpha_;
     drake::solvers::MatrixXDecisionVariable C_;
     drake::solvers::MatrixXDecisionVariable f_;
+    Eigen::MatrixXd F_;
+    Eigen::MatrixXd B_;
 
 
     Eigen::Matrix3Xd all_vertices_;
