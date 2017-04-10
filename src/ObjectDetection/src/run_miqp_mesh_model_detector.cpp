@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
   rm.publishPointCloud(scene_pts, {"scene_pts_loaded"}, {0.1, 1.0, 0.1});
-  rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.1, 0.1), {"robot_gt"});
+  rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.1, 0.5), {"robot_gt"});
 
 
   // Load in MIQP Object Detector
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
           path.push_back(sol_name.str());
           path.push_back(body.get_name());
           path.push_back(collision_elem_id_str.str());
-          rm.publishGeometry(element->getGeometry(), detection.est_tf * element->getLocalTransform(), Vector4d(0.2, 0.2, 1.0, 0.2), path);
+          rm.publishGeometry(element->getGeometry(), detection.est_tf * element->getLocalTransform(), Vector4d(0.2, 0.2, 1.0, 0.5), path);
         }
       }
 

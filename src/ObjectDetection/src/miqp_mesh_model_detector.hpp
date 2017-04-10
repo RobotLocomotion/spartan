@@ -44,7 +44,7 @@ class MIQPMultipleMeshModelDetector {
 
     MIQPMultipleMeshModelDetector(YAML::Node config);
   
-    void handleMipSolCallbackFunction(const drake::solvers::MathematicalProgram& prog,
+    void handleMipNodeCallbackFunction(const drake::solvers::MathematicalProgram& prog,
       Eigen::VectorXd& vals, drake::solvers::VectorXDecisionVariable& vars);
 
     void doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out);
@@ -100,4 +100,6 @@ class MIQPMultipleMeshModelDetector {
     DrakeShapes::TrianglesVector all_faces_;
     std::vector<int> face_body_map_; // Maps from a face index (into all_faces) to an RBT body index.
     Eigen::Matrix3Xd scene_pts_;
+
+    double best_heuristic_supplied_yet_ = std::numeric_limits<double>::infinity();
 };

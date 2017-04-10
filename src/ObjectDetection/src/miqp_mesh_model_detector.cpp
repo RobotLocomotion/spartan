@@ -140,11 +140,11 @@ Vector3d closesPointOnTriangle( const vector<Vector3d>& triangle, const Vector3d
     return triangle[0] + s * edge0 + t * edge1;
 }
 
-void mipSolCallbackFunction(const MathematicalProgram& prog, void * usrdata, VectorXd& vals, VectorXDecisionVariable& vars){
-  ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipSolCallbackFunction(prog, vals, vars);
+void mipNodeCallbackFunction(const MathematicalProgram& prog, void * usrdata, VectorXd& vals, VectorXDecisionVariable& vars){
+  ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipNodeCallbackFunction(prog, vals, vars);
 }
 
-void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const MathematicalProgram& prog, VectorXd& vals, VectorXDecisionVariable& vars){
+void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const MathematicalProgram& prog, VectorXd& vals, VectorXDecisionVariable& vars){
   RemoteTreeViewerWrapper rm;
 
   // Extract current heuristic solution
@@ -162,8 +162,10 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     est_tf.setIdentity();
     est_tf.translation() = Tf;
     est_tf.matrix().block<3,3>(0,0) = Rf;
+
     // And flip it, so that it transforms from world -> model
     est_tf = est_tf.inverse();
+
 
     // TODO(gizatt) This state vector reconstruction assumes all bodies
     // have floating bases. Reconstructing joint states will require
@@ -172,7 +174,8 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     q_robot.block<3, 1>(6*(body_i - 1), 0) = est_tf.translation();
     q_robot.block<3, 1>(6*(body_i - 1) + 3, 0) = rotmat2rpy(est_tf.rotation());
   }
-  rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.2, 1.0, 0.2), {"intermed"});
+  
+  rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.2, 1.0, 0.5), {"latest_node"});
 
   // Perform 100 steps of ICP on heuristic solution
   // TODO(gizatt) This code is pretty dirty, upgrade to MathematicalProgram
@@ -206,7 +209,8 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     // a single body at once.
     std::vector<int> num_points_on_body(robot_.get_num_bodies(), 0);
     for (int i=0; i < body_idx.size(); i++)
-      num_points_on_body[body_idx[i]] += 1;
+      if (body_idx[i] >= 0)
+        num_points_on_body[body_idx[i]] += 1;
 
     // For every body...
     for (int i=0; i < robot_.get_num_bodies(); i++){
@@ -222,7 +226,7 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
           if (body_idx[j] == i){
             assert(j < scene_pts_.cols());
             if (scene_pts_(0, j) == 0.0){
-              cout << "Zero points " << scene_pts_.block<3, 1>(0, j).transpose() << " slipping in at bdyidx " << body_idx[j] << endl;
+              colsout << "Zero points " << scene_pts_.block<3, 1>(0, j).transpose() << " slipping in at bdyidx " << body_idx[j] << endl;
             }
             if ((scene_pts_.block<3, 1>(0, j) - x.block<3, 1>(0, j)).norm() <= kMaxConsideredICPDistance){
               z.block<3, 1>(0, k) = scene_pts_.block<3, 1>(0, j);
@@ -307,12 +311,32 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
       }
     }
 
-    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.2), {"icp"});
+    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.5), {"icp"});
     usleep(1000*5);
   }
 
-  // Given that solution, generate an initial guess
-  getInitialGuessFromRobotState(q_robot, vals, vars);
+  // Get final objective
+  double new_objective = 0.0;
+  // Search closest points
+  KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot);
+  VectorXd phi;
+  Matrix3Xd normal;
+  Matrix3Xd x;
+  Matrix3Xd body_x;
+  vector<int> body_idx;
+  robot_.collisionDetectFromPoints(robot_kinematics_cache, scene_pts_, phi,
+              normal, x, body_x, body_idx, false);
+
+  for (int i = 0; i < phi.size(); i++){
+    new_objective += phi[i]*phi[i];
+  }
+  printf("Testing objective %f\n", new_objective);
+  if (new_objective < best_heuristic_supplied_yet_){
+    printf("New best objective %f\n", new_objective);
+    best_heuristic_supplied_yet_ = new_objective;
+    // Given that solution, generate an initial guess
+    getInitialGuessFromRobotState(q_robot, vals, vars);
+  }
 }
 
 MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
@@ -538,12 +562,20 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
   VectorXd& vals, VectorXDecisionVariable& vars){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot);
     
-  /*
   for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
     auto tf = robot_.relativeTransform(robot_kinematics_cache, body_i, 0);
+/*
+    vals.conservativeResize(vals.size() + 12);
+    vals.block<9, 1>(vals.size()-12, 0) = Map<VectorXd>(tf.matrix().block<3, 3>(0, 0).data(), 9);
+    vals.block<3, 1>(vals.size()-3, 0) = tf.translation();
+
+    vars.conservativeResize(vars.size() + 12);
+    vars.block<9, 1>(vars.size()-12, 0) = Map<VectorXDecisionVariable>(transform_by_object_[body_i-1].R.data(), 9);
+    vars.block<3, 1>(vars.size()-3, 0) = transform_by_object_[body_i-1].T;
+    */
     //prog.SetInitialGuess(transform_by_object_[body_i-1].T, tf.translation());
     //prog.SetInitialGuess(transform_by_object_[body_i-1].R, tf.matrix().block<3, 3>(0, 0));
-  }*/
+  }
 
   // for every scene point, project it down onto the models at the supplied TF to get closest object, and use 
   // that face assignment as our guess if the distance isn't too great
@@ -558,6 +590,11 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
   MatrixXd f0(scene_pts_.cols(), F_.rows());
   f0.setZero();
   printf("Starting to backsolve initial guess...\n");
+  // Prepare transforms for all bodies
+  vector<Affine3d> tfs(robot_.get_num_bodies());
+  for (int i=0; i < robot_.get_num_bodies(); i++){
+    tfs[i] = robot_.relativeTransform(robot_kinematics_cache, 0, i+1);
+  }
   for (int i=0; i<scene_pts_.cols(); i++){
     printf("\r\tgenerating guess for point (%d)/(%d)", i, (int)scene_pts_.cols());
     // Find the face it's closest to on body i
@@ -570,7 +607,7 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
 
         vector<Vector3d> verts;
         for (int k=0; k<3; k++){
-          verts.push_back(all_vertices_.col(all_faces_[j](k)));
+          verts.push_back(tfs[search_body_idx[i]-1] * all_vertices_.col(all_faces_[j](k)));
         }
         Vector3d new_closest_pt = closesPointOnTriangle(verts, scene_pts_.col(i));
         double new_dist = (new_closest_pt - scene_pts_.col(i)).norm();
@@ -581,13 +618,16 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
         }
       }
     }
+    printf("dist%f\n", dist);
     if (dist < optPhiMax_){
       f0(i, face_ind) = 1;
     }
     // else it's an outlier point
   }
-  vals = f0;
-  vars = f_;
+  vals.conservativeResize(vals.size() + f0.size());
+  vals.block(vals.size() - f0.size(), 0, f0.size(), 1) = f0;
+  vars.conservativeResize(vars.size() + f0.size());
+  vars.block(vars.size() - f0.size(), 0, f0.size(), 1) = f_;
 }
 
 
@@ -847,7 +887,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   //  prog.SetSolverOption(SolverType::kGurobi, "TuneResults", 3);
   //prog.SetSolverOption(SolverType::kGurobi, )
 
-  gurobi_solver.addMIPSolCallback(&mipSolCallbackFunction, this);
+  gurobi_solver.addMIPNodeCallback(&mipNodeCallbackFunction, this);
 
   double start_time = getUnixTime();
   auto out = gurobi_solver.Solve(prog);
