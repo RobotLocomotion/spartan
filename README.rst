@@ -16,6 +16,16 @@ submodules. Follow the platform setup instructions in the Drake documentation::
 
     http://drake.mit.edu/from_source.html#mandatory-platform-specific-instructions
 
+You will also need the appropriate dependencies for Director. Refer to the
+Director `README`::
+
+    https://github.com/RobotLocomotion/director/#dependencies
+
+For Ubuntu 16.04, you may install a non-conservative set of dependencies for
+Director by running the following script::
+
+    sudo ./setup/ubuntu/16.04/install_prereqs.sh
+
 Make sure your submodules are up to date.  The recommended command is::
 
     git submodule update --init
@@ -39,6 +49,13 @@ Finally, run the build::
 By default, cmake generates a Makefile, but it's possible to use other
 build tools like ninja.
 
+If you encounter an error such as::
+
+    Target "RemoteTreeViewer" links to target "Eigen3::Eigen" but the
+    target was not found.  Perhaps a find_package() call is missing for an
+    IMPORTED target, or an ALIAS target is missing?
+
+then reconfigure CMake with the flag ``-DWITH_ISSUE_5456_WORKAROUND=ON``.
 
 Environment setup
 =================
