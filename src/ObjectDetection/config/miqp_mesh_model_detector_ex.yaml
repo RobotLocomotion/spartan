@@ -32,13 +32,13 @@ detector_options:
 
     allow_outliers: false
     phi_max: 0.1
-    use_initial_guess: false
-    corruption_amount: 0.0
+    use_initial_guess: true
+    corruption_amount: 2.0
 
     big_M: 2.0
 
-    downsample_to_this_many_points: 50
-    model_sample_rays: 50
+    downsample_to_this_many_points: 100
+    model_sample_rays: 100
 
     gurobi_int_options:
         #MIPFocus: 1
