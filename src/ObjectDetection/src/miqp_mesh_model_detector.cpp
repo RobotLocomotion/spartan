@@ -198,7 +198,7 @@ void mipNodeCallbackFunction(const MathematicalProgram& prog, void * usrdata, Ve
   ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipNodeCallbackFunction(prog, vals, vars);
 }
 void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const MathematicalProgram& prog, VectorXd& vals, VectorXDecisionVariable& vars){
-  /*
+  
   // Extract current (relaxed!) solution
   auto f_est = prog.GetSolution(f_);
   auto C_est = prog.GetSolution(C_);
@@ -232,7 +232,14 @@ void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const Mathemat
     RemoteTreeViewerWrapper rm;
     rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.2, 1.0, 0.5), {"latest_node"});
   }
-  */
+
+  // Try to ICP on this one
+  icp_search_seeds_lock_.lock();
+  icp_search_seeds_.push(q_robot);
+  icp_search_seeds_lock_.unlock();
+
+  // And add a heuristic sol from our queue, if we have one available.
+  // (This will likely be unrelated to the current node.)
   if (new_heuristic_sols_.size() > 0){
     new_heuristic_sols_lock_.lock();
     vals = new_heuristic_sols_.front().vals;
