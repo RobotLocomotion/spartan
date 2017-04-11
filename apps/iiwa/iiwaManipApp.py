@@ -21,7 +21,7 @@ from director import drcargs
 # todo-
 # the optitrack driver build system needs to lcm gen and install python files
 # for now, set PYTHONPATH manually in order to find and import the optitrack lcmtypes
-sys.path.append(os.path.join(os.environ['SPARTAN_SOURCE_DIR'], 'drivers/optitrack'))
+sys.path.append(os.path.join(os.environ['SPARTAN_SOURCE_DIR'], 'src/optitrack'))
 from director.optitrackvisualizer import OptitrackVisualizer
 
 import PythonQt
