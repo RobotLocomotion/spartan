@@ -44,6 +44,7 @@ class MIQPMultipleMeshModelDetector {
 
     MIQPMultipleMeshModelDetector(YAML::Node config);
   
+    void handleMipSolCallbackFunction(const drake::solvers::MathematicalProgram& prog);
     void handleMipNodeCallbackFunction(const drake::solvers::MathematicalProgram& prog,
       Eigen::VectorXd& vals, drake::solvers::VectorXDecisionVariable& vars);
 
@@ -65,6 +66,8 @@ class MIQPMultipleMeshModelDetector {
     std::vector<Solution> doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts);
     std::vector<Solution> doObjectDetectionWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts);
     std::vector<Solution> doObjectDetection(const Eigen::Matrix3Xd& scene_pts);
+    
+    void doICPProcessing();
 
     RigidBodyTree<double> & get_robot() {
       return robot_;
@@ -102,4 +105,21 @@ class MIQPMultipleMeshModelDetector {
     Eigen::Matrix3Xd scene_pts_;
 
     double best_heuristic_supplied_yet_ = std::numeric_limits<double>::infinity();
+    double last_published_node_ = 0.0;
+    double last_published_sol_ = 0.0;
+
+    // First in, last out structure to let us queue
+    // up seeds for ICP-based solution improvement.
+    // (We want a stack and not a queue so that we
+    //  grab the most recent, and hopefully "best", solution
+    //  from the solver to seed our search.)
+    std::mutex icp_search_seeds_lock_;
+    std::stack<Eigen::VectorXd> icp_search_seeds_;
+    struct NewHeuristicSol {
+      Eigen::VectorXd vals;
+      drake::solvers::VectorXDecisionVariable vars;
+    };
+    std::mutex new_heuristic_sols_lock_;
+    std::deque<NewHeuristicSol> new_heuristic_sols_;
+
 };
