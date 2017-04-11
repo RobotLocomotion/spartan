@@ -37,14 +37,14 @@ detector_options:
 
     big_M: 2.0
 
-    downsample_to_this_many_points: 30
-    model_sample_rays: 30
+    downsample_to_this_many_points: 50
+    model_sample_rays: 50
 
     gurobi_int_options:
         #MIPFocus: 1
         #PoolSearchMode: 0
         #PoolSolutions: 20
-        #SubMIPNodes: 1000
+        SubMIPNodes: 1000
         Threads: 10
 
     gurobi_float_options:
@@ -52,7 +52,7 @@ detector_options:
         #PoolGap: 0.0
         FeasRelaxBigM: 2
         MIPGapAbs: 0.001
-        Heuristics: 0.1 # Heuristics seem to do very well, so grant them more time (default 5% = 0.05)
+        Heuristics: 0.5 # Heuristics seem to do very well, so grant them more time (default 5% = 0.05)
 
     models:
        #- urdf: "models/urdf/cubes_jointed.urdf"
