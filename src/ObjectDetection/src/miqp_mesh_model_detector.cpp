@@ -1,9 +1,10 @@
-#include <string>
-#include <stdexcept>
 #include <iostream>
 #include <random>
-#include <unistd.h>
+#include <stdexcept>
+#include <string>
+#include <thread>
 #include <typeinfo>
+#include <unistd.h>
 
 #include "drake/common/eigen_types.h"
 #include "drake/common/symbolic_formula.h"
@@ -36,6 +37,14 @@ using namespace drake::solvers;
 using namespace drake::math;
 
 const double kMaxConsideredICPDistance = 0.5;
+
+int done = 0;
+void callICPProcessingForever(MIQPMultipleMeshModelDetector * detector){
+  while (!done){
+    detector->doICPProcessing();
+    usleep(1000);
+  }
+}
 
 template<typename Scalar>
 Scalar clamp(Scalar a, Scalar amin, Scalar amax){
@@ -140,14 +149,56 @@ Vector3d closesPointOnTriangle( const vector<Vector3d>& triangle, const Vector3d
     return triangle[0] + s * edge0 + t * edge1;
 }
 
+
+void mipSolCallbackFunction(const MathematicalProgram& prog, void * usrdata){
+  ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipSolCallbackFunction(prog);
+}
+void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const MathematicalProgram& prog){
+  // Extract current solution
+  auto f_est = prog.GetSolution(f_);
+  auto C_est = prog.GetSolution(C_);
+
+  VectorXd q_robot(robot_.get_num_positions());
+  for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
+    const RigidBody<double>& body = robot_.get_body(body_i);
+
+    Vector3d Tf = prog.GetSolution(transform_by_object_[body_i-1].T); //, sol_i);
+    Matrix3d Rf = prog.GetSolution(transform_by_object_[body_i-1].R); //, sol_i);
+
+    Affine3d est_tf;
+    est_tf.setIdentity();
+    est_tf.translation() = Tf;
+    est_tf.matrix().block<3,3>(0,0) = Rf;
+
+    // And flip it, so that it transforms from world -> model
+    est_tf = est_tf.inverse();
+
+    // TODO(gizatt) This state vector reconstruction assumes all bodies
+    // have floating bases. Reconstructing joint states will require
+    // more clever and careful optimization...
+
+    q_robot.block<3, 1>(6*(body_i - 1), 0) = est_tf.translation();
+    q_robot.block<3, 1>(6*(body_i - 1) + 3, 0) = rotmat2rpy(est_tf.rotation());
+  }
+
+  if (getUnixTime() - last_published_sol_ > 0.05){
+    last_published_sol_ = getUnixTime();
+    RemoteTreeViewerWrapper rm;
+    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.5, 1.0, 0.5), {"latest_sol"});
+  }
+
+  icp_search_seeds_lock_.lock();
+  icp_search_seeds_.push(q_robot);
+  icp_search_seeds_lock_.unlock();
+
+  return;
+}
+
 void mipNodeCallbackFunction(const MathematicalProgram& prog, void * usrdata, VectorXd& vals, VectorXDecisionVariable& vars){
   ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipNodeCallbackFunction(prog, vals, vars);
 }
-
 void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const MathematicalProgram& prog, VectorXd& vals, VectorXDecisionVariable& vars){
-  RemoteTreeViewerWrapper rm;
-
-  // Extract current heuristic solution
+  // Extract current (relaxed!) solution
   auto f_est = prog.GetSolution(f_);
   auto C_est = prog.GetSolution(C_);
 
@@ -174,8 +225,40 @@ void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const Mathemat
     q_robot.block<3, 1>(6*(body_i - 1), 0) = est_tf.translation();
     q_robot.block<3, 1>(6*(body_i - 1) + 3, 0) = rotmat2rpy(est_tf.rotation());
   }
-  
-  rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.2, 1.0, 0.5), {"latest_node"});
+
+  if (getUnixTime() - last_published_node_ > 0.05){
+    last_published_node_ = getUnixTime();
+    RemoteTreeViewerWrapper rm;
+    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.2, 1.0, 0.5), {"latest_node"});
+  }
+
+  if (new_heuristic_sols_.size() > 0){
+    new_heuristic_sols_lock_.lock();
+    vals = new_heuristic_sols_.front().vals;
+    vars = new_heuristic_sols_.front().vars;
+    new_heuristic_sols_.pop_front();
+    new_heuristic_sols_lock_.unlock();
+  }
+
+  return;
+}
+
+void MIQPMultipleMeshModelDetector::doICPProcessing(){
+  RemoteTreeViewerWrapper rm;
+  VectorXd q_robot;
+  icp_search_seeds_lock_.lock();
+  if (icp_search_seeds_.size() > 0){
+    q_robot = icp_search_seeds_.top();
+    icp_search_seeds_.pop();
+  }
+  icp_search_seeds_lock_.unlock();
+
+  if (q_robot.size() == 0){
+    return;
+  } else if (q_robot.size() != robot_.get_num_positions()){
+    printf("Got %ld positions in q_robot in icp procesing, but need %d. ???\n", q_robot.size(), robot_.get_num_positions());
+    return;
+  }
 
   // Perform 100 steps of ICP on heuristic solution
   // TODO(gizatt) This code is pretty dirty, upgrade to MathematicalProgram
@@ -226,7 +309,7 @@ void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const Mathemat
           if (body_idx[j] == i){
             assert(j < scene_pts_.cols());
             if (scene_pts_(0, j) == 0.0){
-              colsout << "Zero points " << scene_pts_.block<3, 1>(0, j).transpose() << " slipping in at bdyidx " << body_idx[j] << endl;
+              cout << "Zero points " << scene_pts_.block<3, 1>(0, j).transpose() << " slipping in at bdyidx " << body_idx[j] << endl;
             }
             if ((scene_pts_.block<3, 1>(0, j) - x.block<3, 1>(0, j)).norm() <= kMaxConsideredICPDistance){
               z.block<3, 1>(0, k) = scene_pts_.block<3, 1>(0, j);
@@ -334,8 +417,9 @@ void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const Mathemat
   if (new_objective < best_heuristic_supplied_yet_){
     printf("New best objective %f\n", new_objective);
     best_heuristic_supplied_yet_ = new_objective;
-    // Given that solution, generate an initial guess
-    getInitialGuessFromRobotState(q_robot, vals, vars);
+    NewHeuristicSol n;
+    getInitialGuessFromRobotState(q_robot, n.vals, n.vars);
+    new_heuristic_sols_.push_back(n);
   }
 }
 
@@ -888,11 +972,17 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   //prog.SetSolverOption(SolverType::kGurobi, )
 
   gurobi_solver.addMIPNodeCallback(&mipNodeCallbackFunction, this);
+  gurobi_solver.addMIPSolCallback(&mipSolCallbackFunction, this);
+
+  std::thread t = std::thread(callICPProcessingForever, this);
 
   double start_time = getUnixTime();
   auto out = gurobi_solver.Solve(prog);
   string problem_string = "rigidtf";
   double elapsed = getUnixTime() - start_time;
+
+  done = 1;
+  t.join();
 
   //prog.PrintSolution();
   printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);
