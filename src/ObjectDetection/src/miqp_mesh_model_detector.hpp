@@ -40,6 +40,8 @@ class MIQPMultipleMeshModelDetector {
     struct TransformationVars {
       drake::solvers::VectorDecisionVariable<3> T;
       drake::solvers::MatrixDecisionVariable<3,3> R;
+      std::pair<std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>,
+          std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>> R_indicators;
     };
 
     MIQPMultipleMeshModelDetector(YAML::Node config);
@@ -83,12 +85,17 @@ class MIQPMultipleMeshModelDetector {
     int optRotationConstraint_ = 4;
     int optRotationConstraintNumFaces_ = 2;
     int optDownsampleToThisManyPoints_ = -1;
+    int optNumOutliers_ = 0;
     bool optAllowOutliers_ = true;
     double optPhiMax_ = 0.1;
     bool optUseInitialGuess_ = false;
     double optCorruption_ = 100.0;
+    double optAddedSceneNoise_ = 0.0;
     int optModelSampleRays_ = 10;
     double optBigNumber_ = 100;
+    double optICPPriorWeight_ = 1.0;
+    int optICPIters_ = 1000;
+    double optICPRejectionProp_ = 0.0;
 
     std::vector<MIQPMultipleMeshModelDetector::TransformationVars> transform_by_object_;
     drake::solvers::MatrixXDecisionVariable phi_;

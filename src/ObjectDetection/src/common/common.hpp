@@ -28,6 +28,11 @@ static inline double randrange(double min, double max){
   return (((double)rand()) / RAND_MAX)*(max - min) + min;
 }
 
+template<typename Scalar>
+Scalar clamp(Scalar a, Scalar amin, Scalar amax){
+  return fmin(fmax(a, amin), amax);
+}
+
 static Eigen::Transform<double, 3, Eigen::Isometry>
 getAverageTransform(std::vector<Eigen::Transform<double, 3, Eigen::Isometry>> transforms){
   Eigen::Transform<double, 3, Eigen::Isometry> avg_transform;
