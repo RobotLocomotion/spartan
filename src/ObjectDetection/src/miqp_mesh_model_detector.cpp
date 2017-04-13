@@ -836,7 +836,7 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
         }
       }
     }
-    if (dist < optPhiMax_){
+    if (!optAllowOutliers_ || dist < optPhiMax_){
       f0(i, face_ind) = 1;
     }
     // else it's an outlier point
