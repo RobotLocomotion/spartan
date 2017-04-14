@@ -1,6 +1,7 @@
 robot:
   # all paths are relative to $SPARTAN_SOURCE_DIR
-  urdf: /drake/drake/examples/kuka_iiwa_arm/models/iiwa14/iiwa14_simplified_collision.urdf
+  # urdf: /drake/drake/examples/kuka_iiwa_arm/models/iiwa14/iiwa14_simplified_collision.urdf
+  urdf: /models/iiwa/iiwa_description/iiwa14_simplified_collision.urdf
   # options are 
   # - FIXED
   # - ROLLPITCHYAW
