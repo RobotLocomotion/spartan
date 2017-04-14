@@ -51,7 +51,7 @@ class MIQPMultipleMeshModelDetector {
       Eigen::VectorXd& vals, drake::solvers::VectorXDecisionVariable& vars);
 
     void doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out);
-    Eigen::Matrix3Xd doModelPointSampling();
+    void doModelPointSampling(Eigen::Matrix3Xd& pts, Eigen::MatrixXd& B);
 
     void collectBodyMeshesFromRBT(Eigen::Matrix3Xd& all_vertices, 
                                   DrakeShapes::TrianglesVector& all_faces, 
@@ -66,6 +66,7 @@ class MIQPMultipleMeshModelDetector {
       Eigen::VectorXd& vals, drake::solvers::VectorXDecisionVariable& vars);
 
     std::vector<Solution> doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts);
+    std::vector<Solution> doObjectDetectionWithBodyToWorldFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts);
     std::vector<Solution> doObjectDetectionWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts);
     std::vector<Solution> doObjectDetection(const Eigen::Matrix3Xd& scene_pts);
     
@@ -81,18 +82,39 @@ class MIQPMultipleMeshModelDetector {
 
     YAML::Node config_;
 
-    int optNumRays_ = 10;
+    // Big-M used
+    double optBigNumber_ = 100;
+
+    // POINT CLOUD PREPROCESSING OPTIONS
+    // Point cloud downsampling amount, -1 is no downsampling
+    int optDownsampleToThisManyPoints_ = -1;
+    // Inject outliers into point cloud (by replacing existing points?)
+    int optNumOutliers_ = 0;
+    // Injected scene noise
+    double optAddedSceneNoise_ = 0.0;
+    int optScenePointRandSeed_ = -1;
+    // If we sample the model, use this many rays
+    int optModelSampleRays_ = 10;
+    int optModelPointRandSeed_ = -1;
+
+    
+    // SOLVER OPTIONS
+    
+    // Rotation constraint options
     int optRotationConstraint_ = 4;
     int optRotationConstraintNumFaces_ = 2;
-    int optDownsampleToThisManyPoints_ = -1;
-    int optNumOutliers_ = 0;
+
+    // Outlier options
     bool optAllowOutliers_ = true;
     double optPhiMax_ = 0.1;
+
+    // Use initial guess, and if so, corruption amount
     bool optUseInitialGuess_ = false;
     double optCorruption_ = 100.0;
-    double optAddedSceneNoise_ = 0.0;
-    int optModelSampleRays_ = 10;
-    double optBigNumber_ = 100;
+    int optInitGuessRandSeed_ = -1;
+
+    // ICP heuristic and internal parameters
+    bool optUseICPHeuristic_ = false;
     double optICPPriorWeight_ = 1.0;
     int optICPIters_ = 1000;
     double optICPRejectionProp_ = 0.0;
@@ -114,6 +136,7 @@ class MIQPMultipleMeshModelDetector {
     double best_heuristic_supplied_yet_ = std::numeric_limits<double>::infinity();
     double last_published_node_ = 0.0;
     double last_published_sol_ = 0.0;
+    double best_sol_objective_yet_ = std::numeric_limits<double>::infinity();
 
     // First in, last out structure to let us queue
     // up seeds for ICP-based solution improvement.

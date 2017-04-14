@@ -1,8 +1,8 @@
 sampler_options:
   num_rays: 400
   models:
-     - urdf: "models/urdf/cube.urdf"
-       q0: [0.0, 0, 0.0, 0.0, 0.0, 0.0]
+     - urdf: "models/urdf/bunny_99_faces.urdf"
+       q0: [0.2, 0.2, 0.2, 1.57, 0.0, 0.0]
 
 detector_options:
     downsample_to_this_many_points: 100
@@ -37,5 +37,5 @@ detector_options:
     distTransExpandFactor: 2.0
 
     models:
-       - urdf: "models/urdf/cube.urdf"
-         q0: [0.0, 0, 0.0, 0.9, 0.5, 0.2]
+       - urdf: "models/urdf/bunny_99_faces.urdf"
+         q0: [0.2, 0.2, 0.2, 1.57, 0.0, 0.0]
