@@ -150,12 +150,7 @@ void mipSolCallbackFunction(const MathematicalProgram& prog, void * usrdata){
   ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipSolCallbackFunction(prog);
 }
 void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const MathematicalProgram& prog){
-  printf("In got new sol\n");
-
   // Extract current solution
-  auto f_est = prog.GetSolution(f_);
-  auto C_est = prog.GetSolution(C_);
-
   VectorXd q_robot(robot_.get_num_positions());
   for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
     const RigidBody<double>& body = robot_.get_body(body_i);
@@ -185,10 +180,20 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.5, 1.0, 0.5), {"latest_sol"});
   }
 
-  icp_search_seeds_lock_.lock();
-  icp_search_seeds_.push(q_robot);
-  icp_search_seeds_lock_.unlock();
+  auto phi_est = prog.GetSolution(phi_);
+  double obj = phi_est.sum();
+  if (obj < best_sol_objective_yet_){
+    printf("Best sol objective yet: %f\n", obj);
+    best_sol_objective_yet_ = obj;
+    RemoteTreeViewerWrapper rm;
+    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.0, 0.8, 0.8, 0.5), {"incumbent_sol"});
+  }
 
+  if (optUseICPHeuristic_){
+    icp_search_seeds_lock_.lock();
+    icp_search_seeds_.push(q_robot);
+    icp_search_seeds_lock_.unlock();
+  }
   return;
 }
 
@@ -197,9 +202,6 @@ void mipNodeCallbackFunction(const MathematicalProgram& prog, void * usrdata, Ve
 }
 void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const MathematicalProgram& prog, VectorXd& vals, VectorXDecisionVariable& vars){
   // Extract current (relaxed!) solution
-  auto f_est = prog.GetSolution(f_);
-  auto C_est = prog.GetSolution(C_);
-
   VectorXd q_robot(robot_.get_num_positions());
   for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
     const RigidBody<double>& body = robot_.get_body(body_i);
@@ -228,24 +230,28 @@ void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const Mathemat
     if (getUnixTime() - last_published_node_ > 0.1 && (q_robot.transpose() * q_robot) < 1000.) {
       last_published_node_ = getUnixTime();
       RemoteTreeViewerWrapper rm;
-      rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.2, 1.0, 0.5), {"latest_node"});
+      rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.2, 1.0, 0.3), {"latest_node"});
     }
 
     // Try to ICP on this one
-    icp_search_seeds_lock_.lock();
-    if (icp_search_seeds_.size() < 1)
-      icp_search_seeds_.push(q_robot);
-    icp_search_seeds_lock_.unlock();
+    if (optUseICPHeuristic_){
+      icp_search_seeds_lock_.lock();
+      if (icp_search_seeds_.size() < 1)
+        icp_search_seeds_.push(q_robot);
+      icp_search_seeds_lock_.unlock();
+    }
   }
 
   // And add a heuristic sol from our queue, if we have one available.
   // (This will likely be unrelated to the current node.)
   if (new_heuristic_sols_.size() > 0){
-    new_heuristic_sols_lock_.lock();
-    vals = new_heuristic_sols_.front().vals;
-    vars = new_heuristic_sols_.front().vars;
-    new_heuristic_sols_.pop_front();
-    new_heuristic_sols_lock_.unlock();
+    if (optUseICPHeuristic_){
+      new_heuristic_sols_lock_.lock();
+      vals = new_heuristic_sols_.front().vals;
+      vars = new_heuristic_sols_.front().vars;
+      new_heuristic_sols_.pop_front();
+      new_heuristic_sols_lock_.unlock();
+    }
   }
 
   return;
@@ -303,6 +309,24 @@ void MIQPMultipleMeshModelDetector::doICPProcessing(){
     vector<int> body_idx;
     robot_.collisionDetectFromPoints(robot_kinematics_cache, scene_pts_, phi,
                 normal, x, body_x, body_idx, false);
+
+    // Get error and decide whether to terminate early
+    double error = 0.0;
+    for (int i = 0; i < phi.rows(); i++){
+      error += phi[i];
+    } 
+    if (error == 0.0){
+      // Precisely zero error, so we're unlikely to improve, either because
+      // we're lost, or we're perfect
+      break;
+    } else if (error > (last_error - 0.0001) ){
+      consecutive_rounds_of_nondecreasing_error++;
+      if (consecutive_rounds_of_nondecreasing_error > 10)
+        break;
+    } else {
+      consecutive_rounds_of_nondecreasing_error = 0;
+    }
+    last_error = error;
 
     // Prepare to group per body, since we'll get major performance gains
     // by doing bulk forward kinematic transforms on many points corresponding to
@@ -371,8 +395,8 @@ void MIQPMultipleMeshModelDetector::doICPProcessing(){
           if (POINT_TO_PLANE){
             //cout << z_norms.col(j).transpose() << endl;
             //cout << "Together: " << (z_norms.col(j) * z_norms.col(j).transpose()) << endl;
-            f.block(0, 0, nq, 1) -= (2. * Ks.transpose() * (z_norms.col(j) * z_norms.col(j).transpose()) * J.block(3*j, 0, 3, nq)).transpose() / (double) k;
-            Q.block(0, 0, nq, nq) += (2. *  J.block(3*j, 0, 3, nq).transpose() * (z_norms.col(j) * z_norms.col(j).transpose()) * J.block(3*j, 0, 3, nq)) / (double) k;
+            f.block(0, 0, nq, 1) -= (2. * (z_norms.col(j).transpose() * Ks).transpose() * (z_norms.col(j).transpose() * J.block(3*j, 0, 3, nq))).transpose() / (double) k;
+            Q.block(0, 0, nq, nq) += (2. *  J.block(3*j, 0, 3, nq).transpose() * z_norms.col(j) * z_norms.col(j).transpose() * J.block(3*j, 0, 3, nq)) / (double) k;
           } else {
             f.block(0, 0, nq, 1) -= (2. * Ks.transpose() * J.block(3*j, 0, 3, nq)).transpose() / (double) k;
             Q.block(0, 0, nq, nq) += (2. *  J.block(3*j, 0, 3, nq).transpose() * J.block(3*j, 0, 3, nq)) / (double) k;
@@ -433,28 +457,14 @@ void MIQPMultipleMeshModelDetector::doICPProcessing(){
           ir++;
         }
       }
-
-      // Get error and decide whether to terminate early
-      double error = (Q_reduced * q_new_reduced  + f_reduced).lpNorm<2>();
-      if (error == 0.0){
-        // Precisely zero error, so we're unlikely to improve, either because
-        // we're lost (too far from any points to converge next round), or 
-        // we're perfect
-        break;
-      } else if (error > (last_error - 0.01) ){
-        consecutive_rounds_of_nondecreasing_error++;
-        if (consecutive_rounds_of_nondecreasing_error > 10)
-          break;
-      } else {
-        consecutive_rounds_of_nondecreasing_error = 0;
-      }
     }
 
-    if (getUnixTime() - last_published_icp > 0.1 && q_robot.transpose() * q_robot < 100.0){
+    if (getUnixTime() - last_published_icp > 0.01 && q_robot.transpose() * q_robot < 100.0){
       rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.5), {"icp"});
       last_published_icp = getUnixTime();
     }
-    usleep(1);
+    //cout << "Error " << last_error << ", q " << q_robot << endl;
+    usleep(1000*1);
   }
 
   // Get final objective
@@ -517,7 +527,18 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
     optICPIters_ = config["ICP_max_iters"].as<int>();
   if (config["ICP_outlier_rejection_proportion"])
     optICPRejectionProp_ = config["ICP_outlier_rejection_proportion"].as<double>();
+  if (config["ICP_use_as_heuristic"])
+    optUseICPHeuristic_ = config["ICP_use_as_heuristic"].as<bool>();
 
+
+  if (config["model_point_rand_seed"])
+    optModelPointRandSeed_ = config["model_point_rand_seed"].as<int>();
+  if (config["scene_point_rand_seed"])
+    optScenePointRandSeed_ = config["scene_point_rand_seed"].as<int>();
+  if (config["init_guess_rand_seed"])
+    optInitGuessRandSeed_ = config["init_guess_rand_seed"].as<int>();
+
+  
   config_ = config;
 
   // Load the model itself
@@ -547,8 +568,11 @@ void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matri
   } else {
     scene_pts_out.resize(3, optDownsampleToThisManyPoints_);
     VectorXi indices = VectorXi::LinSpaced(scene_pts_in.cols(), 0, scene_pts_in.cols());
-    // always seed this the same way
-    srand(0);
+
+    if (optScenePointRandSeed_ < 0)
+      srand(time(NULL));
+    else
+      srand(optScenePointRandSeed_);
     std::random_shuffle(indices.data(), indices.data() + scene_pts_in.cols());
     for (int i = 0; i < optDownsampleToThisManyPoints_; i++) {
       scene_pts_out.col(i) = scene_pts_in.col(indices[i]);
@@ -557,7 +581,10 @@ void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matri
   // And then, on top of that, completely corrupt some points to random noise 
   // on [-1, 1]
   if (optNumOutliers_ > 0){
-    srand(0);
+    if (optScenePointRandSeed_ < 0)
+      srand(time(NULL));
+    else
+      srand(optScenePointRandSeed_);
     VectorXi indices = VectorXi::LinSpaced(scene_pts_in.cols(), 0, scene_pts_in.cols());
     std::random_shuffle(indices.data(), indices.data() + scene_pts_out.cols());
     for (int i = 0; i < optNumOutliers_; i++) { 
@@ -578,7 +605,7 @@ void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matri
   rm.publishPointCloud(scene_pts_out, {"scene_pts_downsampled"}, {0.1, 1.0, 0.1});
 }
 
-Eigen::Matrix3Xd MIQPMultipleMeshModelDetector::doModelPointSampling(){
+void MIQPMultipleMeshModelDetector::doModelPointSampling(Matrix3Xd& pts, MatrixXd& B){
   // Extract vertices and meshes from the RBT.
   Matrix3Xd all_vertices;
   DrakeShapes::TrianglesVector all_faces;
@@ -589,9 +616,9 @@ Eigen::Matrix3Xd MIQPMultipleMeshModelDetector::doModelPointSampling(){
   vector<double> face_cumulative_area = {0.0};
 
   for (const auto& face : all_faces){
-    Vector3d a = all_vertices_.col( face[0] );
-    Vector3d b = all_vertices_.col( face[1] );
-    Vector3d c = all_vertices_.col( face[2] );
+    Vector3d a = all_vertices.col( face[0] );
+    Vector3d b = all_vertices.col( face[1] );
+    Vector3d c = all_vertices.col( face[2] );
     double area = ((b - a).cross(c - a)).norm() / 2.;
     face_cumulative_area.push_back(face_cumulative_area[face_cumulative_area.size()-1] + area);
   }
@@ -602,8 +629,13 @@ Eigen::Matrix3Xd MIQPMultipleMeshModelDetector::doModelPointSampling(){
   }
 
   // Always do this the same way.
-  srand(0);
-  Eigen::Matrix3Xd pc(3, optModelSampleRays_);
+  if (optModelPointRandSeed_ < 0)
+    srand(time(NULL));
+  else
+    srand(optModelPointRandSeed_);
+  pts.resize(3, optModelSampleRays_);
+  B.resize(robot_.get_num_bodies()-1, optModelSampleRays_);
+  B.setZero();
   int i = 0;
   while (i < optModelSampleRays_){
     // Pick the face we'll sample from
@@ -616,9 +648,9 @@ Eigen::Matrix3Xd MIQPMultipleMeshModelDetector::doModelPointSampling(){
     }
     k -= 1;
 
-    Vector3d a = all_vertices_.col(all_faces_[k][0]);
-    Vector3d b = all_vertices_.col(all_faces_[k][1]);
-    Vector3d c = all_vertices_.col(all_faces_[k][2]);
+    Vector3d a = all_vertices.col(all_faces[k][0]);
+    Vector3d b = all_vertices.col(all_faces[k][1]);
+    Vector3d c = all_vertices.col(all_faces[k][2]);
 
     double s1 = randrange(0.0, 1.0); 
     double s2 = randrange(0.0, 1.0);
@@ -626,14 +658,14 @@ Eigen::Matrix3Xd MIQPMultipleMeshModelDetector::doModelPointSampling(){
       Vector3d pt = a + 
                     s1 * (b - a) +
                     s2 * (c - a);
-      pc.col(i) = pt;
+      pts.col(i) = pt;
+      B(face_body_map[k]-1, i) = 1;
       i++;
     }
   }
 
   RemoteTreeViewerWrapper rm;
-  rm.publishPointCloud(pc, {"model_pts_sampled"}, {1.0, 0.0, 0.0});
-  return pc;
+  rm.publishPointCloud(pts, {"model_pts_sampled"}, {1.0, 0.0, 0.0});
 }
 
 void MIQPMultipleMeshModelDetector::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& all_vertices, 
@@ -744,7 +776,13 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot);
     
   for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
-    auto tf = robot_.relativeTransform(robot_kinematics_cache, body_i, 0);
+    Affine3d tf;
+    
+    if (config_["detector_type"].as<string>() == "body_to_world_transforms")
+      tf = robot_.relativeTransform(robot_kinematics_cache, body_i, 0);
+    else
+      tf = robot_.relativeTransform(robot_kinematics_cache, 0, body_i);
+
     // Using that rotation, set the indicator variables appropriately, if present
 
     //  forall k>=0, 0<=phi(k), and
@@ -782,69 +820,84 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
         }
       }
     }
-/*
-    vals.conservativeResize(vals.size() + 12);
-    vals.block<9, 1>(vals.size()-12, 0) = Map<VectorXd>(tf.matrix().block<3, 3>(0, 0).data(), 9);
-    vals.block<3, 1>(vals.size()-3, 0) = tf.translation();
-
-    vars.conservativeResize(vars.size() + 12);
-    vars.block<9, 1>(vars.size()-12, 0) = Map<VectorXDecisionVariable>(transform_by_object_[body_i-1].R.data(), 9);
-    vars.block<3, 1>(vars.size()-3, 0) = transform_by_object_[body_i-1].T;
-    */
-    //prog.SetInitialGuess(transform_by_object_[body_i-1].T, tf.translation());
-    //prog.SetInitialGuess(transform_by_object_[body_i-1].R, tf.matrix().block<3, 3>(0, 0));
   }
 
-  // for every scene point, project it down onto the models at the supplied TF to get closest object, and use 
-  // that face assignment as our guess if the distance isn't too great
-  VectorXd search_phi;
-  Matrix3Xd search_norm;
-  Matrix3Xd search_x;
-  Matrix3Xd search_body_x;
-  vector<int> search_body_idx;
-  robot_.collisionDetectFromPoints(robot_kinematics_cache, scene_pts_, search_phi,
-              search_norm, search_x, search_body_x, search_body_idx, false);
+  if (config_["detector_type"].as<string>() == "body_to_world_transforms"){
+    // for every scene point, project it down onto the models at the supplied TF to get closest object, and use 
+    // that face assignment / point assignment as our guess if the distance isn't too great
+    VectorXd search_phi;
+    Matrix3Xd search_norm;
+    Matrix3Xd search_x;
+    Matrix3Xd search_body_x;
+    vector<int> search_body_idx;
+    robot_.collisionDetectFromPoints(robot_kinematics_cache, scene_pts_, search_phi,
+                search_norm, search_x, search_body_x, search_body_idx, false);
 
-  MatrixXd f0(scene_pts_.cols(), F_.rows());
-  f0.setZero();
-  //printf("Starting to backsolve initial guess...\n");
-  // Prepare transforms for all bodies
-  vector<Affine3d> tfs(robot_.get_num_bodies());
-  for (int i=0; i < robot_.get_num_bodies(); i++){
-    tfs[i] = robot_.relativeTransform(robot_kinematics_cache, 0, i+1);
-  }
-  for (int i=0; i<scene_pts_.cols(); i++){
-    //printf("\r\tgenerating guess for point (%d)/(%d)", i, (int)scene_pts_.cols());
-    // Find the face it's closest to on body i
-    double dist = std::numeric_limits<double>::infinity();
-    int face_ind = 0;
-    Vector3d closest_pt;
-    if (search_body_idx[i] > 0){
-      for (int j=0; j<all_faces_.size(); j++){
-        if (B_(search_body_idx[i]-1, j) < 0.5) continue;
+    MatrixXd f0(scene_pts_.cols(), F_.rows());
+    f0.setZero();
+    //printf("Starting to backsolve initial guess...\n");
+    // Prepare transforms for all bodies
+    vector<Affine3d> tfs(robot_.get_num_bodies());
+    for (int i=0; i < robot_.get_num_bodies(); i++){
+      tfs[i] = robot_.relativeTransform(robot_kinematics_cache, 0, i+1);
+    }
+    for (int i=0; i<scene_pts_.cols(); i++){
+      // Find the face it's closest to on body i
+      double dist = std::numeric_limits<double>::infinity();
+      int face_ind = 0;
+      Vector3d closest_pt;
+      if (search_body_idx[i] > 0){
+        for (int j=0; j<all_faces_.size(); j++){
+          if (B_(search_body_idx[i]-1, j) < 0.5) continue;
 
-        vector<Vector3d> verts;
-        for (int k=0; k<3; k++){
-          verts.push_back(tfs[search_body_idx[i]-1] * all_vertices_.col(all_faces_[j](k)));
-        }
-        Vector3d new_closest_pt = closesPointOnTriangle(verts, scene_pts_.col(i));
-        double new_dist = (new_closest_pt - scene_pts_.col(i)).norm();
-        if (new_dist < dist){
-          dist = new_dist;
-          face_ind = j;
-          closest_pt = new_closest_pt;
+          vector<Vector3d> verts;
+          for (int k=0; k<3; k++){
+            verts.push_back(tfs[search_body_idx[i]-1] * all_vertices_.col(all_faces_[j](k)));
+          }
+          Vector3d new_closest_pt = closesPointOnTriangle(verts, scene_pts_.col(i));
+          double new_dist = (new_closest_pt - scene_pts_.col(i)).norm();
+          if (new_dist < dist){
+            dist = new_dist;
+            face_ind = j;
+            closest_pt = new_closest_pt;
+          }
         }
       }
+      if (!optAllowOutliers_ || dist < optPhiMax_){
+        f0(i, face_ind) = 1;
+      }
+      // else it's an outlier point
     }
-    if (!optAllowOutliers_ || dist < optPhiMax_){
-      f0(i, face_ind) = 1;
+    vals.conservativeResize(vals.size() + f0.size());
+    vals.block(vals.size() - f0.size(), 0, f0.size(), 1) = f0;
+    vars.conservativeResize(vars.size() + f0.size());
+    vars.block(vars.size() - f0.size(), 0, f0.size(), 1) = f_;
+  } else if (config_["detector_type"].as<string>() == "body_to_world_transforms_with_sampled_model_points"){
+    // For every scene point, find closest model point, in terms of l1 norm. Use that.
+    MatrixXd C0;
+    C0.setZero();
+    for (int i = 0; i < scene_pts_.cols(); i++){
+      int closest_model_pt = -1;
+      double closest_distance = std::numeric_limits<double>::infinity();
+      for (int j = 0; j < all_vertices_.cols(); j++){
+        double l1_dist = (scene_pts_.col(i) - all_vertices_.col(j)).lpNorm<1>();
+        if (l1_dist < closest_distance){
+          closest_model_pt = j;
+          closest_distance = l1_dist;
+        }
+      }
+      if (!optAllowOutliers_ || closest_distance < optPhiMax_){
+        C0(i, closest_model_pt) = 1;
+      }
+      vals.conservativeResize(vals.size() + C0.cols());
+      vals.block(vals.size() - C0.cols(), 0, C0.cols(), 1) = C0.row(i);
+      vars.conservativeResize(vars.size() + C0.cols());
+      vars.block(vars.size() - C0.cols(), 0, C0.cols(), 1) = C_.row(i);
     }
-    // else it's an outlier point
+
+  } else {
+    runtime_error("Can't set initialization for anything but body_to_world_transform solver type yet.");
   }
-  vals.conservativeResize(vals.size() + f0.size());
-  vals.block(vals.size() - f0.size(), 0, f0.size(), 1) = f0;
-  vars.conservativeResize(vars.size() + f0.size());
-  vars.block(vars.size() - f0.size(), 0, f0.size(), 1) = f_;
 }
 
 
@@ -965,27 +1018,23 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   }
 
   printf("Starting to add correspondence costs... ");
-  for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
+  for (int i=0; i<scene_pts.cols(); i++){
+    // constrain L-1 distance slack based on correspondences
+    // phi_i >= 1^T alpha_{i}
+    prog.AddLinearConstraint(phi_(i, 0) >= (RowVector3d::Ones() * alpha_.col(i))(0, 0));
 
-    for (int i=0; i<scene_pts.cols(); i++){
+    // If we're allowing outliers, we need to constrain each phi_i to be bigger than
+    // a penalty amount if no faces are selected
+    if (optAllowOutliers_){
+      // I believe Big-M is OK here, as opposed to convex hull reform,
+      // as we wouldn't gain important tightness for the convex hull reform.
+      // (phi_i >= 0 always, as constrained above, which is the tightest 
+      // lower bound we can always enforce).
+      // phi_i >= phi_max - (ones * f_i)*BIG
+      prog.AddLinearConstraint(phi_(i, 0) >= optPhiMax_ - optBigNumber_*(RowVectorXd::Ones(f_.cols()) * f_.row(i).transpose())(0, 0));
+    }
 
-      // constrain L-1 distance slack based on correspondences
-      // phi_i >= 1^T alpha_{i}
-      prog.AddLinearConstraint(phi_(i, 0) >= (RowVector3d::Ones() * alpha_.col(i))(0, 0));
-
-      // If we're allowing outliers, we need to constrain each phi_i to be bigger than
-      // a penalty amount if no faces are selected
-      if (optAllowOutliers_){
-        // I believe Big-M is OK here, as opposed to convex hull reform,
-        // as we wouldn't gain important tightness for the convex hull reform.
-        // (phi_i >= 0 always, as constrained above, which is the tightest 
-        // lower bound we can always enforce).
-        // phi_i >= phi_max - (ones * f_i)*BIG
-        for (size_t k=0; k<f_.rows(); k++){
-          prog.AddLinearConstraint(phi_(i, 0) >= optPhiMax_ - optBigNumber_*(RowVectorXd::Ones(f_.cols()) * f_.row(k).transpose())(0, 0));
-        }
-      }
-
+    for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
       // Similar logic here -- solutions will always bind in a lower bound,
       // which we've constrained >= 0 above, and can't do any better than.
       // alpha_i >= +(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * f_i)
@@ -1002,58 +1051,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     }
   }
   printf("\n");
-
-  /*
-  printf("Starting to add joint constraints...\n");
-  for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
-    const auto& body = robot_.get_body(body_i);
-    if (body.has_joint() && typeid(body.getJoint()) == typeid(RevoluteJoint)){
-      auto revolute_joint = static_cast<const RevoluteJoint&>(body.getJoint());
-      Vector3d rot_axis = revolute_joint.rotation_axis();
-
-      int parent_id = body.get_parent()->get_body_index();
-      // I'm going to assume that body_id and parent_id are good and not references
-      // to world, as nothing should be revolute-jointed to this world... right?
-
-      // To enforce a pin joint between two bodies described in maximal coordinates
-      // by (R_a, T_a) and (R_b, T_b), we take two points on the rotation axis
-      // in each bodies axis:
-      // p^a_1, p^a_2 (in a's frame)
-      // p^b_1, p^b_2 (in b's frame)
-      // and constrain them to be the same in global coordinates:
-      // R_a * p^a_1 + T_a = R_b * p^b_1 + T_b
-      // R_a * p^a_2 + T_a = R_b * p^b_2 + T_b
-
-      // For one point, we take the origin in the child body
-      Vector3d p_a_1 = Vector3d::Zero();
-      // And for the other, we take a unit length along the rotation axis
-      Vector3d p_a_2 = rot_axis;
-      // Transform them into the parent body's frame
-      // (the kinematics cache is used here is not important and shouldn't affect results)
-      Vector3d p_b_1 = robot_.transformPoints(robot_kinematics_cache, p_a_1, body_i, parent_id);
-      Vector3d p_b_2 = robot_.transformPoints(robot_kinematics_cache, p_a_2, body_i, parent_id);
-
-      // Unfortunately, our decision variable-encoded transforms actually go in the other direction -- 
-      // they transform from global frame to body frame. So we implement this constrain with
-      // one layer of indirection:
-      // R_a * z_i + T_a = p_a_i   for z_i = unconstrained 3x1 decision variable matrix
-      // R_b * z_i + T_b = p_b_i           fuck me that isn't linear
-
-      auto z_a = prog.NewContinuousVariables<3>("z_1");
-      auto z_b = prog.NewContinuousVariables<3>("z_2");
-
-      auto e1_a = transform_by_object_[body_i-1].R * z_a + transform_by_object_[body_i-1].T;
-      auto e1_b = transform_by_object_[body_i-1].R * z_b + transform_by_object_[body_i-1].T;
-      auto e2_a = transform_by_object_[parent_id-1].R * z_a + transform_by_object_[parent_id-1].T;
-      auto e2_b = transform_by_object_[parent_id-1].R * z_b + transform_by_object_[parent_id-1].T;
-
-      prog.AddLinearEqualityConstraint(e1_a, p_a_1);
-      prog.AddLinearEqualityConstraint(e1_b, p_b_1);
-      prog.AddLinearEqualityConstraint(e2_a, p_a_2);
-      prog.AddLinearEqualityConstraint(e2_b, p_b_2);
-    }
-  }
-  */
 
   GurobiSolver gurobi_solver;
   MosekSolver mosek_solver;
@@ -1106,17 +1103,22 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
   gurobi_solver.addMIPNodeCallback(&mipNodeCallbackFunction, this);
   gurobi_solver.addMIPSolCallback(&mipSolCallbackFunction, this);
-
-  std::thread t = std::thread(callICPProcessingForever, this);
+  std::thread t;
+  if (optUseICPHeuristic_){
+    done = 0;
+    t = std::thread(callICPProcessingForever, this);
+  }
 
   double start_time = getUnixTime();
   auto out = gurobi_solver.Solve(prog);
   string problem_string = "rigidtf";
   double elapsed = getUnixTime() - start_time;
 
-  done = 1;
-  t.join();
-
+  if (optUseICPHeuristic_){
+    done = 1;
+    t.join();  
+  }
+  
   //prog.PrintSolution();
   printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);
 
@@ -1192,6 +1194,246 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   return solutions;
 }
 
+/*****************************************************************************
+
+
+        *******************************************************
+
+               This is an elaborate separator so I can find this
+              part of the file. Documentation goes here.
+
+        *******************************************************
+
+
+
+ ****************************************************************************/
+std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithBodyToWorldFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts){
+  KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
+
+  scene_pts_ = scene_pts;
+
+  // See https://www.sharelatex.com/project/5850590c38884b7c6f6aedd1
+  // for details on problem formulation.
+  MathematicalProgram prog;
+
+  // Add decision variables for the transformations for each body,
+  // and add their transform-relevant constraints.
+  auto transform_by_object_ = addTransformationVarsAndConstraints(prog, false);
+
+  // Sample points from surface of model
+  doModelPointSampling(all_vertices_, B_);
+
+  // Add selection variables corresponding scene points to model-sampled points 
+  auto C_ = prog.NewBinaryVariables(scene_pts.cols(), all_vertices_.cols(), "C");
+  // Constrain that every row (every scene point) must have at most one active member
+  // (i.e. must correspond to at most model point)
+  if (optAllowOutliers_){
+    for (int i = 0; i < scene_pts.cols(); i++) {
+      prog.AddLinearConstraint(
+        VectorXd::Ones(scene_pts.cols()).transpose() * C_.row(i).transpose() <= VectorXd::Ones(1.0));
+    }
+  } else {
+    for (int i = 0; i < scene_pts.cols(); i++) {
+      prog.AddLinearEqualityConstraint(
+        VectorXd::Ones(scene_pts.cols()).transpose() * C_.row(i).transpose(), VectorXd::Ones(1.0));
+    }
+  }
+
+  // Allocate slacks to choose minimum L-1 norm over objects
+  phi_ = prog.NewContinuousVariables(scene_pts.cols(), 1, "phi");
+  // And slacks to store term-wise absolute value terms for L-1 norm calculation
+  alpha_ = prog.NewContinuousVariables(3, scene_pts.cols(), "alpha");
+  // Optimization pushes on slacks to make them tight (make them do their job)
+  // (and normalize by number of pts for MSE calculation)
+  prog.AddLinearCost( VectorXd::Ones(scene_pts.cols()), phi_ ); //(1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi_);
+  // Constrain slacks nonnegative, to help the estimation of lower bound in relaxation  
+  prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), phi_);
+  for (int k=0; k<3; k++){
+    prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), {alpha_.row(k).transpose()});
+  }
+
+  for (int i=0; i<scene_pts.cols(); i++){
+    // constrain L-1 distance slack based on correspondences
+    // phi_i >= 1^T alpha_{i}
+    prog.AddLinearConstraint(phi_(i, 0) >= (RowVector3d::Ones() * alpha_.col(i))(0, 0));
+
+    // If we're allowing outliers, we need to constrain each phi_i to be bigger than
+    // a penalty amount if no faces are selected
+    if (optAllowOutliers_){
+      // I believe Big-M is OK here, as opposed to convex hull reform,
+      // as we wouldn't gain important tightness for the convex hull reform.
+      // (phi_i >= 0 always, as constrained above, which is the tightest 
+      // lower bound we can always enforce).
+      // phi_i >= phi_max - (ones * f_i)*BIG
+      prog.AddLinearConstraint(phi_(i, 0) >= optPhiMax_ - optBigNumber_*(RowVectorXd::Ones(C_.cols()) * C_.row(i).transpose())(0, 0));
+    }
+
+    for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){    
+      // Similar logic here -- solutions will always bind in a lower bound,
+      // which we've constrained >= 0 above, and can't do any better than.
+      // alpha_i >= +(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * C_i)
+      // alpha_i >= -(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * C_i)
+      // (alpha is a slack var to implement the absolute value)
+      Matrix<Expression, 3, 1> l1ErrorPos =
+          transform_by_object_[body_i-1].R * scene_pts.col(i) + transform_by_object_[body_i-1].T
+             - all_vertices_ * C_.row(i).transpose();
+      Matrix<Expression, 3, 1> selector = Vector3d::Ones() * (optBigNumber_ * (VectorXd::Ones(1) - B_.row(body_i - 1) * C_.row(i).transpose()));
+      for (int k=0; k<3; k++){
+        prog.AddLinearConstraint( alpha_(k, i) >= l1ErrorPos(k) - selector(k) );
+        prog.AddLinearConstraint( alpha_(k, i) >= -l1ErrorPos(k) - selector(k) );
+      }
+    }
+  }
+
+
+/*
+  // For every scene point, add a cost for its correspondence.
+  for (int i = 0; i < scene_pts.cols(); i++) {
+    // TODO(gizatt) Generalize for more than 1 object.
+    // This generates a linear expression for the scene point transformation into model frame:
+    Matrix<Expression, 3, 1> transformed_model_pt_expr = transform_by_object_[0].R * scene_pts.col(i) + transform_by_object_[0].T;
+    Matrix<Expression, 3, 1> selected_model_pt_expr(3, 1);
+    // This generates a linear expression selecting a scene point using our permutation matrix:
+    // TODO(gizatt) This might be able to be made into a one-liner with careful use of a diag() call...
+    selected_model_pt_expr.block<1, 1>(0, 0) = C_.row(i) * all_vertices_.row(0).transpose();
+    selected_model_pt_expr.block<1, 1>(1, 0) = C_.row(i) * all_vertices_.row(1).transpose();
+    selected_model_pt_expr.block<1, 1>(2, 0) = C_.row(i) * all_vertices_.row(2).transpose();
+
+    auto full_cost_expr = (transformed_model_pt_expr - selected_model_pt_expr).transpose() * (transformed_model_pt_expr - selected_model_pt_expr);
+    prog.AddQuadraticCost(full_cost_expr);
+  }
+*/
+
+  GurobiSolver gurobi_solver;
+  MosekSolver mosek_solver;
+
+  prog.SetSolverOption(SolverType::kGurobi, "OutputFlag", 1);
+  prog.SetSolverOption(SolverType::kGurobi, "LogToConsole", 1);
+  prog.SetSolverOption(SolverType::kGurobi, "LogFile", "loggg.gur");
+  prog.SetSolverOption(SolverType::kGurobi, "DisplayInterval", 5);
+
+  if (config_["gurobi_int_options"]){
+    for (auto iter = config_["gurobi_int_options"].begin();
+         iter != config_["gurobi_int_options"].end();
+         iter++){
+      prog.SetSolverOption(SolverType::kGurobi, iter->first.as<string>(), iter->second.as<int>());
+    }
+  }
+  if (config_["gurobi_float_options"]){
+    for (auto iter = config_["gurobi_float_options"].begin();
+         iter != config_["gurobi_float_options"].end();
+         iter++){
+      prog.SetSolverOption(SolverType::kGurobi, iter->first.as<string>(), iter->second.as<float>());
+    }
+  }
+
+  if (optUseInitialGuess_){
+    // Randomize this in particular.
+    if (optInitGuessRandSeed_ < 0)
+      srand(time(NULL));
+    else
+      srand(optInitGuessRandSeed_);
+
+    // Corruption should be done from q_gt, then recover maximal coordinates from transform queries,
+    // get mesh and do projection using get_closest_points in drake 
+    VectorXd corruption_vec(q_robot_gt_.rows()); 
+    for (int i=0; i<corruption_vec.rows(); i++){
+      corruption_vec[i] = randrange(-optCorruption_, optCorruption_);
+    }
+    VectorXd q_robot_corrupt = q_robot_gt_ + corruption_vec;
+    KinematicsCache<double> robot_kinematics_cache_corrupt = robot_.doKinematics(q_robot_corrupt);
+    cout << "q robot corrupt " << q_robot_corrupt.transpose() << endl;
+
+    VectorXd vals;
+    VectorXDecisionVariable vars;
+    getInitialGuessFromRobotState(q_robot_corrupt, vals, vars);
+    prog.SetInitialGuess(vars, vals);
+  }
+
+  gurobi_solver.addMIPNodeCallback(&mipNodeCallbackFunction, this);
+  gurobi_solver.addMIPSolCallback(&mipSolCallbackFunction, this);
+  std::thread t;
+  if (optUseICPHeuristic_){
+    done = 0;
+    t = std::thread(callICPProcessingForever, this);
+  }
+
+  double start_time = getUnixTime();
+  auto out = gurobi_solver.Solve(prog);
+  string problem_string = "rigidtf";
+  double elapsed = getUnixTime() - start_time;
+
+  if (optUseICPHeuristic_){
+    done = 1;
+    t.join();  
+  }
+
+  //prog.PrintSolution();
+  printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);
+
+  std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
+
+  for (int sol_i = 0; sol_i < 1; sol_i ++){
+    printf("==================================================\n");
+    printf("======================SOL %d ======================\n", sol_i);
+    printf("==================================================\n");
+    auto C_est = prog.GetSolution(C_); //, sol_i);
+
+    MIQPMultipleMeshModelDetector::Solution new_solution;
+
+    for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
+      const RigidBody<double>& body = robot_.get_body(body_i);
+
+      ObjectDetection new_detection;
+      new_detection.obj_ind = body_i;
+  
+      printf("************************************************\n");
+      printf("Concerning model %d (%s):\n", body_i, body.get_name().c_str());
+      printf("------------------------------------------------\n");
+      Vector3d Tf = prog.GetSolution(transform_by_object_[body_i-1].T); //, sol_i);
+      Matrix3d Rf = prog.GetSolution(transform_by_object_[body_i-1].R); //, sol_i);
+      printf("Transform:\n");
+      printf("\tTranslation: %f, %f, %f\n", Tf(0, 0), Tf(1, 0), Tf(2, 0));
+      printf("\tRotation:\n");
+      printf("\t\t%f, %f, %f\n", Rf(0, 0), Rf(0, 1), Rf(0, 2));
+      printf("\t\t%f, %f, %f\n", Rf(1, 0), Rf(1, 1), Rf(1, 2));
+      printf("\t\t%f, %f, %f\n", Rf(2, 0), Rf(2, 1), Rf(2, 2));
+      printf("------------------------------------------------\n");
+      printf("************************************************\n");
+      new_detection.est_tf.setIdentity();
+      new_detection.est_tf.translation() = Tf;
+      new_detection.est_tf.matrix().block<3,3>(0,0) = Rf;
+      new_detection.est_tf = new_detection.est_tf.inverse();
+      
+      cout << "C_est " << endl;
+      cout << C_est << endl;
+      cout << "*************" << endl;
+
+      for (int scene_i=0; scene_i<scene_pts.cols(); scene_i++) {
+        for (int model_i=0; model_i<all_vertices_.cols(); model_i++) {
+          if (C_est(scene_i, model_i) > 0.5) {
+            PointCorrespondence new_corresp;
+            new_corresp.scene_pt = scene_pts.col(scene_i);
+            new_corresp.scene_ind = scene_i;
+            new_corresp.model_pt = all_vertices_.col(model_i);
+            new_detection.correspondences.push_back(new_corresp);
+          }
+        }
+      }
+
+      // Include this as a detection if we have correspondences
+      // to support it.
+      if (new_detection.correspondences.size() > 0)
+        new_solution.detections.push_back(new_detection);
+    }
+
+    new_solution.objective = -1.0;
+    new_solution.solve_time = elapsed;
+    solutions.push_back(new_solution);
+  }
+
+  return solutions;
+}
 
 /*****************************************************************************
 
@@ -1218,7 +1460,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   auto transform_by_object_ = addTransformationVarsAndConstraints(prog, true);
 
   // Sample points from surface of model
-  Matrix3Xd model_pts = doModelPointSampling();
+  Matrix3Xd model_pts;
+  doModelPointSampling(model_pts, B_);
 
   // Add selection variables corresponding model-sampled points to
   auto C = prog.NewBinaryVariables(model_pts.cols(), scene_pts.cols(), "C");
@@ -1398,6 +1641,9 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   } else if (config_["detector_type"].as<string>() == 
              "body_to_world_transforms"){
     solutions = doObjectDetectionWithWorldToBodyFormulation(scene_pts);
+  } else if (config_["detector_type"].as<string>() == 
+            "body_to_world_transforms_with_sampled_model_points"){
+    solutions = doObjectDetectionWithBodyToWorldFormulationSampledModelPoints(scene_pts);
   } else if (config_["detector_type"].as<string>() == 
              "world_to_body_transforms"){
     solutions = doObjectDetectionWithBodyToWorldFormulation(scene_pts);

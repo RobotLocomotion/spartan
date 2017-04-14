@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
         model_pts_world.col(i) = corresp.model_pt;
         i++;
       }
-      model_pts_world = detection.est_tf.inverse() * model_pts_world;
+      model_pts_world = detection.est_tf * model_pts_world;
       rm.publishPointCloud(model_pts_world, {"correspondences", "model pts", body.get_name()}, {0.1, 0.1, 1.0});
     }
   }
@@ -187,7 +187,7 @@ int main(int argc, char** argv) {
             out << YAML::BeginMap; {
               out << YAML::Key << "urdf";
               // I assume the model instances are in same order as model members in the config yaml...
-              out << YAML::Key << config["models"][i]["urdf"].as<string>();
+              out << YAML::Key << config["detector_options"]["models"][i]["urdf"].as<string>();
               out << YAML::Key << "q";
               out << YAML::Value << YAML::Flow << vector<double>(q_robot_this.data(), q_robot_this.data() + q_robot_this.rows());
             }
