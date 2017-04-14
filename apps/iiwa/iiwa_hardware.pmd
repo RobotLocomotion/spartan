@@ -11,7 +11,7 @@ group "1.vision-drivers" {
   }
 
   cmd "0.optitrack-driver" {
-    exec = "python $SPARTAN_SOURCE_DIR/src/optitrack/optitrack_client.py";
+    exec = "optitrack_client";
     host = "localhost";
   }
 }
@@ -93,6 +93,3 @@ script "2.restart_controller" {
     wait ms 2000;
     start group "2.iiwa-drivers";
 }
-
-
-
