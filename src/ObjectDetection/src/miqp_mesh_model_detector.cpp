@@ -146,10 +146,10 @@ Vector3d closesPointOnTriangle( const vector<Vector3d>& triangle, const Vector3d
 }
 
 
-void mipSolCallbackFunction(const MathematicalProgram& prog, void * usrdata){
-  ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipSolCallbackFunction(prog);
+void mipSolCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info, void * usrdata){
+  ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipSolCallbackFunction(prog, solve_info);
 }
-void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const MathematicalProgram& prog){
+void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info){
   // Extract current solution
   VectorXd q_robot(robot_.get_num_positions());
   for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
@@ -180,11 +180,9 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.5, 1.0, 0.5), {"latest_sol"});
   }
 
-  auto phi_est = prog.GetSolution(phi_);
-  double obj = phi_est.sum();
-  if (obj < best_sol_objective_yet_){
-    printf("Best sol objective yet: %f\n", obj);
-    best_sol_objective_yet_ = obj;
+  if (solve_info.current_objective < best_sol_objective_yet_){
+    printf("Best sol objective yet: %f\n", solve_info.current_objective);
+    best_sol_objective_yet_ = solve_info.current_objective;
     RemoteTreeViewerWrapper rm;
     rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.0, 0.8, 0.8, 0.5), {"incumbent_sol"});
   }
@@ -194,13 +192,24 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     icp_search_seeds_.push(q_robot);
     icp_search_seeds_lock_.unlock();
   }
+
+  // Record all feasible nodes, as these aren't frequent
+  solve_history.push_back(
+    MIQPMultipleMeshModelDetector::SolveHistoryElem({getUnixTime(),
+      solve_info.reported_runtime,
+      solve_info.best_objective,
+      solve_info.best_bound,
+      solve_info.explored_node_count,
+      solve_info.feasible_solutions_count
+    })
+  );
   return;
 }
 
-void mipNodeCallbackFunction(const MathematicalProgram& prog, void * usrdata, VectorXd& vals, VectorXDecisionVariable& vars){
-  ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipNodeCallbackFunction(prog, vals, vars);
+void mipNodeCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info, void * usrdata, VectorXd& vals, VectorXDecisionVariable& vars){
+  ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipNodeCallbackFunction(prog, solve_info, vals, vars);
 }
-void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const MathematicalProgram& prog, VectorXd& vals, VectorXDecisionVariable& vars){
+void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info, VectorXd& vals, VectorXDecisionVariable& vars){
   // Extract current (relaxed!) solution
   VectorXd q_robot(robot_.get_num_positions());
   for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
@@ -254,6 +263,19 @@ void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const Mathemat
     }
   }
 
+
+  // Record solve info once every 0.05 seconds at most frequent
+  if (solve_history.size() == 0 || getUnixTime() - solve_history[solve_history.size() - 1].wall_time > 0.1){
+    solve_history.push_back(
+        MIQPMultipleMeshModelDetector::SolveHistoryElem({getUnixTime(),
+          solve_info.reported_runtime,
+          solve_info.best_objective,
+          solve_info.best_bound,
+          solve_info.explored_node_count,
+          solve_info.feasible_solutions_count
+        })
+      );
+  }
   return;
 }
 
@@ -874,7 +896,7 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
     vars.block(vars.size() - f0.size(), 0, f0.size(), 1) = f_;
   } else if (config_["detector_type"].as<string>() == "body_to_world_transforms_with_sampled_model_points"){
     // For every scene point, find closest model point, in terms of l1 norm. Use that.
-    MatrixXd C0;
+    MatrixXd C0(C_.rows(), C_.cols());
     C0.setZero();
     for (int i = 0; i < scene_pts_.cols(); i++){
       int closest_model_pt = -1;
@@ -887,6 +909,8 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
         }
       }
       if (!optAllowOutliers_ || closest_distance < optPhiMax_){
+        if (closest_model_pt > C0.cols() || closest_model_pt < 0)
+          runtime_error("Failed to find closest model point.");
         C0(i, closest_model_pt) = 1;
       }
       vals.conservativeResize(vals.size() + C0.cols());
@@ -963,7 +987,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
   // Optimization pushes on slacks to make them tight (make them do their job)
   // (and normalize by number of pts for MSE calculation)
-  prog.AddLinearCost( VectorXd::Ones(scene_pts.cols()), phi_ ); //(1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi_);
+  prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi_);
   /*
   for (int k=0; k<3; k++){
     prog.AddLinearCost(1.0 * VectorXd::Ones(alpha.cols()), {alpha.row(k)});
@@ -1120,7 +1144,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   }
   
   //prog.PrintSolution();
-  printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);
+  printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);  
+
 
   std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
 
@@ -1187,7 +1212,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
         new_solution.detections.push_back(new_detection);
     }
 
-    new_solution.objective = prog.GetSolution(phi_).sum(); // / (double) scene_pts.cols(); //, sol_i).sum();
+    new_solution.objective = prog.GetOptimalCost();
+    new_solution.lower_bound = prog.GetLowerBound();
     new_solution.solve_time = elapsed;
     solutions.push_back(new_solution);
   }
@@ -1218,13 +1244,13 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
   // Add decision variables for the transformations for each body,
   // and add their transform-relevant constraints.
-  auto transform_by_object_ = addTransformationVarsAndConstraints(prog, false);
+  transform_by_object_ = addTransformationVarsAndConstraints(prog, false);
 
   // Sample points from surface of model
   doModelPointSampling(all_vertices_, B_);
 
   // Add selection variables corresponding scene points to model-sampled points 
-  auto C_ = prog.NewBinaryVariables(scene_pts.cols(), all_vertices_.cols(), "C");
+  C_ = prog.NewBinaryVariables(scene_pts.cols(), all_vertices_.cols(), "C");
   // Constrain that every row (every scene point) must have at most one active member
   // (i.e. must correspond to at most model point)
   if (optAllowOutliers_){
@@ -1245,7 +1271,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   alpha_ = prog.NewContinuousVariables(3, scene_pts.cols(), "alpha");
   // Optimization pushes on slacks to make them tight (make them do their job)
   // (and normalize by number of pts for MSE calculation)
-  prog.AddLinearCost( VectorXd::Ones(scene_pts.cols()), phi_ ); //(1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi_);
+  prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi_);
   // Constrain slacks nonnegative, to help the estimation of lower bound in relaxation  
   prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), phi_);
   for (int k=0; k<3; k++){
@@ -1380,6 +1406,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     auto C_est = prog.GetSolution(C_); //, sol_i);
 
     MIQPMultipleMeshModelDetector::Solution new_solution;
+    new_solution.objective = prog.GetOptimalCost();
+    new_solution.lower_bound = prog.GetLowerBound();
 
     for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
       const RigidBody<double>& body = robot_.get_body(body_i);
@@ -1405,10 +1433,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       new_detection.est_tf.matrix().block<3,3>(0,0) = Rf;
       new_detection.est_tf = new_detection.est_tf.inverse();
       
-      cout << "C_est " << endl;
-      cout << C_est << endl;
-      cout << "*************" << endl;
-
       for (int scene_i=0; scene_i<scene_pts.cols(); scene_i++) {
         for (int model_i=0; model_i<all_vertices_.cols(); model_i++) {
           if (C_est(scene_i, model_i) > 0.5) {
@@ -1427,7 +1451,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
         new_solution.detections.push_back(new_detection);
     }
 
-    new_solution.objective = -1.0;
     new_solution.solve_time = elapsed;
     solutions.push_back(new_solution);
   }
@@ -1580,6 +1603,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     auto C_est = prog.GetSolution(C_); //, sol_i);
 
     MIQPMultipleMeshModelDetector::Solution new_solution;
+    new_solution.objective = prog.GetOptimalCost();
+    new_solution.lower_bound = prog.GetLowerBound();
 
     for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
       const RigidBody<double>& body = robot_.get_body(body_i);
@@ -1622,7 +1647,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
         new_solution.detections.push_back(new_detection);
     }
 
-    new_solution.objective = -1.0;
     new_solution.solve_time = elapsed;
     solutions.push_back(new_solution);
   }

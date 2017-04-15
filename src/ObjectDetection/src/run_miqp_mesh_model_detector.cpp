@@ -142,6 +142,23 @@ int main(int argc, char** argv) {
     }
   }
 
+  // Pre-process history into separate vectors
+  auto history = detector.get_solve_history();
+  vector<double> wall_times;
+  vector<double> reported_runtimes;
+  vector<double> best_objectives;
+  vector<double> best_bounds;
+  vector<double> explored_node_counts;
+  vector<double> feasible_solutions_counts;
+
+  for (const auto& elem : history){
+    wall_times.push_back(elem.wall_time);
+    reported_runtimes.push_back(elem.reported_runtime);
+    best_objectives.push_back(elem.best_objective);
+    best_bounds.push_back(elem.best_bound);
+    explored_node_counts.push_back(elem.explored_node_count);
+    feasible_solutions_counts.push_back(elem.feasible_solutions_count);
+  }
 
   // Solution save-out
   // TODO(gizatt) This doesn't work yet, as
@@ -165,14 +182,15 @@ int main(int argc, char** argv) {
     out << YAML::BeginSeq;
     for (const auto& solution : solutions){
       out << YAML::BeginMap; {
-        out << YAML::Key << "score";
+        out << YAML::Key << "objective";
         out << YAML::Value << solution.objective;
+        out << YAML::Key << "bound";
+        out << YAML::Value << solution.lower_bound;
         out << YAML::Key << "solve_time";
         out << YAML::Key << solution.solve_time;
 
         out << YAML::Key << "models";
         out << YAML::Value << YAML::BeginSeq; {
-
           VectorXd q_robot_this;
           for (int i = 0; i < robot.get_num_model_instances(); i++) {
             auto bodies = robot.FindModelInstanceBodies(i);
@@ -190,11 +208,26 @@ int main(int argc, char** argv) {
               out << YAML::Key << config["detector_options"]["models"][i]["urdf"].as<string>();
               out << YAML::Key << "q";
               out << YAML::Value << YAML::Flow << vector<double>(q_robot_this.data(), q_robot_this.data() + q_robot_this.rows());
-            }
-
-          } 
-
+            } out << YAML::EndMap;
+          }  
         } out << YAML::EndSeq;
+
+        out << YAML::Key << "history";
+        out << YAML::Value << YAML::BeginMap; {
+          out << YAML::Key << "wall_time";
+          out << YAML::Value << YAML::Flow << wall_times;
+          out << YAML::Key << "reported_runtime";
+          out << YAML::Value << YAML::Flow << reported_runtimes;
+          out << YAML::Key << "best_objective";
+          out << YAML::Value << YAML::Flow << best_objectives;
+          out << YAML::Key << "best_bound";
+          out << YAML::Value << YAML::Flow << best_bounds;
+          out << YAML::Key << "explored_node_count";
+          out << YAML::Value << YAML::Flow << explored_node_counts;
+          out << YAML::Key << "feasible_solutions_count";
+          out << YAML::Value << YAML::Flow << feasible_solutions_counts;
+        } out << YAML::EndMap;
+
       } out << YAML::EndMap;
     } out << YAML::EndSeq;
 

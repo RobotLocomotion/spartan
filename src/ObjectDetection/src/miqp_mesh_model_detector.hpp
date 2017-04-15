@@ -35,6 +35,7 @@ class MIQPMultipleMeshModelDetector {
       std::vector<ObjectDetection> detections;
       double objective;
       double solve_time;
+      double lower_bound;
     };
 
     struct TransformationVars {
@@ -46,8 +47,8 @@ class MIQPMultipleMeshModelDetector {
 
     MIQPMultipleMeshModelDetector(YAML::Node config);
   
-    void handleMipSolCallbackFunction(const drake::solvers::MathematicalProgram& prog);
-    void handleMipNodeCallbackFunction(const drake::solvers::MathematicalProgram& prog,
+    void handleMipSolCallbackFunction(const drake::solvers::MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info);
+    void handleMipNodeCallbackFunction(const drake::solvers::MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info,
       Eigen::VectorXd& vals, drake::solvers::VectorXDecisionVariable& vars);
 
     void doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out);
@@ -74,6 +75,18 @@ class MIQPMultipleMeshModelDetector {
 
     RigidBodyTree<double> & get_robot() {
       return robot_;
+    }
+
+    struct SolveHistoryElem {
+      double wall_time;
+      double reported_runtime;
+      double best_objective;
+      double best_bound;
+      int explored_node_count;
+      int feasible_solutions_count;
+    };
+    const std::vector<SolveHistoryElem>& get_solve_history() {
+      return solve_history;
     }
 
   private:
@@ -137,6 +150,7 @@ class MIQPMultipleMeshModelDetector {
     double last_published_node_ = 0.0;
     double last_published_sol_ = 0.0;
     double best_sol_objective_yet_ = std::numeric_limits<double>::infinity();
+    std::vector<SolveHistoryElem> solve_history; 
 
     // First in, last out structure to let us queue
     // up seeds for ICP-based solution improvement.
