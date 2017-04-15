@@ -28,17 +28,17 @@ detector_options:
     # 3: McCormick quaternion
     # 4: McCormick directly on rotmat
     # 5: Conservative RPY limits
-    rotation_constraint: 0
+    rotation_constraint: 4
     rotation_constraint_num_faces: 2
 
     allow_outliers: false
     phi_max: 0.1
     use_initial_guess: false
-    corruption_amount: 0.01
+    corruption_amount: 2.0
 
     big_M: 2.0
 
-    downsample_to_this_many_points: 30
+    downsample_to_this_many_points: 10
     add_this_many_outliers: 0
     scene_point_additive_noise: 0.00
     model_sample_rays: 100
@@ -48,7 +48,7 @@ detector_options:
     # We reject points 
     # this number times the average distance to
     # all other points
-    ICP_outlier_rejection_proportion: 10
+    ICP_outlier_rejection_proportion: 1
     ICP_max_iters: 1000
 
     gurobi_int_options:
@@ -59,19 +59,19 @@ detector_options:
         Threads: 10
 
     gurobi_float_options:
-        TimeLimit: 300
+        TimeLimit: 600
         #PoolGap: 0.0
         FeasRelaxBigM: 2
         #MIPGapAbs: 0.001
         MIPGap: 0.05
-        Heuristics: 0.1 # Heuristics seem to do very well, so grant them more time (default 5% = 0.05)
+        Heuristics: 0.2 # Heuristics seem to do very well, so grant them more time (default 5% = 0.05)
 
     models:
-       #- urdf: "models/urdf/bunny_99_faces.urdf"
-       #  q0: [0.2, 0.2, 0.2, 1.57, 0.0, 0.0]
+       - urdf: "models/urdf/bunny_99_faces.urdf"
+         q0: [0.2, 0.2, 0.2, 1.57, 0.0, 0.0]
        #- urdf: "models/urdf/cubes_jointed.urdf"
        #  q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2, 0.2]
        #- urdf: "models/urdf/cubes.urdf"
        #  q0: [-0.3, -0.1, 0.3, 0, 0, 0.2, 0.2, 0.2, 0.5, 0.8, 0.5, -0.2]
-       - urdf: "models/urdf/cube.urdf"
-         q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2]
+       #- urdf: "models/urdf/cube.urdf"
+       #  q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2]
