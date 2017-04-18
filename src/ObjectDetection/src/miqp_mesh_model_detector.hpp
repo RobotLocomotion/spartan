@@ -67,7 +67,7 @@ class MIQPMultipleMeshModelDetector {
       Eigen::VectorXd& vals, drake::solvers::VectorXDecisionVariable& vars);
 
     std::vector<Solution> doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts);
-    std::vector<Solution> doObjectDetectionWithBodyToWorldFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts);
+    std::vector<Solution> doObjectDetectionWithWorldToBodyFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts);
     std::vector<Solution> doObjectDetectionWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts);
     std::vector<Solution> doObjectDetection(const Eigen::Matrix3Xd& scene_pts);
     

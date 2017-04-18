@@ -801,9 +801,10 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
     Affine3d tf;
     
     if (config_["detector_type"].as<string>() == "body_to_world_transforms")
-      tf = robot_.relativeTransform(robot_kinematics_cache, body_i, 0);
-    else
       tf = robot_.relativeTransform(robot_kinematics_cache, 0, body_i);
+    else
+      tf = robot_.relativeTransform(robot_kinematics_cache, body_i, 0);
+
 
     // Using that rotation, set the indicator variables appropriately, if present
 
@@ -820,11 +821,11 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
       int offset = vals.size();
       vals.conservativeResize(offset + K*9*2);
       vars.conservativeResize(offset + K*9*2);
-      for (int k = 0; k < K; k++){
-        for (int x = 0; x < 3; x++){
-          for (int y = 0; y < 3; y++){ 
+      for (int x = 0; x < 3; x++){
+        for (int y = 0; y < 3; y++){ 
+          for (int k = 0; k < K; k++ ){
             vars[offset] = Bpos[k](x, y);
-            if (tf.rotation()(x, y) >= EnvelopeMinValue(k, K)){
+            if (tf.rotation()(x, y) > EnvelopeMinValue(k, K)){
               vals[offset] = 1.0;
             } else {
               vals[offset] = 0.0;
@@ -838,13 +839,16 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
               vals[offset] = 0.0;
             }
             offset++;
+            printf("%d, %d, %d: ", k, x, y);
+            printf("%f vs %f", tf.rotation()(x, y), EnvelopeMinValue(k, K));
+            printf(" --> %f, %f\n", vals[offset-2], vals[offset-1]);
           }
         }
       }
     }
   }
 
-  if (config_["detector_type"].as<string>() == "body_to_world_transforms"){
+  if (config_["detector_type"].as<string>() == "world_to_body_transforms"){
     // for every scene point, project it down onto the models at the supplied TF to get closest object, and use 
     // that face assignment / point assignment as our guess if the distance isn't too great
     VectorXd search_phi;
@@ -877,7 +881,7 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
             verts.push_back(tfs[search_body_idx[i]-1] * all_vertices_.col(all_faces_[j](k)));
           }
           Vector3d new_closest_pt = closesPointOnTriangle(verts, scene_pts_.col(i));
-          double new_dist = (new_closest_pt - scene_pts_.col(i)).norm();
+          double new_dist = (new_closest_pt - scene_pts_.col(i)).lpNorm<1>();
           if (new_dist < dist){
             dist = new_dist;
             face_ind = j;
@@ -889,12 +893,12 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
         f0(i, face_ind) = 1;
       }
       // else it's an outlier point
+      vals.conservativeResize(vals.size() + f0.cols());
+      vals.block(vals.size() - f0.cols(), 0, f0.cols(), 1) = f0.row(i);
+      vars.conservativeResize(vars.size() + f0.cols());
+      vars.block(vars.size() - f0.cols(), 0, f0.cols(), 1) = f_.row(i);
     }
-    vals.conservativeResize(vals.size() + f0.size());
-    vals.block(vals.size() - f0.size(), 0, f0.size(), 1) = f0;
-    vars.conservativeResize(vars.size() + f0.size());
-    vars.block(vars.size() - f0.size(), 0, f0.size(), 1) = f_;
-  } else if (config_["detector_type"].as<string>() == "body_to_world_transforms_with_sampled_model_points"){
+  } else if (config_["detector_type"].as<string>() == "world_to_body_transforms_with_sampled_model_points"){
     // For every scene point, find closest model point, in terms of l1 norm. Use that.
     MatrixXd C0(C_.rows(), C_.cols());
     C0.setZero();
@@ -920,7 +924,7 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
     }
 
   } else {
-    runtime_error("Can't set initialization for anything but body_to_world_transform solver type yet.");
+    runtime_error("Can't set initialization for this solver type yet.");
   }
 }
 
@@ -971,6 +975,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     B_(face_body_map_[i]-1, i) = 1.0;
   }
 
+  auto transform_by_object_ = addTransformationVarsAndConstraints(prog, false);
+
   // Allocate slacks to choose minimum L-1 norm over objects
   phi_ = prog.NewContinuousVariables(scene_pts.cols(), 1, "phi");
 
@@ -982,8 +988,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   C_ = prog.NewContinuousVariables(scene_pts.cols(), all_vertices_.cols(), "C");
   // Binary variable selects which face is being corresponded to
   f_ = prog.NewBinaryVariables(scene_pts.cols(), F_.rows(),"f");
-
-  auto transform_by_object_ = addTransformationVarsAndConstraints(prog, false);
 
   // Optimization pushes on slacks to make them tight (make them do their job)
   // (and normalize by number of pts for MSE calculation)
@@ -1040,6 +1044,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       prog.AddLinearConstraint(C_(i,j) <= (F_.col(j).transpose() * f_.row(i).transpose())(0, 0));
     }
   }
+
+
 
   printf("Starting to add correspondence costs... ");
   for (int i=0; i<scene_pts.cols(); i++){
@@ -1233,7 +1239,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
 
  ****************************************************************************/
-std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithBodyToWorldFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts){
+std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithWorldToBodyFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
 
   scene_pts_ = scene_pts;
@@ -1663,13 +1669,13 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   if (config_["detector_type"] == NULL){
     runtime_error("MIQPMultipleMeshModelDetector needs a detector type specified.");
   } else if (config_["detector_type"].as<string>() == 
-             "body_to_world_transforms"){
+             "world_to_body_transforms"){
     solutions = doObjectDetectionWithWorldToBodyFormulation(scene_pts);
   } else if (config_["detector_type"].as<string>() == 
-            "body_to_world_transforms_with_sampled_model_points"){
-    solutions = doObjectDetectionWithBodyToWorldFormulationSampledModelPoints(scene_pts);
+            "world_to_body_transforms_with_sampled_model_points"){
+    solutions = doObjectDetectionWithWorldToBodyFormulationSampledModelPoints(scene_pts);
   } else if (config_["detector_type"].as<string>() == 
-             "world_to_body_transforms"){
+             "body_to_world_transforms"){
     solutions = doObjectDetectionWithBodyToWorldFormulation(scene_pts);
   } else {
     runtime_error("MIQPMultipleMeshModelDetector detector type not understood.");
