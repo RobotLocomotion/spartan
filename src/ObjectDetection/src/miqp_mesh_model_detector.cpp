@@ -805,6 +805,14 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
     else
       tf = robot_.relativeTransform(robot_kinematics_cache, body_i, 0);
 
+    vars.conservativeResize(vars.size() + 12);
+    vals.conservativeResize(vals.size() + 12);
+    vals.block<3, 1>(vals.size() - 12, 0) = tf.translation();
+    vars.block<3, 1>(vals.size() - 12, 0) = transform_by_object_[body_i - 1].T;
+    for (int k = 0; k < 3; k++){
+      vals.block<3, 1>(vals.size() - 9 + k*3 , 0) = tf.rotation().row(k);
+      vars.block<3, 1>(vals.size() - 9 + k*3, 0) = transform_by_object_[body_i - 1].R.row(k);
+    }
 
     // Using that rotation, set the indicator variables appropriately, if present
 
@@ -839,9 +847,6 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
               vals[offset] = 0.0;
             }
             offset++;
-            printf("%d, %d, %d: ", k, x, y);
-            printf("%f vs %f", tf.rotation()(x, y), EnvelopeMinValue(k, K));
-            printf(" --> %f, %f\n", vals[offset-2], vals[offset-1]);
           }
         }
       }
