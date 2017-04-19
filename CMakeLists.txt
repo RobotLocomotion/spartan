@@ -157,8 +157,18 @@ if (WITH_DRIVERS)
     DEPENDS drake
   )
 
+  ExternalProject_Add(optitrack-driver
+    SOURCE_DIR ${build_dir}/externals/optitrack-driver
+    GIT_REPOSITORY https://github.com/sammy-tri/optitrack-driver.git
+    GIT_TAG e78b74c
+    BUILD_ALWAYS 1
+    BUILD_IN_SOURCE 1
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND bazel build //...
+    INSTALL_COMMAND ./install-optitrack.sh ${CMAKE_INSTALL_PREFIX}
+  )
+
 endif()
 
 # Add tests
 add_subdirectory(tests)
-
