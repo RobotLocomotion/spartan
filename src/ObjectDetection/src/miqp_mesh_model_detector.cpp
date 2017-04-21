@@ -748,6 +748,20 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
     new_tr.T = prog.NewContinuousVariables<3>(string("T")+string(name_postfix));
     prog.AddBoundingBoxConstraint(-optBigNumber_*VectorXd::Ones(3), optBigNumber_*VectorXd::Ones(3), new_tr.T);
 
+    // Spawn indicator variables for translations that indicate negativity vs positivity
+    auto T_pos_indicators = prog.NewBinaryVariables<3>(string("T_pos_")+string(name_postfix));
+    auto T_pos = prog.NewContinuousVariables<3>(string("T_pos_C_")+string(name_postfix));
+    auto T_neg_indicators = prog.NewBinaryVariables<3>(string("T_neg_")+string(name_postfix));
+    auto T_neg = prog.NewContinuousVariables<3>(string("T_neg_C_")+string(name_postfix));
+    for (int k=0; k<3; k++) {
+      prog.AddLinearEqualityConstraint(T_neg_indicators[k] + T_pos_indicators[k], 1.0);
+      prog.AddLinearConstraint(T_pos[k] <= T_pos_indicators[k] * optBigNumber_);
+      prog.AddLinearConstraint(T_neg[k] <= T_neg_indicators[k] * optBigNumber_);
+      prog.AddLinearEqualityConstraint(T_pos[k] - T_neg[k] == new_tr.T[k]);
+    }
+
+
+
     // Spawn rotations and constraint them in according to the configuration.
     new_tr.R = NewRotationMatrixVars(&prog, string("R") + string(name_postfix));
     if (optRotationConstraint_ > 0){
@@ -821,31 +835,77 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
 
     //   Bpos[k](i,j) = 1 <=> R(i,j) >= phi(k)
     //   Bneg[k](i,j) = 1 <=> R(i,j) <= -phi(k)
+
     if (optRotationConstraint_ == 4){
-      auto Bpos = transform_by_object_[body_i - 1].R_indicators.first;
-      auto Bneg = transform_by_object_[body_i - 1].R_indicators.second;
+      auto Bpos = std::get<2>(transform_by_object_[body_i - 1].R_indicators);
+      auto Bneg = std::get<3>(transform_by_object_[body_i - 1].R_indicators);
 
       int K = Bpos.size();
       int offset = vals.size();
       vals.conservativeResize(offset + K*9*2);
       vars.conservativeResize(offset + K*9*2);
-      for (int x = 0; x < 3; x++){
-        for (int y = 0; y < 3; y++){ 
-          for (int k = 0; k < K; k++ ){
-            vars[offset] = Bpos[k](x, y);
+      for (int k = 0; k < K; k++ ){
+        Matrix3d assigns_pos; assigns_pos.setZero();
+        Matrix3d assigns_neg; assigns_neg.setZero();
+        for (int x = 0; x < 3; x++){
+          for (int y = 0; y < 3; y++){ 
             if (tf.rotation()(x, y) > EnvelopeMinValue(k, K)){
-              vals[offset] = 1.0;
-            } else {
-              vals[offset] = 0.0;
+              assigns_pos(x, y) = 1.0;
             }
-            offset++;   
+            if (tf.rotation()(x, y) < -EnvelopeMinValue(k, K)){
+              assigns_neg(x, y) = 1.0;
+            }
+          }
+        }
+        if (k == 0){
+          // For the zero-case, need to ensure we've assigned
+          // the row and column vectors to different and non-opposite
+          // orthants from each other.
+          Matrix3d assigns = assigns_pos - assigns_neg;
+          // Proceed rowwise...
+          for (int row = 0; row < 3; row++){
+            // (calculate number of possible assignments)        
+            int num_zeros = 0; 
+            for (int i = 0; i < 3; i++) 
+              num_zeros += (assigns(row, i) == 0);
+            if (num_zeros == 0) continue;
 
+            // Try all assignments for the zeros of this row.
+            for (int assignment = 0; assignment < 1<<num_zeros; assignment++){
+              // Generate the assignment.
+              Matrix3d trial_assignment; trial_assignment.setZero();
+              int j = 0;
+              for (int i = 0; i < 3; i++){
+                if (assigns(row, i) == 0){
+                  trial_assignment(row, i) = ((assignment >> j) & 1)*2-1;
+                  j++;
+                }
+              }
+              Matrix3d assigns_topNrows; assigns_topNrows.setZero();
+              assigns_topNrows.block(0, 0, row+1, 3) = (assigns + trial_assignment).block(0, 0, row+1, 3);
+              if (Eigen::FullPivLU<Matrix3d>(assigns_topNrows).rank() >= row+1){
+                // full row rank so far, so take this assignment and proceed
+                assigns += trial_assignment;
+                break;
+              }
+            }  
+          }
+          // Back out assigns_pos and assigns_neg again
+          for (int i = 0; i < 9; i++){
+            if (assigns(i) > 0)
+              assigns_pos(i) = 1.0;
+            else if (assigns(i) < 0)
+              assigns_neg(i) = 1.0;
+          }
+        }
+        
+        for (int x = 0; x < 3; x++){
+          for (int y = 0; y < 3; y++){
+            vars[offset] = Bpos[k](x, y);
+            vals[offset] = assigns_pos(x, y);
+            offset++;
             vars[offset] = Bneg[k](x, y);
-            if (tf.rotation()(x, y) <= -EnvelopeMinValue(k, K)){
-              vals[offset] = 1.0;
-            } else {
-              vals[offset] = 0.0;
-            }
+            vals[offset] = assigns_neg(x, y);
             offset++;
           }
         }
