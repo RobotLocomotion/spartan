@@ -41,8 +41,10 @@ class MIQPMultipleMeshModelDetector {
     struct TransformationVars {
       drake::solvers::VectorDecisionVariable<3> T;
       drake::solvers::MatrixDecisionVariable<3,3> R;
-      std::pair<std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>,
-          std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>> R_indicators;
+      std::tuple<std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>,
+           std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>,
+           std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>,
+           std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>> R_indicators;
     };
 
     MIQPMultipleMeshModelDetector(YAML::Node config);
