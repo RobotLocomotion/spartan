@@ -18,7 +18,15 @@ from director import fieldcontainer
 from director import framevisualization
 from director import drcargs
 
-from director.optitrackvisualizer import OptitrackVisualizer
+
+try:
+    from director.optitrackvisualizer import OptitrackVisualizer
+    useOptitrackVisualizer = True
+
+except ImportError:
+    # optitrack lcmtypes are not available
+    useOptitrackVisualizer = False
+
 
 import PythonQt
 from PythonQt import QtCore, QtGui
@@ -246,9 +254,12 @@ roboturdf.addPathsFromPackageMap(packageMap)
 robotSystem = makeRobotSystem(view)
 
 
-optitrackVis = OptitrackVisualizer('OPTITRACK_FRAMES')
-optitrackVis.setEnabled(True)
-applogic.MenuActionToggleHelper('Tools', optitrackVis.name, optitrackVis.isEnabled, optitrackVis.setEnabled)
+# TODO: move this to director/robotsystem.py as optional feature
+if useOptitrackVisualizer:
+    optitrackVis = OptitrackVisualizer('OPTITRACK_FRAMES')
+    optitrackVis.setEnabled(True)
+    applogic.MenuActionToggleHelper('Tools', optitrackVis.name, optitrackVis.isEnabled, optitrackVis.setEnabled)
+
 
 app.addWidgetToDock(robotSystem.teleopPanel.widget, QtCore.Qt.RightDockWidgetArea).hide()
 app.addWidgetToDock(robotSystem.playbackPanel.widget, QtCore.Qt.BottomDockWidgetArea).hide()
