@@ -244,89 +244,6 @@ def setRobotPoseFromOptitrack(robotToBodyOffset=[0.0, -0.035, 0.0, -90, -90.5, 0
     robotSystem.robotStateJointController.push()
 
 
-def initRobotKinematicsCameraFrame():
-    endEffectorToWorld = robotSystem.robotStateModel.getLinkFrame('iiwa_link_ee')
-    frameObj = vis.updateFrame(endEffectorToWorld, 'iiwa_link_ee', parent='debug', scale=0.15, visible=False)
-    cameraToEE = transformUtils.frameFromPositionAndRPY([0.1,0,0.0], [-90,-22.5,-90])
-    cameraToWorld = transformUtils.concatenateTransforms([cameraToEE, endEffectorToWorld])
-    obj = vis.updateFrame(cameraToWorld, 'camera frame', parent=frameObj, scale=0.15)
-    frameObj.getFrameSync().addFrame(obj, ignoreIncoming=True)
-
-    def onCameraFrameModified(f):
-        setCameraToWorld(f.transform)
-
-    obj.connectFrameModified(onCameraFrameModified)
-
-
-def updateCameraPoseFromRobotKinematics(model):
-    endEffectorToWorld = model.getLinkFrame('iiwa_link_ee')
-    vis.updateFrame(endEffectorToWorld, 'iiwa_link_ee', parent='debug', scale=0.15, visible=False)
-
-
-def getDefaultCameraToWorld():
-    return transformUtils.frameFromPositionAndRPY([0,0,0], [-90,0,-90])
-
-
-def loadPhoneModel():
-    filename = os.path.join(os.environ['SPARTAN_SOURCE_DIR'], 'src/CorlDev/data/object-meshes/phone.vtp')
-    name = 'phone'
-    affordanceManager = robotSystem.affordanceManager
-    pose = ([ 0.76200759, -0.03861831, -0.24704412],
-            [-0.37927565, -0.39252409, -0.16826478,  0.82082994])
-
-    return affordanceManager.newAffordanceFromDescription(
-          dict(classname='MeshAffordanceItem', Name=name,
-               pose=pose,
-               Filename=filename))
-
-
-def loadElasticFustionReconstruction():
-    filename = os.path.join(os.environ['SPARTAN_SOURCE_DIR'], 'src/CorlDev/data/efusion-output/moving-camera/moving-camera.lcmlog.vtp')
-    polyData = ioUtils.readPolyData(filename)
-    polyData = filterUtils.transformPolyData(polyData, getDefaultCameraToWorld())
-    obj = vis.showPolyData(polyData, 'reconstruction', colorByName='RGB')
-    return obj
-
-
-def initCameraUpdateCallback(obj):
-
-    f = os.path.join(os.environ['SPARTAN_SOURCE_DIR'], 'src/CorlDev/data/efusion-output/moving-camera/moving-camera.lcmlog.posegraph')
-    data = np.loadtxt(f)
-    poseTimes = np.array(data[:,0]*1e6, dtype=int)
-    poses = np.array(data[:,1:])
-
-    def getCameraPoseAtTime(t):
-        ind = poseTimes.searchsorted(t)
-        if ind == len(poseTimes):
-            ind = len(poseTimes)-1
-        pose = poses[ind]
-        pos = pose[:3]
-        quat = pose[6], pose[3], pose[4], pose[5] # quat data from file is ordered as x, y, z, w
-        return transformUtils.transformFromPose(pos, quat)
-
-    def myUpdate():
-        lastUtime = obj.lastUtime
-        obj.update()
-        if obj.lastUtime == lastUtime:
-            return
-
-
-        cameraToCameraStart = getCameraPoseAtTime(obj.lastUtime)
-        t = transformUtils.concatenateTransforms([cameraToCameraStart, getDefaultCameraToWorld()])
-
-        vis.updateFrame(t, 'camera pose')
-
-        useAffordanceProjection = True
-
-        if useAffordanceProjection:
-            setCameraToWorld(t)
-        else:
-            obj.actor.SetUserTransform(t)
-
-    obj.timer.callback = myUpdate
-
-
-
 #####################################################
 
 
@@ -397,8 +314,9 @@ if useCorlDev:
     #initRobotKinematicsCameraFrame()
     #robotSystem.robotStateModel.connectModelChanged(updateCameraPoseFromRobotKinematics)
 
-    initCameraUpdateCallback(openniDepthPointCloud)
-    loadPhoneModel()
+    from corl.utils import *
+    initCameraUpdateCallback(openniDepthPointCloud, setCameraToWorld)
+    loadObjectMeshes(robotSystem.affordanceManager)
     loadElasticFustionReconstruction()
 
 
