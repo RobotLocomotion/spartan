@@ -139,6 +139,7 @@ class MIQPMultipleMeshModelDetector {
     drake::solvers::MatrixXDecisionVariable alpha_;
     drake::solvers::MatrixXDecisionVariable C_;
     drake::solvers::MatrixXDecisionVariable f_;
+    drake::solvers::MatrixXDecisionVariable f_outlier_;
     Eigen::MatrixXd F_;
     Eigen::MatrixXd B_;
 
