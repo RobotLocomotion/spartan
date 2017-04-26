@@ -1056,8 +1056,11 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   phi_ = prog.NewContinuousVariables(scene_pts.cols(), 1, "phi");
 
   // And slacks to store term-wise absolute value terms for L-1 norm calculation
-  alpha_ = prog.NewContinuousVariables(3, scene_pts.cols(), "alpha");
-
+  for (int i = 0; i < 3; i++) {
+    char buf[100]; sprintf(buf, "alpha_%d", i);
+    alpha_.push_back(prog.NewContinuousVariables(robot_.get_num_bodies()-1, scene_pts.cols(), buf));
+  }
+    
   // Each row is a set of affine coefficinets relating the scene point to a combination
   // of vertices on a single face of the model
   C_ = prog.NewContinuousVariables(scene_pts.cols(), all_vertices_.cols(), "C");
@@ -1080,7 +1083,9 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   // Constrain slacks nonnegative, to help the estimation of lower bound in relaxation  
   prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), phi_);
   for (int k=0; k<3; k++){
-    prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), {alpha_.row(k).transpose()});
+    for (int i=0; i<robot_.get_num_bodies()-1; i++) {
+      prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), {alpha_[k].row(i).transpose()});
+    }
   }
 
   // Constrain each row of C, plus the outlier allowance, to sum to 1
@@ -1122,10 +1127,17 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   printf("Starting to add correspondence costs... ");
   for (int i=0; i<scene_pts.cols(); i++){
     // constrain L-1 distance slack based on correspondences
-    // phi_i >= 1^T alpha_{i}
-    prog.AddLinearConstraint(phi_(i, 0) >= (RowVector3d::Ones() * alpha_.col(i))(0, 0));
+    // (summing over the convex hull reform'd multi-object form)
+    // phi_i == sum_{k \in {1:3}} 1^T alpha[k][:, i] 
+    printf("here %d\n", i);
+    prog.AddLinearConstraint(phi_(i, 0) == 
+      (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[0].col(i))(0, 0)
+    + (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[1].col(i))(0, 0)
+    + (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[2].col(i))(0, 0));
 
+    printf("here next\n");
     for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
+      printf("innder loop %d\n", body_i);
       // Similar logic here -- solutions will always bind in a lower bound,
       // which we've constrained >= 0 above, and can't do any better than.
       // alpha_i >= +(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * f_i)
@@ -1136,9 +1148,10 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
              - all_vertices_ * C_.row(i).transpose();
       Matrix<Expression, 3, 1> selector = Vector3d::Ones() * (optBigNumber_ * (VectorXd::Ones(1) - B_.row(body_i - 1) * f_.row(i).transpose()));
       for (int k=0; k<3; k++){
-        prog.AddLinearConstraint( alpha_(k, i) >= l1ErrorPos(k) - selector(k) );
-        prog.AddLinearConstraint( alpha_(k, i) >= -l1ErrorPos(k) - selector(k) );
+        prog.AddLinearConstraint( alpha_[k](body_i-1, i) >=  l1ErrorPos(k) - selector(k));
+        prog.AddLinearConstraint( alpha_[k](body_i-1, i) >= -l1ErrorPos(k) - selector(k));
       }
+      printf("ok\n");
     }
   }
   printf("\n");
@@ -1358,7 +1371,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   // Allocate slacks to choose minimum L-1 norm over objects
   phi_ = prog.NewContinuousVariables(scene_pts.cols(), 1, "phi");
   // And slacks to store term-wise absolute value terms for L-1 norm calculation
-  alpha_ = prog.NewContinuousVariables(3, scene_pts.cols(), "alpha");
+  printf("WARNING, I'm making a local alpha. This needs to be updated to chull reform alpha.\n");
+  auto alpha_ = prog.NewContinuousVariables(3, scene_pts.cols(), "alpha");
   // Optimization pushes on slacks to make them tight (make them do their job)
   // (and normalize by number of pts for MSE calculation)
   prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi_);
