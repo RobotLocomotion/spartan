@@ -925,7 +925,9 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
                 search_norm, search_x, search_body_x, search_body_idx, false);
 
     MatrixXd f0(scene_pts_.cols(), F_.rows());
+    MatrixXd f_outlier0(scene_pts_.cols(), 1);
     f0.setZero();
+    f_outlier0.setZero();
     //printf("Starting to backsolve initial guess...\n");
     // Prepare transforms for all bodies
     vector<Affine3d> tfs(robot_.get_num_bodies());
@@ -956,13 +958,21 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
       }
       if (!optAllowOutliers_ || dist < optPhiMax_){
         f0(i, face_ind) = 1;
+      } else {
+        // else it's an outlier point
+        f_outlier0(i) = 1;
       }
-      // else it's an outlier point
       vals.conservativeResize(vals.size() + f0.cols());
       vals.block(vals.size() - f0.cols(), 0, f0.cols(), 1) = f0.row(i);
       vars.conservativeResize(vars.size() + f0.cols());
       vars.block(vars.size() - f0.cols(), 0, f0.cols(), 1) = f_.row(i);
     }
+
+    vals.conservativeResize(vals.size() + f_outlier0.cols());
+    vals.block(vals.size() - f_outlier0.rows(), 0, f_outlier0.rows(), 1) = f_outlier0;
+    vars.conservativeResize(vars.size() + f_outlier0.cols());
+    vars.block(vars.size() - f_outlier0.rows(), 0, f_outlier0.rows(), 1) = f_outlier_;
+
   } else if (config_["detector_type"].as<string>() == "world_to_body_transforms_with_sampled_model_points"){
     // For every scene point, find closest model point, in terms of l1 norm. Use that.
     MatrixXd C0(C_.rows(), C_.cols());
@@ -1048,20 +1058,24 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   // And slacks to store term-wise absolute value terms for L-1 norm calculation
   alpha_ = prog.NewContinuousVariables(3, scene_pts.cols(), "alpha");
 
-  // Each row is a set of affine coefficients relating the scene point to a combination
+  // Each row is a set of affine coefficinets relating the scene point to a combination
   // of vertices on a single face of the model
   C_ = prog.NewContinuousVariables(scene_pts.cols(), all_vertices_.cols(), "C");
+
   // Binary variable selects which face is being corresponded to
   f_ = prog.NewBinaryVariables(scene_pts.cols(), F_.rows(),"f");
+  // And outlier-correspondence variables
+  f_outlier_ = prog.NewBinaryVariables(scene_pts.cols(), 1, "f_outlier");
+  if (!optAllowOutliers_){
+    prog.AddLinearEqualityConstraint(RowVectorXd::Ones(scene_pts.cols()), 0.0, f_outlier_);
+  }
+
 
   // Optimization pushes on slacks to make them tight (make them do their job)
   // (and normalize by number of pts for MSE calculation)
   prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi_);
-  /*
-  for (int k=0; k<3; k++){
-    prog.AddLinearCost(1.0 * VectorXd::Ones(alpha.cols()), {alpha.row(k)});
-  }./bias
-  */
+  // And penalizes outliers
+  prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()) * optPhiMax_, f_outlier_);
 
   // Constrain slacks nonnegative, to help the estimation of lower bound in relaxation  
   prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), phi_);
@@ -1069,28 +1083,21 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), {alpha_.row(k).transpose()});
   }
 
-  // Constrain each row of C to sum to 1 if a face is selected, to make them proper
-  // affine coefficients
-  Eigen::MatrixXd C1 = Eigen::MatrixXd::Ones(1, C_.cols()+f_.cols());
-  // sum(C_i) = sum(f_i)
-  // sum(C_i) - sum(f_i) = 0
-  C1.block(0, C_.cols(), 1, f_.cols()) = -Eigen::MatrixXd::Ones(1, f_.cols());
+  // Constrain each row of C, plus the outlier allowance, to sum to 1
+  // to make them proper affine coefficients
+  Eigen::MatrixXd C1 = Eigen::MatrixXd::Ones(1, C_.cols()+1);
+  // sum(C_i) + f_outlier_(i) = 1
   for (size_t k=0; k<C_.rows(); k++){
-    prog.AddLinearEqualityConstraint(C1, 0, {C_.row(k).transpose(), f_.row(k).transpose()});
+    prog.AddLinearEqualityConstraint(C1, 1.0, {C_.row(k).transpose(), f_outlier_.row(k)});
   }
 
-  // Constrain each row of f to sum to 1, to force selection of exactly
-  // one face to correspond to
-  Eigen::MatrixXd f1 = Eigen::MatrixXd::Ones(1, f_.cols());
+  // Constrain each row of f, plus the outlier allowance, to sum to 1
+  Eigen::MatrixXd f1 = Eigen::MatrixXd::Ones(1, f_.cols() + 1);
   for (size_t k=0; k<f_.rows(); k++){
-    if (optAllowOutliers_){
-      prog.AddLinearConstraint(f1, 0, 1, f_.row(k).transpose()); 
-    } else {
-      prog.AddLinearEqualityConstraint(f1, 1, f_.row(k).transpose());
-    }
+    prog.AddLinearEqualityConstraint(f1, 1, {f_.row(k).transpose(), f_outlier_.row(k)});
   }
 
-  // Force all elems of C nonnegative
+  // Force all elems of C in [0, 1]
   for (int i=0; i<C_.rows(); i++){
     for (int j=0; j<C_.cols(); j++){
       prog.AddBoundingBoxConstraint(0.0, 1.0, C_(i, j));
@@ -1155,6 +1162,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   prog.SetSolverOption(SolverType::kGurobi, "LogFile", "loggg.gur");
   prog.SetSolverOption(SolverType::kGurobi, "DisplayInterval", 5);
 
+  prog.SetSolverOption(SolverType::kMosek, "MSK_IPAR_LOG", 1);
+
   if (config_["gurobi_int_options"]){
     for (auto iter = config_["gurobi_int_options"].begin();
          iter != config_["gurobi_int_options"].end();
@@ -1168,6 +1177,27 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
          iter++){
       prog.SetSolverOption(SolverType::kGurobi, iter->first.as<string>(), iter->second.as<float>());
     }
+  }
+  
+  if (config_["mosek_int_options"]){
+    for (auto iter = config_["mosek_int_options"].begin();
+         iter != config_["mosek_int_options"].end();
+         iter++){
+      prog.SetSolverOption(SolverType::kMosek, iter->first.as<string>(), iter->second.as<int>());
+    }
+  }
+  if (config_["mosek_float_options"]){
+    for (auto iter = config_["mosek_float_options"].begin();
+         iter != config_["mosek_float_options"].end();
+         iter++){
+      prog.SetSolverOption(SolverType::kMosek, iter->first.as<string>(), iter->second.as<float>());
+    }
+  }
+  for (const auto& tf : transform_by_object_) {
+    for (const auto& vars : std::get<2>(tf.R_indicators))
+      mosek_solver.set_branch_priority({vars.col(0), vars.col(1), vars.col(2)}, 10);
+    for (const auto& vars : std::get<3>(tf.R_indicators))
+      mosek_solver.set_branch_priority({vars.col(0), vars.col(1), vars.col(2)}, 10);
   }
 
   if (optUseInitialGuess_){
