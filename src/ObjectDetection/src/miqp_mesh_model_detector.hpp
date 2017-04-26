@@ -136,7 +136,7 @@ class MIQPMultipleMeshModelDetector {
 
     std::vector<MIQPMultipleMeshModelDetector::TransformationVars> transform_by_object_;
     drake::solvers::MatrixXDecisionVariable phi_;
-    drake::solvers::MatrixXDecisionVariable alpha_;
+    std::vector<drake::solvers::MatrixXDecisionVariable> alpha_;
     drake::solvers::MatrixXDecisionVariable C_;
     drake::solvers::MatrixXDecisionVariable f_;
     drake::solvers::MatrixXDecisionVariable f_outlier_;
