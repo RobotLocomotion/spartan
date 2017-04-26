@@ -1125,17 +1125,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     // phi_i >= 1^T alpha_{i}
     prog.AddLinearConstraint(phi_(i, 0) >= (RowVector3d::Ones() * alpha_.col(i))(0, 0));
 
-    // If we're allowing outliers, we need to constrain each phi_i to be bigger than
-    // a penalty amount if no faces are selected
-    if (optAllowOutliers_){
-      // I believe Big-M is OK here, as opposed to convex hull reform,
-      // as we wouldn't gain important tightness for the convex hull reform.
-      // (phi_i >= 0 always, as constrained above, which is the tightest 
-      // lower bound we can always enforce).
-      // phi_i >= phi_max - (ones * f_i)*BIG
-      prog.AddLinearConstraint(phi_(i, 0) >= optPhiMax_ - optBigNumber_*(RowVectorXd::Ones(f_.cols()) * f_.row(i).transpose())(0, 0));
-    }
-
     for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
       // Similar logic here -- solutions will always bind in a lower bound,
       // which we've constrained >= 0 above, and can't do any better than.
