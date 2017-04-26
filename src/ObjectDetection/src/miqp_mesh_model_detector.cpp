@@ -1129,15 +1129,12 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     // constrain L-1 distance slack based on correspondences
     // (summing over the convex hull reform'd multi-object form)
     // phi_i == sum_{k \in {1:3}} 1^T alpha[k][:, i] 
-    printf("here %d\n", i);
     prog.AddLinearConstraint(phi_(i, 0) == 
       (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[0].col(i))(0, 0)
     + (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[1].col(i))(0, 0)
     + (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[2].col(i))(0, 0));
 
-    printf("here next\n");
     for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
-      printf("innder loop %d\n", body_i);
       // Similar logic here -- solutions will always bind in a lower bound,
       // which we've constrained >= 0 above, and can't do any better than.
       // alpha_i >= +(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * f_i)
@@ -1151,7 +1148,6 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
         prog.AddLinearConstraint( alpha_[k](body_i-1, i) >=  l1ErrorPos(k) - selector(k));
         prog.AddLinearConstraint( alpha_[k](body_i-1, i) >= -l1ErrorPos(k) - selector(k));
       }
-      printf("ok\n");
     }
   }
   printf("\n");
