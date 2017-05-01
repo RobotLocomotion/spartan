@@ -66,19 +66,17 @@ class MyEventFilter(vieweventfilter.ViewEventFilter):
 class GroundTruthAnnotation(uipanel.UiPanel):
 
     def __init__(self,):
-
+        #Loading
         filename = os.path.join(os.environ['SPARTAN_SOURCE_DIR'], 'apps/chris/ddGroundTruthAnnotationPanel.ui')
         loader = QtUiTools.QUiLoader()
         uifile = QtCore.QFile(filename)
         assert uifile.open(uifile.ReadOnly)
-
         self.widget = loader.load(uifile)
         uifile.close()
 
+        #UI elements
         self.ui = WidgetDict(self.widget.children())
-
         self.view = app.getCurrentRenderView()
-
         self.ui.enabledCheck.connect('toggled(bool)', self.onEnabledCheckBox)
         self.ui.clearButton.connect('clicked()', self.onClear)
         self.ui.saveScene.connect('clicked()', self.saveCurrentScene)
@@ -89,10 +87,10 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         self.annotation.setProperty('Color', [0,1,0])
         self.annotation.actor.SetPickable(False)
         self.annotation.actor.SetUserTransform(vtk.vtkTransform())
-        self.pickPoints = []
         self.setEnabled(False)
 
-        self.models = []
+        #State
+        self.pickPoints = []
 
     def onEnabledCheckBox(self):
         self.setEnabled(self.isEnabled())
@@ -259,12 +257,40 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         else:
             self.ui.numPts.text = '0'
             self.ui.numCells.text = '0'
-    
-    def addModel(path):
+
+def getPolyDataByName(name):
+        obj = om.findObjectByName(name).polyData
+
+def addModel(path):
+        name = str(os.path.basename(path)).split(".")[0]
         r = rob.openUrdf(path,app.getCurrentRenderView())
-        model = r.getObjectTree().getObjects()[1]
-        vtkn.getNumpyFromVtk(model.polyData)
-        
+        #model = r.getObjectTree().getObjects()[1].polyData
+        #vtkn.getNumpyFromVtk(model)
+        scene = om.findObjectByName(name)
+        if not scene is None :
+            print "translating"
+            t = vtk.vtkTransform()
+            t.Translate(seg.computeCentroid(scene.polyData))
+            scene.SetUserTransform(t)
+
+def vtkICP(object_name):
+    model = filter(lambda x:object_name in str(x.getProperty('Name')), om.findObjectByName("cube.urdf").getObjectTree().getObjects())[1]
+    scene = om.findObjectByName(object_name)
+
+    #translate model first
+    icp = vtk.vtkIterativeClosestPointTransform()
+    icp.SetSource(model.polyData)
+    icp.SetTarget(scene.polyData)
+    icp.GetLandmarkTransform().SetModeToRigidBody()
+    icp.Update()
+
+    t = filtersGeneral.vtkTransformPolyDataFilter()
+    t.SetInput(model)
+    t.SetTransform(icp)
+    t.Update()
+    print "icp transform"
+    print t.GetOutput()
+
 def addWidgetsToDict(widgets, d):
 
     for widget in widgets:
@@ -282,7 +308,7 @@ class WidgetDict(object):
 
 
 if __name__ == '__main__':
-
+    addModel("/home/drc/spartan/apps/chris/cube.urdf")
     print "starting ground truth panel"
     myWidget = GroundTruthAnnotation()
     myWidget.widget.show()
