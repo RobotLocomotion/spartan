@@ -65,7 +65,7 @@ def getCorlRelativePath(path):
 
 
 def getCorlDataDir():
-    return getCorlRelativePath('data')
+    return getCorlRelativePath('data/CORL2017')
 
 
 def evalFileAsString(filename):
