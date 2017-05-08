@@ -80,6 +80,8 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         self.ui.enabledCheck.connect('toggled(bool)', self.onEnabledCheckBox)
         self.ui.clearButton.connect('clicked()', self.onClear)
         self.ui.saveScene.connect('clicked()', self.saveCurrentScene)
+
+        self.ui.align.connect('clicked()',self.vtkICP)
         #self.snapshotTextShortcut = applogic.addShortcut(app.mainWindow, ' ', self.snapshotText)
         #self.snapshotGeometryShortcut = applogic.addShortcut(app.mainWindow, 'Shift+ ', self.snapshotGeometry)
         self.eventFilter = MyEventFilter(view, self)
@@ -250,66 +252,70 @@ class GroundTruthAnnotation(uipanel.UiPanel):
 
 #model import/export
 
-def vtkMatrixToNumpy(self, matrix):
-    output = np.ones((4,4))
-    for i in range(4):
-        for j in range(4):
-            output[i, j] = matrix.GetElement(i, j)
-    return output
+    def vtkMatrixToNumpy(self, matrix):
+        output = np.ones((4,4))
+        for i in range(4):
+            for j in range(4):
+                output[i, j] = matrix.GetElement(i, j)
+        return output
 
-def getPolyDataByName(name):
-        obj = om.findObjectByName(name).polyData
+    def getPolyDataByName(self,name):
+            obj = om.findObjectByName(name).polyData
 
-def addModel(path):
-        name = str(os.path.basename(path)).split(".")[0]
-        r = rob.openUrdf(path,app.getCurrentRenderView())
-        #model = r.getObjectTree().getObjects()[1].polyData
-        #vtkn.getNumpyFromVtk(model)
-        # scene = om.findObjectByName(name)
-        # if not scene is None :
-        #     print "translating"
-        #     t = vtk.vtkTransform()
-        #     t.Translate(seg.computeCentroid(scene.polyData))
-        #     scene.SetUserTransform(t)
+    def addModel(self,path):
+            name = str(os.path.basename(path)).split(".")[0]
+            r = rob.openUrdf(path,app.getCurrentRenderView())
+            #model = r.getObjectTree().getObjects()[1].polyData
+            #vtkn.getNumpyFromVtk(model)
+            # scene = om.findObjectByName(name)
+            # if not scene is None :
+            #     print "translating"
+            #     t = vtk.vtkTransform()
+            #     t.Translate(seg.computeCentroid(scene.polyData))
+            #     scene.SetUserTransform(t)
 
-def packageAlignmentResult(object_name,transform):
-    object = Object(object_name, vtkMatrixToNumpy(transform))
-    self.objects.append(object_name)
+    def packageAlignmentResult(self,object_name,transform):
+        object = Object(object_name, vtkMatrixToNumpy(transform))
+        self.objects.append(object_name)
 
-#alignment algorithms
-def vtkICP(object_name):
-    model = vtk.vtkPolyData()
-    om.findObjectByName(object_name+".urdf").model.getModelMesh(model)
-    scene = om.findObjectByName(object_name).polyData
-    
-    icp = vtk.vtkIterativeClosestPointTransform()
-    icp.SetMaximumNumberOfIterations(100)
+    #alignment algorithms
+    def vtkICP(self):
+        object_name = str(self.ui.alignObject.text)
+        if object_name== "" or not om.findObjectByName(object_name):
+            print "object: " + object_name + " not found"
+            return
+        model = vtk.vtkPolyData()
+        om.findObjectByName(object_name+".urdf").model.getModelMesh(model)
+        scene = om.findObjectByName(object_name).polyData
+        
+        icp = vtk.vtkIterativeClosestPointTransform()
+        icp.SetMaximumNumberOfIterations(100)
 
-    #need to shift centroid to center of abject after clicking on it
-    icp.StartByMatchingCentroidsOn()
-    icp.SetSource(model)
-    icp.SetTarget(scene)
-    icp.GetLandmarkTransform().SetModeToRigidBody()
-    icp.Modified()
-    icp.Update()
+        #need to shift centroid to center of abject after clicking on it
+        icp.StartByMatchingCentroidsOn()
+        icp.SetSource(model)
+        icp.SetTarget(scene)
+        icp.GetLandmarkTransform().SetModeToRigidBody()
+        icp.Modified()
+        icp.Update()
 
-    t = vtk.vtkTransformPolyDataFilter()
-    t.SetInput(model)
+        t = vtk.vtkTransformPolyDataFilter()
+        t.SetInput(model)
 
-    t.SetTransform(icp)
-    t.Update()
+        t.SetTransform(icp)
+        t.Update()
 
-    transformedObject = t.GetOutput
-    print transformedObject
+        transformedObject = t.GetOutput()
+        print transformedObject
 
-    vis.showPolyData(transformedObject, object_name + "_transform" ,color=[0,1,0], self.getRootFolder())
-    packageAlignmentResult(object_name,icp.getMatrix())
+        vis.showPolyData(transformedObject, object_name + "_transform" ,color=[0,1,0], parent = self.getRootFolder())
+        self.packageAlignmentResult(object_name,icp.getMatrix())
 
-def go_ICP():
-    pass
+    def go_ICP(self):
+        pass
 
-def pcl_ICP():
-    pass
+    def pcl_ICP(self):
+        pass
 
 
 #add to UI
@@ -330,7 +336,7 @@ class WidgetDict(object):
 
 
 if __name__ == '__main__':
-    addModel("/home/drc/spartan/apps/chris/cube.urdf")
     print "starting ground truth panel"
     myWidget = GroundTruthAnnotation()
+    myWidget.addModel("/home/drc/spartan/apps/chris/cube.urdf")
     myWidget.widget.show()

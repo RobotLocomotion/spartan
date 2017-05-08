@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>363</width>
-    <height>526</height>
+    <width>372</width>
+    <height>535</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -53,26 +53,6 @@
        <property name="margin">
         <number>9</number>
        </property>
-       <item row="0" column="0">
-        <widget class="QCheckBox" name="enabledCheck">
-         <property name="text">
-          <string>Enabled</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <spacer name="verticalSpacer">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>0</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
        <item row="1" column="0" colspan="2">
         <widget class="QWidget" name="panelContents" native="true">
          <layout class="QGridLayout" name="gridLayout_4">
@@ -82,13 +62,6 @@
           <property name="spacing">
            <number>6</number>
           </property>
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_3">
-            <property name="text">
-             <string>Pick type:</string>
-            </property>
-           </widget>
-          </item>
           <item row="0" column="1" colspan="2">
            <widget class="QComboBox" name="pickTypeCombo">
             <item>
@@ -176,49 +149,6 @@
             </layout>
            </widget>
           </item>
-          <item row="5" column="0" colspan="2">
-           <widget class="QGroupBox" name="pickInfoBox">
-            <property name="title">
-             <string>Pick point info:</string>
-            </property>
-            <layout class="QGridLayout" name="gridLayout">
-             <item row="0" column="0">
-              <widget class="QLabel" name="label_9">
-               <property name="text">
-                <string>Position:</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QLabel" name="pickPt">
-               <property name="text">
-                <string>0.0, 0.0, 0.0</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="0">
-              <widget class="QLabel" name="cellNormalLabel">
-               <property name="text">
-                <string>Cell normal:</string>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="0" colspan="2">
-              <widget class="QWidget" name="widget" native="true"/>
-             </item>
-             <item row="1" column="1">
-              <widget class="QLabel" name="pickNormal">
-               <property name="text">
-                <string>0.0, 0.0, 0.0</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="7" column="0" colspan="3">
-           <widget class="QTextEdit" name="textEdit"/>
-          </item>
           <item row="8" column="0" colspan="2">
            <widget class="QLabel" name="label_5">
             <property name="text">
@@ -276,15 +206,102 @@
           <item row="6" column="2">
            <widget class="QLineEdit" name="saveLocation"/>
           </item>
-          <item row="6" column="1">
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>Pick type:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="0" colspan="3">
+           <widget class="QTextEdit" name="textEdit">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QGroupBox" name="pickInfoBox">
+            <property name="title">
+             <string>Pick point info:</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout">
+             <item row="0" column="1">
+              <widget class="QLabel" name="pickPt">
+               <property name="text">
+                <string>0.0, 0.0, 0.0</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="cellNormalLabel">
+               <property name="text">
+                <string>Cell normal:</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0" colspan="2">
+              <widget class="QWidget" name="widget" native="true"/>
+             </item>
+             <item row="1" column="1">
+              <widget class="QLabel" name="pickNormal">
+               <property name="text">
+                <string>0.0, 0.0, 0.0</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_9">
+               <property name="text">
+                <string>Position:</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="4" column="2">
            <widget class="QPushButton" name="saveScene">
             <property name="text">
              <string>Save Scene</string>
             </property>
            </widget>
           </item>
+          <item row="6" column="0">
+           <widget class="QLineEdit" name="alignObject"/>
+          </item>
+          <item row="4" column="0">
+           <widget class="QPushButton" name="align">
+            <property name="text">
+             <string>Align Object</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QCheckBox" name="enabledCheck">
+         <property name="text">
+          <string>Enabled</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </widget>
