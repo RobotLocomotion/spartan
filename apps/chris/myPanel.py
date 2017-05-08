@@ -91,6 +91,10 @@ class GroundTruthAnnotation(uipanel.UiPanel):
 
         #State
         self.pickPoints = []
+        self.objects = []
+
+
+#UI functionality
 
     def onEnabledCheckBox(self):
         self.setEnabled(self.isEnabled())
@@ -120,7 +124,7 @@ class GroundTruthAnnotation(uipanel.UiPanel):
     def saveCurrentScene(self):
         location = str(self.ui.saveLocation.text)
         with open(location+".json", 'w') as outfile:
-            json.dump(self.pickPoints, outfile, cls = MyEncoder)
+            json.dump(self.objects, outfile, cls = MyEncoder)
 
         obj = om.findObjectByName("out.vtk")
         pd = obj.polyData
@@ -131,6 +135,7 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         self.ui.textEdit.clear()
         om.removeFromObjectModel(self.getRootFolder())
         self.pickPoints = []
+        self.objects = []
 
     def pickIsValid(self):
         return self.ui.objName.text != 'none'
@@ -147,27 +152,12 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         d.addSphere(position, radius=radius)
         return d.getPolyData()
 
-    # def snapshotGeometry(self):
-    #     if not self.pickIsValid():
-    #         return
-
-    #     p = np.array([float(x) for x in self.ui.pickPt.text.split(', ')])
-    #     self.pickPoints.append(Object("test",Pose(p.tolist(),[])))
-
-    #     polyData = self.makeSphere(p)
-
-    #     folder = self.getRootFolder()
-    #     i = len(folder.children())
-    #     obj = vis.showPolyData(polyData, 'point %d' % i, color=[1,0,0], parent=folder)
-    #     obj.actor.SetPickable(False)
-
-
     def snapshotGeometry(self):
         if not self.pickIsValid():
             return
 
         p = np.array([float(x) for x in self.ui.pickPt.text.split(', ')])
-        self.pickPoints.append(Object("test",Pose(p.tolist(),[])))
+        self.pickPoints.append(p)
 
         obj = om.findObjectByName("out.vtk")
         pd = obj.polyData
@@ -258,6 +248,15 @@ class GroundTruthAnnotation(uipanel.UiPanel):
             self.ui.numPts.text = '0'
             self.ui.numCells.text = '0'
 
+#model import/export
+
+def vtkMatrixToNumpy(self, matrix):
+    output = np.ones((4,4))
+    for i in range(4):
+        for j in range(4):
+            output[i, j] = matrix.GetElement(i, j)
+    return output
+
 def getPolyDataByName(name):
         obj = om.findObjectByName(name).polyData
 
@@ -266,31 +265,54 @@ def addModel(path):
         r = rob.openUrdf(path,app.getCurrentRenderView())
         #model = r.getObjectTree().getObjects()[1].polyData
         #vtkn.getNumpyFromVtk(model)
-        scene = om.findObjectByName(name)
-        if not scene is None :
-            print "translating"
-            t = vtk.vtkTransform()
-            t.Translate(seg.computeCentroid(scene.polyData))
-            scene.SetUserTransform(t)
+        # scene = om.findObjectByName(name)
+        # if not scene is None :
+        #     print "translating"
+        #     t = vtk.vtkTransform()
+        #     t.Translate(seg.computeCentroid(scene.polyData))
+        #     scene.SetUserTransform(t)
 
+def packageAlignmentResult(object_name,transform):
+    object = Object(object_name, vtkMatrixToNumpy(transform))
+    self.objects.append(object_name)
+
+#alignment algorithms
 def vtkICP(object_name):
-    model = filter(lambda x:object_name in str(x.getProperty('Name')), om.findObjectByName("cube.urdf").getObjectTree().getObjects())[1]
-    scene = om.findObjectByName(object_name)
-
-    #translate model first
+    model = vtk.vtkPolyData()
+    om.findObjectByName(object_name+".urdf").model.getModelMesh(model)
+    scene = om.findObjectByName(object_name).polyData
+    
     icp = vtk.vtkIterativeClosestPointTransform()
-    icp.SetSource(model.polyData)
-    icp.SetTarget(scene.polyData)
+    icp.SetMaximumNumberOfIterations(100)
+
+    #need to shift centroid to center of abject after clicking on it
+    icp.StartByMatchingCentroidsOn()
+    icp.SetSource(model)
+    icp.SetTarget(scene)
     icp.GetLandmarkTransform().SetModeToRigidBody()
+    icp.Modified()
     icp.Update()
 
-    t = filtersGeneral.vtkTransformPolyDataFilter()
+    t = vtk.vtkTransformPolyDataFilter()
     t.SetInput(model)
+
     t.SetTransform(icp)
     t.Update()
-    print "icp transform"
-    print t.GetOutput()
 
+    transformedObject = t.GetOutput
+    print transformedObject
+
+    vis.showPolyData(transformedObject, object_name + "_transform" ,color=[0,1,0], self.getRootFolder())
+    packageAlignmentResult(object_name,icp.getMatrix())
+
+def go_ICP():
+    pass
+
+def pcl_ICP():
+    pass
+
+
+#add to UI
 def addWidgetsToDict(widgets, d):
 
     for widget in widgets:
