@@ -303,7 +303,7 @@ if havePerceptionDrivers():
     #syncTimer.start()
 
 
-useCorlDev = False
+useCorlDev = True
 if useCorlDev:
 
     assert havePerceptionDrivers()
@@ -314,11 +314,10 @@ if useCorlDev:
     #initRobotKinematicsCameraFrame()
     #robotSystem.robotStateModel.connectModelChanged(updateCameraPoseFromRobotKinematics)
 
-    from corl.utils import *
-    initCameraUpdateCallback(openniDepthPointCloud, setCameraToWorld)
-    loadObjectMeshes(robotSystem.affordanceManager)
-    loadElasticFustionReconstruction()
-
+    import corl.setup 
+    extraInputs = dict()
+    extraInputs['imageManager'] = imageManager
+    corl.setup.setupCorlDirector(robotSystem, openniDepthPointCloud, setCameraToWorld, logFolder="logs/moving-camera", globalsDict=globals(), extraInputs=extraInputs)
 
 app.restoreDefaultWindowState()
 app.initWindowSettings()
