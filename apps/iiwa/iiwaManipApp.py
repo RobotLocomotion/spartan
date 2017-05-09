@@ -314,7 +314,8 @@ if useCorlDev:
     #initRobotKinematicsCameraFrame()
     #robotSystem.robotStateModel.connectModelChanged(updateCameraPoseFromRobotKinematics)
 
-    import corl.setup 
+    import corl.setup
+    import corl.imagecapture
     extraInputs = dict()
     extraInputs['imageManager'] = imageManager
     corl.setup.setupCorlDirector(robotSystem, openniDepthPointCloud, setCameraToWorld, logFolder="logs/moving-camera", globalsDict=globals(), extraInputs=extraInputs)
