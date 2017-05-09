@@ -148,7 +148,7 @@ if (WITH_DRIVERS)
   ExternalProject_Add(drake-schunk-driver
     SOURCE_DIR ${build_dir}/externals/drake-schunk-driver
     GIT_REPOSITORY git@github.com:RobotLocomotion/drake-schunk-driver.git
-    GIT_TAG c49829b
+    GIT_TAG a28d35c
     BUILD_ALWAYS 1
     BUILD_IN_SOURCE 1
     CONFIGURE_COMMAND ""
