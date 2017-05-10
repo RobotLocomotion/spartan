@@ -29,14 +29,6 @@ class MyEncoder(json.JSONEncoder):
         else:
             return json.JSONEncoder.default(self, obj)
 
-class Pose():
-    def __init__(self, position, orientation):
-        self.position = position
-        self.orientation = orientation
-
-    def reprJSON(self):
-        return self.__dict__ 
-
 class Object():
     def __init__(self, name, pose):
 
@@ -65,7 +57,7 @@ class MyEventFilter(vieweventfilter.ViewEventFilter):
 
 class GroundTruthAnnotation(uipanel.UiPanel):
 
-    def __init__(self,):
+    def __init__(self):
         #Loading
         filename = os.path.join(os.environ['SPARTAN_SOURCE_DIR'], 'apps/chris/ddGroundTruthAnnotationPanel.ui')
         loader = QtUiTools.QUiLoader()
@@ -80,10 +72,8 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         self.ui.enabledCheck.connect('toggled(bool)', self.onEnabledCheckBox)
         self.ui.clearButton.connect('clicked()', self.onClear)
         self.ui.saveScene.connect('clicked()', self.saveCurrentScene)
-
         self.ui.align.connect('clicked()',self.vtkICP)
-        #self.snapshotTextShortcut = applogic.addShortcut(app.mainWindow, ' ', self.snapshotText)
-        #self.snapshotGeometryShortcut = applogic.addShortcut(app.mainWindow, 'Shift+ ', self.snapshotGeometry)
+
         self.eventFilter = MyEventFilter(view, self)
         self.annotation = vis.PolyDataItem('annotation', self.makeSphere((0,0,0)), view)
         self.annotation.setProperty('Color', [0,1,0])
@@ -95,8 +85,13 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         self.pickPoints = []
         self.objects = []
 
+        #init folders
+        self.getRootFolder()
+        self.getModelObjectsFolder()
+        self.getTransformedObjectsFolder()
 
-#UI functionality
+
+    #UI functionality
 
     def onEnabledCheckBox(self):
         self.setEnabled(self.isEnabled())
@@ -114,8 +109,7 @@ class GroundTruthAnnotation(uipanel.UiPanel):
             for obj in folder.children():
                 obj.actor.SetPickable(not enabled)
 
-        #self.snapshotTextShortcut.enabled = self.isEnabled()
-        #self.snapshotGeometryShortcut.enabled = self.isEnabled()
+        
         if self.isEnabled():
             self.eventFilter.installEventFilter()
         else:
@@ -128,14 +122,17 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         with open(location+".json", 'w') as outfile:
             json.dump(self.objects, outfile, cls = MyEncoder)
 
-        obj = om.findObjectByName("out.vtk")
+        obj = om.findObjectByName("data files").children()[0]
         pd = obj.polyData
         ioUtils.writePolyData(pd, location+".vtk")
         print 'saved:', location+".vtk"
 
     def onClear(self):
-        self.ui.textEdit.clear()
+        # self.ui.textEdit.clear()
         om.removeFromObjectModel(self.getRootFolder())
+        om.removeFromObjectModel(self.getTransformedObjectsFolder())
+        om.removeFromObjectModel(self.getModelObjectsFolder())
+
         self.pickPoints = []
         self.objects = []
 
@@ -143,7 +140,21 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         return self.ui.objName.text != 'none'
 
     def getRootFolder(self, create=True):
-        name = 'measurements'
+        name = 'scene objects'
+        if create:
+            return om.getOrCreateContainer(name)
+        else:
+            return om.findObjectByName(name)
+
+    def getTransformedObjectsFolder(self, create=True):
+        name = 'aligned objects'
+        if create:
+            return om.getOrCreateContainer(name)
+        else:
+            return om.findObjectByName(name)
+
+    def getModelObjectsFolder(self, create=True):
+        name = 'model objects'
         if create:
             return om.getOrCreateContainer(name)
         else:
@@ -161,7 +172,7 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         p = np.array([float(x) for x in self.ui.pickPt.text.split(', ')])
         self.pickPoints.append(p)
 
-        obj = om.findObjectByName("out.vtk")
+        obj = om.findObjectByName("data files").children()[0]
         pd = obj.polyData
         obj = seg.cropToSphere(pd,p.tolist(),.15)
 
@@ -170,26 +181,26 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         obj = vis.showPolyData(obj, 'object %d' % i, color=[1,0,0], parent=folder)
         obj.actor.SetPickable(False)
 
-    def snapshotText(self):
-        if not self.pickIsValid():
-            return
+    # def snapshotText(self):
+    #     if not self.pickIsValid():
+    #         return
 
-        if len(self.pickPoints) > 1:
-            dist = np.linalg.norm(np.array(self.pickPoints[-1].pose.position) - np.array(self.pickPoints[-2].pose.position))
-        else:
-            dist = 0.0
+    #     if len(self.pickPoints) > 1:
+    #         dist = np.linalg.norm(np.array(self.pickPoints[-1].pose.position) - np.array(self.pickPoints[-2].pose.position))
+    #     else:
+    #         dist = 0.0
 
-        s = 'pick_point ' + self.ui.pickPt.text + '\n'
-        s += 'pick_normal ' + self.ui.pickNormal.text + '\n'
-        s += 'dist_to_previous_point ' + '%f' % dist + '\n'
-        s += '\n'
+    #     s = 'pick_point ' + self.ui.pickPt.text + '\n'
+    #     s += 'pick_normal ' + self.ui.pickNormal.text + '\n'
+    #     s += 'dist_to_previous_point ' + '%f' % dist + '\n'
+    #     s += '\n'
 
-        self.ui.textEdit.append(s.replace('\n','<br/>'))
+    #     self.ui.textEdit.append(s.replace('\n','<br/>'))
 
     def onShiftMouseClick(self, displayPoint):
         self.updatePick(displayPoint)
         self.snapshotGeometry()
-        self.snapshotText()
+        # self.snapshotText()
         self.annotation.setProperty('Visible', False)
 
     def onMouseMove(self, displayPoint):
@@ -262,9 +273,14 @@ class GroundTruthAnnotation(uipanel.UiPanel):
     def getPolyDataByName(self,name):
             obj = om.findObjectByName(name).polyData
 
-    def addModel(self,path):
-            name = str(os.path.basename(path)).split(".")[0]
-            r = rob.openUrdf(path,app.getCurrentRenderView())
+    def addURDFModel(self,path):
+            model = rob.loadRobotModelFromFile(path)
+            if model:
+                model = rob.RobotModelItem(model)
+                om.addToObjectModel(model,parentObj = self.getModelObjectsFolder())
+                model.addToView(app.getCurrentRenderView())
+            else:
+                print "bad urdf model"
             #model = r.getObjectTree().getObjects()[1].polyData
             #vtkn.getNumpyFromVtk(model)
             # scene = om.findObjectByName(name)
@@ -273,15 +289,19 @@ class GroundTruthAnnotation(uipanel.UiPanel):
             #     t = vtk.vtkTransform()
             #     t.Translate(seg.computeCentroid(scene.polyData))
             #     scene.SetUserTransform(t)
+    def addVTPModel(self,path):
+        name = str(os.path.basename(path)).split(".")[0]
+        polyData = ioUtils.readPolyData(path)
+        vis.showPolyData(polyData, name ,color=[0,1,0], parent = self.getModelObjectsFolder())
 
     def packageAlignmentResult(self,object_name,transform):
-        object = Object(object_name, vtkMatrixToNumpy(transform))
-        self.objects.append(object_name)
+        object = Object(object_name, self.vtkMatrixToNumpy(transform).tolist())
+        self.objects.append(object)
 
     #alignment algorithms
     def vtkICP(self):
         object_name = str(self.ui.alignObject.text)
-        if object_name== "" or not om.findObjectByName(object_name):
+        if object_name == "" or not om.findObjectByName(object_name):
             print "object: " + object_name + " not found"
             return
         model = vtk.vtkPolyData()
@@ -308,8 +328,8 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         transformedObject = t.GetOutput()
         print transformedObject
 
-        vis.showPolyData(transformedObject, object_name + "_transform" ,color=[0,1,0], parent = self.getRootFolder())
-        self.packageAlignmentResult(object_name,icp.getMatrix())
+        vis.showPolyData(transformedObject, object_name + "_transform" ,color=[0,1,0], parent = self.getTransformedObjectsFolder())
+        self.packageAlignmentResult(object_name, icp.GetMatrix())
 
     def go_ICP(self):
         pass
@@ -338,5 +358,5 @@ class WidgetDict(object):
 if __name__ == '__main__':
     print "starting ground truth panel"
     myWidget = GroundTruthAnnotation()
-    myWidget.addModel("/home/drc/spartan/apps/chris/cube.urdf")
+    myWidget.addURDFModel("/home/drc/spartan/apps/chris/cube.urdf")
     myWidget.widget.show()
