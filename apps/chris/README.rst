@@ -8,7 +8,7 @@ How to run ground truth annotation tool (GTAT):
 
 	UI:
 	1. Shift click on the center of objects in a loaded scene (vtp or vtk files) to create bounding box around object and name that object the same as your model name
-	2. Load model through urdf or vtk object and fill in the align object text box with the name of the model/scene model you want to align, then click "align object"
-	3. To save scene with ground truth pose estimates, type path below save scene button and click "Save Scene"-> this will export scene object poses as .json file.
+	2. Load model through urdf or vtk object and fillin the align object text box with the name of the model/scene model you want to align, then click "align object"
+	3. To save scene with gorund truth pose estimates, type path below save scene button and click "Save Scene"-> this will export scene object poses as .json file.
 
 
