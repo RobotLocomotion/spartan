@@ -45,6 +45,10 @@ class MyEventFilter(vieweventfilter.ViewEventFilter):
         vieweventfilter.ViewEventFilter.__init__(self, view)
         self.panel = panel
 
+    def onMouseWheel(self, event):
+        if self.panel.isModifyingBoundingBox:
+            print event
+
     def onMouseMove(self, event):
         displayPoint = self.getMousePositionInView(event)
         self.panel.onMouseMove(displayPoint)
@@ -84,7 +88,7 @@ class GroundTruthAnnotation(uipanel.UiPanel):
         #State
         self.pickPoints = []
         self.objects = []
-
+        self.isModifyingBoundingBox = False
         #init folders
         self.getRootFolder()
         self.getModelObjectsFolder()
