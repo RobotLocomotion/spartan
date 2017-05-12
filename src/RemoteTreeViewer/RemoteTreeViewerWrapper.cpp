@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include "json.hpp"
 
-#include "lcmtypes/robotlocomotion/viewer2_comms_t.hpp"
+#include "robotlocomotion/viewer2_comms_t.hpp"
 
 using namespace std;
 using namespace Eigen;

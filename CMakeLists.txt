@@ -26,7 +26,6 @@ configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environm
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_DRIVERS "Build the hardware lcm driver." OFF)
-option(WITH_ISSUE_5456_WORKAROUND "Workaround for RobotLocomotion/drake#5456: Configure but do not build ContactParticleFilter and RemoteTreeViewer" OFF)
 
 # Setup external projects
 include(ExternalProject)
@@ -35,26 +34,22 @@ set(source_dir ${CMAKE_SOURCE_DIR})
 set(build_dir ${CMAKE_BINARY_DIR})
 include(cmake/set-python-args.cmake)
 
-foreach(proj drake director signal-scope)
+foreach(proj director signal-scope)
   if(NOT EXISTS ${source_dir}/${proj}/.git)
     message(FATAL_ERROR "\nThe ${proj} submodule is not available.\nPlease run: git submodule update --init")
   endif()
 endforeach()
 
-# Add external projects
-ExternalProject_Add(drake
-  SOURCE_DIR ${source_dir}/drake
-  BINARY_DIR ${build_dir}/drake
-  BUILD_ALWAYS 1
-  CMAKE_CACHE_ARGS
-    -DDISABLE_MATLAB:BOOL=ON
-    -DWITH_GUROBI:BOOL=OFF
-    -DWITH_FCL:BOOL=OFF
-    -DWITH_SNOPT:BOOL=ON
-    -DWITH_DIRECTOR:BOOL=OFF
-    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
-    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-  INSTALL_COMMAND ""
+find_package(lcm REQUIRED)
+find_package(bot2-core REQUIRED)
+find_package(robotlocomotion-lcmtypes REQUIRED)
+find_package(drake REQUIRED)
+
+set(CMAKE_ARGS_FOR_EXTERNALS
+  -Dlcm_DIR:PATH=${lcm_DIR}
+  -Dbot2-core_DIR:PATH=${bot2-core_DIR}
+  -Drobotlocomotion-lcmtypes_DIR:PATH=${robotlocomotion-lcmtypes_DIR}
+  -Ddrake_DIR:PATH=${drake_DIR}
 )
 
 ExternalProject_Add(director
@@ -75,7 +70,6 @@ ExternalProject_Add(director
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   INSTALL_COMMAND ""
-  DEPENDS drake
 )
 
 ExternalProject_Add(signal-scope
@@ -96,7 +90,7 @@ ExternalProject_Add(ContactParticleFilter
   CMAKE_CACHE_ARGS
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-  DEPENDS drake
+    ${CMAKE_ARGS_FOR_EXTERNALS}
 )
 
 ExternalProject_Add(RemoteTreeViewer
@@ -106,12 +100,8 @@ ExternalProject_Add(RemoteTreeViewer
   CMAKE_CACHE_ARGS
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-  DEPENDS drake
+    ${CMAKE_ARGS_FOR_EXTERNALS}
 )
-
-if (WITH_ISSUE_5456_WORKAROUND)
-  set_target_properties(RemoteTreeViewer PROPERTIES EXCLUDE_FROM_ALL TRUE)
-endif()
 
 if (WITH_PERCEPTION)
 
@@ -122,12 +112,9 @@ if (WITH_PERCEPTION)
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-    DEPENDS drake director RemoteTreeViewer
+      ${CMAKE_ARGS_FOR_EXTERNALS}
+    DEPENDS director RemoteTreeViewer
   )
-
-  if (WITH_ISSUE_5456_WORKAROUND)
-    set_target_properties(ObjectDetection PROPERTIES EXCLUDE_FROM_ALL TRUE)
-  endif()
 
 endif()
 
@@ -142,7 +129,7 @@ if (WITH_DRIVERS)
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-    DEPENDS drake
+      ${CMAKE_ARGS_FOR_EXTERNALS}
   )
 
   ExternalProject_Add(drake-schunk-driver
@@ -154,7 +141,6 @@ if (WITH_DRIVERS)
     CONFIGURE_COMMAND ""
     BUILD_COMMAND bazel build //...
     INSTALL_COMMAND ""
-    DEPENDS drake
   )
 
   ExternalProject_Add(optitrack-driver
