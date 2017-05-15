@@ -1,0 +1,98 @@
+group "1.vision-drivers" {
+
+  cmd "0.openni-driver" {
+    exec = "openni2-camera-lcm";
+    host = "localhost";
+  }
+
+  cmd "0.apriltag-driver" {
+    exec = "drc-apriltags-driver --quiet=true --window=false --config=$SPARTAN_SOURCE_DIR/apps/iiwa/tri_iiwa_apriltags.yaml";
+    host = "localhost";
+  }
+
+  cmd "0.optitrack-driver" {
+    exec = "python $SPARTAN_SOURCE_DIR/src/optitrack/optitrack_client.py";
+    host = "localhost";
+  }
+}
+
+group "2.iiwa-drivers" {
+
+  cmd "0.kuka-driver" {
+    exec = "kuka_driver";
+    host = "localhost";
+  }
+
+  cmd "1.plan-runner" {
+    exec = "$SPARTAN_BUILD_DIR/drake/drake/examples/kuka_iiwa_arm/kuka_plan_runner";
+    host = "localhost";
+  }
+
+  cmd "2.state-translator" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py";
+    host = "localhost";
+  }
+}
+
+group "3.schunk-driver" {
+  cmd "0.schunk-driver" {
+    exec = "$SPARTAN_BUILD_DIR/externals/drake-schunk-driver/bazel-bin/src/schunk_driver";
+    host = "localhost";
+  }
+}
+
+cmd "4.director" {
+  exec = "kuka_iiwa_app";
+  host = "localhost";
+}
+
+cmd "5.bot-spy" {
+  exec = "bot-spy";
+  host = "localhost";
+}
+
+cmd "6.signal-scope" {
+  exec = "signal-scope $SPARTAN_SOURCE_DIR/config/iiwa/kuka_iiwa_signal_scope.py";
+  host = "localhost";
+}
+
+group "7.ContactParticleFilter" {
+
+  cmd "0.drake-visualizer with CPF" {
+    exec = "python $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/director_cpf_launch.py";
+    host = "localhost";
+  }
+
+  cmd "1.contact-filter" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/contact_filter_app.py --director_config $SPARTAN_SOURCE_DIR/drake/drake/examples/kuka_iiwa_arm/director_config.json";
+    host = "localhost";
+  }
+
+  cmd "2.iiwa_status_to_residual_translator_python" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/kuka_iiwa_joint_torque_external_translator.py";
+    host = "localhost";
+  }
+
+  cmd "3.signal-scope" {
+    exec = "signal-scope $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/config/contact_filter_plotting.py";
+    host = "localhost";
+  }
+
+}
+
+
+script "1.robot_startup" {
+    start group "1.vision-drivers";
+    start group "2.iiwa-drivers";
+    start group "3.schunk-driver";
+    start cmd "4.director";
+}
+
+script "2.restart_controller" {
+    stop group "2.iiwa-drivers";
+    wait ms 2000;
+    start group "2.iiwa-drivers";
+}
+
+
+
