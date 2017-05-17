@@ -316,9 +316,13 @@ if useCorlDev:
 
     import corl.setup
     import corl.imagecapture
-    extraInputs = dict()
-    extraInputs['imageManager'] = imageManager
-    corl.setup.setupCorlDirector(robotSystem, openniDepthPointCloud, setCameraToWorld, logFolder="logs/moving-camera", globalsDict=globals(), extraInputs=extraInputs)
+    # extraInputs = dict()
+    # extraInputs['imageManager'] = imageManager
+    globals()['imageManager'] = imageManager
+    corl.setup.setupCorlDirector(robotSystem.affordanceManager,
+                                 openniDepthPointCloud,
+                                 logFolder="logs/moving-camera",
+                                 globalsDict=globals())
 
 app.restoreDefaultWindowState()
 app.initWindowSettings()
