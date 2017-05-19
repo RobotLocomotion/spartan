@@ -97,7 +97,7 @@ def getCorlDataRelativePath(path):
     return os.path.join(getCorlDataDir(), path)
 
 def getCorlDataDir():
-    return getCorlRelativePath('data')
+    return getCorlRelativePath('data/CORL2017')
 
 def getSuper4PCSBaseDir():
     return os.getenv("SUPER4PCS_BASE_DIR")
