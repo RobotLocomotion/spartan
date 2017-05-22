@@ -1,0 +1,38 @@
+This file contains one-line descriptions of the geometry filters.
+
+Geometry Manipulation
+---------------------
+
+flipply    - flip the orientation of faces
+normalsply - compute surface normal vectors at vertices
+xformply   - transform vertices (translation, scale, rotation)
+
+Create PLY Files
+----------------
+
+platoply   - make any of the five Platonic solids
+sphereply  - create a sphere
+
+File Conversion
+---------------
+
+ply2ascii  - convert polygon file to ASCII version
+ply2binary - convert polygon file to binary version
+ply2iv     - convert to Inventor file format
+obj2ply    - convert from Wavefront .obj format
+
+Information About Files
+-----------------------
+
+boundply   - find bounding box of object and re-position if desired
+headply    - print out the entire file header
+
+Support Routines
+----------------
+
+ply.c              - layout grammar parsing and file I/O for geometry filters
+adjacency_module.c - determining ajacency between vertices and faces
+
+
+(c) 1998 Greg Turk
+
