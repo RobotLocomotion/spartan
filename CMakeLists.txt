@@ -137,7 +137,7 @@ if (WITH_DRIVERS)
     SOURCE_DIR ${build_dir}/externals/drake-iiwa-driver
     BINARY_DIR ${build_dir}/drake-iiwa-driver
     GIT_REPOSITORY git@github.com:RobotLocomotion/drake-iiwa-driver.git
-    GIT_TAG 6b26135
+    GIT_TAG 19e20aa
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
