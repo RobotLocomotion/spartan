@@ -9,9 +9,7 @@ import signal
 from scipy import stats
 
 data_files = [
-	"solve_info_rotations4_N15_20170328_13:34:12.dat",
-	"solve_info_rotations4_N15_20170328_14:41:59.dat",
-	"solve_info_rotations4_N15_20170328_17:02:03.dat"
+	"out_lin_2bin_15s_5o_0n.yaml"
 ]
 
 all_corruptions = []
@@ -20,15 +18,15 @@ all_objectives = []
 
 for file in data_files:
 	data = yaml.load(open(file))
-	all_corruptions.extend(data["corruption_amounts"])
+	#all_corruptions.extend(data["corruption_amounts"])
 	all_solve_times.extend(data["solve_times"])
 	all_objectives.extend(data["objectives"])
 
 N = 20
-all_corruptions = np.array(all_corruptions)
+#all_corruptions = np.array(all_corruptions)
 all_solve_times = np.array(all_solve_times)
 bin_means, bin_edges, binnumber = stats.binned_statistic(all_corruptions, all_solve_times, statistic="mean", bins=N)
-bin_stds = stats.binned_statistic(all_corruptions, all_solve_times, statistic="std", bins=N)
+#bin_stds = stats.binned_statistic(all_corruptions, all_solve_times, statistic="std", bins=N)
 
 print bin_means, bin_edges, bin_stds
 
