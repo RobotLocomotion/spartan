@@ -27,6 +27,8 @@ class MIQPMultipleMeshModelDetector {
 
     struct ObjectDetection {
       Eigen::Affine3d est_tf;
+      Eigen::Matrix3d R_fit;
+      Eigen::Vector3d T_fit;
       std::vector<PointCorrespondence> correspondences;
       int obj_ind;
     };
@@ -41,8 +43,8 @@ class MIQPMultipleMeshModelDetector {
     struct TransformationVars {
       drake::solvers::VectorDecisionVariable<3> T;
       drake::solvers::MatrixDecisionVariable<3,3> R;
-      std::tuple<std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>,
-           std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>,
+      std::tuple<std::vector<Eigen::Matrix<drake::symbolic::Expression, 3, 3>>,
+           std::vector<Eigen::Matrix<drake::symbolic::Expression, 3, 3>>,
            std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>,
            std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>> R_indicators;
     };
@@ -91,6 +93,13 @@ class MIQPMultipleMeshModelDetector {
       return solve_history;
     }
 
+    std::string getDetailName() const {
+      std::stringstream my_name; 
+      my_name << "det_s" << optDownsampleToThisManyPoints_
+         << "_o" << optNumOutliers_ << "_r" << optRotationConstraint_ << "_b" << optRotationConstraintNumFaces_;
+      return my_name.str();
+    }
+
   private:
     RigidBodyTree<double> robot_;
     Eigen::VectorXd q_robot_gt_;
@@ -112,16 +121,25 @@ class MIQPMultipleMeshModelDetector {
     int optModelSampleRays_ = 10;
     int optModelPointRandSeed_ = -1;
 
+    std::vector<double> optOutlierMin_ = {-1.0, -1.0, -1.0};
+    std::vector<double> optOutlierMax_ = {1.0, 1.0, 1.0};
+
     
     // SOLVER OPTIONS
     
     // Rotation constraint options
     int optRotationConstraint_ = 4;
     int optRotationConstraintNumFaces_ = 2;
+    double optRotationConstraintL1Bound_ = 0.1;
 
     // Outlier options
     bool optAllowOutliers_ = true;
     double optPhiMax_ = 0.1;
+
+    // If two scene points are farther than this apart,
+    // they aren't allowed to correspond to the same face or point.
+    // (negative for disable)
+    double optMaxDistToSameFace = -1.0;
 
     // Use initial guess, and if so, corruption amount
     bool optUseInitialGuess_ = false;

@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <typeinfo>
 
+#include "drake/math/rotation_matrix.h"
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 
@@ -112,7 +113,7 @@ int main(int argc, char** argv) {
   // Remote Tree Viewer Vis
   for (const auto& solution : solutions){
     stringstream sol_name;
-    sol_name << "sol_obj_" << solution.objective;
+    sol_name << "sol_obj_" << solution.objective << detector.getDetailName();
     for (const auto& detection : solution.detections){
       // Visualize the estimated body pose
       const RigidBody<double>& body = detector.get_robot().get_body(detection.obj_ind);
@@ -139,6 +140,12 @@ int main(int argc, char** argv) {
       }
       model_pts_world = detection.est_tf * model_pts_world;
       rm.publishPointCloud(model_pts_world, {"correspondences", "model pts", body.get_name()}, {0.1, 0.1, 1.0});
+
+      // And extract the joint coordinates (assumes all bodies are floating bases...)
+      q_robot_est.block(body.get_position_start_index(), 0, 3, 1) =
+        detection.est_tf.translation();
+      q_robot_est.block(body.get_position_start_index()+3, 0, 3, 1) = 
+        drake::math::rotmat2rpy(detection.est_tf.rotation());
     }
   }
 
@@ -210,6 +217,21 @@ int main(int argc, char** argv) {
               out << YAML::Value << YAML::Flow << vector<double>(q_robot_this.data(), q_robot_this.data() + q_robot_this.rows());
             } out << YAML::EndMap;
           }  
+        } out << YAML::EndSeq;
+
+        out << YAML::Key << "tfs";
+        out << YAML::Value << YAML::BeginSeq; {
+          for (const auto& detection : solution.detections){
+            out << YAML::BeginMap; {
+              out << YAML::Key << "obj_ind" << YAML::Value << detection.obj_ind;
+              out << YAML::Key << "R";
+              MatrixXd R = detection.R_fit.transpose();
+              out << YAML::Value << YAML::Flow << vector<double>(R.data(), R.data() + R.rows() * R.cols());
+              out << YAML::Key << "T";
+              MatrixXd T = detection.T_fit;
+              out << YAML::Value << YAML::Flow << vector<double>(T.data(), T.data() + T.rows() * T.cols());
+            } out << YAML::EndMap;
+          }
         } out << YAML::EndSeq;
 
         out << YAML::Key << "history";

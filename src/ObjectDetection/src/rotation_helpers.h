@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "drake/solvers/mathematical_program.h"
+#include "drake/solvers/rotation_constraint.h"
 #include "drake/common/eigen_matrix_compare.h"
 #include "drake/common/eigen_types.h"
 
@@ -140,12 +141,16 @@ static void addMcCormickQuaternionConstraint(MathematicalProgram& prog,
         // and select bilinear product "xy" variable
         auto xy = B(k,0);
 
+        Add2DLogarithmicMcCormickEnvelope(&prog, xy, x, y, corename,
+            -1.0, 1.0, -1.0, 1.0, M_x, M_y);
+        /*
         add_McCormick_envelope(prog, xy, x, y, corename,
                                -1.0, // xL
                                1.0,  // xH
                                -1.0, // yL
                                1.0,  // yH
                                M_x, M_y); // M_x, M_y 
+        */
         k++;
       }
     }
