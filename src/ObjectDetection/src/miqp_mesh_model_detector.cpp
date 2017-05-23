@@ -525,6 +525,9 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
     optRotationConstraint_ = config["rotation_constraint"].as<int>();
   if (config["rotation_constraint_num_faces"])
     optRotationConstraintNumFaces_ = config["rotation_constraint_num_faces"].as<int>();
+  if (config["rotation_constraint_l1_bound"])
+    optRotationConstraintL1Bound_ = config["rotation_constraint_l1_bound"].as<double>();
+
   if (config["allow_outliers"])
     optAllowOutliers_ = config["allow_outliers"].as<bool>();
   if (config["phi_max"])
@@ -539,6 +542,10 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
     optModelSampleRays_ = config["model_sample_rays"].as<int>();
   if (config["add_this_many_outliers"])
     optNumOutliers_ = config["add_this_many_outliers"].as<int>();
+  if (config["outlier_min"])
+    optOutlierMin_ = config["outlier_min"].as<vector<double>>();
+  if (config["outlier_max"])
+    optOutlierMax_ = config["outlier_max"].as<vector<double>>();
   if (config["scene_point_additive_noise"])
     optAddedSceneNoise_ = config["scene_point_additive_noise"].as<double>();
   if (config["big_M"])
@@ -552,6 +559,8 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
   if (config["ICP_use_as_heuristic"])
     optUseICPHeuristic_ = config["ICP_use_as_heuristic"].as<bool>();
 
+  if (config["max_dist_to_same_face"])
+    optMaxDistToSameFace = config["max_dist_to_same_face"].as<double>();
 
   if (config["model_point_rand_seed"])
     optModelPointRandSeed_ = config["model_point_rand_seed"].as<int>();
@@ -609,8 +618,10 @@ void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matri
       srand(optScenePointRandSeed_);
     VectorXi indices = VectorXi::LinSpaced(scene_pts_in.cols(), 0, scene_pts_in.cols());
     std::random_shuffle(indices.data(), indices.data() + scene_pts_out.cols());
-    for (int i = 0; i < optNumOutliers_; i++) { 
-      scene_pts_out.col(i) = VectorXd::Random(3);
+    for (int i = 0; i < optNumOutliers_; i++) {
+      for (int j = 0; j < 3; j++){
+        scene_pts_out(j, i) = randrange(optOutlierMin_[j], optOutlierMax_[j]);
+      }
     }
   }
   if (optAddedSceneNoise_ > 0.0){
@@ -749,6 +760,7 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
     prog.AddBoundingBoxConstraint(-optBigNumber_*VectorXd::Ones(3), optBigNumber_*VectorXd::Ones(3), new_tr.T);
 
     // Spawn indicator variables for translations that indicate negativity vs positivity
+/*
     auto T_pos_indicators = prog.NewBinaryVariables<3>(string("T_pos_")+string(name_postfix));
     auto T_pos = prog.NewContinuousVariables<3>(string("T_pos_C_")+string(name_postfix));
     auto T_neg_indicators = prog.NewBinaryVariables<3>(string("T_neg_")+string(name_postfix));
@@ -759,20 +771,39 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
       prog.AddLinearConstraint(T_neg[k] <= T_neg_indicators[k] * optBigNumber_);
       prog.AddLinearEqualityConstraint(T_pos[k] - T_neg[k] == new_tr.T[k]);
     }
-
+*/
 
 
     // Spawn rotations and constraint them in according to the configuration.
     new_tr.R = NewRotationMatrixVars(&prog, string("R") + string(name_postfix));
+    auto R_abs = prog.NewContinuousVariables<3, 3>("R_abs"); // these will get pruned if they aren't used// constrain rotations to ground truth
+    auto R_diff = prog.NewContinuousVariables<3, 3>("R_diff"); // these will get pruned if they aren't used// constrain rotations to ground truth
+    
+    auto ground_truth_tf = robot_.relativeTransform(robot_kinematics_cache, robot_.get_body(body_i).get_body_index(), 0);
+    cout << "GT TF: " << ground_truth_tf.matrix() << endl;
+    if (world_to_body_direction)
+      ground_truth_tf = ground_truth_tf.inverse();
+
     if (optRotationConstraint_ > 0){
       switch (optRotationConstraint_){
         case 1:
           break;
         case 2:
-          // Columnwise and row-wise L1-norm >=1 constraints
+          // Constrain R to approximately satisfy
+          // || R_i - R0_i || <= epsilon, columnwise
+          // via L-1 norm
+          for (int k=0; k<9; k++){
+            prog.AddLinearConstraint( R_abs(k) >=  new_tr.R(k) );
+            prog.AddLinearConstraint( R_abs(k) >= -new_tr.R(k) );
+            prog.AddLinearConstraint( R_diff(k) >=  (new_tr.R(k) - ground_truth_tf.rotation()(k)) );
+            prog.AddLinearConstraint( R_diff(k) >= -(new_tr.R(k) - ground_truth_tf.rotation()(k)) );
+          }
           for (int k=0; k<3; k++){
-            prog.AddLinearConstraint(Vector3d::Ones().transpose(), 1.0, std::numeric_limits<double>::infinity(), new_tr.R.row(k).transpose());
-            prog.AddLinearConstraint(Vector3d::Ones().transpose(), 1.0, std::numeric_limits<double>::infinity(), new_tr.R.col(k));
+            prog.AddLinearConstraint( (RowVector3d::Ones() * R_diff.col(k))(0, 0) <= optRotationConstraintL1Bound_ );
+            prog.AddLinearConstraint( (RowVector3d::Ones() * R_diff.row(k).transpose())(0, 0) <= optRotationConstraintL1Bound_ );
+            // We can trivially upper-bound the L1 norms at sqrt(3)
+            prog.AddLinearConstraint( (RowVector3d::Ones() * R_abs.col(k))(0, 0) <= sqrtf(3) );
+            prog.AddLinearConstraint( (RowVector3d::Ones() * R_abs.row(k).transpose())(0, 0) <= sqrtf(3) );
           }
           break;
         case 3:
@@ -784,21 +815,27 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
         case 5:
           AddBoundingBoxConstraintsImpliedByRollPitchYawLimits(&prog, new_tr.R, kYaw_0_to_PI_2 | kPitch_0_to_PI_2 | kRoll_0_to_PI_2);
           break;
+        case 6:
+          AddRotationMatrix2DLogMcCormickEnvelopeMilpConstraints(&prog, new_tr.R, optRotationConstraintNumFaces_);
+          break;
         default:
           printf("invalid optRotationConstraint_ option!\n");
           exit(-1);
           break;
       }
     } else {
-      // constrain rotations to ground truth
-      auto ground_truth_tf = robot_.relativeTransform(robot_kinematics_cache, robot_.get_body(body_i).get_body_index(), 0);
-      if (world_to_body_direction)
-        ground_truth_tf = ground_truth_tf.inverse();
       // Formulas only work for vectors, so implement this constraint column-wise
       for (int i = 0; i < 3; ++i) {
         prog.AddLinearEqualityConstraint(new_tr.R.col(i) - ground_truth_tf.rotation().col(i), Eigen::Vector3d::Zero());
       }
     }
+/*
+    // Also constraint |tr(R)| >= 0.5
+    auto x = prog.NewContinuousVariables<1, 1>("rot_tr_slack");
+    prog.AddLinearConstraint(x(0, 0) >=  (new_tr.R(0, 0) + new_tr.R(1, 1) + new_tr.R(2, 2)) );
+    prog.AddLinearConstraint(x(0, 0) >= -(new_tr.R(0, 0) + new_tr.R(1, 1) + new_tr.R(2, 2)) );
+    prog.AddLinearConstraint(x(0, 0) >= 0.5);
+*/
     transform_by_object_.push_back(new_tr);
   }
   return transform_by_object_;
@@ -836,7 +873,7 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
     //   Bpos[k](i,j) = 1 <=> R(i,j) >= phi(k)
     //   Bneg[k](i,j) = 1 <=> R(i,j) <= -phi(k)
 
-    if (optRotationConstraint_ == 4){
+    if (0 && optRotationConstraint_ == 4){
       auto Bpos = std::get<2>(transform_by_object_[body_i - 1].R_indicators);
       auto Bneg = std::get<3>(transform_by_object_[body_i - 1].R_indicators);
 
@@ -1073,12 +1110,64 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     prog.AddLinearEqualityConstraint(RowVectorXd::Ones(scene_pts.cols()), 0.0, f_outlier_);
   }
 
+  // Add constraint that for each pair of scene points,
+  // if the distance between those two scene points is greater than
+  // some epsilon, they can't correspond to the same face.
+  // (Epsilon should be picked to be greater than the width of the widest face,
+  // plus 2 * the outlier distance.)
 
+  // Pick optMaxDistToSameFace if it's exactly 0
+  if (optMaxDistToSameFace == 0.0){
+    double widest_face = 0.0;
+    for (int face_i = 0; face_i < F_.rows(); face_i++) {
+      Matrix3Xd face_pts(3, all_vertices_.cols());
+      int k = 0;
+      for (int i = 0; i < all_vertices_.cols(); i++) {
+        if (F_(face_i, i) > 0){
+          face_pts.col(k) = all_vertices_.col(k);
+          k++;
+        }
+      }
+      face_pts.conservativeResize(3, k);
+      for (int i = 0; i < k; i++){
+        for (int j = i + 1; j < k; j++){
+          double dist = (face_pts.col(i) - face_pts.col(2)).norm();
+          if (dist > widest_face)
+            widest_face = dist;
+        }
+      }
+    }
+    printf("Found widest face %f\n", widest_face);
+    optMaxDistToSameFace = widest_face;
+    if (optAllowOutliers_)
+      optMaxDistToSameFace += optPhiMax_*2.;
+  }
+
+  if (optMaxDistToSameFace > 0.0){
+    for (int k_1 = 0; k_1 < scene_pts.cols(); k_1++){
+      for (int k_2 = 0; k_2 < scene_pts.cols(); k_2++){
+        double dist = (scene_pts.col(k_1) - scene_pts.col(k_2)).norm();
+        if (dist >= optMaxDistToSameFace){
+          prog.AddLinearConstraint(f_.row(k_1).transpose() + f_.row(k_2).transpose() <= VectorXd::Ones(f_.cols()));
+        }
+      }
+    }
+
+    // And intentionally constraint that the same point (column of C) can only be used in (N-1) / N of the cases.
+    for (int j = 0; j < C_.cols(); j ++ ){
+      prog.AddLinearConstraint(C_.col(j).transpose() * VectorXd::Ones(C_.rows()) <= (C_.rows()-10)*VectorXd::Ones(1));
+    }
+  }
   // Optimization pushes on slacks to make them tight (make them do their job)
   // (and normalize by number of pts for MSE calculation)
-  prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi_);
+  Expression total_se = 0.0;
+  for (int i = 0; i < phi_.rows(); i++) {
+    total_se += phi_(i);
+  }
+  prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) *  total_se);
   // And penalizes outliers
-  prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()) * optPhiMax_, f_outlier_);
+  // prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()) * optPhiMax_, f_outlier_);
+  
 
   // Constrain slacks nonnegative, to help the estimation of lower bound in relaxation  
   prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), phi_);
@@ -1088,6 +1177,17 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     }
   }
 
+/*
+  // Helper variable to indicate the number of unique faces that are active per object.
+  auto faces_active = prog.NewContinuousVariables(f_.cols(), 1, "face_active_counter");
+  for (int i = 0; i < f_.cols(); i++){
+    prog.AddLinearConstraint(faces_active(i) <= (VectorXd::Ones(f_.rows()) * f_.col(i)) (0));
+  }
+  for (int b = 0; b < B_.rows(); b++){
+    prog.AddLinearConstraint(B_.row(b) * faces_active >= 4.*VectorXd::Ones(1));
+  }
+*/
+
   // Constrain each row of C, plus the outlier allowance, to sum to 1
   // to make them proper affine coefficients
   Eigen::MatrixXd C1 = Eigen::MatrixXd::Ones(1, C_.cols()+1);
@@ -1096,11 +1196,15 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     prog.AddLinearEqualityConstraint(C1, 1.0, {C_.row(k).transpose(), f_outlier_.row(k)});
   }
 
-  // Constrain each row of f, plus the outlier allowance, to sum to 1
-  Eigen::MatrixXd f1 = Eigen::MatrixXd::Ones(1, f_.cols() + 1);
+  // Constrain each row of f, plus the outlier allowance, to sum to at most 1
   for (size_t k=0; k<f_.rows(); k++){
-    prog.AddLinearEqualityConstraint(f1, 1, {f_.row(k).transpose(), f_outlier_.row(k)});
+    prog.AddLinearConstraint(MatrixXd::Ones(1, f_.cols()) * (f_.row(k).transpose()) + f_outlier_.row(k) == VectorXd::Ones(1));
   }
+  /*
+  for (size_t k=0; k<f_.cols(); k++){
+    prog.AddLinearConstraint(Eigen::MatrixXd::Ones(1, f_.rows()) * f_.col(k) == VectorXd::Ones(1));
+  }
+  */
 
   // Force all elems of C in [0, 1]
   for (int i=0; i<C_.rows(); i++){
@@ -1132,8 +1236,10 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     prog.AddLinearConstraint(phi_(i, 0) == 
       (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[0].col(i))(0, 0)
     + (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[1].col(i))(0, 0)
-    + (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[2].col(i))(0, 0));
+    + (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[2].col(i))(0, 0)
+    + f_outlier_(i)*optPhiMax_);
 
+    printf("WARNING, UNSURE THAT THIS WORKS FOR MULTIPLE BODIES ANY MORE. CONVEX HULL REFORM HALF DONE...\n");
     for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
       // Similar logic here -- solutions will always bind in a lower bound,
       // which we've constrained >= 0 above, and can't do any better than.
@@ -1263,12 +1369,16 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
       ObjectDetection new_detection;
       new_detection.obj_ind = body_i;
-  
+
       printf("************************************************\n");
       printf("Concerning model %d (%s):\n", body_i, body.get_name().c_str());
       printf("------------------------------------------------\n");
       Vector3d Tf = prog.GetSolution(transform_by_object_[body_i-1].T); //, sol_i);
       Matrix3d Rf = prog.GetSolution(transform_by_object_[body_i-1].R); //, sol_i);
+
+      new_detection.R_fit = Rf;
+      new_detection.T_fit = Tf;
+
       printf("Transform:\n");
       printf("\tTranslation: %f, %f, %f\n", Tf(0, 0), Tf(1, 0), Tf(2, 0));
       printf("\tRotation:\n");
@@ -1361,7 +1471,18 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     for (int i = 0; i < scene_pts.cols(); i++) {
       prog.AddLinearEqualityConstraint(
         VectorXd::Ones(scene_pts.cols()).transpose() * C_.row(i).transpose(), VectorXd::Ones(1.0));
+      
+      /*
+      prog.AddLinearConstraint(
+        VectorXd::Ones(scene_pts.cols()).transpose() * C_.row(i).transpose() <= VectorXd::Ones(1.0));
+        */
     }
+    /*
+    for (int i = 0; i < all_vertices_.cols(); i++) {
+      prog.AddLinearConstraint(
+        VectorXd::Ones(all_vertices_.cols()).transpose() * C_.col(i) == VectorXd::Ones(1.0));
+    }
+    */
   }
 
   // Allocate slacks to choose minimum L-1 norm over objects
@@ -1391,7 +1512,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       // (phi_i >= 0 always, as constrained above, which is the tightest 
       // lower bound we can always enforce).
       // phi_i >= phi_max - (ones * f_i)*BIG
-      prog.AddLinearConstraint(phi_(i, 0) >= optPhiMax_ - optBigNumber_*(RowVectorXd::Ones(C_.cols()) * C_.row(i).transpose())(0, 0));
+      prog.AddLinearConstraint(phi_(i, 0) >= optPhiMax_*f_outlier_(i));
     }
 
     for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){    

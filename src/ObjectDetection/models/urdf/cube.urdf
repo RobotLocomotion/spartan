@@ -4,12 +4,14 @@
   <link name="cube_1">
     <visual>
       <geometry>
-        <box size="0.103 0.103 0.103"/>
+        <!-- <mesh filename="cube.obj"/> -->
+        <box size="1.00 1.00 1.00"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <box size="0.103 0.103 0.103"/>
+        <!-- <mesh filename="cube.obj"/> -->
+        <box size="1.00 1.00 1.00"/>
       </geometry>
     </collision>
     <inertial>

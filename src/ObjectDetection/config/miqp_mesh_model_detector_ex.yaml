@@ -10,10 +10,10 @@ point_cloud_generator_options:
     models:
        #- urdf: "models/urdf/cubes_jointed.urdf"
        #  q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2, 0.2]
-       #- urdf: "../urdf/cubes.urdf"
-       #  q0: [0.5, 0, 0, 0, 0, 0.2, 0.1, 0, 0, 0, 0, -0.2]
-       - urdf: "../urdf/cube.urdf"
-         q0: [0.5, 0, 0, 0, 0, 0.2]
+       - urdf: "../urdf/cubes.urdf"
+         q0: [0.0, 0.0, 2.0, 0.9, 0.5, 0.2, 1.0, 1.0, 1.0, 0.8, 0.5, -0.2]
+       #- urdf: "../urdf/cube.urdf"
+       #  q0: [0.0, 0, 2.0, 0.9, 0.5, 0.2]
 
 
 detector_options:
@@ -28,23 +28,32 @@ detector_options:
     # 3: McCormick quaternion
     # 4: McCormick directly on rotmat
     # 5: Conservative RPY limits
+    # 6: 2D Logarithmic McCormick
     rotation_constraint: 4
     rotation_constraint_num_faces: 2
+    rotation_constraint_l1_bound: 0
 
     allow_outliers: true
     phi_max: 0.1
-    use_initial_guess: true
+    use_initial_guess: false
     corruption_amount: 0
+    init_guess_rand_seed: 1
 
-    big_M: 2.0
+    big_M: 10.0
 
-    downsample_to_this_many_points: 40
-    add_this_many_outliers: 10
+    max_dist_to_same_face: -1.0
+
+    downsample_to_this_many_points: 30
+    add_this_many_outliers: 0
+    outlier_min: [-2.0, -2.0, 0.0]
+    outlier_max: [2.0, 2.0, 4.0]
     scene_point_additive_noise: 0.00
-    model_sample_rays: 100
+    scene_point_rand_seed: 3
+    model_sample_rays: 50
+    model_point_rand_seed: 1
 
     ICP_use_as_heuristic: true
-    ICP_prior_weight: 0.05
+    ICP_prior_weight: 0.1
     # We reject points 
     # this number times the average distance to
     # all other points
@@ -52,26 +61,26 @@ detector_options:
     ICP_max_iters: 1000
 
     gurobi_int_options:
-        #MIPFocus: 3
+        #MIPFocus: 2
         #PoolSearchMode: 0
         #PoolSolutions: 20
         #SubMIPNodes: 1000
         Threads: 10
 
     gurobi_float_options:
-        TimeLimit: 3600
+        TimeLimit: 6000
         #PoolGap: 0.0
-        FeasRelaxBigM: 2
-        #MIPGapAbs: 0.001
+        #FeasRelaxBigM: 4
+        MIPGapAbs: 0.001
         MIPGap: 0.05
-        Heuristics: 0.2 # Heuristics seem to do very well, so grant them more time (default 5% = 0.05)
+        #Heuristics: 0.1 # Heuristics seem to do very well, so grant them more time (default 5% = 0.05)
 
     models:
        #- urdf: "models/urdf/bunny_99_faces.urdf"
        #  q0: [0.2, 0.2, 0.2, 1.57, 0.0, 0.0]
        #- urdf: "models/urdf/cubes_jointed.urdf"
        #  q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2, 0.2]
-       #- urdf: "models/urdf/cubes.urdf"
-       #  q0: [-0.3, -0.1, 0.3, 0.1, 0.1, 0.2, 0.2, 0.2, 0.5, 0.8, 0.5, -0.2]
-       - urdf: "models/urdf/cube.urdf"
-         q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2]
+       - urdf: "models/urdf/cubes.urdf"
+         q0: [0.0, 0.0, 2.0, 0.9, 0.5, 0.2, 1.0, 1.0, 1.0, 0.8, 0.5, -0.2]
+       #- urdf: "models/urdf/cube.urdf"
+       #  q0: [0.0, 0, 2.0, 0.9, 0.5, 0.2]
