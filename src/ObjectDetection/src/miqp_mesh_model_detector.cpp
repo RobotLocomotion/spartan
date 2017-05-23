@@ -685,16 +685,23 @@ void MIQPMultipleMeshModelDetector::doModelPointSampling(Matrix3Xd& pts, MatrixX
     Vector3d b = all_vertices.col(all_faces[k][1]);
     Vector3d c = all_vertices.col(all_faces[k][2]);
 
-    double s1 = randrange(0.0, 1.0); 
-    double s2 = randrange(0.0, 1.0);
-    if (s1 + s2 <= 1.0){
-      Vector3d pt = a + 
-                    s1 * (b - a) +
-                    s2 * (c - a);
-      pts.col(i) = pt;
-      B(face_body_map[k]-1, i) = 1;
-      i++;
+    // Pick a random point in the triangle with edges (b-a) and (c-a).
+    // (Here, we rejection sample, making sure that the sampled point is within
+    // that triangle and not the complete parallelogram being sampled from.)
+    // (I'm absolutely sure there's a smarter way to do this with a reflection...)
+    double s1 = 1.0; 
+    double s2 = 1.0; 
+    while (s1 + s2 >= 1.0){
+      s1 = randrange(0.0, 1.0);
+      s2 = randrange(0.0, 1.0);
     }
+
+    Vector3d pt = a + 
+                  s1 * (b - a) +
+                  s2 * (c - a);
+    pts.col(i) = pt;
+    B(face_body_map[k]-1, i) = 1;
+    i++;
   }
 
   RemoteTreeViewerWrapper rm;
