@@ -7,8 +7,6 @@ import time
 
 import lcm
 
-# from director.tasks import basictasks
-
 sys.path.append(os.path.join(os.environ['SPARTAN_SOURCE_DIR'], 'src/optitrack'))
 from optitrack import optitrack_data_descriptions_t
 from optitrack import optitrack_frame_t
@@ -53,7 +51,7 @@ class OptitrackSimPublisher:
             SimpleBody("base", [0., 0., 0.], [1., 0, 0, 0]),
             SimpleBody("test", [0.7, 0.2, 0.2], [1., 0, 0, 0]),
             ]
-        
+
         n = len(bodies)
         frame.num_marker_sets = 0
         frame.num_rigid_bodies = n
