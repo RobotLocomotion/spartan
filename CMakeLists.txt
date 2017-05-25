@@ -209,6 +209,18 @@ if (WITH_OPTITRACK_DRIVER)
     INSTALL_COMMAND ./install-optitrack.sh ${CMAKE_INSTALL_PREFIX}
   )
 
+  ExternalProject_Add(gelsight-driver
+    SOURCE_DIR ${build_dir}/externals/gelsight-driver
+    GIT_REPOSITORY https://github.com/gizatt/gelsight_se.git
+    GIT_TAG 23b615b
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+      -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
+    DEPENDS drake director RemoteTreeViewer
+  )
+
 endif()
 
 # Add tests
