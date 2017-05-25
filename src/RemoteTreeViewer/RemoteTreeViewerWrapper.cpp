@@ -28,13 +28,7 @@ static double getUnixTime(void)
 RemoteTreeViewerWrapper::RemoteTreeViewerWrapper() {
 }
 
-void RemoteTreeViewerWrapper::publishPointCloud(const Matrix3Xd& pts, const vector<string>& path, const vector<double>& color){
-  vector<double> safe_color = color;
-  if (safe_color.size() != 3){
-    cerr << "Color of size != 3 passed into publishPointCloud. Ignoring..." << endl;
-    safe_color = vector<double>({1.0, 0.0, 1.0});
-  }
-
+void RemoteTreeViewerWrapper::publishPointCloud(const Matrix3Xd& pts, const vector<string>& path, const vector<vector<double>>& color){
   long long int now = getUnixTime() * 1000 * 1000;
   // Format a JSON string for this pointcloud
   json j = {
@@ -62,7 +56,12 @@ void RemoteTreeViewerWrapper::publishPointCloud(const Matrix3Xd& pts, const vect
   // Push in the points and colors.
   for (int i=0; i<pts.cols(); i++){
     j["setgeometry"][0]["geometry"]["points"].push_back( {pts(0, i), pts(1, i), pts(2, i)} );
-    j["setgeometry"][0]["geometry"]["channels"]["rgb"].push_back( safe_color );
+    if (color.size() == 1)
+      j["setgeometry"][0]["geometry"]["channels"]["rgb"].push_back( color[0] );
+    else if (color.size() == pts.cols())
+      j["setgeometry"][0]["geometry"]["channels"]["rgb"].push_back( color[i] );
+    else if (color.size() != 0)
+      printf("Color does not have right number of entries: %ld vs %ld\n", color.size(), pts.cols());
   }
 
   auto msg = viewer2_comms_t();

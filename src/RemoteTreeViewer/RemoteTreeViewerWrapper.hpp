@@ -10,7 +10,7 @@ class RemoteTreeViewerWrapper {
     void publishPointCloud(
             const Eigen::Matrix3Xd& pts,
             const std::vector<std::string>& path,
-            const std::vector<double>& color = {1.0, 0.0, 1.0});
+            const std::vector<std::vector<double>>& color = {{1.0, 0.0, 1.0}});
     void publishLine(
             const Eigen::Matrix3Xd& pts,
             const std::vector<std::string>& path);
