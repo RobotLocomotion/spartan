@@ -212,7 +212,7 @@ if (WITH_OPTITRACK_DRIVER)
   ExternalProject_Add(gelsight-driver
     SOURCE_DIR ${build_dir}/externals/gelsight-driver
     GIT_REPOSITORY https://github.com/gizatt/gelsight_se.git
-    GIT_TAG bb3570
+    GIT_TAG b6a796f7bc420ef
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
