@@ -104,6 +104,7 @@ ExternalProject_Add(ContactParticleFilter
   CMAKE_CACHE_ARGS
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+    -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
   DEPENDS drake
 )
 
@@ -147,6 +148,7 @@ if (OFF)
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+      -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
     DEPENDS drake director RemoteTreeViewer
   )
 
@@ -172,6 +174,7 @@ if (WITH_IIWA_DRIVER)
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+      -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
     DEPENDS drake
   )
 
