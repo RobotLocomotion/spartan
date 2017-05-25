@@ -72,7 +72,7 @@ int main(int argc, char ** argv){
 	RigidBodyTree<double> tree;
 	string iiwa_path;
 	iiwa_path += getenv("SPARTAN_SOURCE_DIR");
-	iiwa_path += "/drake/drake/examples/kuka_iiwa_arm/models/iiwa14/iiwa14.urdf";
+	iiwa_path += "/drake/drake/examples/Atlas/urdf/atlas_minimal_contact.urdf";
 	AddModelInstanceFromUrdfFileWithRpyJointToWorld(iiwa_path, &tree);
 	Affine3d tf_robot;
 	tf_robot.setIdentity();
