@@ -5,12 +5,17 @@ to png
 import utils as CorlUtil
 import os
 import glob
+import numpy as np
+import scipy.misc
 
 # director imports
 import director.vtkAll as vtk
+import director.vtkNumpy as vnp
 from director import filterUtils
 from director import lcmUtils
 from director import cameraview
+from director import mainwindowapp
+from director import visualization as vis
 
 # lcm imports
 import bot_core as lcmbotcore
@@ -40,16 +45,17 @@ class OnlinePipeline(object):
         print "utime:", utime
 
 
-def getImageFile(imageId, suffix, imageDir):
-    filename = os.path.join(imageDir, '%010d' % imageId + '_%s.txt' % suffix)
+def getImageFile(imageId, imageDir, suffix):
+    filename = os.path.join(imageDir, '%010d' % imageId + '_%s' % suffix)
+    print filename
     assert os.path.isfile(filename)
     return filename
 
 def getUtimeFile(imageId, imageDir):
-    return getImageFile(imageId, imageDir, suffix='utime')
+    return getImageFile(imageId, imageDir, suffix='utime.txt')
 
 def getLabelFile(imageId, imageDir):
-    return getImageFile(imageId, imageDir, suffix='labels')
+    return getImageFile(imageId, imageDir, suffix='labels.png')
 
 def processImages(logFolder):
 
@@ -68,13 +74,49 @@ def processImages(logFolder):
 
     onlinePipeline = OnlinePipeline(imageManager, imageDir, cameraName)
 
+
+    app = mainwindowapp.construct()
+
+
     for i in xrange(10):
         imageManager.queue.readNextImagesMessage()
 
         imageManager.updateImages()
         utime = imageManager.getUtime(cameraName)
+        print utime
 
+        polyData = vtk.vtkPolyData()
+
+        decimation = 1
+        removeSize = 0
+        rangeThreshold = -1
+        imageManager.queue.getPointCloudFromImages(channelName, polyData, decimation, removeSize, rangeThreshold);
+
+        print polyData.GetNumberOfPoints()
         assert utime == int(open(getUtimeFile(i+1, imageDir), 'r').read())
 
+        labelImageFile = getLabelFile(i+1, imageDir)
 
+        img = scipy.misc.imread(labelImageFile)
+        assert img.dtype == np.uint8
+        assert img.ndim == 2
+        img.shape = img.shape[0] * img.shape[1]
+        assert img.shape[0] == polyData.GetNumberOfPoints()
+        labelIds = np.unique(img)
+
+        pointLabels = np.zeros(img.shape[0])
+
+        for labelId in labelIds:
+            pixelInds = img == labelId
+            pointLabels[pixelInds] = labelId
+
+        vnp.addNumpyToVtk(polyData, pointLabels, 'labels')
+
+        for labelId in labelIds:
+            cluster = filterUtils.thresholdPoints(polyData, 'labels', [labelId, labelId])
+            vis.showPolyData(cluster, 'label %d' % labelId, parent='image %d' % i, colorByName='rgb_colors', visible=False)
+
+    vis.showPolyData(polyData, 'pointcloud', colorByName='labels')
+
+    app.app.start()
 
