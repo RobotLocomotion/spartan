@@ -117,6 +117,10 @@ To run tests in parallel::
 
     run_tests_drake -j12
 
+Test Failures
+-------------
+If you get an error during director tests related to an ``LCM Self Test`` then it is likely your network is not allowing LCM packets to return via loopback. See ``https://lcm-proj.github.io/multicast_setup.html``.
+
 
 Drake and Director submodules
 =============================
