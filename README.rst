@@ -21,10 +21,16 @@ Director `README`::
 
     https://github.com/RobotLocomotion/director/#dependencies
 
+For Ubuntu 14.04, you may install a non-conservative set of dependencies for
+Director by running the following script::
+
+    sudo ./setup/ubuntu/14.04/install_prereqs.sh
+
 For Ubuntu 16.04, you may install a non-conservative set of dependencies for
 Director by running the following script::
 
     sudo ./setup/ubuntu/16.04/install_prereqs.sh
+
 
 Make sure your submodules are up to date.  The recommended command is::
 
