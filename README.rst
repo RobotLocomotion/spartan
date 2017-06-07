@@ -55,6 +55,9 @@ Finally, run the build::
 By default, cmake generates a Makefile, but it's possible to use other
 build tools like ninja.
 
+Common Build Errors
+-------------------
+
 If you encounter an error such as::
 
     Target "RemoteTreeViewer" links to target "Eigen3::Eigen" but the
@@ -62,6 +65,8 @@ If you encounter an error such as::
     IMPORTED target, or an ALIAS target is missing?
 
 then reconfigure CMake with the flag ``-DWITH_ISSUE_5456_WORKAROUND=ON``.
+
+If you encounter an error related to not being able to find ``eigen3`` as part of an apriltags build then the problem is that you don't have ``eigen3`` system intalled. Either ``apt-get install libeigen3-dev`` or set ``DUSE_APRILTAGS:BOOL=OFF`` in the top level ``CMakeLists.txt``.
 
 Environment setup
 =================
