@@ -393,20 +393,20 @@ def addGraspFrames(affordanceName='box'):
     dispatch[affordanceName]()
 
 
-def makeGraspFrames(obj, graspOffset, pregraspOffset=-0.08, suffix=''):
+def makeGraspFrames(obj, graspOffset, pregraspOffset=(-0.08, 0, 0), suffix=''):
 
     pos, rpy = graspOffset
     objectToWorld = obj.getChildFrame().transform
     graspToObject = transformUtils.frameFromPositionAndRPY(pos, rpy)
-    preGraspToGrasp = transformUtils.frameFromPositionAndRPY([pregraspOffset, 0.0, 0.0], [0,0,0])
+    preGraspToGrasp = transformUtils.frameFromPositionAndRPY(pregraspOffset, [0,0,0])
     graspToWorld = transformUtils.concatenateTransforms([graspToObject, objectToWorld])
     preGraspToWorld = transformUtils.concatenateTransforms([preGraspToGrasp, graspToWorld])
 
     graspFrameName = 'grasp to world%s' % suffix
     pregraspFrameName = 'pregrasp to world%s' % suffix
-
-    om.removeFromObjectModel(obj.findChild(graspFrameName))
-    om.removeFromObjectModel(obj.findChild(pregraspFrameName))
+    
+    om.removeFromObjectModel(om.findObjectByName(graspFrameName))
+    om.removeFromObjectModel(om.findObjectByName(pregraspFrameName))
 
     graspFrame = vis.showFrame(graspToWorld, graspFrameName, scale=0.1, parent=obj, visible=False)
     preGraspFrame = vis.showFrame(preGraspToWorld, pregraspFrameName, scale=0.1, parent=obj, visible=False)
