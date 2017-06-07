@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e -x -u
-
+add-apt-repository -y ppa:v-launchpad-jochen-sprickerhof-de/pcl 
+apt-get update 
 apt install \
   build-essential \
   cmake \
