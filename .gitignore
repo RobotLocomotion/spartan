@@ -2,3 +2,4 @@
 *pyc
 /build
 /src/CorlDev/src/ply
+/src/CorlDev/automation/ip_config.yaml
