@@ -1,0 +1,11 @@
+#!/bin/bash
+
+echo "Opening object alignment tool..."
+
+current_dir=${PWD##*/}
+cd ..
+up_dir=${PWD##*/}
+
+directorPython $SPARTAN_SOURCE_DIR/src/CorlDev/scripts/ur10App.py --bot-config $SPARTAN_SOURCE_DIR/apps/iiwa/iiwaManip.cfg --director-config $SPARTAN_SOURCE_DIR/models/iiwa/director/director_config.json
+
+echo "Done."
