@@ -15,6 +15,7 @@ from corl import utils as cutils
 import scipy.misc
 import matplotlib.cm as cm
 
+import time
 
 class RenderTrainingImages(object):
 
@@ -173,7 +174,10 @@ class RenderTrainingImages(object):
             self.objectToWorld[objName] = objToWorld
             obj.actor.SetUserTransform(objToWorld)
 
-    def setupImage(self, imageNumber, saveLabeledImages=False, savePoses=False):
+    def setupImage(self, imageNumber, saveColorLabeledImages=False, saveLabeledImages=False, savePoses=False):
+        time1 = time.time()
+
+
         """
         Loads the given imageNumber as background.
         Also updates the poses of the objects to match the image
@@ -195,19 +199,19 @@ class RenderTrainingImages(object):
         cameraPose = om.findObjectByName('camera pose')
         cameraPose.setProperty('Visible', False)
 
-        self.view.renderWindow().SetMultiSamples(0)
-        self.loadBackgroundImage(imageFilename)
-
-        self.view.renderWindow().SetMultiSamples(0)
-        self.view.forceRender() # render it again
-        self.view.renderWindow().SetMultiSamples(0)
+        if saveColorLabeledImages:
+            self.loadBackgroundImage(imageFilename)
+            #self.view.forceRender() # render it again
+            self.captureColorImage(baseName + '_color_labels.png')
 
         if saveLabeledImages:
-            self.saveImages(baseName)
+            self.captureLabelImage(baseName + '_labels.png')
 
         if savePoses:
             self.saveObjectPoses(imageFilename.replace("_rgb.png", "_labels.png"), cameraToCameraStart, baseName)
 
+        time2 = time.time()
+        print '%s function took %0.3f ms' % ("setupImage", (time2-time1)*1000.0)
         return True
 
     def saveObjectPoses(self, imageFilename, cameraToCameraStart, baseName):
@@ -258,7 +262,11 @@ class RenderTrainingImages(object):
                 
     def renderAndSaveLabeledImages(self):
         imageNumber = 1
-        while(self.setupImage(imageNumber, saveLabeledImages=True, savePoses=True)):
+        while(self.setupImage(imageNumber, saveColorLabeledImages=True, saveLabeledImages=False, savePoses=False)):
+            imageNumber += 1
+
+        imageNumber = 1
+        while(self.setupImage(imageNumber, saveColorLabeledImages=False, saveLabeledImages=True, savePoses=True)):
             imageNumber += 1
 
 
