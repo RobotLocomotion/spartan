@@ -2,4 +2,4 @@
 *pyc
 /build
 /src/CorlDev/src/ply
-/src/CorlDev/automation/ip_config.yaml
+/src/CorlDev/automation/scp_config.yaml
