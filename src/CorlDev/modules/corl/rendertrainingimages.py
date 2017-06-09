@@ -76,8 +76,8 @@ class RenderTrainingImages(object):
         viewOptions.setProperty('Orientation widget', False)
         viewOptions.setProperty('Background color', [0.0,0.0,0.0])
 
-        if view.renderer().GetBackgroundTexture():
-            view.renderer().TexturedBackgroundOn()
+        #if view.renderer().GetBackgroundTexture():
+            #view.renderer().TexturedBackgroundOn()
 
         for obj in om.findObjectByName('data files').children():
             obj.actor.GetProperty().LightingOn()
@@ -128,8 +128,8 @@ class RenderTrainingImages(object):
         img = ioUtils.readImage(filename)
         tex = vtk.vtkTexture()
         tex.SetInput(img)
-        view.renderer().SetBackgroundTexture(tex)
-        view.renderer().TexturedBackgroundOn()
+        #view.renderer().SetBackgroundTexture(tex)
+        #view.renderer().TexturedBackgroundOn()
 
     def loadCameraPoses(self):
         data = np.loadtxt(self.pathDict['cameraPoses'])
