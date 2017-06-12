@@ -4,14 +4,14 @@ group "0.ur10-driver" {
     host = "localhost";
   }
   cmd "1.ros-interface" {
-    exec = "python $SPARTAN_SOURCE_DIR/apps/ur10/ur10_ros_interface.py";
+    exec = "python $SPARTAN_SOURCE_DIR/src/UR10/src/ur10_ros_interface.py";
     host = "localhost";
   }
 }
 
 group "1.director" {
   cmd "0.director" {
-    exec = "run_base_ur10_half";
+    exec = "$SPARTAN_SOURCE_DIR/src/UR10/bin/run_base_ur10_half";
     host = "localhost";
   }
 }
