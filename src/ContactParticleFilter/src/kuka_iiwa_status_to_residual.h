@@ -9,10 +9,11 @@
 #include <iostream>
 #include <Eigen/Dense>
 
-
-#include "drake/lcmt_iiwa_status.hpp"
-#include "LCMHandler.h"
 #include <lcm/lcm-cpp.hpp>
+// #include "drake/lcmt_iiwa_status.hpp"
+// #include "drake_lcmtypes/lcmt_iiwa_status.hpp"
+#include "lcmtypes//drake/lcmt_iiwa_status.hpp"
+#include "LCMHandler.h"
 
 
 namespace drake{
