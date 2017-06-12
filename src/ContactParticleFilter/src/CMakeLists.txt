@@ -1,8 +1,7 @@
 
-#list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/../../director/cmake/modules")
-
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/../../cmake/modules")
 
+# find packages that don't work with normal find_package
 find_package(Drake MODULE REQUIRED)
 find_package(Eigen REQUIRED)
 
@@ -11,8 +10,10 @@ find_package(Eigen REQUIRED)
     ${DRAKE_INCLUDE_DIRS}
   )
 
-message("DRAKE_INCLUDE_DIRS = ${DRAKE_INCLUDE_DIRS}")
+find_package(lcm)
+find_package(yaml-cpp)
 
+message("DRAKE_INCLUDE_DIRS = ${DRAKE_INCLUDE_DIRS}")
 
 # having some issue with pthread linking error so set some compile flag
 #set(GCC_PTHREAD_FLAG "-pthread")
