@@ -1,0 +1,28 @@
+group "0.ur10-driver" {
+  cmd "0.moder-driver" {
+    exec = "roslaunch $HOME/catkin_ws/src/ur_modern_driver/launch/ur10_bringup.launch robot_ip:=10.18.0.12";
+    host = "localhost";
+  }
+  cmd "1.ros-interface" {
+    exec = "python $SPARTAN_SOURCE_DIR/apps/ur10/ur10_ros_interface.py";
+    host = "localhost";
+  }
+}
+
+group "1.director" {
+  cmd "0.director" {
+    exec = "run_base_ur10_half";
+    host = "localhost";
+  }
+}
+
+script "1.robot_startup" {
+    start group "0.ur10-driver";
+    start group "1.director";
+}
+
+script "2.restart_controller" {
+    stop group "2.iiwa-drivers";
+    wait ms 2000;
+    start group "2.iiwa-drivers";
+}
