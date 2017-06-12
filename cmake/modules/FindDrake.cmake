@@ -4,13 +4,7 @@ if(DRAKE_DIR)
   message("DRAKE_DIR is ${DRAKE_DIR}")
 endif()
 
-message("Lucas message")
-message("_lib_dir_hint = ${_lib_dir_hint}")
-
-
 find_path(DRAKE_INCLUDE_DIR drake/util/drakeUtil.h HINTS ${_include_dir_hint} DOC "Drake source directory")
-
-message("DRAKE_INCLUDE_DIR = ${DRAKE_INCLUDE_DIR}")
 
 set(DRAKE_LIBRARIES)
 set(_library_var_names)
@@ -20,8 +14,7 @@ macro(find_drake_library varName name doc)
   list(APPEND _library_var_names ${varName})
 endmacro()
 
-
-
+# add any additional drake libraries as needed
 find_drake_library(DRAKE_MULTI_BODY_PARSERS_LIBRARY drakeMultibodyParsers "Drake Multibody Parsers library")
 find_drake_library(DRAKE_RBM_LIBRARY drakeRBM "Drake RBM library")
 find_drake_library(DRAKE_COMMON_LIBRARY drakeCommon "Drake Common library")
