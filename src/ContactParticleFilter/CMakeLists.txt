@@ -3,4 +3,4 @@ project(ContactParticleFilter)
 set(CMAKE_CXX_STANDARD 11)
 
 add_subdirectory(cpf_lcmtypes)
-#add_subdirectory(src)
+add_subdirectory(src)

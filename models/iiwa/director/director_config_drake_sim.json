@@ -1,0 +1,76 @@
+{
+  "modelName" : "kuka_iiwa",
+  "urdfConfig": {
+    "default":    "../iiwa_description/iiwa14_schunk_gripper_drake_sim.urdf",
+    "robotState": "../iiwa_description/iiwa14_schunk_gripper_drake_sim.urdf",
+    "ik":         "../iiwa_description/iiwa14_simplified_collision.urdf",
+    "chull":      "../iiwa_description/iiwa14_simplified_collision.urdf",
+    "playback":   "../iiwa_description/iiwa14_schunk_gripper_drake_sim.urdf",
+    "teleop":     "../iiwa_description/iiwa14_schunk_gripper_drake_sim.urdf"
+  },
+
+  "teleopJointGroups" : [
+    { "name" : "Left Arm",
+      "joints" : [
+        "iiwa_joint_1",
+        "iiwa_joint_2",
+        "iiwa_joint_3",
+        "iiwa_joint_4",
+        "iiwa_joint_5",
+        "iiwa_joint_6",
+        "iiwa_joint_7"
+        ],
+      "labels" : ["1", "2", "3", "4", "5", "6", "7"]
+    }
+  ],
+
+  "drakeJointNames": [
+    "base_x",
+    "base_y",
+    "base_z",
+    "base_roll",
+    "base_pitch",
+    "base_yaw",
+    "iiwa_joint_1",
+    "iiwa_joint_2",
+    "iiwa_joint_3",
+    "iiwa_joint_4",
+    "iiwa_joint_5",
+    "iiwa_joint_6",
+    "iiwa_joint_7"
+  ],
+
+  "robotStateJointNames": [
+    "iiwa_joint_1",
+    "iiwa_joint_2",
+    "iiwa_joint_3",
+    "iiwa_joint_4",
+    "iiwa_joint_5",
+    "iiwa_joint_6",
+    "iiwa_joint_7"
+  ],
+
+  "planningMode" : "pydrake",
+  "fixedPointFile" : "nominal_pose.csv",
+  "postureDatabaseFile" : "stored_poses.json",
+
+  "handCombinations" : [
+    { "side" : "left",
+      "handType" : "left_schunk",
+      "handLinkName" : "iiwa_link_ee",
+      "handUrdf" : "../../schunk_wsg50/schunk_description/urdf/wsg/wsg_50.urdf",
+      "handRootLink" : "palm",
+      "robotMountLink" : "palm",
+      "palmLink" : "palm"
+    }
+  ],
+
+  "userConfig" : ["fixedBaseArm"],
+
+  "endEffectorConfig" : {
+    "endEffectorLinkNames": ["iiwa_link_ee"],
+    "graspOffsetFrame" : [[0.145,0.0,0], [0.0,0.0,0.0]],
+    "fixedJoints" : ["base_x","base_y","base_z","base_roll","base_pitch","base_yaw"]
+  }
+
+}

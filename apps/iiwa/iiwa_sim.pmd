@@ -5,18 +5,36 @@ group "0.sim" {
     host = "localhost";
   }
 
-  cmd "1.plan-runner" {
+  cmd "1.kuka_simulation_w_schunk_gripper" {
+    exec = "$SPARTAN_BUILD_DIR/drake/drake/examples/kuka_iiwa_arm/iiwa_wsg_simulation";
+    host = "localhost";
+  }
+
+  cmd "2.plan-runner" {
     exec = "$SPARTAN_BUILD_DIR/drake/drake/examples/kuka_iiwa_arm/kuka_plan_runner";
     host = "localhost";
   }
 
-  cmd "2.state-translator" {
-    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py";
+  cmd "3.state-translator" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py --useIiwaStateEst";
     host = "localhost";
   }
 }
 
-cmd "4.director" {
-  exec = "kuka_iiwa_app";
-  host = "localhost";
+group "1.tools"{
+  
+  cmd "0.director" {
+    exec = "kuka_iiwa_app_sim";
+    host = "localhost";
+  }
+
+  cmd "1.bot-spy" {
+    exec = "bot-spy";
+    host = "localhost";
+  }
+
 }
+
+
+
+

@@ -21,10 +21,16 @@ Director `README`::
 
     https://github.com/RobotLocomotion/director/#dependencies
 
+For Ubuntu 14.04, you may install a non-conservative set of dependencies for
+Director by running the following script::
+
+    sudo ./setup/ubuntu/14.04/install_prereqs.sh
+
 For Ubuntu 16.04, you may install a non-conservative set of dependencies for
 Director by running the following script::
 
     sudo ./setup/ubuntu/16.04/install_prereqs.sh
+
 
 Make sure your submodules are up to date.  The recommended command is::
 
@@ -49,6 +55,9 @@ Finally, run the build::
 By default, cmake generates a Makefile, but it's possible to use other
 build tools like ninja.
 
+Common Build Errors
+-------------------
+
 If you encounter an error such as::
 
     Target "RemoteTreeViewer" links to target "Eigen3::Eigen" but the
@@ -56,6 +65,8 @@ If you encounter an error such as::
     IMPORTED target, or an ALIAS target is missing?
 
 then reconfigure CMake with the flag ``-DWITH_ISSUE_5456_WORKAROUND=ON``.
+
+If you encounter an error related to not being able to find ``eigen3`` as part of an apriltags build then the problem is that you don't have ``eigen3`` system intalled. Either ``apt-get install libeigen3-dev`` or set ``DUSE_APRILTAGS:BOOL=OFF`` in the top level ``CMakeLists.txt``.
 
 Environment setup
 =================
@@ -105,6 +116,10 @@ To run a specific test matching a name or regex::
 To run tests in parallel::
 
     run_tests_drake -j12
+
+Test Failures
+-------------
+If you get an error during director tests related to an ``LCM Self Test`` then it is likely your network is not allowing LCM packets to return via loopback. See ``https://lcm-proj.github.io/multicast_setup.html``.
 
 
 Drake and Director submodules
