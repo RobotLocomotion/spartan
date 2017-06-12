@@ -1,6 +1,6 @@
 to launch robot control:
     1. make sure ros, spartan, and ur_modern_driver are sourced
-    2. run bot-procman-sheriff -l ur10_hardware.pmd
+    2. run bin/runprocman
     3. then run script robot_startup
 
 This works with or without an actual ur10 connected
