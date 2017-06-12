@@ -26,6 +26,7 @@ configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environm
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_DRIVERS "Build the hardware lcm driver." OFF)
+option(USE_SYSTEM_VTK "Use system VTK for drake and director." ON)
 
 
 # Setup external projects
@@ -52,6 +53,7 @@ ExternalProject_Add(drake
     -DWITH_FCL:BOOL=OFF
     -DWITH_SNOPT:BOOL=ON
     -DWITH_DIRECTOR:BOOL=OFF
+    -DUSE_SYTEM_VTK:BOOL=${USE_SYSTEM_VTK}
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   INSTALL_COMMAND ""
@@ -69,6 +71,7 @@ ExternalProject_Add(director
     -DUSE_SYSTEM_EIGEN:BOOL=ON
     -DUSE_SYSTEM_LCM:BOOL=ON
     -DUSE_SYSTEM_LIBBOT:BOOL=ON
+    -DUSE_SYTEM_VTK:BOOL=${USE_SYSTEM_VTK}
     -DUSE_PCL:BOOL=${WITH_PERCEPTION}
     -DUSE_APRILTAGS:BOOL=${WITH_PERCEPTION}
     -DUSE_KINECT:BOOL=${WITH_PERCEPTION}
