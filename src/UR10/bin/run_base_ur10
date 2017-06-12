@@ -1,11 +1,5 @@
 #!/bin/bash
 
-echo "Opening object alignment tool..."
 
-current_dir=${PWD##*/}
-cd ..
-up_dir=${PWD##*/}
 
-directorPython $SPARTAN_SOURCE_DIR/src/UR10/src/ur10App.py --logFolder ./ --bot-config $SPARTAN_SOURCE_DIR/apps/ur10/ur10Manip.cfg --director-config $SPARTAN_SOURCE_DIR/models/ur10/director/director_config_ur10.json
-
-echo "Done."
+directorPython $SPARTAN_SOURCE_DIR/src/UR10/src/ur10App.py  --bot-config $SPARTAN_SOURCE_DIR/apps/ur10/ur10Manip.cfg --director-config $SPARTAN_SOURCE_DIR/models/ur10/director/director_config_ur10.json
