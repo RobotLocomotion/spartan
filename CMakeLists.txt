@@ -111,8 +111,7 @@ ExternalProject_Add(RemoteTreeViewer
 
 
 
-if (WITH_PERCEPTION)
-
+if (OFF)
   ExternalProject_Add(ObjectDetection
     SOURCE_DIR ${source_dir}/src/ObjectDetection
     BINARY_DIR ${build_dir}/ObjectDetection

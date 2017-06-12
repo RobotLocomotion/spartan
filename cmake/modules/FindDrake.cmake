@@ -17,6 +17,7 @@ endmacro()
 # add any additional drake libraries as needed
 find_drake_library(DRAKE_MULTI_BODY_PARSERS_LIBRARY drakeMultibodyParsers "Drake Multibody Parsers library")
 find_drake_library(DRAKE_RBM_LIBRARY drakeRBM "Drake RBM library")
+find_drake_library(DRAKE_RIGID_BODY_PLANT_LIBRARY drakeRigidBodyPlant "Drake RigidBodyPlant library")
 find_drake_library(DRAKE_COMMON_LIBRARY drakeCommon "Drake Common library")
 find_drake_library(DRAKE_JOINTS_LIBRARY drakeJoints "Drake Joints library")
 find_drake_library(DRAKE_SHAPES_LIBRARY drakeShapes "Drake Shapes library")
