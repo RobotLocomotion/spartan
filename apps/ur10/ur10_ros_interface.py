@@ -26,12 +26,12 @@ def handlePlan(channel, data):
     g.trajectory = JointTrajectory()
     g.trajectory.joint_names = JOINT_NAMES
     g.trajectory.points = []
-    joint_states = rospy.wait_for_message("joint_states", JointState)
-    joints_pos = joint_states.position
-    g.trajectory.points.append(JointTrajectoryPoint(positions=joints_pos, velocities=[0]*6, time_from_start=rospy.Duration(0.0)))
+    #joint_states = rospy.wait_for_message("joint_states", JointState)
+    #joints_pos = joint_states.position
+    #g.trajectory.points.append(JointTrajectoryPoint(positions=joints_pos, velocities=[0]*6, time_from_start=rospy.Duration(0.0)))
     print("debug")
-    print(msg.plan[0].utime)
-    print(msg.plan[1].utime)
+    print(msg.plan[1].twist.linear_velocity.x)
+    print(msg.plan[1].twist.angular_velocity.x)
     #print(msg.plan)
     for state in msg.plan:
         g.trajectory.points.append(JointTrajectoryPoint(positions=state.joint_position, velocities=state.joint_velocity, time_from_start=rospy.Duration(state.utime*1e-6)))
@@ -75,8 +75,6 @@ print("connected")
 sub = lc.subscribe("COMMITTED_ROBOT_PLAN", handlePlan)
 subscriber = rospy.Subscriber("joint_states", JointState, handleState, queue_size=200)
 joint_states = rospy.wait_for_message("joint_states", JointState)
-print("got msg")
-print(joint_states.position)
 print("spinning")
 #consoleapp.ConsoleApp.start()
 try:

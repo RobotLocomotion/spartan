@@ -21,35 +21,6 @@ from PythonQt import QtCore, QtGui
 import corl.setup
 import corl.utils
 
-def initImageManager():
-    imageManager = cameraview.ImageManager()
-    cameraview.imageManager = imageManager
-    return imageManager
-
-def initDepthPointCloud(imageManager, view):
-
-    openniDepthPointCloud = segmentation.DisparityPointCloudItem('openni point cloud', 'OPENNI_FRAME', 'OPENNI_FRAME_LEFT', imageManager)
-    openniDepthPointCloud.addToView(view)
-    om.addToObjectModel(openniDepthPointCloud, parentObj=om.findObjectByName('sensors'))
-    openniDepthPointCloud.setProperty('Visible', True)
-    openniDepthPointCloud.setProperty('Target FPS', 30)
-    return openniDepthPointCloud
-
-def newCameraView(imageManager, channelName='OPENNI_FRAME', cameraName='OPENNI_FRAME_LEFT', viewName='OpenNI Frame'):
-
-    view = PythonQt.dd.ddQVTKWidgetView()
-    view.orientationMarkerWidget().Off()
-    view.backgroundRenderer().SetBackground([0,0,0])
-    view.backgroundRenderer().SetBackground2([0,0,0])
-
-    imageManager.queue.addCameraStream(channelName, cameraName, lcmbotcore.images_t.LEFT)
-    imageManager.addImage(cameraName)
-
-    cameraView = cameraview.CameraImageView(imageManager, cameraName, viewName=viewName, view=view)
-    cameraView.eventFilterEnabled = False
-    view.renderWindow().GetInteractor().SetInteractorStyle(vtk.vtkInteractorStyleImage())
-
-    return cameraView
 
 def makeRobotSystem(view):
     factory = robotsystem.ComponentFactory()
@@ -66,7 +37,7 @@ def makeRobotSystem(view):
     # set default options
     #robotSystem.playbackPanel.animateOnExecute = True
     ikPlanner.addPostureGoalListener(robotSystem.robotStateJointController)
-    ikPlanner.getIkOptions().setProperty('Max joint degrees/s', 60)
+    ikPlanner.getIkOptions().setProperty('Max joint degrees/s', 120)
     ikPlanner.getIkOptions().setProperty('Use pointwise', False)
 
     return robotSystem
