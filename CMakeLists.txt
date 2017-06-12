@@ -26,7 +26,7 @@ configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environm
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_DRIVERS "Build the hardware lcm driver." OFF)
-option(USE_SYSTEM_VTK "Use system VTK for drake and director." ON)
+option(USE_SYSTEM_VTK "Use system VTK for drake and director." OFF)
 
 
 # Setup external projects
