@@ -140,3 +140,7 @@ Scripts
 
 You can add executable scripts to the scripts/bin folder.  These scripts will
 appear in your PATH via the sourced environment file.
+
+Targeting Drake as a library
+============================
+For examples of code that uses ``drake`` as a library see ``src/RemoteTreeViewer``. If you need a ``drake`` library that isn't currently found add it to ``cmake/modules/FindDrake.cmake``.
