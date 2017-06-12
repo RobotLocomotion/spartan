@@ -4,14 +4,14 @@
       "allow_mirror": true,
       "description": "",
       "joints": {
-        "elbow_joint": 0.0,
-        "shoulder_lift_joint": -0.68,
-        "shoulder_pan_joint": 0.0,
-        "wrist_1_joint": -1.688,
-        "wrist_2_joint": 0.0,
-        "wrist_3_joint": 0.5635
+        "elbow_joint": -1.6210618019104004,
+        "shoulder_lift_joint": -1.7090264558792114,
+        "shoulder_pan_joint": -1.4953980445861816,
+        "wrist_1_joint": -1.306902527809143,
+        "wrist_2_joint": 1.5967381000518799,
+        "wrist_3_joint": 0.7205309271812439
       },
-      "name": "q_nom",
+      "name": "q_nom_new",
       "nominal_handedness": "left"
     },
     {
