@@ -1,4 +1,23 @@
-find_package(drake REQUIRED)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/../../cmake/modules")
+
+# find packages that don't work with normal find_package
+find_package(Drake MODULE REQUIRED)
+find_package(Eigen REQUIRED)
+
+  include_directories(SYSTEM
+    ${EIGEN_INCLUDE_DIRS}
+    ${DRAKE_INCLUDE_DIRS}
+  )
+
+find_package(lcm)
+find_package(yaml-cpp)
+
+message("DRAKE_INCLUDE_DIRS = ${DRAKE_INCLUDE_DIRS}")
+
+# having some issue with pthread linking error so set some compile flag
+#set(GCC_PTHREAD_FLAG "-pthread")
+#SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_PTHREAD_FLAG}" )
 
 add_executable(iiwa_status_to_residual
     run_iiwa_status_to_residual.cc
@@ -6,9 +25,9 @@ add_executable(iiwa_status_to_residual
     )
 
 target_link_libraries(iiwa_status_to_residual
-    drakeCommon
-    drakeLCMUtil
+    ${DRAKE_LIBRARIES}
     lcm
+    pthread
     yaml-cpp)
 
 install(TARGETS iiwa_status_to_residual
