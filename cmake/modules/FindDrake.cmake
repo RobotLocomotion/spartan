@@ -29,9 +29,9 @@ find_drake_library(DRAKE_JOINTS_LIBRARY drakeJoints "Drake Joints library")
 find_drake_library(DRAKE_SHAPES_LIBRARY drakeShapes "Drake Shapes library")
 find_drake_library(DRAKE_CHULL_LIBRARY drakeConvexHull "Drake Convex Hull library")
 find_drake_library(DRAKE_GEOMETRYUTIL_LIBRARY drakeGeometryUtil "Drake Geometry Util library")
+find_drake_library(DRAKE_LCM_LIBRARY drakeLcm "Drake lcm library")
 find_drake_library(DRAKE_LCMUTIL_LIBRARY drakeLCMUtil "Drake LCM Util library")
 find_drake_library(DRAKE_LCMTYPES_LIBRARY drake_lcmtypes "Drake LCM Types library")
-# find_drake_library(YAML_CPP_LIBRARY yaml-cpp "yaml-cpp utilities library")
 find_drake_library(DRAKE_YAMLUTIL_LIBRARY drakeYAMLUtil "Drake YAML utilities library")
 
 
