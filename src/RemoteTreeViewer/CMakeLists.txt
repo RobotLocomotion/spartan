@@ -11,6 +11,8 @@ find_package(Eigen REQUIRED)
     ${EIGEN_INCLUDE_DIRS}
     ${DRAKE_INCLUDE_DIRS}
   )
+
+# if you want to use these libraries call find_package on them so that it doesn't search for system installed versions
 find_package(yaml-cpp)
 find_package(lcm)
 
