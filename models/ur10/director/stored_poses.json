@@ -1,0 +1,60 @@
+{
+  "General": [
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "elbow_joint": 0.0,
+        "shoulder_lift_joint": -0.68,
+        "shoulder_pan_joint": 0.0,
+        "wrist_1_joint": -1.688,
+        "wrist_2_joint": 0.0,
+        "wrist_3_joint": 0.5635
+      },
+      "name": "q_nom",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "elbow_joint": 0.0,
+        "shoulder_lift_joint": -0.68,
+        "shoulder_pan_joint": 0.0,
+        "wrist_1_joint": -1.688,
+        "wrist_2_joint": 0.0,
+        "wrist_3_joint": 0.5635
+      },
+      "name": "q_zero",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "elbow_joint": -2.3122122287750244,
+        "shoulder_lift_joint": -2.38761043548584,
+        "shoulder_pan_joint": 0.0,
+        "wrist_1_joint": -1.687999963760376,
+        "wrist_2_joint": 0.0,
+        "wrist_3_joint": 0.5634999871253967
+      },
+      "name": "test",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "elbow_joint": -1.4953981014000002,
+        "shoulder_lift_joint": -1.7090264016,
+        "shoulder_pan_joint": -1.6210618074000003,
+        "wrist_1_joint": -1.3069025423999996,
+        "wrist_2_joint": -4.649557122,
+        "wrist_3_joint": 0.7205309271812439
+      },
+      "name": "ur10_base",
+      "nominal_handedness": "left"
+    }
+  ]
+}
