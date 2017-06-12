@@ -18,8 +18,6 @@ import bot_core as lcmbotcore
 import PythonQt
 from PythonQt import QtCore, QtGui
 
-import corl.setup
-import corl.utils
 
 
 def makeRobotSystem(view):
@@ -57,11 +55,8 @@ if __name__ == '__main__':
 
     # parse args first
     parser = drcargs.getGlobalArgParser().getParser()
-    parser.add_argument('--logFolder', type=str, dest='logFolder',
-                          help='location of top level folder for this log, relative to CorlDev/data')
-
     args = parser.parse_args()
-    print 'log folder:', args.logFolder
+    
 
     # construct the app
     fields = mainwindowapp.construct()
