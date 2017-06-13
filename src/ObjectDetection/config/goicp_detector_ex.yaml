@@ -1,14 +1,9 @@
-sampler_options:
-  num_rays: 400
-  models:
-     - urdf: "models/urdf/bunny_99_faces.urdf"
-       q0: [0.2, 0.2, 0.2, 1.57, 0.0, 0.0]
-
 detector_options:
-    downsample_to_this_many_points: 100
+    #downsample_to_this_many_scene_points: 10000
+    #downsample_to_this_many_model_points: 10000
 
     # Mean Squared Error (MSE) convergence threshold
-    MSEThresh: 0.001
+    MSEThresh: 0.00001
 
     # Smallest rotation value along dimension X of rotation cube (radians)
     rotMinX: -3.1416
@@ -35,7 +30,3 @@ detector_options:
     distTransSize: 300
     # DistanceTransformWidth = ExpandFactor x WidthLargestDimension
     distTransExpandFactor: 2.0
-
-    models:
-       - urdf: "models/urdf/bunny_99_faces.urdf"
-         q0: [0.2, 0.2, 0.2, 1.57, 0.0, 0.0]

@@ -17,6 +17,10 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
+find_package(VTK REQUIRED)
+include(${VTK_USE_FILE})
+
+
 add_library(point_cloud_generator point_cloud_generator.cpp point_cloud_generator.hpp)
 target_link_libraries(point_cloud_generator lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeRBM drakeOptimization drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
 install(TARGETS point_cloud_generator DESTINATION lib)
@@ -49,7 +53,7 @@ add_executable(run_goicp_detector run_goicp_detector.cpp
     GoICP_V1.3/matrix.cpp
     GoICP_V1.3/ConfigMap.cpp
     GoICP_V1.3/StringTokenizer.cpp)
-target_link_libraries(run_goicp_detector lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
+target_link_libraries(run_goicp_detector lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} z pthread)
 install(TARGETS run_goicp_detector DESTINATION bin)
 
 add_subdirectory(FastGlobalRegistration)

@@ -14,24 +14,72 @@
 #include "common/common.hpp"
 #include "yaml-cpp/yaml.h"
 
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_cloud.h>
+#include <vtkSmartPointer.h>
+#include <vtkActor.h>
+#include <vtkOBJReader.h>
+#include <vtkPLYReader.h>
+#include <vtkPointSource.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkPolyDataPointSampler.h>
+#include <vtkProperty.h>
+#include <vtkSmartPointer.h>
+#include <vtkSTLReader.h>
+#include <vtkXMLPolyDataReader.h>
+#include <vtksys/SystemTools.hxx>
 
 #include "RemoteTreeViewerWrapper.hpp"
 #include "GoICP_V1.3/jly_goicp.h"
-#include "point_cloud_generator.hpp" // using this for model surface sampling
 
 using namespace std;
 using namespace Eigen;
 using namespace drake::parsers::urdf;
 
-typedef pcl::PointXYZ PointType;
+// Generic loader that loads common model formats into
+// a vtkPolyData object.
+static vtkSmartPointer<vtkPolyData> ReadPolyData(const char *fileName)
+{
+  vtkSmartPointer<vtkPolyData> polyData;
+  std::string extension = vtksys::SystemTools::GetFilenameExtension(std::string(fileName));
+  if (extension == ".ply")
+  {
+    vtkSmartPointer<vtkPLYReader> reader =
+      vtkSmartPointer<vtkPLYReader>::New();
+    reader->SetFileName (fileName);
+    reader->Update();
+    polyData = reader->GetOutput();
+  }
+  else if (extension == ".vtp")
+  {
+    vtkSmartPointer<vtkXMLPolyDataReader> reader =
+      vtkSmartPointer<vtkXMLPolyDataReader>::New();
+    reader->SetFileName (fileName);
+    reader->Update();
+    polyData = reader->GetOutput();
+  }
+  else if (extension == ".obj")
+  {
+    vtkSmartPointer<vtkOBJReader> reader =
+      vtkSmartPointer<vtkOBJReader>::New();
+    reader->SetFileName (fileName);
+    reader->Update();
+    polyData = reader->GetOutput();
+  }
+  else if (extension == ".stl")
+  {
+    vtkSmartPointer<vtkSTLReader> reader =
+      vtkSmartPointer<vtkSTLReader>::New();
+    reader->SetFileName (fileName);
+    reader->Update();
+    polyData = reader->GetOutput();
+  }
+  return polyData;
+}
 
 int main(int argc, char** argv) {
   srand(0);
 
   if (argc < 3){
-    printf("Use: run_goicp_detector <point cloud file> <config file> <optional output_file>\n");
+    printf("Use: run_goicp_detector <problem description yaml> <config file> <optional output_file>\n");
     exit(-1);
   }
 
@@ -40,66 +88,95 @@ int main(int argc, char** argv) {
   cout << "***************************" << endl;
   cout << "***************************" << endl;
   cout << "GoICP Object Pose Estimator" << asctime(curtime);
-  cout << "Point cloud file " << string(argv[1]) << endl;
+  cout << "Problem description file " << string(argv[1]) << endl;
   cout << "Config file " << string(argv[2]) << endl;
   if (argc > 3)
     cout << "Output file " << string(argv[3]) << endl;
   cout << "***************************" << endl << endl;
 
   // Bring in config file
-  string pcdFile = string(argv[1]);
-  string yamlString = string(argv[2]);
-  YAML::Node config = YAML::LoadFile(yamlString);
+  string problemDescriptionFile = string(argv[1]);
+  string configurationFile = string(argv[2]);
+  YAML::Node problem = YAML::LoadFile(problemDescriptionFile);
+  YAML::Node config = YAML::LoadFile(configurationFile);
 
   if (config["detector_options"] == NULL){
     runtime_error("Need detector options.");
   }
 
   // Set up model
-  if (config["detector_options"]["models"] == NULL){
+  if (problem["models"] == NULL){
     runtime_error("Model must be specified.");
   }
 
-  if (config["detector_options"] == NULL){
-    runtime_error("Config needs a detector option set.");
-  }
   auto goicp_config = config["detector_options"];
 
-  // Model will be a RigidBodyTree which we'll sample a model point cloud from
-  // for GoICP.
-  RigidBodyTree<double> robot;
-  VectorXd q_robot;
-  int old_q_robot_size = 0;
-  for (auto iter=config["models"].begin(); iter!=config["models"].end(); iter++){
-    string urdf = (*iter)["urdf"].as<string>();
-    AddModelInstanceFromUrdfFileWithRpyJointToWorld(urdf, &robot);
-    // And add initial state info that we were passed
-    vector<double> q0 = (*iter)["q0"].as<vector<double>>();
-    assert(robot.get_num_positions() - old_q_robot_size == q0.size());
-    q_robot.conservativeResize(robot.get_num_positions());
-    for (int i=0; i<q0.size(); i++){
-      q_robot[old_q_robot_size] = q0[i];
-      old_q_robot_size++; 
+  // Model is a collection of VTK VTPs
+  if (problem["models"].size() > 1){
+    printf("GoICP only supports a single model, and you supplied %lu!\n", problem["models"].size());
+    exit(-1);
+  }
+
+  // Read in the model.
+  vtkSmartPointer<vtkPolyData> modelPolyData = ReadPolyData(problem["models"][0]["filename"].as<string>().c_str());
+
+  // Sample points over its surface
+  double bounds[6];
+  modelPolyData->GetBounds(bounds);
+  double range[3];
+  for (int i = 0; i < 3; ++i)
+  {
+    range[i] = bounds[2*i + 1] - bounds[2*i];
+  }
+  vtkSmartPointer<vtkPolyDataPointSampler> sample =
+    vtkSmartPointer<vtkPolyDataPointSampler>::New();
+  sample->SetInput(modelPolyData);
+  sample->SetDistance(0.01); // TODO(gizatt): May ultimately need to sample more finely
+  sample->Update();  
+  vtkSmartPointer<vtkPolyData> modelPolyDataSampled = sample->GetOutput();
+  cout << "Loaded " << modelPolyDataSampled->GetNumberOfPoints() << " points from " << problem["models"][0]["filename"].as<string>() << endl;
+  Matrix3Xd model_pts_in(3, modelPolyDataSampled->GetNumberOfPoints());
+  for (int i=0; i<modelPolyDataSampled->GetNumberOfPoints(); i++){
+    model_pts_in(0, i) = modelPolyDataSampled->GetPoint(i)[0];
+    model_pts_in(1, i) = modelPolyDataSampled->GetPoint(i)[1];
+    model_pts_in(2, i) = modelPolyDataSampled->GetPoint(i)[2];
+  }
+
+  // Pull model points from that pointcloud
+  Matrix3Xd model_pts;
+  srand(0);
+  if (!goicp_config["downsample_to_this_many_model_points"]) {
+    model_pts = model_pts_in;
+  } else {
+    int optDownsampleToThisManyPoints = goicp_config["downsample_to_this_many_model_points"].as<int>();
+    model_pts.resize(3, optDownsampleToThisManyPoints);
+    VectorXi indices = VectorXi::LinSpaced(model_pts_in.cols(), 0, model_pts_in.cols());
+    // always seed this the same way
+    srand(0);
+    std::random_shuffle(indices.data(), indices.data() + model_pts_in.cols());
+    for (int i = 0; i < optDownsampleToThisManyPoints; i++) {
+      model_pts.col(i) = model_pts_in.col(indices[i]);
     }
   }
-  robot.compile();
 
-  // Load point cloud
-  pcl::PointCloud<pcl::PointXYZ> cloud;
-  pcl::io::loadPCDFile<PointType>( pcdFile, cloud );
-  cout << "Loaded " << cloud.size() << " points from " << pcdFile << endl;
-  Matrix3Xd scene_pts_in(3, cloud.size());
-  for (int i=0; i<cloud.size(); i++){
-    scene_pts_in(0, i) = cloud.at(i).x;
-    scene_pts_in(1, i) = cloud.at(i).y;
-    scene_pts_in(2, i) = cloud.at(i).z;
+
+  // Load in the scene cloud
+  vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(problem["points"].as<string>().c_str());
+  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << problem["points"].as<string>() << endl;
+  Matrix3Xd scene_pts_in(3, cloudPolyData->GetNumberOfPoints());
+  for (int i=0; i<cloudPolyData->GetNumberOfPoints(); i++){
+    scene_pts_in(0, i) = cloudPolyData->GetPoint(i)[0];
+    scene_pts_in(1, i) = cloudPolyData->GetPoint(i)[1];
+    scene_pts_in(2, i) = cloudPolyData->GetPoint(i)[2];
   }
+
+  // Downsample scene cloud to the requested # of points.
   Matrix3Xd scene_pts;
   srand(0);
-  if (!goicp_config["downsample_to_this_many_points"]) {
+  if (!goicp_config["downsample_to_this_many_scene_points"]) {
     scene_pts = scene_pts_in;
   } else {
-    int optDownsampleToThisManyPoints = goicp_config["downsample_to_this_many_points"].as<int>();
+    int optDownsampleToThisManyPoints = goicp_config["downsample_to_this_many_scene_points"].as<int>();
     scene_pts.resize(3, optDownsampleToThisManyPoints);
     VectorXi indices = VectorXi::LinSpaced(scene_pts_in.cols(), 0, scene_pts_in.cols());
     // always seed this the same way
@@ -114,9 +191,11 @@ int main(int argc, char** argv) {
   // Visualize the scene points and GT, to start with.
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
-  rm.publishPointCloud(scene_pts_in, {"scene_pts_loaded"}, {{0.1, 1.0, 0.1}});
+  //rm.publishPointCloud(scene_pts_in, {"scene_pts_loaded"}, {{0.1, 1.0, 0.1}});
   rm.publishPointCloud(scene_pts, {"scene_pts_downsampled"}, {{0.1, 1.0, 1.0}});
-  rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
+  //rm.publishPointCloud(model_pts_in, {"model_pts"}, {{0.1, 1.0, 1.0}});
+  rm.publishPointCloud(model_pts, {"model_pts_downsampled"}, {{0.1, 1.0, 1.0}});
+  //rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
 
 
   // Load in GoICP Estimator
@@ -143,16 +222,8 @@ int main(int argc, char** argv) {
     goicp.doTrim = false;
   }
 
-  // Load model and data point clouds
 
-  // First sample model point with point cloud generator
-  if (config["sampler_options"] == NULL){
-    runtime_error("Need options for the model sampling point cloud generator.");
-  }
-  PointCloudGenerator pcg(config["sampler_options"]);
-  Matrix3Xd model_pts = pcg.samplePointCloudFromSurface();
-  rm.publishPointCloud(model_pts, {"model_pts_sampled"}, {{1.0, 0.1, 0.1}});
-
+  // Load model and data point clouds into GoICP
   double max_abs_coeff = fmax(
       fmax(fabs(model_pts.minCoeff()), fabs(model_pts.maxCoeff())),
       fmax(fabs(scene_pts.minCoeff()), fabs(scene_pts.maxCoeff()))
@@ -181,6 +252,7 @@ int main(int argc, char** argv) {
   tf.matrix().block<3, 3>(0, 0) = q.matrix();
   model_pts = tf * scene_pts;
   */
+
   for (int i=0; i<model_pts.cols(); i++) {
     POINT3D new_pt;
     new_pt.x = model_pts(0, i);
@@ -210,5 +282,24 @@ int main(int argc, char** argv) {
   cout << "Optimal Translation Vector:" << endl;
   cout << goicp.optT << endl;
   cout << "Finished in " << time << endl;
+
+  // Un-scale the point clouds
+  scene_pts *= 2.0*max_abs_coeff;
+  model_pts *= 2.0*max_abs_coeff;
+
+  // Publish the transformed scene point cloud (I'm transforming the scene because
+  // the model is usually better centered )
+  Affine3d est_tf;
+  est_tf.setIdentity();
+  for (int i = 0; i < 3; i++) {
+    est_tf.translation()[i] = goicp.optT.val[i][0]*2.0*max_abs_coeff;
+    for (int j = 0; j < 3; j++) {
+      est_tf.matrix()(i, j) = goicp.optR.val[i][j];
+    }
+  }
+  cout << "Est tf " << est_tf.matrix() << endl;
+  cout << "Est tf inv" << est_tf.inverse().matrix() << endl;
+  rm.publishPointCloud(est_tf * scene_pts, {"scene_pts_tf"}, {{0.5, 0.5, 1.0}});
+
   return 0;
 }
