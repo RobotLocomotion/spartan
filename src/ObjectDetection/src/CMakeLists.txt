@@ -51,3 +51,5 @@ add_executable(run_goicp_detector run_goicp_detector.cpp
     GoICP_V1.3/StringTokenizer.cpp)
 target_link_libraries(run_goicp_detector lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
 install(TARGETS run_goicp_detector DESTINATION bin)
+
+add_subdirectory(FastGlobalRegistration)
