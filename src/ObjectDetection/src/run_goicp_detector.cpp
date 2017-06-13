@@ -114,8 +114,8 @@ int main(int argc, char** argv) {
   // Visualize the scene points and GT, to start with.
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
-  rm.publishPointCloud(scene_pts_in, {"scene_pts_loaded"}, {0.1, 1.0, 0.1});
-  rm.publishPointCloud(scene_pts, {"scene_pts_downsampled"}, {0.1, 1.0, 1.0});
+  rm.publishPointCloud(scene_pts_in, {"scene_pts_loaded"}, {{0.1, 1.0, 0.1}});
+  rm.publishPointCloud(scene_pts, {"scene_pts_downsampled"}, {{0.1, 1.0, 1.0}});
   rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
 
 
@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
   }
   PointCloudGenerator pcg(config["sampler_options"]);
   Matrix3Xd model_pts = pcg.samplePointCloudFromSurface();
-  rm.publishPointCloud(model_pts, {"model_pts_sampled"}, {1.0, 0.1, 0.1});
+  rm.publishPointCloud(model_pts, {"model_pts_sampled"}, {{1.0, 0.1, 0.1}});
 
   double max_abs_coeff = fmax(
       fmax(fabs(model_pts.minCoeff()), fabs(model_pts.maxCoeff())),
