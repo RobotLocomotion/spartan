@@ -1,9 +1,2 @@
-time_rescale_options
-    num_joints: 6
-    limits:
-        - 191.0
-        - 191.0
-        - 131.0
-        - 131.0
-        - 131.0
-        - 131.0
+num_joints: 6
+limits: [191.0, 191.0, 131.0, 131.0, 131.0, 131.0]
