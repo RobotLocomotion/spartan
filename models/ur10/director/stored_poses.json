@@ -4,34 +4,6 @@
       "allow_mirror": true,
       "description": "",
       "joints": {
-        "elbow_joint": -1.6210618019104004,
-        "shoulder_lift_joint": -1.7090264558792114,
-        "shoulder_pan_joint": -1.4953980445861816,
-        "wrist_1_joint": -1.306902527809143,
-        "wrist_2_joint": 1.5967381000518799,
-        "wrist_3_joint": 0.7205309271812439
-      },
-      "name": "q_nom_new",
-      "nominal_handedness": "left"
-    },
-    {
-      "allow_mirror": true,
-      "description": "",
-      "joints": {
-        "elbow_joint": 0.0,
-        "shoulder_lift_joint": -0.68,
-        "shoulder_pan_joint": 0.0,
-        "wrist_1_joint": -1.688,
-        "wrist_2_joint": 0.0,
-        "wrist_3_joint": 0.5635
-      },
-      "name": "q_zero",
-      "nominal_handedness": "left"
-    },
-    {
-      "allow_mirror": true,
-      "description": "",
-      "joints": {
         "elbow_joint": -2.3122122287750244,
         "shoulder_lift_joint": -2.38761043548584,
         "shoulder_pan_joint": 0.0,
@@ -54,6 +26,48 @@
         "wrist_3_joint": 0.7205309271812439
       },
       "name": "ur10_base",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "elbow_joint": 1.9022974967956543,
+        "shoulder_lift_joint": -1.4266456365585327,
+        "shoulder_pan_joint": 1.542441725730896,
+        "wrist_1_joint": -1.9652513265609741,
+        "wrist_2_joint": -1.5279511213302612,
+        "wrist_3_joint": -0.11700088530778885
+      },
+      "name": "q_test_down",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "elbow_joint": 1.00543212890625,
+        "shoulder_lift_joint": -1.3962372541427612,
+        "shoulder_pan_joint": 1.365140676498413,
+        "wrist_1_joint": -1.0924853086471558,
+        "wrist_2_joint": -1.5426915884017944,
+        "wrist_3_joint": -0.2937329411506653
+      },
+      "name": "q_test_up",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "elbow_joint": 1.9019379615783691,
+        "shoulder_lift_joint": -1.4265021085739136,
+        "shoulder_pan_joint": 1.542441725730896,
+        "wrist_1_joint": -1.965023398399353,
+        "wrist_2_joint": -1.5280951261520386,
+        "wrist_3_joint": 0.03770911321043968
+      },
+      "name": "q_nom",
       "nominal_handedness": "left"
     }
   ]
