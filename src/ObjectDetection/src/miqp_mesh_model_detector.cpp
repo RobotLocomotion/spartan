@@ -635,7 +635,7 @@ void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matri
   }
 
   RemoteTreeViewerWrapper rm;
-  rm.publishPointCloud(scene_pts_out, {"scene_pts_downsampled"}, {0.1, 1.0, 0.1});
+  rm.publishPointCloud(scene_pts_out, {"scene_pts_downsampled"}, {{0.1, 1.0, 0.1}});
 }
 
 void MIQPMultipleMeshModelDetector::doModelPointSampling(Matrix3Xd& pts, MatrixXd& B){
@@ -705,7 +705,7 @@ void MIQPMultipleMeshModelDetector::doModelPointSampling(Matrix3Xd& pts, MatrixX
   }
 
   RemoteTreeViewerWrapper rm;
-  rm.publishPointCloud(pts, {"model_pts_sampled"}, {1.0, 0.0, 0.0});
+  rm.publishPointCloud(pts, {"model_pts_sampled"}, {{1.0, 0.0, 0.0}});
 }
 
 void MIQPMultipleMeshModelDetector::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& all_vertices, 

@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
   // Visualize the results using the drake visualizer.
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
-  rm.publishPointCloud(scene_pts, {"scene_pts"}, {0.1, 1.0, 0.1});
+  rm.publishPointCloud(scene_pts, {"scene_pts"}, {{0.1, 1.0, 0.1}});
   rm.publishRigidBodyTree(pcg.get_robot(), pcg.get_q_robot(), Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
 
   if (argc > 2){

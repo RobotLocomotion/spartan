@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
   // Visualize the scene points and GT, to start with.
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
-  rm.publishPointCloud(scene_pts, {"scene_pts_loaded"}, {0.1, 1.0, 0.1});
+  rm.publishPointCloud(scene_pts, {"scene_pts_loaded"}, {{0.1, 1.0, 0.1}});
   rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.1, 0.5), {"robot_gt"});
 
 
@@ -139,7 +139,7 @@ int main(int argc, char** argv) {
         i++;
       }
       model_pts_world = detection.est_tf * model_pts_world;
-      rm.publishPointCloud(model_pts_world, {"correspondences", "model pts", body.get_name()}, {0.1, 0.1, 1.0});
+      rm.publishPointCloud(model_pts_world, {"correspondences", "model pts", body.get_name()}, {{0.1, 0.1, 1.0}});
 
       // And extract the joint coordinates (assumes all bodies are floating bases...)
       q_robot_est.block(body.get_position_start_index(), 0, 3, 1) =
