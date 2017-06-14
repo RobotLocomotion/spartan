@@ -1,0 +1,12 @@
+prefix=@SPARTAN_LCM_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib@LIB_SUFFIX@
+includedir=${prefix}/include
+
+Name: lcmtypes_spartan-lcm-java
+Description: LCM type java bindings for spartan-lcm
+Requires:  lcm-java
+Version: 0.0.0
+Libs:
+Cflags:
+classpath=${prefix}/share/java/lcmtypes_spartan-lcm.jar

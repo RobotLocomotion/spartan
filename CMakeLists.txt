@@ -103,6 +103,15 @@ ExternalProject_Add(ContactParticleFilter
   DEPENDS drake
 )
 
+ExternalProject_Add(spartan_lcmtypes
+  SOURCE_DIR ${source_dir}/src/spartan_lcmtypes
+  BINARY_DIR ${build_dir}/spartan_lcmtypes
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+)
+
 ExternalProject_Add(control
   SOURCE_DIR ${source_dir}/src/control
   BINARY_DIR ${build_dir}/control

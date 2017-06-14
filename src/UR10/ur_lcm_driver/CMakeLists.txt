@@ -14,7 +14,6 @@ find_package(Eigen REQUIRED)
     ${EIGEN_INCLUDE_DIRS}
     ${DRAKE_INCLUDE_DIRS}
     include
-    lcmtypes
   )
 
 ###########
