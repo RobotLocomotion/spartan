@@ -24,6 +24,8 @@
 #include "drake/multibody/joints/floating_base_types.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 #include "drake/multibody/rigid_body_tree.h"
+#include "bot_core/robot_state_t.hpp"
+
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -32,15 +34,14 @@ using drake::Vector1d;
 using Eigen::Vector2d;
 using Eigen::Vector3d;
 
-namespace drake {
-namespace examples {
-namespace kuka_iiwa_arm {
+namespace spartan {
+namespace control {
 namespace {
 
-const char* const kLcmStatusChannel = "IIWA_STATUS";
-const char* const kLcmCommandChannel = "IIWA_COMMAND";
+using namespace drake;
+const char* const kLcmStatusChannel = "EST_ROBOT_STATE";
+const char* const kLcmCommandChannel = "ROBOT_COMMAND";
 const char* const kLcmPlanChannel = "COMMITTED_ROBOT_PLAN";
-const int kNumJoints = 7;
 
 typedef PiecewisePolynomial<double> PPType;
 typedef PPType::PolynomialType PPPoly;
@@ -51,11 +52,11 @@ class RobotPlanRunner {
   /// tree is aliased
   explicit RobotPlanRunner(const RigidBodyTree<double>& tree)
       : tree_(tree), plan_number_(0) {
-    VerifyIiwaTree(tree);
     lcm_.subscribe(kLcmStatusChannel,
                     &RobotPlanRunner::HandleStatus, this);
     lcm_.subscribe(kLcmPlanChannel,
                     &RobotPlanRunner::HandlePlan, this);
+    this->num_positions_ = tree_.get_num_positions();
   }
 
   void Run() {
@@ -65,20 +66,20 @@ class RobotPlanRunner {
 
     // Initialize the timestamp to an invalid number so we can detect
     // the first message.
-    iiwa_status_.utime = cur_time_us;
+    est_robot_state_.utime = cur_time_us;
 
     lcmt_iiwa_command iiwa_command;
-    iiwa_command.num_joints = kNumJoints;
-    iiwa_command.joint_position.resize(kNumJoints, 0.);
+    iiwa_command.num_joints = this->num_positions_;
+    iiwa_command.joint_position.resize(this->num_positions_, 0.);
     iiwa_command.num_torques = 0;
-    iiwa_command.joint_torque.resize(kNumJoints, 0.);
+    iiwa_command.joint_torque.resize(this->num_positions_, 0.);
 
     while (true) {
       // Call lcm handle until at least one status message is
       // processed.
-      while (0 == lcm_.handleTimeout(10) || iiwa_status_.utime == -1) { }
+      while (0 == lcm_.handleTimeout(10) || est_robot_state_.utime == -1) { }
 
-      cur_time_us = iiwa_status_.utime;
+      cur_time_us = est_robot_state_.utime;
 
       if (plan_) {
         if (plan_number_ != cur_plan_number) {
@@ -91,9 +92,9 @@ class RobotPlanRunner {
             static_cast<double>(cur_time_us - start_time_us) / 1e6;
         const auto desired_next = plan_->value(cur_traj_time_s);
 
-        iiwa_command.utime = iiwa_status_.utime;
+        iiwa_command.utime = est_robot_state_.utime;
 
-        for (int joint = 0; joint < kNumJoints; joint++) {
+        for (int joint = 0; joint < this->num_positions_; joint++) {
           iiwa_command.joint_position[joint] = desired_next(joint);
         }
 
@@ -104,21 +105,21 @@ class RobotPlanRunner {
 
  private:
   void HandleStatus(const lcm::ReceiveBuffer*, const std::string&,
-                    const lcmt_iiwa_status* status) {
-    iiwa_status_ = *status;
+                    const bot_core::robot_state_t* status) {
+    this->est_robot_state_ = *status;
   }
 
   void HandlePlan(const lcm::ReceiveBuffer*, const std::string&,
                   const robotlocomotion::robot_plan_t* plan) {
     std::cout << "New plan received." << std::endl;
-    if (iiwa_status_.utime == -1) {
+    if (est_robot_state_.utime == -1) {
       std::cout << "Discarding plan, no status message received yet"
                 << std::endl;
       return;
     }
 
     std::vector<Eigen::MatrixXd> knots(plan->num_states,
-                                       Eigen::MatrixXd::Zero(kNumJoints, 1));
+                                       Eigen::MatrixXd::Zero(this->num_positions_, 1));
     std::map<std::string, int> name_to_idx =
         tree_.computePositionNameToIndexMap();
     for (int i = 0; i < plan->num_states; ++i) {
@@ -131,9 +132,9 @@ class RobotPlanRunner {
         if (i == 0) {
           // Always start moving from the position which we're
           // currently commanding.
-          DRAKE_DEMAND(iiwa_status_.utime != -1);
+          DRAKE_DEMAND(est_robot_state_.utime != -1);
           knots[0](name_to_idx[state.joint_name[j]], 0) =
-              iiwa_status_.joint_position_commanded[j];
+              est_robot_state_.joint_position[j];
         } else {
           knots[i](name_to_idx[state.joint_name[j]], 0) =
               state.joint_position[j];
@@ -149,7 +150,7 @@ class RobotPlanRunner {
     for (int k = 0; k < static_cast<int>(plan->plan.size()); ++k) {
       input_time.push_back(plan->plan[k].utime / 1e6);
     }
-    const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(kNumJoints, 1);
+    const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(this->num_positions_, 1);
     plan_.reset(new PiecewisePolynomialTrajectory(
         PiecewisePolynomial<double>::Cubic(input_time, knots,
                                            knot_dot, knot_dot)));
@@ -158,16 +159,18 @@ class RobotPlanRunner {
 
   lcm::LCM lcm_;
   const RigidBodyTree<double>& tree_;
+  int num_positions_;
   int plan_number_{};
   std::unique_ptr<PiecewisePolynomialTrajectory> plan_;
   lcmt_iiwa_status iiwa_status_;
+  bot_core::robot_state_t est_robot_state_;
 };
 
 int do_main() {
   auto tree = std::make_unique<RigidBodyTree<double>>();
-  parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
-      GetDrakePath() + "/manipulation/models/iiwa_description/urdf/"
-          "iiwa14_primitive_collision.urdf",
+  std::string spartan_source_dir = std::getenv("SPARTAN_SOURCE_DIR");
+  std::string urdf_file = spartan_source_dir + "/models/ur10/ur10_description/ur10_robot_no_collision.urdf";
+  parsers::urdf::AddModelInstanceFromUrdfFileToWorld(urdf_file,
       multibody::joints::kFixed, tree.get());
 
   RobotPlanRunner runner(*tree);
@@ -176,11 +179,10 @@ int do_main() {
 }
 
 }  // namespace
-}  // namespace kuka_iiwa_arm
-}  // namespace examples
-}  // namespace drake
+}  // namespace control
+}  // namespace spartan
 
 
 int main() {
-  return drake::examples::kuka_iiwa_arm::do_main();
+  return spartan::control::do_main();
 }
