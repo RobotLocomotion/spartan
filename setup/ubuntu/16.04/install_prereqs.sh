@@ -4,7 +4,7 @@ set -e -x -u
 apt install \
   build-essential \
   cmake \
-  libboost-dev \
+  libboost-all-dev \
   libopenni2-dev \
   libopencv-dev \
   libqhull-dev \
