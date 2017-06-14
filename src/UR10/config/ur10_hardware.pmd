@@ -4,7 +4,7 @@ group "0.ur10-driver" {
     host = "localhost";
   }
   cmd "1.ros-interface" {
-    exec = "python $SPARTAN_SOURCE_DIR/src/UR10/src/ur10_ros_interface.py";
+    exec = "python $SPARTAN_SOURCE_DIR/src/UR10/src/python/control/ur10_ros_interface.py";
     host = "localhost";
   }
 }
