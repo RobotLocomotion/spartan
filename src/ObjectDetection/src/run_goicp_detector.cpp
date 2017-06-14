@@ -79,46 +79,37 @@ int main(int argc, char** argv) {
   srand(0);
 
   if (argc < 3){
-    printf("Use: run_goicp_detector <problem description yaml> <config file> <optional output_file>\n");
+    printf("Use: run_goicp_detector <scene cloud, vtp> <model cloud, vtp> <config file> <optional output_file>\n");
     exit(-1);
   }
+
+  string sceneFile = string(argv[1]);
+  string modelFile = string(argv[2]);
+  string configFile = string(argv[3]);
+  string outputFile = argc > 3 ? string(argv[4]) : "";
 
   time_t _tm =time(NULL );
   struct tm * curtime = localtime ( &_tm );
   cout << "***************************" << endl;
   cout << "***************************" << endl;
   cout << "GoICP Object Pose Estimator" << asctime(curtime);
-  cout << "Problem description file " << string(argv[1]) << endl;
-  cout << "Config file " << string(argv[2]) << endl;
+  cout << "Scene file " << sceneFile << endl;
+  cout << "Model file " << modelFile << endl;
+  cout << "Config file " << configFile << endl;
   if (argc > 3)
-    cout << "Output file " << string(argv[3]) << endl;
+    cout << "Output file " << outputFile << endl;
   cout << "***************************" << endl << endl;
 
   // Bring in config file
-  string problemDescriptionFile = string(argv[1]);
-  string configurationFile = string(argv[2]);
-  YAML::Node problem = YAML::LoadFile(problemDescriptionFile);
-  YAML::Node config = YAML::LoadFile(configurationFile);
+  YAML::Node config = YAML::LoadFile(configFile);
 
   if (config["detector_options"] == NULL){
     runtime_error("Need detector options.");
   }
-
-  // Set up model
-  if (problem["models"] == NULL){
-    runtime_error("Model must be specified.");
-  }
-
   auto goicp_config = config["detector_options"];
 
-  // Model is a collection of VTK VTPs
-  if (problem["models"].size() > 1){
-    printf("GoICP only supports a single model, and you supplied %lu!\n", problem["models"].size());
-    exit(-1);
-  }
-
   // Read in the model.
-  vtkSmartPointer<vtkPolyData> modelPolyData = ReadPolyData(problem["models"][0]["filename"].as<string>().c_str());
+  vtkSmartPointer<vtkPolyData> modelPolyData = ReadPolyData(modelFile.c_str());
 
   // Sample points over its surface
   double bounds[6];
@@ -134,7 +125,7 @@ int main(int argc, char** argv) {
   sample->SetDistance(0.01); // TODO(gizatt): May ultimately need to sample more finely
   sample->Update();  
   vtkSmartPointer<vtkPolyData> modelPolyDataSampled = sample->GetOutput();
-  cout << "Loaded " << modelPolyDataSampled->GetNumberOfPoints() << " points from " << problem["models"][0]["filename"].as<string>() << endl;
+  cout << "Loaded " << modelPolyDataSampled->GetNumberOfPoints() << " points from " << modelFile << endl;
   Matrix3Xd model_pts_in(3, modelPolyDataSampled->GetNumberOfPoints());
   for (int i=0; i<modelPolyDataSampled->GetNumberOfPoints(); i++){
     model_pts_in(0, i) = modelPolyDataSampled->GetPoint(i)[0];
@@ -161,8 +152,8 @@ int main(int argc, char** argv) {
 
 
   // Load in the scene cloud
-  vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(problem["points"].as<string>().c_str());
-  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << problem["points"].as<string>() << endl;
+  vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(sceneFile.c_str());
+  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << sceneFile << endl;
   Matrix3Xd scene_pts_in(3, cloudPolyData->GetNumberOfPoints());
   for (int i=0; i<cloudPolyData->GetNumberOfPoints(); i++){
     scene_pts_in(0, i) = cloudPolyData->GetPoint(i)[0];
@@ -223,6 +214,12 @@ int main(int argc, char** argv) {
   }
 
 
+  // Shift centroids to origin
+  Vector3d scenePtAvg = scene_pts.rowwise().mean();
+  Vector3d modelPtAvg = model_pts.rowwise().mean();
+  scene_pts.colwise() -= scenePtAvg;
+  model_pts.colwise() -= modelPtAvg;
+
   // Load model and data point clouds into GoICP
   double max_abs_coeff = fmax(
       fmax(fabs(model_pts.minCoeff()), fabs(model_pts.maxCoeff())),
@@ -231,6 +228,12 @@ int main(int argc, char** argv) {
   printf("Max abs coeff %f\n", max_abs_coeff);
   scene_pts /= (2.0*max_abs_coeff);
   model_pts /= (2.0*max_abs_coeff);
+
+/*
+  rm.publishPointCloud(scene_pts, {"scene_pts_downsampled_rescaled"}, {{0.0, 1.0, 0.0}});
+  //rm.publishPointCloud(model_pts_in, {"model_pts"}, {{0.1, 1.0, 1.0}});
+  rm.publishPointCloud(model_pts, {"model_pts_downsampled_rescaled"}, {{1.0, 0.0, 0.0}});
+*/
 
   vector<POINT3D> pModel, pData;
   for (int i=0; i<scene_pts.cols(); i++){
@@ -286,6 +289,10 @@ int main(int argc, char** argv) {
   // Un-scale the point clouds
   scene_pts *= 2.0*max_abs_coeff;
   model_pts *= 2.0*max_abs_coeff;
+
+  // And un-center them
+  scene_pts.colwise() += scenePtAvg;
+  model_pts.colwise() += modelPtAvg;
 
   // Publish the transformed scene point cloud (I'm transforming the scene because
   // the model is usually better centered )
