@@ -1,8 +1,4 @@
-find_package(PythonLibs REQUIRED)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/../../cmake/modules")
-set(PYDRAKE_INSTALL_DIR lib/python2.7/dist-packages/pydrake)
-
-find_package(pybind11)
 
 # find packages that don't work with normal find_package
 find_package(Drake MODULE REQUIRED)
@@ -35,7 +31,3 @@ install(TARGETS rescale_trajectory
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib)
 
-pybind11_add_module(py_rescale py_rescale.cc)
-target_link_libraries(py_rescale PRIVATE ${EIGEN_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS} ${DRAKE_LIBRARIES})
-#target_compile_options(_py_rescale PRIVATE "-fvisibility=default")
-install(TARGETS py_rescale DESTINATION /usr/local/lib/python2.7/dist-packages/)
