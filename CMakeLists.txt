@@ -112,16 +112,6 @@ ExternalProject_Add(spartan_lcmtypes
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 )
 
-ExternalProject_Add(control
-  SOURCE_DIR ${source_dir}/src/control
-  BINARY_DIR ${build_dir}/control
-  BUILD_ALWAYS 1
-  CMAKE_CACHE_ARGS
-    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
-    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-  DEPENDS drake
-)
-
 ExternalProject_Add(RemoteTreeViewer
   SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
   BINARY_DIR ${build_dir}/RemoteTreeViewer
@@ -134,8 +124,8 @@ ExternalProject_Add(RemoteTreeViewer
 
 if (BUILD_GYGES)
   ExternalProject_Add(GYGES
-    SOURCE_DIR ${source_dir}/src/GYGES
-    BINARY_DIR ${build_dir}/GYGES
+    SOURCE_DIR ${source_dir}/src/Gyges
+    BINARY_DIR ${build_dir}/Gyges
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
