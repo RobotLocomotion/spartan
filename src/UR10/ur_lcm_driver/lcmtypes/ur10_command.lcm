@@ -1,0 +1,8 @@
+package urdriver;
+
+struct ur10_command_t
+{
+    int32_t num_joints;
+    double p[num_joints];
+    int32_t keepalive;
+}
