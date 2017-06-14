@@ -52,33 +52,31 @@ foreach(varName ${_library_var_names})
 endforeach()
 
 
-# find some extra external libraries that are usually targeted by drake
-find_package(Eigen3)
-find_package(bot2-core)
-find_package(yaml-cpp)
-find_package(lcm)
-find_package(robotlocomotion-lcmtypes)
+
 
 set(DRAKE_INCLUDE_DIRS
   ${DRAKE_INCLUDE_DIR}
 )
 
-#set(DRAKE_EXTERNAL_LIBRARIES)
-#list(APPEND DRAKE_EXTERNAL_LIBRARIES "Eigen3::Eigen")
+
+# find some extra external libraries that are usually targeted by drake
+find_package(Eigen3)
+find_package(bot2-core) # this isn't a library so don't put it in DRAKE_EXTERNAL_LIBRARIES
+find_package(yaml-cpp)
+find_package(lcm)
+find_package(robotlocomotion-lcmtypes)
+
+set(DRAKE_EXTERNAL_LIBRARIES)
+list(APPEND DRAKE_EXTERNAL_LIBRARIES "Eigen3::Eigen")
+list(APPEND DRAKE_EXTERNAL_LIBRARIES "yaml-cpp")
+list(APPEND DRAKE_EXTERNAL_LIBRARIES "lcm")
+list(APPEND DRAKE_EXTERNAL_LIBRARIES "robotlocomotion-lcmtypes")
 
 
 # this is where the drake lcmtypes live
 list(APPEND DRAKE_INCLUDE_DIRS "${DRAKE_INCLUDE_DIR}/lcmtypes")
 
-# find drake's eigen3
-find_package(Eigen3)
-if(NOT Eige3_FOUND)
-  message("couldn't find Eigen3")
-endif()
-
-#list(APPEND DRAKE_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
-
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Drake DEFAULT_MSG DRAKE_INCLUDE_DIR ${_library_var_names})
-mark_as_advanced(DRAKE_INCLUDE_DIR ${_library_var_names})
+mark_as_advanced(DRAKE_INCLUDE_DIR DRAKE_EXTERNAL_LIBRARIES ${_library_var_names})
