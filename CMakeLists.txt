@@ -27,6 +27,7 @@ configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environm
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_DRIVERS "Build the hardware lcm driver." OFF)
 option(USE_SYSTEM_VTK "Use system VTK for drake and director." ON)
+option(BUILD_UR10 "Build the UR10 external project" OFF)
 
 
 # Setup external projects
@@ -112,6 +113,17 @@ ExternalProject_Add(RemoteTreeViewer
   DEPENDS drake
 )
 
+if (BUILD_UR10)
+  ExternalProject_Add(UR10
+    SOURCE_DIR ${source_dir}/src/UR10
+    BINARY_DIR ${build_dir}/UR10
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+    DEPENDS drake
+  )
+endif()
 
 
 if (OFF)
