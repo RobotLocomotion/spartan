@@ -18,22 +18,22 @@ import vtk
 if __name__ == '__main__':
 
     filename = sys.argv[1]
-    gridsize = float(sys.argv[2])
+    outputFilename = sys.argv[2]
+    gridsize = float(sys.argv[3])
 
-    if len(sys.argv) == 9:
-        nx = float(sys.argv[3])
-        px = float(sys.argv[4])
-        ny = float(sys.argv[5])
-        py = float(sys.argv[6])
-        nz = float(sys.argv[7])
-        pz = float(sys.argv[8])
-
+    if len(sys.argv) == 10:
+        nx = float(sys.argv[4])
+        px = float(sys.argv[5])
+        ny = float(sys.argv[6])
+        py = float(sys.argv[7])
+        nz = float(sys.argv[8])
+        pz = float(sys.argv[9])
 
     polyData = ioUtils.readPolyData(filename)
 
     print 'input polydata has ', polyData.GetNumberOfPoints(), ' points and bounds ', polyData.GetBounds()
 
-    if len(sys.argv) == 9:
+    if len(sys.argv) == 10:
         polyData = segmentation.cropToBounds(polyData, vtk.vtkTransform(), [[nx,px],[ny,py],[nz,pz]])
 
     sampler = vtk.vtkPolyDataPointSampler()
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     print 'downsampled at gridsize ', gridsize, ' to get ', output_data.GetNumberOfPoints(), ' points'
 
-    outputFilename = os.path.splitext(filename)[0] + '_' + str(output_data.GetNumberOfPoints()) + 'pts.vtp'
+    #outputFilename = os.path.splitext(filename)[0] + '_' + str(output_data.GetNumberOfPoints()) + 'pts.vtp'
 
     print 'writing:', outputFilename, 
     ioUtils.writePolyData(output_data, outputFilename)
