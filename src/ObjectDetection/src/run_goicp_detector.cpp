@@ -264,10 +264,22 @@ int main(int argc, char** argv) {
     pModel.push_back(new_pt);
   }
 
-  goicp.pModel = pModel.data();
-  goicp.Nm = pModel.size();
-  goicp.pData = pData.data();
-  goicp.Nd = pData.size();
+  // Flip scene and model so "data" is the smaller cloud
+  // (to take advantage of the constant-time factor for
+  // the model cloud)
+  bool flipped = false;
+  if (pModel.size() > pData.size()){
+    goicp.pModel = pModel.data();
+    goicp.Nm = pModel.size();
+    goicp.pData = pData.data();
+    goicp.Nd = pData.size();
+  } else {
+    goicp.pModel = pData.data();
+    goicp.Nm = pData.size();
+    goicp.pData = pModel.data();
+    goicp.Nd = pModel.size();
+    flipped = true;
+  }
 
   cout << "Building Distance Transform, " << goicp.Nm << " vs " << goicp.Nd << "..." << flush;
   clock_t clockBegin = clock();
@@ -304,6 +316,13 @@ int main(int argc, char** argv) {
       est_tf.matrix()(i, j) = goicp.optR.val[i][j];
     }
   }
+  if (flipped) {
+    est_tf.translation() += (scenePtAvg - est_tf.rotation() * modelPtAvg);
+    est_tf = est_tf.inverse();
+  } else {
+    est_tf.translation() += (modelPtAvg - est_tf.rotation() * scenePtAvg);
+  }
+
   cout << "Est tf " << est_tf.matrix() << endl;
   cout << "Est tf inv" << est_tf.inverse().matrix() << endl;
   rm.publishPointCloud(est_tf * scene_pts, {"scene_pts_tf"}, {{0.5, 0.5, 1.0}});
