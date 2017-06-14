@@ -64,74 +64,24 @@ int main(int argc, char** argv) {
   }
   auto goicp_config = config["detector_options"];
 
-  // Read in the model.
+    // Read in the model.
   vtkSmartPointer<vtkPolyData> modelPolyData = ReadPolyData(modelFile.c_str());
-
-  // Sample points over its surface
-  double bounds[6];
-  modelPolyData->GetBounds(bounds);
-  double range[3];
-  for (int i = 0; i < 3; ++i)
-  {
-    range[i] = bounds[2*i + 1] - bounds[2*i];
+  cout << "Loaded " << modelPolyData->GetNumberOfPoints() << " points from " << modelFile << endl;
+  Matrix3Xd model_pts(3, modelPolyData->GetNumberOfPoints());
+  for (int i=0; i<modelPolyData->GetNumberOfPoints(); i++){
+    model_pts(0, i) = modelPolyData->GetPoint(i)[0];
+    model_pts(1, i) = modelPolyData->GetPoint(i)[1];
+    model_pts(2, i) = modelPolyData->GetPoint(i)[2];
   }
-  vtkSmartPointer<vtkPolyDataPointSampler> sample =
-    vtkSmartPointer<vtkPolyDataPointSampler>::New();
-  sample->SetInput(modelPolyData);
-  sample->SetDistance(0.01); // TODO(gizatt): May ultimately need to sample more finely
-  sample->Update();  
-  vtkSmartPointer<vtkPolyData> modelPolyDataSampled = sample->GetOutput();
-  cout << "Loaded " << modelPolyDataSampled->GetNumberOfPoints() << " points from " << modelFile << endl;
-  Matrix3Xd model_pts_in(3, modelPolyDataSampled->GetNumberOfPoints());
-  for (int i=0; i<modelPolyDataSampled->GetNumberOfPoints(); i++){
-    model_pts_in(0, i) = modelPolyDataSampled->GetPoint(i)[0];
-    model_pts_in(1, i) = modelPolyDataSampled->GetPoint(i)[1];
-    model_pts_in(2, i) = modelPolyDataSampled->GetPoint(i)[2];
-  }
-
-  // Pull model points from that pointcloud
-  Matrix3Xd model_pts;
-  srand(0);
-  if (!goicp_config["downsample_to_this_many_model_points"]) {
-    model_pts = model_pts_in;
-  } else {
-    int optDownsampleToThisManyPoints = goicp_config["downsample_to_this_many_model_points"].as<int>();
-    model_pts.resize(3, optDownsampleToThisManyPoints);
-    VectorXi indices = VectorXi::LinSpaced(model_pts_in.cols(), 0, model_pts_in.cols());
-    // always seed this the same way
-    srand(0);
-    std::random_shuffle(indices.data(), indices.data() + model_pts_in.cols());
-    for (int i = 0; i < optDownsampleToThisManyPoints; i++) {
-      model_pts.col(i) = model_pts_in.col(indices[i]);
-    }
-  }
-
 
   // Load in the scene cloud
   vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(sceneFile.c_str());
   cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << sceneFile << endl;
-  Matrix3Xd scene_pts_in(3, cloudPolyData->GetNumberOfPoints());
+  Matrix3Xd scene_pts(3, cloudPolyData->GetNumberOfPoints());
   for (int i=0; i<cloudPolyData->GetNumberOfPoints(); i++){
-    scene_pts_in(0, i) = cloudPolyData->GetPoint(i)[0];
-    scene_pts_in(1, i) = cloudPolyData->GetPoint(i)[1];
-    scene_pts_in(2, i) = cloudPolyData->GetPoint(i)[2];
-  }
-
-  // Downsample scene cloud to the requested # of points.
-  Matrix3Xd scene_pts;
-  srand(0);
-  if (!goicp_config["downsample_to_this_many_scene_points"]) {
-    scene_pts = scene_pts_in;
-  } else {
-    int optDownsampleToThisManyPoints = goicp_config["downsample_to_this_many_scene_points"].as<int>();
-    scene_pts.resize(3, optDownsampleToThisManyPoints);
-    VectorXi indices = VectorXi::LinSpaced(scene_pts_in.cols(), 0, scene_pts_in.cols());
-    // always seed this the same way
-    srand(0);
-    std::random_shuffle(indices.data(), indices.data() + scene_pts_in.cols());
-    for (int i = 0; i < optDownsampleToThisManyPoints; i++) {
-      scene_pts.col(i) = scene_pts_in.col(indices[i]);
-    }    
+    scene_pts(0, i) = cloudPolyData->GetPoint(i)[0];
+    scene_pts(1, i) = cloudPolyData->GetPoint(i)[1];
+    scene_pts(2, i) = cloudPolyData->GetPoint(i)[2];
   }
 
 
