@@ -104,7 +104,7 @@ ExternalProject_Add(ContactParticleFilter
 )
 
 ExternalProject_Add(spartan_lcmtypes
-  SOURCE_DIR ${source_dir}/src/spartan_lcmtypes
+  SOURCE_DIR ${source_dir}/spartan_lcmtypes
   BINARY_DIR ${build_dir}/spartan_lcmtypes
   BUILD_ALWAYS 1
   CMAKE_CACHE_ARGS
@@ -140,7 +140,7 @@ if (BUILD_UR10)
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-    DEPENDS drake
+    DEPENDS drake spartan_lcmtypes
   )
 endif()
 
