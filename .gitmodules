@@ -7,9 +7,9 @@
 [submodule "signal-scope"]
 	path = signal-scope
 	url = https://github.com/openhumanoids/signal-scope.git
-[submodule "Gyges"]
-	path = src/Gyges
-	url = https://github.com/manuelli/Gyges.git
 [submodule "src/ObjectDetection/data"]
 	path = src/ObjectDetection/data
 	url = https://github.com/gizatt/object_detection_test_data
+[submodule "src/Gyges"]
+	path = src/Gyges
+	url = git@github.com:manuelli/Gyges.git
