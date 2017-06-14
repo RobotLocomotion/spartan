@@ -102,6 +102,16 @@ ExternalProject_Add(ContactParticleFilter
   DEPENDS drake
 )
 
+ExternalProject_Add(control
+  SOURCE_DIR ${source_dir}/src/control
+  BINARY_DIR ${build_dir}/control
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+  DEPENDS drake
+)
+
 ExternalProject_Add(RemoteTreeViewer
   SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
   BINARY_DIR ${build_dir}/RemoteTreeViewer
