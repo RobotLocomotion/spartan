@@ -24,7 +24,7 @@ detector_options:
     transWidth: 1.0
 
     # Set to 0.0 for no trimming
-    trimFraction: 0.0
+    trimFraction: 0.5
 
     # Nodes per dimension of distance transform
     distTransSize: 300
