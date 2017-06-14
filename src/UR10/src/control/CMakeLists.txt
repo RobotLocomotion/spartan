@@ -13,7 +13,7 @@ find_package(Drake MODULE REQUIRED)
 #message("DRAKE_INCLUDE_DIRS = ${DRAKE_INCLUDE_DIRS}")
 
 
-add_executable(plan_runner plan_runner.cc)
+add_executable(plan_runner ur10_plan_runner.cc)
 target_link_libraries(plan_runner
     ${DRAKE_LIBRARIES}
     ${DRAKE_EXTERNAL_LIBRARIES}
