@@ -1,5 +1,5 @@
 #!/bin/bash
 
 
-directorPython $SPARTAN_SOURCE_DIR/src/UR10/src/ur10App.py --bot-config $SPARTAN_SOURCE_DIR/apps/ur10/ur10Manip.cfg --director-config $SPARTAN_SOURCE_DIR/models/ur10/director/director_config_ur10_half.json
+directorPython $$SPARTAN_SOURCE_DIR/src/UR10/python/director/ur10App.py --bot-config $SPARTAN_SOURCE_DIR/apps/ur10/ur10Manip.cfg --director-config $SPARTAN_SOURCE_DIR/models/ur10/director/director_config_ur10_half.json
 
