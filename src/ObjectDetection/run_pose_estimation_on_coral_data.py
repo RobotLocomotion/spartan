@@ -20,10 +20,10 @@ MODELS_ROOT_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/'
 DETECTORS_CONFIG_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/config'
 WORK_DIR_NAME = "pose_est_pipeline"
 
-scene_resample_spacing = 0.005
-scene_crop_width = 0.25
+scene_resample_spacing = 0.01
+scene_crop_width = 0.5
 
-model_resample_spacing = 0.005
+model_resample_spacing = 0.02
 
 if __name__ == "__main__":
    
