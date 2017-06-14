@@ -23,9 +23,11 @@ find_drake_library(DRAKE_JOINTS_LIBRARY drakeJoints "Drake Joints library")
 find_drake_library(DRAKE_SHAPES_LIBRARY drakeShapes "Drake Shapes library")
 find_drake_library(DRAKE_CHULL_LIBRARY drakeConvexHull "Drake Convex Hull library")
 find_drake_library(DRAKE_GEOMETRYUTIL_LIBRARY drakeGeometryUtil "Drake Geometry Util library")
+find_drake_library(DRAKE_KUKA_IIWA_ARM_COMMON_LIBRARY drakeKukaIiwaArmCommon "Drake KukaIiwaArmCommon library")
 find_drake_library(DRAKE_LCM_LIBRARY drakeLcm "Drake lcm library")
 find_drake_library(DRAKE_LCMUTIL_LIBRARY drakeLCMUtil "Drake LCM Util library")
 find_drake_library(DRAKE_LCMTYPES_LIBRARY drake_lcmtypes "Drake LCM Types library")
+find_drake_library(DRAKE_TRAJECTORIES_LIBRARY drakeTrajectories "Drake Trajectory library")
 find_drake_library(DRAKE_YAMLUTIL_LIBRARY drakeYAMLUtil "Drake YAML utilities library")
 
 
@@ -49,12 +51,33 @@ foreach(varName ${_library_var_names})
   list(APPEND DRAKE_LIBRARIES ${${varName}})
 endforeach()
 
+
+# find some extra external libraries that are usually targeted by drake
+find_package(Eigen3)
+find_package(bot2-core)
+find_package(yaml-cpp)
+find_package(lcm)
+find_package(robotlocomotion-lcmtypes)
+
 set(DRAKE_INCLUDE_DIRS
   ${DRAKE_INCLUDE_DIR}
 )
 
+#set(DRAKE_EXTERNAL_LIBRARIES)
+#list(APPEND DRAKE_EXTERNAL_LIBRARIES "Eigen3::Eigen")
+
+
 # this is where the drake lcmtypes live
 list(APPEND DRAKE_INCLUDE_DIRS "${DRAKE_INCLUDE_DIR}/lcmtypes")
+
+# find drake's eigen3
+find_package(Eigen3)
+if(NOT Eige3_FOUND)
+  message("couldn't find Eigen3")
+endif()
+
+#list(APPEND DRAKE_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
+
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Drake DEFAULT_MSG DRAKE_INCLUDE_DIR ${_library_var_names})
