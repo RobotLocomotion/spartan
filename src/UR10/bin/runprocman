@@ -1,0 +1,3 @@
+#!/bin/bash
+
+bot-procman-sheriff -l $SPARTAN_SOURCE_DIR/src/UR10/config/ur10_hardware.pmd

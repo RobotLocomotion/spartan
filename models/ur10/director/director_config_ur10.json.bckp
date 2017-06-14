@@ -1,0 +1,73 @@
+{
+  "modelName" : "ur10",
+  "urdfConfig": {
+    "default":    "../../ur10/ur10_description/ur10_robot.urdf",
+    "robotState": "../../ur10/ur10_description/ur10_robot.urdf",
+    "ik":         "../../ur10/ur10_description/ur10_robot.urdf",
+    "chull":      "../../ur10/ur10_description/ur10_robot.urdf",
+    "playback":   "../../ur10/ur10_description/ur10_robot.urdf",
+    "teleop":     "../../ur10/ur10_description/ur10_robot.urdf"
+  },
+
+  "teleopJointGroups" : [
+    { "name" : "Left Arm",
+      "joints" : [
+        "shoulder_pan_joint",
+        "shoulder_lift_joint",
+        "elbow_joint",
+        "wrist_1_joint",
+        "wrist_2_joint",
+        "wrist_3_joint"
+        ],
+      "labels" : ["1", "2", "3", "4", "5", "6"]
+    }
+  ],
+
+  "drakeJointNames": [
+    "base_x",
+    "base_y",
+    "base_z",
+    "base_roll",
+    "base_pitch",
+    "base_yaw",
+    "shoulder_pan_joint",
+    "shoulder_lift_joint",
+    "elbow_joint",
+    "wrist_1_joint",
+    "wrist_2_joint",
+    "wrist_3_joint"
+  ],
+
+  "robotStateJointNames": [
+    "shoulder_pan_joint",
+    "shoulder_lift_joint",
+    "elbow_joint",
+    "wrist_1_joint",
+    "wrist_2_joint",
+    "wrist_3_joint"
+  ],
+
+  "planningMode" : "pydrake",
+  "fixedPointFile" : "nominal_pose.csv",
+  "postureDatabaseFile" : "stored_poses.json",
+
+  "handCombinations" : [
+    { "side" : "left",
+      "handType" : "left_schunk",
+      "handLinkName" : "ee_link",
+      "handUrdf" : "../../schunk_wsg50/schunk_description/urdf/wsg/wsg_50.urdf",
+      "handRootLink" : "eoat_arm",
+      "robotMountLink" : "eoat_arm",
+      "palmLink" : "eoat_arm"
+    }
+  ],
+
+  "userConfig" : ["fixedBaseArm"],
+
+  "endEffectorConfig" : {
+    "endEffectorLinkNames": ["ee_link"],
+    "graspOffsetFrame" : [[0.185,0.0,0], [-0.3926,0.0,0.0]],
+    "fixedJoints" : ["base_x","base_y","base_z","base_roll","base_pitch","base_yaw"]
+  }
+
+}

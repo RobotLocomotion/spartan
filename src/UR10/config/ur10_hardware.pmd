@@ -1,0 +1,45 @@
+group "0.ur10-driver" {
+  cmd "0.modern-driver" {
+    exec = "roslaunch $HOME/catkin_ws/src/ur_modern_driver/launch/ur10_bringup.launch robot_ip:=10.18.0.12";
+    host = "localhost";
+  }
+  cmd "1.ros-interface" {
+    exec = "python $SPARTAN_SOURCE_DIR/src/UR10/src/ur10_ros_interface.py";
+    host = "localhost";
+  }
+}
+
+group "1.control"{
+  cmd "0.plan_runner" {
+    exec = "$SPARTAN_BUILD_DIR/install/bin/plan_runner";
+    host = "localhost";
+  }
+}
+
+group "2.viewer" {
+  cmd "0.director" {
+    exec = "$SPARTAN_SOURCE_DIR/src/UR10/bin/run_base_ur10_half";
+    host = "localhost";
+  }
+
+  cmd "1.bot-spy" {
+    exec = "bot-spy";
+    host = "localhost";
+  }
+
+  cmd "2.signal-scope" {
+    exec = "signal-scope $SPARTAN_SOURCE_DIR/config/ur10/ur10_signal_scope.py";
+    host = "localhost";
+  }
+}
+
+script "1.robot_startup" {
+    start group "0.ur10-driver";
+    start group "1.director";
+}
+
+script "2.restart_controller" {
+    stop group "2.iiwa-drivers";
+    wait ms 2000;
+    start group "2.iiwa-drivers";
+}
