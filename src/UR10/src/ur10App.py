@@ -15,6 +15,8 @@ from director import vtkAll as vtk
 from director import affordancemanager
 import bot_core as lcmbotcore
 
+from spartan.utils import EstRobotStatePublisher
+
 import PythonQt
 from PythonQt import QtCore, QtGui
 
@@ -59,7 +61,7 @@ if __name__ == '__main__':
     
 
     # construct the app
-    fields = mainwindowapp.construct()
+    fields = mainwindowapp.construct() 
 
     packageMap = packagepath.PackageMap()
     packageMap.populateFromSearchPaths(os.path.join(os.environ['SPARTAN_SOURCE_DIR'], 'models'))
@@ -70,6 +72,20 @@ if __name__ == '__main__':
     fields.app.addWidgetToDock(robotSystem.teleopPanel.widget, QtCore.Qt.RightDockWidgetArea).hide()
     fields.app.addWidgetToDock(robotSystem.playbackPanel.widget, QtCore.Qt.BottomDockWidgetArea).hide()
     setupToolBar()
+
+    # note there are many different ikServers
+    plannerPub = robotSystem.ikPlanner.plannerPub
+    myObjects = dict()
+    myObjects['plannerPub'] = robotSystem.ikPlanner.plannerPub
+    ikServer = robotSystem.teleopPanel.ikPlanner.plannerPub.ikServer
+    myObjects['ikServer'] = ikServer
+
+    estRobotStatePublisher = EstRobotStatePublisher(robotSystem)
+    myObjects['estRobotStatePublisher'] = estRobotStatePublisher
+
+    pydrakeik.minPlanTime = 1.0
+
+    globals().update(**myObjects)
 
     # show the main window and start the app
     fields.app.start()
