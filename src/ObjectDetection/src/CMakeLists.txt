@@ -57,3 +57,8 @@ target_link_libraries(run_goicp_detector lcm RemoteTreeViewerWrapper point_cloud
 install(TARGETS run_goicp_detector DESTINATION bin)
 
 add_subdirectory(FastGlobalRegistration)
+
+add_executable(run_fgr_detector run_fgr_detector.cpp)
+target_link_libraries(run_fgr_detector FastGlobalRegistrationLib lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} z pthread)
+install(TARGETS run_fgr_detector DESTINATION bin)
+
