@@ -89,6 +89,8 @@ void RemoteTreeViewerWrapper::publishLine(const Matrix3Xd& pts, const vector<str
           {
             {"type", "line"},
             {"points", vector<vector<double>>()},
+            {"radius", 0.001},
+            {"head_radius", 0.0}
           }
         }
       }},
