@@ -15,7 +15,6 @@ from corl import utils as cutils
 import scipy.misc
 import matplotlib.cm as cm
 
-
 class RenderTrainingImages(object):
 
     def __init__(self, view, viewOptions, pathDict):
@@ -173,7 +172,8 @@ class RenderTrainingImages(object):
             self.objectToWorld[objName] = objToWorld
             obj.actor.SetUserTransform(objToWorld)
 
-    def setupImage(self, imageNumber, saveLabeledImages=False):
+    def setupImage(self, imageNumber, saveColorLabeledImages=False, saveLabeledImages=False, savePoses=False):
+
         """
         Loads the given imageNumber as background.
         Also updates the poses of the objects to match the image
@@ -195,18 +195,72 @@ class RenderTrainingImages(object):
         cameraPose = om.findObjectByName('camera pose')
         cameraPose.setProperty('Visible', False)
 
-        self.loadBackgroundImage(imageFilename)
-        self.view.forceRender() # render it again
+        if saveColorLabeledImages:
+            self.loadBackgroundImage(imageFilename)
+            #self.view.forceRender() # render it again
+            self.captureColorImage(baseName + '_color_labels.png')
 
         if saveLabeledImages:
-            self.saveImages(baseName)
+            self.captureLabelImage(baseName + '_labels.png')
+
+        if savePoses:
+            self.saveObjectPoses(imageFilename.replace("_rgb.png", "_labels.png"), cameraToCameraStart, baseName)
 
         return True
 
+    def saveObjectPoses(self, imageFilename, cameraToCameraStart, baseName):
+        # count pixels
+        img = scipy.misc.imread(imageFilename)
+        assert img.dtype == np.uint8
+        
+        if img.ndim in  (3, 4):
+            img = img[:,:,0]
+        else:
+            assert img.ndim == 2
 
+        labels, counts = np.unique(img, return_counts=True)
+        labelToCount = dict(zip(labels, counts))
+
+        num_pixels_per_class = np.array([])
+
+        for i in xrange(0, img.max()+1):
+            num_pixels = labelToCount.get(i, 0)
+            num_pixels_per_class = np.append(num_pixels_per_class, num_pixels)
+
+        pose_file_name = baseName + "_poses.yaml"
+        target = open(pose_file_name, 'w')
+        print 'writing:', pose_file_name
+
+        # iterate through each class with 1 or more pixel and save pose...
+        for index, val in enumerate(num_pixels_per_class):
+            if index == 0:
+                # don't save for background class
+                continue 
+            if val > 0:
+                cameraStartToCamera = cameraToCameraStart.GetLinearInverse()
+                objectName = cutils.getObjectName(index)
+                target.write(objectName + ":")
+                target.write("\n")
+                target.write("  label: " + str(index))
+                target.write("\n")
+                target.write("  num_pixels: " + str(val))
+                target.write("\n")
+                objToCameraStart = self.objectToWorld[objectName]
+                objToCamera = transformUtils.concatenateTransforms([objToCameraStart, cameraStartToCamera])
+                pose = transformUtils.poseFromTransform(objToCamera)
+                poseAsList = [pose[0].tolist(), pose[1].tolist()]
+                target.write("  pose: " + str(poseAsList))
+                target.write("\n")
+
+        target.close()
+                
     def renderAndSaveLabeledImages(self):
         imageNumber = 1
-        while(self.setupImage(imageNumber, saveLabeledImages=True)):
+        while(self.setupImage(imageNumber, saveColorLabeledImages=True, saveLabeledImages=False, savePoses=False)):
+            imageNumber += 1
+
+        imageNumber = 1
+        while(self.setupImage(imageNumber, saveColorLabeledImages=False, saveLabeledImages=True, savePoses=True)):
             imageNumber += 1
 
 

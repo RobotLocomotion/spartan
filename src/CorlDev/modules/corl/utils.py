@@ -178,7 +178,18 @@ def getObjectLabel(objectName):
 
     return objectData[objectName]['label']
 
+def getObjectName(objectLabel):
+    """
+    Returns the object label specified in object_data.yaml
+    :param objectLabel:
+    :return: objectName
+    """
+    for objectName in objectData:
+        if objectData[objectName]['label'] == objectLabel:
+            return objectName
 
+    raise ValueError('there is no data for objectLabel: ' + str(objectLabel))
+    
 def convertImageIDToPaddedString(n, numCharacters=10):
     """
     Converts the integer n to a padded string with leading zeros
