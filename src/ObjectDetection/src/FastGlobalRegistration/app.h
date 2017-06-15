@@ -33,10 +33,10 @@
 #include <Eigen/Geometry>
 
 #define DIV_FACTOR			1.4		// Division factor used for graduated non-convexity
-#define USE_ABSOLUTE_SCALE	0		// Measure distance in absolute scale (1) or in scale relative to the diameter of the model (0)
-#define MAX_CORR_DIST		0.025	// Maximum correspondence distance (also see comment of USE_ABSOLUTE_SCALE)
-#define ITERATION_NUMBER	64		// Maximum number of iteration
-#define TUPLE_SCALE			0.95	// Similarity measure used for tuples of feature points.
+#define USE_ABSOLUTE_SCALE	1		// Measure distance in absolute scale (1) or in scale relative to the diameter of the model (0)
+#define MAX_CORR_DIST		0.001	// Maximum correspondence distance (also see comment of USE_ABSOLUTE_SCALE)
+#define ITERATION_NUMBER	1000	// Maximum number of iteration
+#define TUPLE_SCALE			0.9 	// Similarity measure used for tuples of feature points.
 #define TUPLE_MAX_CNT		1000	// Maximum tuple numbers.
 
 

@@ -20,10 +20,10 @@ MODELS_ROOT_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/'
 DETECTORS_CONFIG_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/config'
 WORK_DIR_NAME = "pose_est_pipeline"
 
-scene_resample_spacing = 0.01
-scene_crop_width = 0.5
+scene_resample_spacing = 0.001
+scene_crop_width = 0.3
 
-model_resample_spacing = 0.02
+model_resample_spacing = 0.001
 
 if __name__ == "__main__":
    
@@ -70,9 +70,12 @@ if __name__ == "__main__":
     scene_py = float(gt_pose_yaml[model_name]["pose"][0][1]) + scene_crop_width / 2.
     scene_nz = float(gt_pose_yaml[model_name]["pose"][0][2]) - scene_crop_width / 2.
     scene_pz = float(gt_pose_yaml[model_name]["pose"][0][2]) + scene_crop_width / 2.
-    command = "directorPython scripts/resampleVtp.py %s/reconstructed_pointcloud.vtp  %s %f %f %f %f %f %f %f" % (
+    command = "directorPython scripts/resampleVtp.py %s/above_table_pointcloud.vtp  %s %f %f %f %f %f %f %f" % (
         data_dir, resampled_scene_file, scene_resample_spacing, scene_nx, scene_px, scene_ny, scene_py, scene_nz, scene_pz
-      )
+       )
+    #command = "directorPython scripts/resampleVtp.py %s/reconstructed_pointcloud.vtp  %s %f %f %f %f %f %f %f" % (
+    #    data_dir, resampled_scene_file, scene_resample_spacing, scene_nx, scene_px, scene_ny, scene_py, scene_nz, scene_pz
+    #  )
     print "\n", command
     os.system(command)
 
@@ -85,7 +88,11 @@ if __name__ == "__main__":
     os.system(command)
 
     # And finally invoke our pose est routine
-    command = "run_goicp_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
+    #command = "run_goicp_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
+    #    resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
+    #  )
+
+    command = "run_fgr_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
         resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
       )
     print "\n", command
