@@ -32,9 +32,8 @@ Director by running the following script::
     sudo ./setup/ubuntu/16.04/install_prereqs.sh
 
 
-Make sure your submodules are up to date.  The recommended command is::
-
-    git submodule update --init
+Make sure your submodules are up to date. From the top-level directory run::
+    scripts/bin/setup_submodules.sh
 
 You should avoid adding the ``--recursive`` flag to the git submodule command,
 since Drake will automatically manage its recursive submodules at build time.

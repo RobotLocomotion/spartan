@@ -26,7 +26,9 @@ configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environm
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_DRIVERS "Build the hardware lcm driver." OFF)
-option(WITH_ISSUE_5456_WORKAROUND "Workaround for RobotLocomotion/drake#5456: Configure but do not build ContactParticleFilter and RemoteTreeViewer" OFF)
+option(BUILD_GYGES "Build the GYGES external project" OFF)
+option(USE_SYSTEM_VTK "Use system VTK for drake and director." OFF)
+
 
 # Setup external projects
 include(ExternalProject)
@@ -52,6 +54,7 @@ ExternalProject_Add(drake
     -DWITH_FCL:BOOL=OFF
     -DWITH_SNOPT:BOOL=ON
     -DWITH_DIRECTOR:BOOL=OFF
+    -DUSE_SYSTEM_VTK:BOOL=${USE_SYSTEM_VTK}
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   INSTALL_COMMAND ""
@@ -69,6 +72,7 @@ ExternalProject_Add(director
     -DUSE_SYSTEM_EIGEN:BOOL=ON
     -DUSE_SYSTEM_LCM:BOOL=ON
     -DUSE_SYSTEM_LIBBOT:BOOL=ON
+    -DUSE_SYSTEM_VTK:BOOL=${USE_SYSTEM_VTK}
     -DUSE_PCL:BOOL=${WITH_PERCEPTION}
     -DUSE_APRILTAGS:BOOL=${WITH_PERCEPTION}
     -DUSE_KINECT:BOOL=${WITH_PERCEPTION}
@@ -99,6 +103,15 @@ ExternalProject_Add(ContactParticleFilter
   DEPENDS drake
 )
 
+ExternalProject_Add(spartan_lcmtypes
+  SOURCE_DIR ${source_dir}/spartan_lcmtypes
+  BINARY_DIR ${build_dir}/spartan_lcmtypes
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+)
+
 ExternalProject_Add(RemoteTreeViewer
   SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
   BINARY_DIR ${build_dir}/RemoteTreeViewer
@@ -109,12 +122,20 @@ ExternalProject_Add(RemoteTreeViewer
   DEPENDS drake
 )
 
-if (WITH_ISSUE_5456_WORKAROUND)
-  set_target_properties(RemoteTreeViewer PROPERTIES EXCLUDE_FROM_ALL TRUE)
+if (BUILD_GYGES)
+  ExternalProject_Add(GYGES
+    SOURCE_DIR ${source_dir}/src/Gyges
+    BINARY_DIR ${build_dir}/Gyges
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+    DEPENDS drake spartan_lcmtypes
+  )
 endif()
 
-if (WITH_PERCEPTION)
 
+if (OFF)
   ExternalProject_Add(ObjectDetection
     SOURCE_DIR ${source_dir}/src/ObjectDetection
     BINARY_DIR ${build_dir}/ObjectDetection
@@ -124,10 +145,6 @@ if (WITH_PERCEPTION)
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     DEPENDS drake director RemoteTreeViewer
   )
-
-  if (WITH_ISSUE_5456_WORKAROUND)
-    set_target_properties(ObjectDetection PROPERTIES EXCLUDE_FROM_ALL TRUE)
-  endif()
 
 endif()
 

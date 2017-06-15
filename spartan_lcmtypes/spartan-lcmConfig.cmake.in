@@ -1,0 +1,8 @@
+if(NOT lcm_DIR)
+  set(lcm_DIR @lcm_DIR@)
+endif()
+
+find_package(lcm REQUIRED)
+
+include(${CMAKE_CURRENT_LIST_DIR}/spartan-lcmTargets.cmake)
+@SPARTAN_LCM_INCLUDE_JAVA@
