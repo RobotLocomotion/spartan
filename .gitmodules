@@ -10,3 +10,6 @@
 [submodule "src/ObjectDetection/data"]
 	path = src/ObjectDetection/data
 	url = https://github.com/gizatt/object_detection_test_data
+[submodule "src/ObjectDetection/src/Super4PCS"]
+	path = src/ObjectDetection/src/Super4PCS
+	url = https://github.com/gizatt/Super4PCS
