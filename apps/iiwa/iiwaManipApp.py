@@ -303,7 +303,7 @@ if havePerceptionDrivers():
     #syncTimer.start()
 
 
-useCorlDev = False
+useCorlDev = True
 if useCorlDev:
 
     assert havePerceptionDrivers()

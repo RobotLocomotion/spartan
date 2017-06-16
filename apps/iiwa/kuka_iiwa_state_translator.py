@@ -40,8 +40,6 @@ class KukaIiwaStateTranslator(object):
 
     def onIiwaStatus(self, msg):
 
-        fingerHalfDist = lastGripperMsg.actual_position_mm * 1e-3 * 0.5
-
         armJointPositions = list(msg.joint_position_measured)
 
         jointPosition = armJointPositions + self.fingerJointPositions
