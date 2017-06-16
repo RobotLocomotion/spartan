@@ -13,3 +13,6 @@
 [submodule "src/Gyges"]
 	path = src/Gyges
 	url = git@github.com:manuelli/Gyges.git
+[submodule "src/ObjectDetection/src/Super4PCS"]
+	path = src/ObjectDetection/src/Super4PCS
+	url = https://github.com/gizatt/Super4PCS

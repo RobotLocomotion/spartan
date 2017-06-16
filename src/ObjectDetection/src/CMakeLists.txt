@@ -62,3 +62,18 @@ add_executable(run_fgr_detector run_fgr_detector.cpp)
 target_link_libraries(run_fgr_detector FastGlobalRegistrationLib lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} z pthread)
 install(TARGETS run_fgr_detector DESTINATION bin)
 
+
+include(ExternalProject)
+set_property(DIRECTORY PROPERTY EP_PREFIX ${CMAKE_BINARY_DIR})
+set(source_dir ${CMAKE_SOURCE_DIR})
+set(build_dir ${CMAKE_BINARY_DIR})
+
+ExternalProject_Add(Super4PCS
+SOURCE_DIR ${source_dir}/src/Super4PCS
+BINARY_DIR ${build_dir}/Super4PCS
+BUILD_ALWAYS 1
+CMAKE_CACHE_ARGS
+  -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+  -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+INSTALL_COMMAND ""
+)
