@@ -11,9 +11,9 @@ import yaml
 import sys
 
 
-OBJECTS_TO_FILTER         = ['drill']
-MAX_PER_SCENE             = 10
-DOWNSAMPLE_RATE           = 100    # specify in Hz, 30 Hz is sensor rate
+OBJECTS_TO_FILTER         = []
+MAX_PER_SCENE             = 400
+DOWNSAMPLE_RATE           = 10    # specify in Hz, 30 Hz is sensor rate
 
 
 list_specific = None
@@ -106,11 +106,10 @@ def crawlDirectories(path_to_data, path_to_output):
                 path_after_data =  os.path.relpath(fullpath, path_to_data)
                 objects = recordObjects(os.path.join(fullpath, "registration_result.yaml"))
                 
-                for object_to_filer in OBJECTS_TO_FILTER:
-                    if object_to_filer in objects:
-                        #print "found", object_to_filer, "in", fullpath
-                        print dir
-                        addToDatasetList(fullpath+"/resized_images/", target)
+                #for object_to_filer in OBJECTS_TO_FILTER:
+                #    if object_to_filer in objects:
+                #        print "found", object_to_filer, "in", fullpath
+                addToDatasetList(fullpath+"/resized_images/", target)
 
             break # don't want recursive walk
 
