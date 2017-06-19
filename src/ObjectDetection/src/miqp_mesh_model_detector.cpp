@@ -495,6 +495,7 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
 }
 
 void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out){
+  // Do any requested downsampling of the scene cloud.
   if (optDownsampleToThisManyPoints_ < 0) {
     scene_pts_out = scene_pts_in;
   } else {
@@ -510,8 +511,9 @@ void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matri
       scene_pts_out.col(i) = scene_pts_in.col(indices[i]);
     }    
   }
+
   // And then, on top of that, completely corrupt some points to random noise 
-  // on [-1, 1]
+  // on [-1, 1] to simulate outliers.
   if (optNumOutliers_ > 0){
     if (optScenePointRandSeed_ < 0)
       srand(time(NULL));
@@ -1147,7 +1149,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     + (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[2].col(i))(0, 0)
     + f_outlier_(i)*optPhiMax_);
 
-    printf("WARNING, UNSURE THAT THIS WORKS FOR MULTIPLE BODIES ANY MORE. CONVEX HULL REFORM HALF DONE...\n");
+    if (i == 0) printf("WARNING, UNSURE THAT THIS WORKS FOR MULTIPLE BODIES ANY MORE. CONVEX HULL REFORM HALF DONE...\n");
     for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
       // Similar logic here -- solutions will always bind in a lower bound,
       // which we've constrained >= 0 above, and can't do any better than.
