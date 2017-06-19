@@ -13,6 +13,7 @@
 #include "drake/multibody/parsers/urdf_parser.h"
 
 #include "common/common.hpp"
+#include "common/common_vtk.hpp"
 #include "yaml-cpp/yaml.h"
 
 #include <pcl/io/pcd_io.h>
@@ -20,7 +21,17 @@
 
 #include "RemoteTreeViewerWrapper.hpp"
 
-#include "point_cloud_generator.hpp"
+#include <vtkSmartPointer.h>
+#include <vtkActor.h>
+#include <vtkDoubleArray.h>
+#include <vtkPointData.h>
+#include <vtkPointSource.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkPolyDataPointSampler.h>
+#include <vtkProperty.h>
+#include <vtkSmartPointer.h>
+#include <vtksys/SystemTools.hxx>
+
 #include "miqp_mesh_model_detector.hpp"
 
 using namespace std;
@@ -33,7 +44,7 @@ int main(int argc, char** argv) {
   srand(0);
 
   if (argc < 3){
-    printf("Use: run_miqp_mesh_model_detector <point cloud file> <config file> <optional output_file>\n");
+    printf("Use: run_miqp_mesh_model_detector <point cloud file, vtp> <config file> <optional output_file>\n");
     exit(-1);
   }
 
@@ -49,7 +60,7 @@ int main(int argc, char** argv) {
   cout << "***************************" << endl << endl;
 
   // Bring in config file
-  string pcdFile = string(argv[1]);
+  string sceneFile = string(argv[1]);
   string yamlString = string(argv[2]);
   YAML::Node config = YAML::LoadFile(yamlString);
 
@@ -79,16 +90,14 @@ int main(int argc, char** argv) {
   }
   robot.compile();
 
-  // Load point cloud
-  pcl::PointCloud<pcl::PointXYZ> cloud;
-  pcl::io::loadPCDFile<PointType>( pcdFile, cloud);
-  cout << "Loaded " << cloud.size() << " points from " << pcdFile << endl;
-
-  Matrix3Xd scene_pts(3, cloud.size());
-  for (int i=0; i<cloud.size(); i++){
-    scene_pts(0, i) = cloud.at(i).x;
-    scene_pts(1, i) = cloud.at(i).y;
-    scene_pts(2, i) = cloud.at(i).z;
+  // Load in the scene cloud
+  vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(sceneFile.c_str());
+  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << sceneFile << endl;
+  Matrix3Xd scene_pts(3, cloudPolyData->GetNumberOfPoints());
+  for (int i=0; i<cloudPolyData->GetNumberOfPoints(); i++){
+    scene_pts(0, i) = cloudPolyData->GetPoint(i)[0];
+    scene_pts(1, i) = cloudPolyData->GetPoint(i)[1];
+    scene_pts(2, i) = cloudPolyData->GetPoint(i)[2];
   }
 
   // Visualize the scene points and GT, to start with.
