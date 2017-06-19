@@ -20,10 +20,10 @@ MODELS_ROOT_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/'
 DETECTORS_CONFIG_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/config'
 WORK_DIR_NAME = "pose_est_pipeline"
 
-scene_resample_spacing = 0.001
+scene_resample_spacing = 0.05
 scene_crop_width = 0.3
 
-model_resample_spacing = 0.001
+model_resample_spacing = 0.05
 
 if __name__ == "__main__":
    
@@ -33,16 +33,18 @@ if __name__ == "__main__":
 
   signal.signal(signal.SIGINT, signal_handler)
 
-  if len(sys.argv) > 2:
+  if len(sys.argv) != 3:
     print "Usage:"
-    print "\t<script name> <CorlDev log dir>"
+    print "\t<script name> <detector type> <CorlDev log dir>"
     exit(0)
 
-  if len(sys.argv) == 1:
-    data_dir = DEFAULT_DATA_DIR
-  else:
-    data_dir = sys.argv[1]
+  detectorType = sys.argv[1]
+  detectorTypes = ["mip", "super4pcs", "goicp", "fgr"]
+  if detectorType not in detectorTypes:
+    print "Supplied detector type \"", detectorType, "\" must be one of [", detectorTypes.join(", "), "]"
+    exit(0)
 
+  data_dir = sys.argv[2]
   # Make sure the data dir is a real directory
   if not os.path.isdir(data_dir):
     print "Data directory ", data_dir, " doesn't exist."
@@ -88,17 +90,30 @@ if __name__ == "__main__":
     os.system(command)
 
     # And finally invoke our pose est routine
-    #command = "run_goicp_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
-    #    resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
-    #  )
 
-    #command = "run_fgr_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
-    #    resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
-    # )
+    if detectorType == "mip":
+      command = "run_miqp_mesh_model_detector %s %s/miqp_mesh_model_detector_ex.yaml %s/%s/miqp_mesh_model_output.yaml" % (
+        resampled_scene_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
+      )
 
-    command = "run_super4pcs_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
+    elif detectorType == "goicp":
+      command = "run_goicp_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
         resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
-     )
+      )
+
+    elif detectorType == "fgr":
+      command = "run_fgr_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
+        resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
+      )
+
+    elif detectorType == "super4pcs":
+      command = "run_super4pcs_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
+        resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
+      )
+
+    else:
+      print "Detector type \"", detectorType, "\" not recognized."
+      exit(0)
 
     print "\n", command
     os.system(command)
