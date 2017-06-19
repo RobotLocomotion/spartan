@@ -1,5 +1,4 @@
-#ifndef MANIP_TRACKING_COMMON_H
-#define MANIP_TRACKING_COMMON_H
+#pragma once
 
 #include <Eigen/Dense>
 
@@ -57,4 +56,101 @@ getAverageTransform(std::vector<Eigen::Transform<double, 3, Eigen::Isometry>> tr
   return avg_transform;
 }
 
-#endif
+// Adapted from https://www.gamedev.net/topic/552906-closest-point-on-triangle/
+// and converted to Eigen by gizatt@mit.edu
+static Eigen::Vector3d closesPointOnTriangle( const std::vector<Eigen::Vector3d>& triangle, const Eigen::Vector3d& sourcePosition )
+{
+    Eigen::Vector3d edge0 = triangle[1] - triangle[0];
+    Eigen::Vector3d edge1 = triangle[2] - triangle[0];
+    Eigen::Vector3d v0 = triangle[0] - sourcePosition;
+
+    float a = edge0.transpose() * edge0;
+    float b = edge0.transpose() * edge1;
+    float c = edge1.transpose() * edge1;
+    float d = edge0.transpose() * v0;
+    float e = edge1.transpose() * v0;
+
+    float det = a*c - b*b;
+    float s = b*e - c*d;
+    float t = b*d - a*e;
+
+    if ( s + t < det )
+    {
+        if ( s < 0.f )
+        {
+            if ( t < 0.f )
+            {
+                if ( d < 0.f )
+                {
+                    s = clamp( -d/a, 0.f, 1.f );
+                    t = 0.f;
+                }
+                else
+                {
+                    s = 0.f;
+                    t = clamp( -e/c, 0.f, 1.f );
+                }
+            }
+            else
+            {
+                s = 0.f;
+                t = clamp( -e/c, 0.f, 1.f );
+            }
+        }
+        else if ( t < 0.f )
+        {
+            s = clamp( -d/a, 0.f, 1.f );
+            t = 0.f;
+        }
+        else
+        {
+            float invDet = 1.f / det;
+            s *= invDet;
+            t *= invDet;
+        }
+    }
+    else
+    {
+        if ( s < 0.f )
+        {
+            float tmp0 = b+d;
+            float tmp1 = c+e;
+            if ( tmp1 > tmp0 )
+            {
+                float numer = tmp1 - tmp0;
+                float denom = a-2*b+c;
+                s = clamp( numer/denom, 0.f, 1.f );
+                t = 1-s;
+            }
+            else
+            {
+                t = clamp( -e/c, 0.f, 1.f );
+                s = 0.f;
+            }
+        }
+        else if ( t < 0.f )
+        {
+            if ( a+d > b+e )
+            {
+                float numer = c+e-b-d;
+                float denom = a-2*b+c;
+                s = clamp( numer/denom, 0.f, 1.f );
+                t = 1-s;
+            }
+            else
+            {
+                s = clamp( -e/c, 0.f, 1.f );
+                t = 0.f;
+            }
+        }
+        else
+        {
+            float numer = c+e-b-d;
+            float denom = a-2*b+c;
+            s = clamp( numer/denom, 0.f, 1.f );
+            t = 1.f - s;
+        }
+    }
+
+    return triangle[0] + s * edge0 + t * edge1;
+}
