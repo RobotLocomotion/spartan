@@ -92,8 +92,13 @@ if __name__ == "__main__":
     #    resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
     #  )
 
-    command = "run_fgr_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
+    #command = "run_fgr_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
+    #    resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
+    # )
+
+    command = "run_super4pcs_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
         resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
-      )
+     )
+
     print "\n", command
     os.system(command)
