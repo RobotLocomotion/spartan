@@ -75,5 +75,10 @@ BUILD_ALWAYS 1
 CMAKE_CACHE_ARGS
   -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
   -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-INSTALL_COMMAND ""
 )
+
+find_package(OpenCV 2 REQUIRED)
+add_executable(run_super4pcs_detector run_super4pcs_detector.cpp)
+target_link_libraries(run_super4pcs_detector super4pcs_algo chealpix lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${OpenCV_LIBS} z pthread)
+install(TARGETS run_super4pcs_detector DESTINATION bin)
+add_dependencies(run_super4pcs_detector Super4PCS)
