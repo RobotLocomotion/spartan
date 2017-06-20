@@ -17,9 +17,9 @@ point_cloud_generator_options:
 
 
 detector_options:
-    detector_type: "world_to_body_transforms"
+    #detector_type: "world_to_body_transforms"
     #detector_type: "world_to_body_transforms_with_sampled_model_points"
-    #detector_type: "body_to_world_transforms"
+    detector_type: "body_to_world_transforms"
     
     # options of rot constraints:
     # 0: constrained to ground truth
@@ -29,21 +29,21 @@ detector_options:
     # 4: McCormick directly on rotmat
     # 5: Conservative RPY limits
     # 6: 2D Logarithmic McCormick
-    rotation_constraint: 4
-    rotation_constraint_num_faces: 2
+    rotation_constraint: 6
+    rotation_constraint_num_faces: 3
     rotation_constraint_l1_bound: 0
 
     allow_outliers: true
-    phi_max: 0.1
+    phi_max: 0.05
     use_initial_guess: false
     corruption_amount: 0
     init_guess_rand_seed: 1
 
-    big_M: 10.0
+    big_M: 1.0
 
     max_dist_to_same_face: -1.0
 
-    downsample_to_this_many_points: 30
+    downsample_to_this_many_points: -1
     add_this_many_outliers: 0
     outlier_min: [-2.0, -2.0, 0.0]
     outlier_max: [2.0, 2.0, 4.0]
@@ -57,7 +57,7 @@ detector_options:
     # We reject points 
     # this number times the average distance to
     # all other points
-    ICP_outlier_rejection_proportion: 1
+    ICP_outlier_rejection_proportion: 0.5
     ICP_max_iters: 1000
 
     gurobi_int_options:
@@ -76,11 +76,14 @@ detector_options:
         #Heuristics: 0.1 # Heuristics seem to do very well, so grant them more time (default 5% = 0.05)
 
     models:
+       - urdf: "../CorlDev/data/object-meshes/handheld-scanner/drill_decimated_mesh_100faces.urdf"
+         q0:  [-0.14853928958991286, 0.0071343129195166055, 1.2398952270911616, -0.45362915972135687, -0.4546329409405285, 0.27362084258102337, 0.7160035677058532]
+
        #- urdf: "models/urdf/bunny_99_faces.urdf"
        #  q0: [0.2, 0.2, 0.2, 1.57, 0.0, 0.0]
        #- urdf: "models/urdf/cubes_jointed.urdf"
        #  q0: [0.1, 0, 0.5, 0.9, 0.5, 0.2, 0.2]
-       - urdf: "models/urdf/cubes.urdf"
-         q0: [0.0, 0.0, 2.0, 0.9, 0.5, 0.2, 1.0, 1.0, 1.0, 0.8, 0.5, -0.2]
+       #- urdf: "models/urdf/cubes.urdf"
+    #     q0: [0.0, 0.0, 2.0, 0.9, 0.5, 0.2, 1.0, 1.0, 1.0, 0.8, 0.5, -0.2]
        #- urdf: "models/urdf/cube.urdf"
        #  q0: [0.0, 0, 2.0, 0.9, 0.5, 0.2]

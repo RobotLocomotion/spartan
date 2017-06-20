@@ -9,6 +9,7 @@
 #include "drake/common/eigen_types.h"
 #include "drake/common/symbolic_formula.h"
 
+#include "drake/math/quaternion.h"
 #include "drake/math/rotation_matrix.h"
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/multibody/parsers/urdf_parser.h"
@@ -108,10 +109,12 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     est_tf.translation() = Tf;
     est_tf.matrix().block<3,3>(0,0) = Rf;
 
-    tfs[body_i-1] = est_tf;
+    // And flip it, so that it transforms from model -> world
+    if (config_["detector_type"].as<string>() != "body_to_world_transforms")
+      est_tf = est_tf.inverse();
 
-    // And flip it, so that it transforms from world -> model
-    est_tf = est_tf.inverse();
+    tfs[body_i-1] = est_tf.inverse();
+
     
     // TODO(gizatt) This state vector reconstruction assumes all bodies
     // have floating bases. Reconstructing joint states will require
@@ -132,6 +135,10 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     best_sol_objective_yet_ = solve_info.current_objective;
     RemoteTreeViewerWrapper rm;
     rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.0, 0.8, 0.8, 0.5), {"mip", "incumbent_sol"});
+    
+    // Given model state and model description, publish a colorized scene cloud
+    // with current registration errors
+    publishErrorColorCodedPointCloud(scene_pts_, all_vertices_, all_faces_, face_body_map_, tfs, "mip");
   }
 
   if (optUseICPHeuristic_){
@@ -139,10 +146,6 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     icp_search_seeds_.push(q_robot);
     icp_search_seeds_lock_.unlock();
   }
-
-  // Given model state and model description, publish a colorized scene cloud
-  // with current registration errors
-  publishErrorColorCodedPointCloud(scene_pts_, all_vertices_, all_faces_, face_body_map_, tfs, "mip");
 
   // Record all feasible nodes, as these aren't frequent
   solve_history.push_back(
@@ -175,8 +178,8 @@ void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const Mathemat
     est_tf.matrix().block<3,3>(0,0) = Rf;
 
     // And flip it, so that it transforms from world -> model
-    est_tf = est_tf.inverse();
-
+    if (config_["detector_type"].as<string>() != "body_to_world_transforms")
+      est_tf = est_tf.inverse();
 
     // TODO(gizatt) This state vector reconstruction assumes all bodies
     // have floating bases. Reconstructing joint states will require
@@ -534,7 +537,20 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
     string urdf = (*iter)["urdf"].as<string>();
     AddModelInstanceFromUrdfFileWithRpyJointToWorld(urdf, &robot_);
     // And add initial state info that we were passed
+
     vector<double> q0 = (*iter)["q0"].as<vector<double>>();
+    if (q0.size() == 7) {
+      printf("Converting init cond from quaternion to rpy.\n");
+      auto rpy = drake::math::quat2rpy(Vector4d(q0[3], q0[4], q0[5], q0[6]));
+      q0[3] = rpy[0];
+      q0[4] = rpy[1];
+      q0[5] = rpy[2];
+      q0.resize(6);
+    } else if (q0.size() != 6) {
+      printf("q0 had %lu positions, which doesn't make sense.\n", q0.size());
+      exit(0);
+    }
+
     assert(robot_.get_num_positions() - old_q_robot_gt_size == q0.size());
     q_robot_gt_.conservativeResize(robot_.get_num_positions());
     for (int i=0; i<q0.size(); i++){
@@ -1656,6 +1672,15 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
 
+  // Common initialization needed for viz
+  // Extract vertices and meshes from the RBT.
+  all_vertices_.resize(0, 0);
+  all_faces_.clear();
+  face_body_map_.clear(); // Maps from a face index (into all_faces) to an RBT body index.
+  collectBodyMeshesFromRBT(all_vertices_, all_faces_, face_body_map_);
+  scene_pts_ = scene_pts;
+
+
   // See https://www.sharelatex.com/project/5850590c38884b7c6f6aedd1
   // for details on problem formulation.
   MathematicalProgram prog;
@@ -1768,10 +1793,23 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     }
   }
 
+  gurobi_solver.addMIPNodeCallback(&mipNodeCallbackFunction, this);
+  gurobi_solver.addMIPSolCallback(&mipSolCallbackFunction, this);
+  std::thread t;
+  if (optUseICPHeuristic_){
+    done = 0;
+    t = std::thread(callICPProcessingForever, this);
+  }
+
   double start_time = getUnixTime();
   auto out = gurobi_solver.Solve(prog);
   string problem_string = "rigidtf";
   double elapsed = getUnixTime() - start_time;
+
+  if (optUseICPHeuristic_){
+    done = 1;
+    t.join();  
+  }
 
   //prog.PrintSolution();
   printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);
