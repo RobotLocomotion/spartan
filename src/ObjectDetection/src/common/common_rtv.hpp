@@ -4,7 +4,8 @@
 #include <string>
 #include <Eigen/Dense>
 
-static void publishErrorColorCodedPointCloud(Eigen::Matrix3Xd tf_scene_pts, Eigen::Matrix3Xd model_pts, std::string opt_name){
+static void publishErrorColorCodedPointCloud(const Eigen::Matrix3Xd& tf_scene_pts, 
+  const Eigen::Matrix3Xd& model_pts, const std::string& opt_name){
   std::vector<std::vector<double>> colors;
 
   Eigen::VectorXd dists(tf_scene_pts.cols());
