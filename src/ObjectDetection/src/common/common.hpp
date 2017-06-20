@@ -58,7 +58,7 @@ getAverageTransform(std::vector<Eigen::Transform<double, 3, Eigen::Isometry>> tr
 
 // Adapted from https://www.gamedev.net/topic/552906-closest-point-on-triangle/
 // and converted to Eigen by gizatt@mit.edu
-static Eigen::Vector3d closesPointOnTriangle( const std::vector<Eigen::Vector3d>& triangle, const Eigen::Vector3d& sourcePosition )
+static Eigen::Vector3d closestPointOnTriangle( const std::vector<Eigen::Vector3d>& triangle, const Eigen::Vector3d& sourcePosition )
 {
     Eigen::Vector3d edge0 = triangle[1] - triangle[0];
     Eigen::Vector3d edge1 = triangle[2] - triangle[0];

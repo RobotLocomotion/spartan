@@ -36,6 +36,50 @@ using namespace drake::symbolic;
 using namespace drake::solvers;
 using namespace drake::math;
 
+
+// Get distance from each point to closest surface on mesh.
+// Because I have nonconvex meshes, I can't rely on Drake's internal
+// collision checking code for this, so I'm writing this helper to do
+// the check manually.
+void publishErrorColorCodedPointCloud(const Eigen::Matrix3Xd& scene_pts, 
+  const Eigen::Matrix3Xd& all_vertices, const DrakeShapes::TrianglesVector& all_faces, 
+  const vector<int>& face_body_map, const vector<Affine3d>& tfs, const std::string& opt_name){
+
+  VectorXd dists(scene_pts.cols());
+  for (int i=0; i<scene_pts.cols(); i++){
+    // Find the face it's closest to on body i
+    double dist = std::numeric_limits<double>::infinity();
+    int face_ind = 0;
+    for (int j=0; j<all_faces.size(); j++){
+      vector<Vector3d> verts;
+      for (int k=0; k<3; k++){
+        verts.push_back(tfs[face_body_map[j]-1] * all_vertices.col(all_faces[j](k)));
+      }
+      Vector3d new_closest_pt = closestPointOnTriangle(verts, scene_pts.col(i));
+      double new_dist = (new_closest_pt - scene_pts.col(i)).lpNorm<2>();
+      if (new_dist < dist){
+        dist = new_dist;
+      }
+    }
+    dists(i) = dist;
+  }
+
+  // Generate colorizations.
+  std::vector<std::vector<double>> colors;
+
+  double max_dist = 0.02; //dists.maxCoeff();
+  for (int i = 0; i < scene_pts.cols(); i++){ 
+    colors.push_back({
+      clamp(dists(i) / max_dist, 0.0, 1.0),
+      clamp(1.0 - dists(i) / max_dist, 0.0, 1.0),
+      clamp(1.0 - 2*fabs(dists(i) / max_dist - 0.5), 0.0,1.0)
+    });
+  }
+  RemoteTreeViewerWrapper rm;
+  rm.publishPointCloud(scene_pts, {opt_name, "scene_pts_colorized_incumbent"}, colors);
+}
+
+
 const double kMaxConsideredICPDistance = 0.5;
 
 int done = 0;
@@ -52,6 +96,7 @@ void mipSolCallbackFunction(const MathematicalProgram& prog, const drake::solver
 void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info){
   // Extract current solution
   VectorXd q_robot(robot_.get_num_positions());
+  vector<Affine3d> tfs(robot_.get_num_bodies()-1);
   for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
     const RigidBody<double>& body = robot_.get_body(body_i);
 
@@ -63,9 +108,11 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     est_tf.translation() = Tf;
     est_tf.matrix().block<3,3>(0,0) = Rf;
 
+    tfs[body_i-1] = est_tf;
+
     // And flip it, so that it transforms from world -> model
     est_tf = est_tf.inverse();
-
+    
     // TODO(gizatt) This state vector reconstruction assumes all bodies
     // have floating bases. Reconstructing joint states will require
     // more clever and careful optimization...
@@ -77,14 +124,14 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
   if (getUnixTime() - last_published_sol_ > 0.05 && q_robot.transpose() * q_robot < 100.0){
     last_published_sol_ = getUnixTime();
     RemoteTreeViewerWrapper rm;
-    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.5, 1.0, 0.5), {"latest_sol"});
+    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.5, 1.0, 0.5), {"mip", "latest_sol"});
   }
 
   if (solve_info.current_objective < best_sol_objective_yet_){
     printf("Best sol objective yet: %f\n", solve_info.current_objective);
     best_sol_objective_yet_ = solve_info.current_objective;
     RemoteTreeViewerWrapper rm;
-    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.0, 0.8, 0.8, 0.5), {"incumbent_sol"});
+    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.0, 0.8, 0.8, 0.5), {"mip", "incumbent_sol"});
   }
 
   if (optUseICPHeuristic_){
@@ -92,6 +139,10 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     icp_search_seeds_.push(q_robot);
     icp_search_seeds_lock_.unlock();
   }
+
+  // Given model state and model description, publish a colorized scene cloud
+  // with current registration errors
+  publishErrorColorCodedPointCloud(scene_pts_, all_vertices_, all_faces_, face_body_map_, tfs, "mip");
 
   // Record all feasible nodes, as these aren't frequent
   solve_history.push_back(
@@ -139,7 +190,7 @@ void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const Mathemat
     if (getUnixTime() - last_published_node_ > 0.1 && (q_robot.transpose() * q_robot) < 1000.) {
       last_published_node_ = getUnixTime();
       RemoteTreeViewerWrapper rm;
-      rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.2, 1.0, 0.3), {"latest_node"});
+      rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.2, 0.2, 1.0, 0.3), {"mip", "latest_node"});
     }
 
     // Try to ICP on this one
@@ -382,7 +433,7 @@ void MIQPMultipleMeshModelDetector::doICPProcessing(){
     }
 
     if (getUnixTime() - last_published_icp > 0.01 && q_robot.transpose() * q_robot < 100.0){
-      rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.5), {"icp"});
+      rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.5), {"mip", "icp"});
       last_published_icp = getUnixTime();
     }
     //cout << "Error " << last_error << ", q " << q_robot << endl;
@@ -406,7 +457,7 @@ void MIQPMultipleMeshModelDetector::doICPProcessing(){
   }
 
   if (q_robot.transpose() * q_robot < 100.0)
-    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.5), {"icp"});
+    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.5), {"mip", "icp"});
   printf("Testing objective %f\n", new_objective);
   if (new_objective < best_heuristic_supplied_yet_*1.1){
     printf("New near-best objective %f\n", new_objective);
@@ -538,7 +589,7 @@ void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matri
   }
 
   RemoteTreeViewerWrapper rm;
-  rm.publishPointCloud(scene_pts_out, {"scene_pts_downsampled"}, {{0.1, 1.0, 0.1}});
+  rm.publishPointCloud(scene_pts_out, {"mip", "scene_pts_downsampled"}, {{0.1, 1.0, 0.1}});
 }
 
 void MIQPMultipleMeshModelDetector::doModelPointSampling(Matrix3Xd& pts, MatrixXd& B){
@@ -608,7 +659,7 @@ void MIQPMultipleMeshModelDetector::doModelPointSampling(Matrix3Xd& pts, MatrixX
   }
 
   RemoteTreeViewerWrapper rm;
-  rm.publishPointCloud(pts, {"model_pts_sampled"}, {{1.0, 0.0, 0.0}});
+  rm.publishPointCloud(pts, {"mip", "model_pts_sampled"}, {{1.0, 0.0, 0.0}});
 }
 
 void MIQPMultipleMeshModelDetector::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& all_vertices, 
@@ -894,7 +945,7 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
           for (int k=0; k<3; k++){
             verts.push_back(tfs[search_body_idx[i]-1] * all_vertices_.col(all_faces_[j](k)));
           }
-          Vector3d new_closest_pt = closesPointOnTriangle(verts, scene_pts_.col(i));
+          Vector3d new_closest_pt = closestPointOnTriangle(verts, scene_pts_.col(i));
           double new_dist = (new_closest_pt - scene_pts_.col(i)).lpNorm<1>();
           if (new_dist < dist){
             dist = new_dist;
