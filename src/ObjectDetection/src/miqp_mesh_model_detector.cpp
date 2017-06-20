@@ -1422,6 +1422,12 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithWorldToBodyFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
 
+  // Common initialization needed for viz
+  // Extract vertices and meshes from the RBT.
+  all_vertices_.resize(0, 0);
+  all_faces_.clear();
+  face_body_map_.clear(); // Maps from a face index (into all_faces) to an RBT body index.
+  collectBodyMeshesFromRBT(all_vertices_, all_faces_, face_body_map_);
   scene_pts_ = scene_pts;
 
   // See https://www.sharelatex.com/project/5850590c38884b7c6f6aedd1
@@ -1437,78 +1443,66 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
   // Add selection variables corresponding scene points to model-sampled points 
   C_ = prog.NewBinaryVariables(scene_pts.cols(), all_vertices_.cols(), "C");
-  // Constrain that every row (every scene point) must have at most one active member
-  // (i.e. must correspond to at most model point)
-  if (optAllowOutliers_){
-    for (int i = 0; i < scene_pts.cols(); i++) {
-      prog.AddLinearConstraint(
-        VectorXd::Ones(scene_pts.cols()).transpose() * C_.row(i).transpose() <= VectorXd::Ones(1.0));
-    }
-  } else {
-    for (int i = 0; i < scene_pts.cols(); i++) {
-      prog.AddLinearEqualityConstraint(
-        VectorXd::Ones(scene_pts.cols()).transpose() * C_.row(i).transpose(), VectorXd::Ones(1.0));
-      
-      /*
-      prog.AddLinearConstraint(
-        VectorXd::Ones(scene_pts.cols()).transpose() * C_.row(i).transpose() <= VectorXd::Ones(1.0));
-        */
-    }
-    /*
-    for (int i = 0; i < all_vertices_.cols(); i++) {
-      prog.AddLinearConstraint(
-        VectorXd::Ones(all_vertices_.cols()).transpose() * C_.col(i) == VectorXd::Ones(1.0));
-    }
-    */
+  
+  f_outlier_ = prog.NewBinaryVariables(scene_pts.cols(), 1, "f_outlier");
+  if (!optAllowOutliers_){
+    prog.AddLinearEqualityConstraint(RowVectorXd::Ones(scene_pts.cols()), 0.0, f_outlier_);
+  }
+
+  // Constrain each row of C, plus the outlier allowance, to sum to 1
+  Eigen::MatrixXd C1 = Eigen::MatrixXd::Ones(1, C_.cols()+1);
+  // sum(C_i) + f_outlier_(i) = 1
+  for (size_t k=0; k<C_.rows(); k++){
+    prog.AddLinearEqualityConstraint(C1, 1.0, {C_.row(k).transpose(), f_outlier_.row(k)});
   }
 
   // Allocate slacks to choose minimum L-1 norm over objects
   phi_ = prog.NewContinuousVariables(scene_pts.cols(), 1, "phi");
-  // And slacks to store term-wise absolute value terms for L-1 norm calculation
-  printf("WARNING, I'm making a local alpha. This needs to be updated to chull reform alpha.\n");
-  auto alpha_ = prog.NewContinuousVariables(3, scene_pts.cols(), "alpha");
+  // And slacks to store term-wise absolute value terms for L-1 norm calculation 
+  for (int i = 0; i < 3; i++) {
+    char buf[100]; sprintf(buf, "alpha_%d", i);
+    alpha_.push_back(prog.NewContinuousVariables(robot_.get_num_bodies()-1, scene_pts.cols(), buf));
+  }
+
   // Optimization pushes on slacks to make them tight (make them do their job)
   // (and normalize by number of pts for MSE calculation)
   prog.AddLinearCost( (1.0 / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts.cols()), phi_);
   // Constrain slacks nonnegative, to help the estimation of lower bound in relaxation  
   prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), phi_);
   for (int k=0; k<3; k++){
-    prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), {alpha_.row(k).transpose()});
+    for (int i=0; i<robot_.get_num_bodies()-1; i++) {
+      prog.AddBoundingBoxConstraint(0.0, std::numeric_limits<double>::infinity(), {alpha_[k].row(i).transpose()});
+    }
   }
+
 
   for (int i=0; i<scene_pts.cols(); i++){
     // constrain L-1 distance slack based on correspondences
-    // phi_i >= 1^T alpha_{i}
-    prog.AddLinearConstraint(phi_(i, 0) >= (RowVector3d::Ones() * alpha_.col(i))(0, 0));
+    // (summing over the convex hull reform'd multi-object form)
+    // phi_i == sum_{k \in {1:3}} 1^T alpha[k][:, i] 
+    prog.AddLinearConstraint(phi_(i, 0) == 
+      (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[0].col(i))(0, 0)
+    + (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[1].col(i))(0, 0)
+    + (RowVectorXd::Ones(robot_.get_num_bodies()-1) * alpha_[2].col(i))(0, 0)
+    + f_outlier_(i)*optPhiMax_);
 
-    // If we're allowing outliers, we need to constrain each phi_i to be bigger than
-    // a penalty amount if no faces are selected
-    if (optAllowOutliers_){
-      // I believe Big-M is OK here, as opposed to convex hull reform,
-      // as we wouldn't gain important tightness for the convex hull reform.
-      // (phi_i >= 0 always, as constrained above, which is the tightest 
-      // lower bound we can always enforce).
-      // phi_i >= phi_max - (ones * f_i)*BIG
-      prog.AddLinearConstraint(phi_(i, 0) >= optPhiMax_*f_outlier_(i));
-    }
-
-    for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){    
+    if (i == 0) printf("WARNING, UNSURE THAT THIS WORKS FOR MULTIPLE BODIES ANY MORE. CONVEX HULL REFORM HALF DONE...\n");
+    for (int body_i=1; body_i<robot_.get_num_bodies(); body_i++){
       // Similar logic here -- solutions will always bind in a lower bound,
       // which we've constrained >= 0 above, and can't do any better than.
-      // alpha_i >= +(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * C_i)
-      // alpha_i >= -(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * C_i)
+      // alpha_i >= +(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * f_i)
+      // alpha_i >= -(R_l s_i + T - M C_{i, :}^T) - Big x (1 - B_l * f_i)
       // (alpha is a slack var to implement the absolute value)
       Matrix<Expression, 3, 1> l1ErrorPos =
           transform_by_object_[body_i-1].R * scene_pts.col(i) + transform_by_object_[body_i-1].T
              - all_vertices_ * C_.row(i).transpose();
       Matrix<Expression, 3, 1> selector = Vector3d::Ones() * (optBigNumber_ * (VectorXd::Ones(1) - B_.row(body_i - 1) * C_.row(i).transpose()));
       for (int k=0; k<3; k++){
-        prog.AddLinearConstraint( alpha_(k, i) >= l1ErrorPos(k) - selector(k) );
-        prog.AddLinearConstraint( alpha_(k, i) >= -l1ErrorPos(k) - selector(k) );
+        prog.AddLinearConstraint( alpha_[k](body_i-1, i) >=  l1ErrorPos(k) - selector(k));
+        prog.AddLinearConstraint( alpha_[k](body_i-1, i) >= -l1ErrorPos(k) - selector(k));
       }
     }
   }
-
 
 /*
   // For every scene point, add a cost for its correspondence.
