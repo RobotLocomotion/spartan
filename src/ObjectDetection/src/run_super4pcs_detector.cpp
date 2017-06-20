@@ -191,7 +191,7 @@ int main(int argc, char** argv) {
   Match4PCSOptions s4pcs_opts;
   s4pcs_opts.delta = 0.001;
   s4pcs_opts.sample_size = 500;
-  s4pcs_opts.overlap_estimation = 0.3;
+  s4pcs_opts.overlap_estimation = 0.1;
   s4pcs_opts.max_color_distance = kLargeNumber;
   s4pcs_opts.max_normal_difference = kLargeNumber;
 

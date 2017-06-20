@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <typeinfo>
 
+#include "drake/math/quaternion.h"
 #include "drake/math/rotation_matrix.h"
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/multibody/parsers/urdf_parser.h"
@@ -79,8 +80,21 @@ int main(int argc, char** argv) {
   for (auto iter=config["detector_options"]["models"].begin(); iter!=config["detector_options"]["models"].end(); iter++){
     string urdf = (*iter)["urdf"].as<string>();
     AddModelInstanceFromUrdfFileWithRpyJointToWorld(urdf, &robot);
-    // And add initial state info that we were passed
+    
     vector<double> q0 = (*iter)["q0"].as<vector<double>>();
+    if (q0.size() == 7) {
+      printf("Converting init cond from quaternion to rpy.\n");
+      auto rpy = drake::math::quat2rpy(Vector4d(q0[3], q0[4], q0[5], q0[6]));
+      q0[3] = rpy[0];
+      q0[4] = rpy[1];
+      q0[5] = rpy[2];
+      q0.resize(6);
+    } else if (q0.size() != 6) {
+      printf("q0 had %lu positions, which doesn't make sense.\n", q0.size());
+      exit(0);
+    }
+      
+    // And add initial state info that we were passed
     assert(robot.get_num_positions() - old_q_robot_size == q0.size());
     q_robot.conservativeResize(robot.get_num_positions());
     for (int i=0; i<q0.size(); i++){
@@ -108,8 +122,8 @@ int main(int argc, char** argv) {
   // Visualize the scene points and GT, to start with.
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
-  rm.publishPointCloud(scene_pts, {"scene_pts_loaded"}, {{0.1, 1.0, 0.1}});
-  rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.1, 0.5), {"robot_gt"});
+  rm.publishPointCloud(scene_pts, {"mip", "scene_pts_loaded"}, {{0.1, 1.0, 0.1}});
+  rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.1, 0.5), {"mip", "robot_gt"});
 
 
   // Load in MIQP Object Detector
@@ -137,6 +151,7 @@ int main(int argc, char** argv) {
         auto element = detector.get_robot().FindCollisionElement(collision_elem_id);
         if (element->hasGeometry()){
           vector<string> path;
+          path.push_back("mip");
           path.push_back(sol_name.str());
           path.push_back(body.get_name());
           path.push_back(collision_elem_id_str.str());
@@ -153,7 +168,7 @@ int main(int argc, char** argv) {
         i++;
       }
       model_pts_world = detection.est_tf * model_pts_world;
-      rm.publishPointCloud(model_pts_world, {"correspondences", "model pts", body.get_name()}, {{0.1, 0.1, 1.0}});
+      rm.publishPointCloud(model_pts_world, {"mip", "correspondences", "model pts", body.get_name()}, {{0.1, 0.1, 1.0}});
 
       // And extract the joint coordinates (assumes all bodies are floating bases...)
       q_robot_est.block(body.get_position_start_index(), 0, 3, 1) =
