@@ -20,10 +20,10 @@ MODELS_ROOT_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/'
 DETECTORS_CONFIG_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/config'
 WORK_DIR_NAME = "pose_est_pipeline"
 
-scene_resample_spacing = 0.05
+scene_resample_spacing = 0.01
 scene_crop_width = 0.3
 
-model_resample_spacing = 0.05
+model_resample_spacing = 0.001
 
 if __name__ == "__main__":
    
@@ -41,7 +41,7 @@ if __name__ == "__main__":
   detectorType = sys.argv[1]
   detectorTypes = ["mip", "super4pcs", "goicp", "fgr"]
   if detectorType not in detectorTypes:
-    print "Supplied detector type \"", detectorType, "\" must be one of [", detectorTypes.join(", "), "]"
+    print "Supplied detector type \"", detectorType, "\" must be one of [", " ".join(detectorTypes), "]"
     exit(0)
 
   data_dir = sys.argv[2]
