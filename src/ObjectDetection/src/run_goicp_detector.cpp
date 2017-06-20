@@ -12,6 +12,7 @@
 #include "drake/multibody/parsers/urdf_parser.h"
 
 #include "common/common.hpp"
+#include "common/common_rtv.hpp"
 #include "common/common_vtk.hpp"
 #include "yaml-cpp/yaml.h"
 
@@ -89,9 +90,9 @@ int main(int argc, char** argv) {
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
   //rm.publishPointCloud(scene_pts_in, {"scene_pts_loaded"}, {{0.1, 1.0, 0.1}});
-  rm.publishPointCloud(scene_pts, {"scene_pts_downsampled"}, {{0.1, 1.0, 1.0}});
+  rm.publishPointCloud(scene_pts, {"goicp", "scene_pts_downsampled"}, {{0.1, 1.0, 1.0}});
   //rm.publishPointCloud(model_pts_in, {"model_pts"}, {{0.1, 1.0, 1.0}});
-  rm.publishPointCloud(model_pts, {"model_pts_downsampled"}, {{0.1, 1.0, 1.0}});
+  rm.publishPointCloud(model_pts, {"goicp", "model_pts_downsampled"}, {{0.1, 1.0, 1.0}});
   //rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
 
 
@@ -231,7 +232,8 @@ int main(int argc, char** argv) {
 
   cout << "Est tf " << est_tf.matrix() << endl;
   cout << "Est tf inv" << est_tf.inverse().matrix() << endl;
-  rm.publishPointCloud(est_tf * scene_pts, {"scene_pts_tf"}, {{0.5, 0.5, 1.0}});
+
+  publishErrorColorCodedPointCloud(est_tf * scene_pts, model_pts, "goicp");
 
   return 0;
 }

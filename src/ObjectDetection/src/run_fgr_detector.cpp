@@ -12,6 +12,7 @@
 #include "drake/multibody/parsers/urdf_parser.h"
 
 #include "common/common.hpp"
+#include "common/common_rtv.hpp"
 #include "common/common_vtk.hpp"
 #include "yaml-cpp/yaml.h"
 
@@ -57,7 +58,7 @@ struct Node {
   bool fixed;
 };
 
-std::pair<Points, Feature> generatePointsAndFeaturesFromPoints(Eigen::Matrix3Xd input_points, string prefix = "", bool orient_normals = false){
+std::pair<Points, Feature> generatePointsAndFeaturesFromPoints(Eigen::Matrix3Xd input_points, std::vector<std::string> prefix = {}, bool orient_normals = false){
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud (new pcl::PointCloud<pcl::PointXYZ>);
   Vector3d bb_min = input_points.rowwise().minCoeff();
@@ -141,7 +142,11 @@ std::pair<Points, Feature> generatePointsAndFeaturesFromPoints(Eigen::Matrix3Xd 
   fest.compute(*object_features);
 
   RemoteTreeViewerWrapper rm;
-  rm.publishPointCloud(input_points, {prefix, "pointandfeatures", "points"});
+  std::vector<string> label;
+  label.insert(label.end(), prefix.begin(), prefix.end());
+  label.push_back("pointsandfeatures");
+  label.push_back("points");
+  rm.publishPointCloud(input_points, label);
 
   Points output_points;
   Feature output_features;
@@ -157,7 +162,11 @@ std::pair<Points, Feature> generatePointsAndFeaturesFromPoints(Eigen::Matrix3Xd 
       normal_line.col(0) = input_points.col(i);
       normal_line.col(1) = input_points.col(i) + normal*0.05;
       char buf[20]; sprintf(buf, "normal_%d", i);
-      rm.publishLine(normal_line, {prefix, "pointandfeatures", buf});
+      label.clear();  
+      label.insert(label.end(), prefix.begin(), prefix.end());
+      label.push_back("pointsandfeatures");
+      label.push_back(buf);
+      rm.publishLine(normal_line, label);
     }
   }
   return {output_points, output_features};
@@ -220,9 +229,9 @@ int main(int argc, char** argv) {
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
   //rm.publishPointCloud(scene_pts_in, {"scene_pts_loaded"}, {{0.1, 1.0, 0.1}});
-  rm.publishPointCloud(scene_pts, {"scene_pts_downsampled"}, {{0.1, 1.0, 1.0}});
+  rm.publishPointCloud(scene_pts, {"fgr", "scene_pts_downsampled"}, {{0.1, 1.0, 1.0}});
   //rm.publishPointCloud(model_pts_in, {"model_pts"}, {{0.1, 1.0, 1.0}});
-  rm.publishPointCloud(model_pts, {"model_pts_downsampled"}, {{0.1, 1.0, 1.0}});
+  rm.publishPointCloud(model_pts, {"fgr", "model_pts_downsampled"}, {{0.1, 1.0, 1.0}});
   //rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
 
 
@@ -232,8 +241,8 @@ int main(int argc, char** argv) {
   cout << "Generating features and matching..." << endl;
   clock_t clockBegin = clock();
   
-  auto model_info = generatePointsAndFeaturesFromPoints(model_pts, "model", true);
-  auto scene_info = generatePointsAndFeaturesFromPoints(scene_pts, "scene");
+  auto model_info = generatePointsAndFeaturesFromPoints(model_pts, {"fgr", "model"}, true);
+  auto scene_info = generatePointsAndFeaturesFromPoints(scene_pts, {"fgr", "scene"});
 
   printf("Adding %lu model points and %lu model features\n", model_info.first.size(), model_info.second.size());
   fgr_app.LoadFeature(model_info.first, model_info.second); 
@@ -256,7 +265,8 @@ int main(int argc, char** argv) {
   // the model is usually better centered )
   cout << "Est tf " << est_tf.matrix() << endl;
   cout << "Est tf inv" << est_tf.inverse().matrix() << endl;
-  rm.publishPointCloud(est_tf * scene_pts, {"scene_pts_tf"}, {{0.5, 0.5, 1.0}});
+
+  publishErrorColorCodedPointCloud(est_tf * scene_pts, model_pts, "fgr");
 
   return 0;
 }

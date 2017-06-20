@@ -94,11 +94,16 @@ int main(int argc, char** argv) {
   vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(sceneFile.c_str());
   cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << sceneFile << endl;
   Matrix3Xd scene_pts(3, cloudPolyData->GetNumberOfPoints());
+  int k_good = 0;
   for (int i=0; i<cloudPolyData->GetNumberOfPoints(); i++){
-    scene_pts(0, i) = cloudPolyData->GetPoint(i)[0];
-    scene_pts(1, i) = cloudPolyData->GetPoint(i)[1];
-    scene_pts(2, i) = cloudPolyData->GetPoint(i)[2];
+    scene_pts(0, k_good) = cloudPolyData->GetPoint(k_good)[0];
+    scene_pts(1, k_good) = cloudPolyData->GetPoint(k_good)[1];
+    scene_pts(2, k_good) = cloudPolyData->GetPoint(k_good)[2];
+    if (is_finite(scene_pts.col(k_good))){
+      k_good++;
+    }
   }
+  scene_pts.conservativeResize(3, k_good);
 
   // Visualize the scene points and GT, to start with.
   RemoteTreeViewerWrapper rm;
