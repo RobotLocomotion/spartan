@@ -38,7 +38,7 @@ def computeIntersectionOverUnion(img1, img2, plotClassId=None):
     classIds = np.unique(np.hstack(images))
     classIoU = {}
 
-    print "classIds", classIds
+    #print "classIds", classIds
 
     for classId in classIds:
 
