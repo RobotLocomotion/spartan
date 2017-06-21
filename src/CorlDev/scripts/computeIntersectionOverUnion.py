@@ -12,6 +12,13 @@ import scipy.misc
 import matplotlib.pyplot as plt
 
 
+def computeIOUfile(file_1, file_2):
+    filenames = [file_1, file_2]
+    images = [scipy.misc.imread(filename) for filename in filenames]
+    classIoU = computeIntersectionOverUnion(images[0], images[1], plotClassId=None)
+    return classIoU
+
+
 def computeIntersectionOverUnion(img1, img2, plotClassId=None):
     '''
     Given two images as numpy ndarray WxH and dtype uint8, this function
@@ -30,6 +37,8 @@ def computeIntersectionOverUnion(img1, img2, plotClassId=None):
 
     classIds = np.unique(np.hstack(images))
     classIoU = {}
+
+    print "classIds", classIds
 
     for classId in classIds:
 
@@ -76,7 +85,7 @@ if __name__ == '__main__':
 
     filenames = [sys.argv[1], sys.argv[2]]
     images = [scipy.misc.imread(filename) for filename in filenames]
-    classIoU = computeIntersectionOverUnion(images[0], images[1], plotClassId=0)
+    classIoU = computeIntersectionOverUnion(images[0], images[1], plotClassId=None)
 
     for classId in sorted(classIoU.keys()):
         print 'class %d IoU:' % classId, classIoU[classId]
