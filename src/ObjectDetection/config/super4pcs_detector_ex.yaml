@@ -4,7 +4,7 @@ detector_options:
   # Estimated overlap between P and Q. This is the fraction of points in P that
   # may have corresponding point in Q. It's being used to estimate the number
   # of RANSAC iterations needed to guarantee small failure probability.
-  overlap_estimation: 0.1
+  overlap_estimation: 0.3
   # Maximum normal difference.
   max_normal_difference: .inf
   # Maximum translation distance.
