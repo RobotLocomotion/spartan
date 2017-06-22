@@ -3,6 +3,8 @@ from computeIntersectionOverUnion import computeIOUfile
 import numpy as np
 
 
+# call this script from the directory which has both the *label*.png and *predlabels*.png files
+
 class ComputeIoUHelper(object):
 
     def __init__(self, dir_full_path):
@@ -12,8 +14,10 @@ class ComputeIoUHelper(object):
         self.crawlDir()
 
     def printFinal(self):
-        for k in self.trialsIOU.keys():
+        for k, v in self.trialsIOU.iteritems():
             print k
+            for key, value in sorted(v.iteritems()):
+                print "key, value", key, value
 
     def crawlDir(self):
         for filename in sorted(os.listdir(self.dir_full_path)):
@@ -41,24 +45,16 @@ class ComputeIoUHelper(object):
                         quit()
                     self.trialsIOU[identifier] = {}
 
-                #print "found predlabels"
                 if img_num != label_num:
                     print "error: not matching"
                     quit()
                 
                 frameIOU = computeIOUfile(label_file, filename)
-                #print "frameIOU type", type(frameIOU)
-                #print "identifier", identifier
-                for k, v in frameIOU.items():
-                #print "k ", k, v
-                #print self.trialsIOU[identifier]
-                    if k not in self.trialsIOU[identifier].keys():
-                #print "added for ", k
-                        self.trialsIOU[identifier][k] = []
-                #print self.trialsIOU[identifier][k]
 
-                #print type(self.trialsIOU[identifier][k])
-                self.trialsIOU[identifier][k].append(v)
+                for k, v in frameIOU.items():
+                    if k not in self.trialsIOU[identifier].keys():
+                        self.trialsIOU[identifier][k] = []
+                    self.trialsIOU[identifier][k].append(v)
 
 
 if __name__ == '__main__':
