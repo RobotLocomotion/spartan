@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <typeinfo>
 
+#include "drake/math/rotation_matrix.h"
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 
@@ -71,6 +72,7 @@ int main(int argc, char** argv) {
   if (config["detector_options"] == NULL){
     runtime_error("Need detector options.");
   }
+
   auto fgr_config = config["detector_options"];
 
   // Read in the model.
@@ -103,14 +105,34 @@ int main(int argc, char** argv) {
   //rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
 
 
-  // Load in the FGR estimator
+  // Load in the FGR estimator and its options.
   CApp fgr_app;
+  if (fgr_config["div_factor"])
+    fgr_app.div_factor_ = fgr_config["div_factor"].as<double>();
+  if (fgr_config["use_absolute_scale"])
+    fgr_app.use_absolute_scale_ = fgr_config["use_absolute_scale"].as<bool>();
+  if (fgr_config["max_corr_dist"])
+    fgr_app.max_corr_dist_ = fgr_config["max_corr_dist"].as<double>();
+  if (fgr_config["iteration_number"])
+    fgr_app.iteration_number_ = fgr_config["iteration_number"].as<int>();
+  if (fgr_config["tuple_scale"])
+    fgr_app.tuple_scale_ = fgr_config["tuple_scale"].as<double>();
+  if (fgr_config["tuple_max_cnt"])
+    fgr_app.tuple_max_cnt_ = fgr_config["tuple_max_cnt"].as<double>();
+
+  double interpoint_scale = -1;
+  if (fgr_config["interpoint_scale"])
+    interpoint_scale = fgr_config["interpoint_scale"].as<double>();
+  double feature_radius_multiplier = 10.0;
+  if (fgr_config["feature_radius_multiplier"])
+    feature_radius_multiplier = fgr_config["feature_radius_multiplier"].as<double>();
 
   cout << "Generating features and matching..." << endl;
   clock_t clockBegin = clock();
   
-  auto model_info = generatePointsAndFPFHFeaturesFromPoints(model_pts, {"fgr", "model"}, true, true);
-  auto scene_info = generatePointsAndFPFHFeaturesFromPoints(scene_pts, {"fgr", "scene"}, false, true);
+  auto model_info = generatePointsAndFPFHFeaturesFromPoints(model_pts, {"fgr", "model"}, true, true, interpoint_scale, feature_radius_multiplier);
+  auto scene_info = generatePointsAndFPFHFeaturesFromPoints(scene_pts, {"fgr", "scene"}, false, true, interpoint_scale, feature_radius_multiplier);
+
 
   printf("Adding %lu model points and %lu model features\n", model_info.first.size(), model_info.second.size());
   fgr_app.LoadFeature(model_info.first, model_info.second); 
@@ -120,7 +142,7 @@ int main(int argc, char** argv) {
 
   fgr_app.NormalizePoints();
   fgr_app.AdvancedMatching();
-  fgr_app.OptimizePairwise(true, ITERATION_NUMBER); // defaults to 64 iterations, see FastGlobalRegistration/app.h
+  fgr_app.OptimizePairwise(true, fgr_app.iteration_number_);
   
   clock_t clockEnd = clock();
   double time = (double)(clockEnd - clockBegin)/CLOCKS_PER_SEC;
@@ -129,12 +151,53 @@ int main(int argc, char** argv) {
   est_tf.matrix() = fgr_app.GetTrans().cast<double>();
  // est_tf = est_tf.inverse();
 
+  VectorXd q_out(7);
+  q_out.block<3, 1>(0, 0) = est_tf.translation();
+  q_out.block<4, 1>(3, 0) = drake::math::rotmat2quat(est_tf.rotation());
+
   // Publish the transformed scene point cloud (I'm transforming the scene because
   // the model is usually better centered )
   cout << "Est tf " << est_tf.matrix() << endl;
   cout << "Est tf inv" << est_tf.inverse().matrix() << endl;
 
   publishErrorColorCodedPointCloud(est_tf * scene_pts, model_pts, "fgr");
+
+  if (argc > 3){
+    YAML::Emitter out;
+    out << YAML::BeginMap; {
+      out << YAML::Key << "scene";
+      out << YAML::Value << sceneFile;
+
+      out << YAML::Key << "config";
+      out << YAML::Value << config;
+
+      out << YAML::Key << "solutions";
+      out << YAML::BeginSeq; {
+        out << YAML::BeginMap; {
+          out << YAML::Key << "models";
+          out << YAML::Value << YAML::BeginSeq; {
+              out << YAML::BeginMap; {
+                out << YAML::Key << "model";
+                out << YAML::Value << modelFile;
+                out << YAML::Key << "q";
+                out << YAML::Value << YAML::Flow << vector<double>(q_out.data(), q_out.data() + q_out.rows());
+              } out << YAML::EndMap;
+          } out << YAML::EndSeq;
+
+          out << YAML::Key << "history";
+          out << YAML::Value << YAML::BeginMap; {
+            out << YAML::Key << "wall_time";
+            out << YAML::Value << YAML::Flow << time;
+          } out << YAML::EndMap;
+
+        } out << YAML::EndMap;
+      } out << YAML::EndSeq;
+    } out << YAML::EndMap;
+
+    ofstream fout(outputFile);
+    fout << out.c_str();
+    fout.close();
+  }
 
   return 0;
 }
