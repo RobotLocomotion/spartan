@@ -235,5 +235,46 @@ int main(int argc, char** argv) {
 
   publishErrorColorCodedPointCloud(est_tf * scene_pts, model_pts, "goicp");
 
+  VectorXd q_out(7);
+  q_out.block<3, 1>(0, 0) = est_tf.translation();
+  q_out.block<4, 1>(3, 0) = drake::math::rotmat2quat(est_tf.rotation());
+
+  if (argc > 3){
+    YAML::Emitter out;
+    out << YAML::BeginMap; {
+      out << YAML::Key << "scene";
+      out << YAML::Value << sceneFile;
+
+      out << YAML::Key << "config";
+      out << YAML::Value << config;
+
+      out << YAML::Key << "solutions";
+      out << YAML::BeginSeq; {
+        out << YAML::BeginMap; {
+          out << YAML::Key << "models";
+          out << YAML::Value << YAML::BeginSeq; {
+              out << YAML::BeginMap; {
+                out << YAML::Key << "model";
+                out << YAML::Value << modelFile;
+                out << YAML::Key << "q";
+                out << YAML::Value << YAML::Flow << vector<double>(q_out.data(), q_out.data() + q_out.rows());
+              } out << YAML::EndMap;
+          } out << YAML::EndSeq;
+
+          out << YAML::Key << "history";
+          out << YAML::Value << YAML::BeginMap; {
+            out << YAML::Key << "wall_time";
+            out << YAML::Value << YAML::Flow << time;
+          } out << YAML::EndMap;
+
+        } out << YAML::EndMap;
+      } out << YAML::EndSeq;
+    } out << YAML::EndMap;
+
+    ofstream fout(outputFile);
+    fout << out.c_str();
+    fout.close();
+  }
+
   return 0;
 }
