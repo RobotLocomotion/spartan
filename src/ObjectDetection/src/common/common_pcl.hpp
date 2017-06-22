@@ -49,9 +49,11 @@ static pcl::PointCloud<pcl::PointNormal>::Ptr generateNormalsFromPoints(
   pcl::PointXYZ proj_max; 
   pcl::getMinMax3D(*input_cloud, proj_min, proj_max);
 
-  if (interpoint_scale <= 0)  
+  printf("Passed interpoint %f\n", interpoint_scale);
+  if (interpoint_scale <= 0){
     interpoint_scale = (pcl::geometry::distance(proj_max, proj_min) / 
                             powf( (double) input_cloud->size(), 0.33)) * sqrtf(3);
+  }
 
 
   // Create the normal estimation class, and pass the input dataset to it
@@ -197,24 +199,26 @@ static Eigen::Matrix3Xd generateNormalsFromMatrix3Xd(const Matrix3Xd& input_poin
 }
 
 std::pair<Points, Feature> generatePointsAndFPFHFeaturesFromPoints(const Eigen::Matrix3Xd& input_points, 
-  const std::vector<std::string>& prefix = {}, bool orient_normals = false, bool with_vis = true){
+  const std::vector<std::string>& prefix = {}, bool orient_normals = false, bool with_vis = true, 
+  double interpoint_scale = -1, double feature_radius_multiplier = 10.0){
 
-  Vector3d bb_min = input_points.rowwise().minCoeff();
-  Vector3d bb_max = input_points.rowwise().maxCoeff();
-  double diag = (bb_max - bb_min).norm();
-  double interpoint_scale = (diag / powf( (double) input_points.size(), 0.33)) * sqrtf(3);
-
+  if (interpoint_scale <= 0.0) {
+    Vector3d bb_min = input_points.rowwise().minCoeff();
+    Vector3d bb_max = input_points.rowwise().maxCoeff();
+    double diag = (bb_max - bb_min).norm();
+    interpoint_scale = (diag / powf( (double) input_points.size(), 0.33)) * sqrtf(3);
+  }
   auto input_cloud = convertMatrix3XdToPCLPointXYZ(input_points);
 
   int highest_node_ind; input_points.row(2).maxCoeff(&highest_node_ind);
 
-  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals = generateNormalsFromPoints(input_cloud, 10, orient_normals, interpoint_scale, highest_node_ind, {0.0, 0.0, 1.0});
+  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals = generateNormalsFromPoints(input_cloud, 5, orient_normals, interpoint_scale, highest_node_ind, {0.0, 0.0, 1.0});
 
   // For all model and scene points, generate FPFH features
   // (this code is modified from https://github.com/IntelVCL/FastGlobalRegistration)
   pcl::FPFHEstimationOMP<pcl::PointNormal, pcl::PointNormal, pcl::FPFHSignature33> fest;
   pcl::PointCloud<pcl::FPFHSignature33>::Ptr object_features(new pcl::PointCloud<pcl::FPFHSignature33>());
-  fest.setRadiusSearch(interpoint_scale*4);  
+  fest.setRadiusSearch(interpoint_scale*feature_radius_multiplier);  
   fest.setInputCloud(cloud_normals);
   fest.setInputNormals(cloud_normals);
   fest.compute(*object_features);
