@@ -3,7 +3,7 @@ detector_options:
     #downsample_to_this_many_model_points: 10000
 
     # Mean Squared Error (MSE) convergence threshold
-    MSEThresh: 0.00001
+    MSEThresh: 0.001
 
     # Smallest rotation value along dimension X of rotation cube (radians)
     rotMinX: -3.1416
@@ -24,7 +24,7 @@ detector_options:
     transWidth: 1.0
 
     # Set to 0.0 for no trimming
-    trimFraction: 0.5
+    trimFraction: 0.4
 
     # Nodes per dimension of distance transform
     distTransSize: 300

@@ -21,9 +21,9 @@ DETECTORS_CONFIG_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/
 WORK_DIR_NAME = "pose_est_pipeline"
 
 scene_resample_spacing = 0.002
-scene_crop_width = 0.3
+scene_crop_width = 0.25
 
-model_resample_spacing = 0.002
+model_resample_spacing = 0.02
 
 if __name__ == "__main__":
    
@@ -72,12 +72,12 @@ if __name__ == "__main__":
     scene_py = float(gt_pose_yaml[model_name]["pose"][0][1]) + scene_crop_width / 2.
     scene_nz = float(gt_pose_yaml[model_name]["pose"][0][2]) - scene_crop_width / 2.
     scene_pz = float(gt_pose_yaml[model_name]["pose"][0][2]) + scene_crop_width / 2.
-    #command = "directorPython scripts/resampleVtp.py %s/above_table_pointcloud.vtp  %s %f %f %f %f %f %f %f" % (
-    #    data_dir, resampled_scene_file, scene_resample_spacing, scene_nx, scene_px, scene_ny, scene_py, scene_nz, scene_pz
-    #   )
-    command = "directorPython scripts/resampleVtp.py %s/reconstructed_pointcloud.vtp  %s %f %f %f %f %f %f %f" % (
+    command = "directorPython scripts/resampleVtp.py %s/above_table_pointcloud.vtp  %s %f %f %f %f %f %f %f" % (
         data_dir, resampled_scene_file, scene_resample_spacing, scene_nx, scene_px, scene_ny, scene_py, scene_nz, scene_pz
-      )
+       )
+    #command = "directorPython scripts/resampleVtp.py %s/reconstructed_pointcloud.vtp  %s %f %f %f %f %f %f %f" % (
+    #    data_dir, resampled_scene_file, scene_resample_spacing, scene_nx, scene_px, scene_ny, scene_py, scene_nz, scene_pz
+    #  )
     print "\n", command
     os.system(command)
 
