@@ -1,6 +1,10 @@
 import os
 from computeIntersectionOverUnion import computeIOUfile
 import numpy as np
+import sys
+sys.path.insert(0, "/home/peteflo/spartan/src/CorlDev/modules/")
+from corl import utils
+import corl.utils
 
 
 # call this script from the directory which has both the *label*.png and *predlabels*.png files
@@ -12,11 +16,17 @@ class ComputeIoUHelper(object):
         self.trialsIOU = {}
         self.crawlDir()
 
-    def printFinal(self):
-        for k, v in sorted(self.trialsIOU.iteritems()):
-            print k
-            for key, value in sorted(v.iteritems()):
-                print "label, mean iou", key, np.average(value)
+    def printAndSaveSummary(self):
+        target = open("summary.txt", 'w')
+        for trial_name, data in sorted(self.trialsIOU.iteritems()):
+            print trial_name
+            target.write(trial_name)
+            target.write("\n")
+            for label, iou_all_frames_list in sorted(data.iteritems()):
+                print "label,", label, "object,", corl.utils.getObjectName(label), "mean iou", np.average(iou_all_frames_list)
+                target.write(str(label) + " " + str(np.average(iou_all_frames_list)))
+                target.write("\n")
+        target.close()
 
     def crawlDir(self):
         for filename in sorted(os.listdir(self.dir_full_path)):
@@ -61,8 +71,9 @@ if __name__ == '__main__':
     dir_full_path = os.getcwd()
     print dir_full_path
 
+
     compute_iou_helper = ComputeIoUHelper(dir_full_path)
-    compute_iou_helper.printFinal()
+    compute_iou_helper.printAndSaveSummary()
 
     print compute_iou_helper
 

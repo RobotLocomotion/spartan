@@ -184,6 +184,9 @@ def getObjectName(objectLabel):
     :param objectLabel:
     :return: objectName
     """
+    if objectLabel == 0:
+        return "background"
+
     for objectName in objectData:
         if objectData[objectName]['label'] == objectLabel:
             return objectName
