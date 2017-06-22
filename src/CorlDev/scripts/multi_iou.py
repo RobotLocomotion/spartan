@@ -24,7 +24,7 @@ class ComputeIoUHelper(object):
             target.write("\n")
             for label, iou_all_frames_list in sorted(data.iteritems()):
                 print "label,", label, "object,", corl.utils.getObjectName(label), "mean iou", np.average(iou_all_frames_list)
-                target.write(str(label) + " " + str(np.average(iou_all_frames_list)))
+                target.write(str(label) + " " + str(np.average(iou_all_frames_list)) + " " + str(np.std(iou_all_frames_list)) + " " + corl.utils.getObjectName(label))
                 target.write("\n")
         target.close()
 
