@@ -18,15 +18,24 @@ class ComputeIoUHelper(object):
 
     def printAndSaveSummary(self):
         target = open("summary.txt", 'w')
+        target_all_data = open("all.txt", 'w')
         for trial_name, data in sorted(self.trialsIOU.iteritems()):
             print trial_name
             target.write(trial_name)
+            target_all_data.write(trial_name)
             target.write("\n")
+            target_all_data.write("\n")
             for label, iou_all_frames_list in sorted(data.iteritems()):
                 print "label,", label, "object,", corl.utils.getObjectName(label), "mean iou", np.average(iou_all_frames_list)
                 target.write(str(label) + " " + str(np.average(iou_all_frames_list)) + " " + str(np.std(iou_all_frames_list)) + " " + corl.utils.getObjectName(label))
                 target.write("\n")
+                target_all_data.write(str(label) + " " + corl.utils.getObjectName(label) + " ")
+                for i in iou_all_frames_list:
+                    target_all_data.write(str(i))
+                    target_all_data.write(" ")
+                target_all_data.write("\n")
         target.close()
+        target_all_data.close()
 
     def crawlDir(self):
         for filename in sorted(os.listdir(self.dir_full_path)):
