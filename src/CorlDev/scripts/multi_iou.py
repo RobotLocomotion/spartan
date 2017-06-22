@@ -8,16 +8,15 @@ import numpy as np
 class ComputeIoUHelper(object):
 
     def __init__(self, dir_full_path):
-        self.N = 2
         self.dir_full_path = dir_full_path
         self.trialsIOU = {}
         self.crawlDir()
 
     def printFinal(self):
-        for k, v in self.trialsIOU.iteritems():
+        for k, v in sorted(self.trialsIOU.iteritems()):
             print k
             for key, value in sorted(v.iteritems()):
-                print "key, value", key, value
+                print "label, mean iou", key, np.average(value)
 
     def crawlDir(self):
         for filename in sorted(os.listdir(self.dir_full_path)):
