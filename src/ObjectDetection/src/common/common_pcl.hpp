@@ -37,7 +37,7 @@ struct Node {
   bool fixed;
 }; 
 
-pcl::PointCloud<pcl::PointNormal>::Ptr generateNormalsFromPoints(
+static pcl::PointCloud<pcl::PointNormal>::Ptr generateNormalsFromPoints(
         const pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud, 
         int num_neighbors = 10, 
         bool orient_normals = false, 
@@ -153,7 +153,48 @@ Matrix<double, 6, -1> convertPCLPointNormalToMatrix6Xd(const pcl::PointCloud<pcl
   return output_points;
 }
 
+static Eigen::Matrix3Xd generateNormalsFromMatrix3Xd(const Matrix3Xd& input_points, const std::vector<std::string>& prefix = {}, bool orient_normals = true, bool with_vis = true) {
+  Vector3d bb_min = input_points.rowwise().minCoeff();
+  Vector3d bb_max = input_points.rowwise().maxCoeff();
+  double diag = (bb_max - bb_min).norm();
+  double interpoint_scale = (diag / powf( (double) input_points.size(), 0.33)) * sqrtf(3);
 
+  auto input_cloud = convertMatrix3XdToPCLPointXYZ(input_points);
+
+  int highest_node_ind; input_points.row(2).maxCoeff(&highest_node_ind);
+
+  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals = generateNormalsFromPoints(input_cloud, 10, orient_normals, interpoint_scale, highest_node_ind, {0.0, 0.0, 1.0});
+
+  std::vector<string> label;
+  RemoteTreeViewerWrapper rm;
+  if (with_vis) {
+    label.insert(label.end(), prefix.begin(), prefix.end());
+    label.push_back("pointsandfeatures");
+    label.push_back("points");
+    rm.publishPointCloud(input_points, label);
+  }
+
+  Points output_points;
+  Feature output_features;
+  for (int i = 0; i < input_points.cols(); i++) {
+    const pcl::PointNormal &pt = cloud_normals->points[i];
+
+    if (with_vis && i % (input_points.cols() / 100) == 0) {
+      Vector3d normal = Map<const Vector3f>(pt.normal).cast<double>();
+      Matrix<double, 3, 2> normal_line;
+      normal_line.col(0) = input_points.col(i);
+      normal_line.col(1) = input_points.col(i) + normal*0.05;
+      char buf[20]; sprintf(buf, "normal_%d", i);
+      label.clear();  
+      label.insert(label.end(), prefix.begin(), prefix.end());
+      label.push_back("pointsandfeatures");
+      label.push_back(buf);
+      rm.publishLine(normal_line, label);
+    }
+  }
+
+  return convertPCLPointNormalToMatrix6Xd(cloud_normals).block(3, 0, 3, input_points.cols());
+}
 
 std::pair<Points, Feature> generatePointsAndFPFHFeaturesFromPoints(const Eigen::Matrix3Xd& input_points, 
   const std::vector<std::string>& prefix = {}, bool orient_normals = false, bool with_vis = true){

@@ -152,6 +152,11 @@ class MIQPMultipleMeshModelDetector {
     int optICPIters_ = 1000;
     double optICPRejectionProp_ = 0.0;
 
+    // Histogram of Gradient supplementary cost
+    int optHODBins_ = 5;
+    double optHODDist_ = 0.05;
+    double optHODWeight_ = 0.0;
+
     std::vector<MIQPMultipleMeshModelDetector::TransformationVars> transform_by_object_;
     drake::solvers::MatrixXDecisionVariable phi_;
     std::vector<drake::solvers::MatrixXDecisionVariable> alpha_;

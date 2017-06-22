@@ -23,6 +23,7 @@
 
 #include "yaml-cpp/yaml.h"
 #include "common/common.hpp"
+#include "common/common_pcl.hpp"
 #include "optimization_helpers.h"
 #include "rotation_helpers.h"
 
@@ -523,7 +524,13 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
   if (config["init_guess_rand_seed"])
     optInitGuessRandSeed_ = config["init_guess_rand_seed"].as<int>();
 
-  
+  if (config["HOD_bins"])
+    optHODBins_ = config["HOD_bins"].as<int>();
+  if (config["HOD_dist"])
+    optHODDist_ = config["HOD_dist"].as<double>();
+  if (config["HOD_weight"])
+    optHODWeight_ = config["HOD_weight"].as<double>();
+
   config_ = config;
 
   // Load the model itself
@@ -559,6 +566,12 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
     }
   }
   robot_.compile();
+
+  // Extract vertices and meshes from the RBT.
+  all_vertices_.resize(0, 0);
+  all_faces_.clear();
+  face_body_map_.clear(); // Maps from a face index (into all_faces) to an RBT body index.
+  collectBodyMeshesFromRBT(all_vertices_, all_faces_, face_body_map_);
 }
 
 void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out){
@@ -1033,12 +1046,6 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
  ****************************************************************************/
 std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
-
-  // Extract vertices and meshes from the RBT.
-  all_vertices_.resize(0, 0);
-  all_faces_.clear();
-  face_body_map_.clear(); // Maps from a face index (into all_faces) to an RBT body index.
-  collectBodyMeshesFromRBT(all_vertices_, all_faces_, face_body_map_);
   scene_pts_ = scene_pts;
 
   // See https://www.sharelatex.com/project/5850590c38884b7c6f6aedd1
@@ -1234,6 +1241,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     }
   }
   printf("\n");
+
 
   GurobiSolver gurobi_solver;
   MosekSolver mosek_solver;
@@ -1504,6 +1512,60 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     }
   }
 
+
+  // Extract Histogram of Distance features from scene points
+  int n_bins = optHODBins_;
+  double max_dist = optHODDist_;
+  double feature_weighting = optHODWeight_;
+  if (feature_weighting > 0.0) {
+    printf("Starting to add feature costs...\n");
+    auto scene_feat_data = calculateHODDescriptors(scene_pts_, n_bins, max_dist);
+    auto model_feat_data = calculateHODDescriptors(all_vertices_, n_bins, max_dist);
+    
+    // Penalize L1 error of correspondence
+    auto phi_feat = prog.NewContinuousVariables(scene_pts_.cols(), 1, "phi_feat");
+    auto alpha_feat = prog.NewContinuousVariables(scene_feat_data.rows(), scene_pts_.cols(), "alpha_feat");
+
+    // Sum of error terms
+    prog.AddLinearCost( (feature_weighting / (double)scene_pts.cols()) * VectorXd::Ones(scene_pts_.cols()), phi_feat);
+
+    for (int i=0; i<C_.rows(); i++){
+      prog.AddLinearConstraint(phi_feat(i) == (RowVectorXd::Ones(scene_feat_data.rows()) * alpha_feat.col(i))(0, 0));
+
+      // L-1 Norm error of features
+      Matrix<Expression, -1, -1> l1Error = scene_feat_data.col(i) - model_feat_data * C_.row(i).transpose();
+      for (int j = 0; j < scene_feat_data.rows(); j++) {
+        prog.AddLinearConstraint(alpha_feat(j, i) >= l1Error(j));
+        prog.AddLinearConstraint(alpha_feat(j, i) >= -l1Error(j));
+      }
+    }
+  }
+
+  /* 
+  This will not work for multiple reasons:
+  - Need bilinear terms multiplying rotation and the chosen normal vector
+  - Normal vectors will be direction sensitive without new binary vars
+
+  // Penalize errors in normal direction
+  auto scene_feat_data = generateNormalsFromMatrix3Xd(scene_pts_, {"mip"}, false, true);
+  auto model_feat_data = generateNormalsFromMatrix3Xd(all_vertices_, {"mip"}, false, true);
+
+  // Penalize L1 error of correspondence
+  double feature_weighting = 1.0;
+  auto phi_feat = prog.NewContinuousVariables(scene_pts_.cols(), 1, "phi_feat");
+  //auto alpha_feat = prog.NewContinuousVariables(scene_feat_data.rows(), scene_pts_.cols(), "alpha_feat");
+
+  // Sum of error terms
+  // feature_weight / N_s * sum_i (1. - phi_feat)
+  prog.AddLinearCost( (feature_weighting / (double)scene_pts.cols()) * (VectorXd::Ones(phi_feat.rows()) - phi_feat).sum());
+
+  for (int i=0; i<C_.rows(); i++){
+    // Unsigned dot product error, for normal vectors
+    Expression dotProd = (scene_feat_data.col(i).transpose() * (model_feat_data * C_.row(i).transpose()))(0, 0);
+    prog.AddLinearConstraint(phi_feat(i) >= dotProd);
+    prog.AddLinearConstraint(phi_feat(i) >= -dotProd);
+  }
+*/
 /*
   // For every scene point, add a cost for its correspondence.
   for (int i = 0; i < scene_pts.cols(); i++) {

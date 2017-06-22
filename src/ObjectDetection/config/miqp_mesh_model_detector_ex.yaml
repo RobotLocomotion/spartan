@@ -17,9 +17,9 @@ point_cloud_generator_options:
 
 
 detector_options:
-    #detector_type: "world_to_body_transforms"
+    detector_type: "world_to_body_transforms"
     #detector_type: "world_to_body_transforms_with_sampled_model_points"
-    detector_type: "body_to_world_transforms"
+    #detector_type: "body_to_world_transforms"
     
     # options of rot constraints:
     # 0: constrained to ground truth
@@ -29,15 +29,19 @@ detector_options:
     # 4: McCormick directly on rotmat
     # 5: Conservative RPY limits
     # 6: 2D Logarithmic McCormick
-    rotation_constraint: 6
-    rotation_constraint_num_faces: 3
+    rotation_constraint: 4
+    rotation_constraint_num_faces: 2
     rotation_constraint_l1_bound: 0
 
     allow_outliers: true
     phi_max: 0.05
-    use_initial_guess: false
+    use_initial_guess: true
     corruption_amount: 0
     init_guess_rand_seed: 1
+    
+    HOD_bins: 3
+    HOD_dist: 0.05
+    HOD_weight: 0.0
 
     big_M: 1.0
 
@@ -49,7 +53,7 @@ detector_options:
     outlier_max: [2.0, 2.0, 4.0]
     scene_point_additive_noise: 0.00
     scene_point_rand_seed: 3
-    model_sample_rays: 50
+    model_sample_rays: 100
     model_point_rand_seed: 1
 
     ICP_use_as_heuristic: true
@@ -72,7 +76,7 @@ detector_options:
         #PoolGap: 0.0
         #FeasRelaxBigM: 4
         MIPGapAbs: 0.001
-        MIPGap: 0.05
+        MIPGap: 0.005
         #Heuristics: 0.1 # Heuristics seem to do very well, so grant them more time (default 5% = 0.05)
 
     models:
