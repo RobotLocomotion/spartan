@@ -81,6 +81,53 @@ void publishErrorColorCodedPointCloud(const Eigen::Matrix3Xd& scene_pts,
   rm.publishPointCloud(scene_pts, {opt_name, "scene_pts_colorized_incumbent"}, colors);
 }
 
+void doExactCollisionDetectFromPoints(const RigidBodyTree<double>& robot, const KinematicsCache<double>& robot_kinematics_cache, 
+  const Eigen::Matrix3Xd& all_vertices, const DrakeShapes::TrianglesVector& all_faces, 
+  const vector<int>& face_body_map,
+  const Matrix3Xd& scene_pts, VectorXd& phi,
+  Matrix3Xd& normal, Matrix3Xd& x, Matrix3Xd& body_x, 
+  vector<int>& body_idx){
+
+  int N = scene_pts.cols();
+  phi.resize(N, 1);
+  normal.resize(3, N);
+  x.resize(3, N);
+  body_x.resize(3, N);
+  body_idx.resize(N);
+
+  vector<Affine3d> tfs(robot.get_num_bodies());
+  for (int i=0; i < robot.get_num_bodies(); i++){
+    tfs[i] = robot.relativeTransform(robot_kinematics_cache, 0, i+1);
+  }
+
+  for (int i=0; i<scene_pts.cols(); i++){
+    // Find the face it's closest to on body i
+    phi(i) = std::numeric_limits<double>::infinity();
+    int face_ind = 0;
+    Vector3d closest_pt;
+    Vector3d closest_pt_normal;
+    for (int j=0; j<all_faces.size(); j++){
+      vector<Vector3d> verts;
+      for (int k=0; k<3; k++){
+        verts.push_back(tfs[face_body_map[j]-1] * all_vertices.col(all_faces[j](k)));
+      }
+      Vector3d new_closest_pt = closestPointOnTriangle(verts, scene_pts.col(i));
+      double new_dist = (new_closest_pt - scene_pts.col(i)).lpNorm<1>();
+      if (new_dist < phi(i)){
+        phi(i) = new_dist;
+        face_ind = j;
+        closest_pt = new_closest_pt;
+        closest_pt_normal = (verts[2]-verts[0]).cross(verts[1]-verts[0]);
+        closest_pt_normal /= closest_pt_normal.norm();
+      }
+    }
+    body_idx[i] = face_body_map[face_ind];
+    normal.col(i) = closest_pt_normal;
+    x.col(i) = closest_pt;
+    body_x.col(i) = tfs[face_body_map[face_ind]-1].inverse() * closest_pt;
+  }
+}
+
 
 const double kMaxConsideredICPDistance = 0.5;
 
@@ -88,7 +135,7 @@ int done = 0;
 void callICPProcessingForever(MIQPMultipleMeshModelDetector * detector){
   while (!done){
     detector->doICPProcessing();
-    usleep(1000*1000*5);
+    usleep(1000*1000);
   }
 }
 
@@ -114,7 +161,7 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     if (config_["detector_type"].as<string>() != "body_to_world_transforms")
       est_tf = est_tf.inverse();
 
-    tfs[body_i-1] = est_tf.inverse();
+    tfs[body_i-1] = est_tf;
 
     
     // TODO(gizatt) This state vector reconstruction assumes all bodies
@@ -136,7 +183,13 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
     best_sol_objective_yet_ = solve_info.current_objective;
     RemoteTreeViewerWrapper rm;
     rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.0, 0.8, 0.8, 0.5), {"mip", "incumbent_sol"});
-    
+   
+    q_incumbent_ = q_robot;
+    C_incumbent_ = prog.GetSolution(C_);
+    if (config_["detector_type"].as<string>() == "world_to_body_transforms")
+      f_incumbent_ = prog.GetSolution(f_);
+    tfs_incumbent_ = tfs;
+
     // Given model state and model description, publish a colorized scene cloud
     // with current registration errors
     publishErrorColorCodedPointCloud(scene_pts_, all_vertices_, all_faces_, face_body_map_, tfs, "mip");
@@ -284,8 +337,9 @@ void MIQPMultipleMeshModelDetector::doICPProcessing(){
     Matrix3Xd x;
     Matrix3Xd body_x;
     vector<int> body_idx;
-    robot_.collisionDetectFromPoints(robot_kinematics_cache, scene_pts_, phi,
-                normal, x, body_x, body_idx, false);
+    doExactCollisionDetectFromPoints(robot_, robot_kinematics_cache,
+      all_vertices_, all_faces_, face_body_map_, scene_pts_, phi,
+                normal, x, body_x, body_idx);
 
     // Get error and decide whether to terminate early
     double error = 0.0;
@@ -437,7 +491,7 @@ void MIQPMultipleMeshModelDetector::doICPProcessing(){
     }
 
     if (getUnixTime() - last_published_icp > 0.01 && q_robot.transpose() * q_robot < 100.0){
-      rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.5), {"mip", "icp"});
+      rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.5), {"mip", "icp", "icp_rbt"});
       last_published_icp = getUnixTime();
     }
     //cout << "Error " << last_error << ", q " << q_robot << endl;
@@ -461,17 +515,17 @@ void MIQPMultipleMeshModelDetector::doICPProcessing(){
   }
 
   if (q_robot.transpose() * q_robot < 100.0)
-    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.5), {"mip", "icp"});
-  printf("Testing objective %f\n", new_objective);
+    rm.publishRigidBodyTree(robot_, q_robot, Vector4d(0.5, 0.2, 0.2, 0.5), {"mip", "icp", "icp_rbt"});
+  //printf("Testing objective %f\n", new_objective);
   if (new_objective < best_heuristic_supplied_yet_*1.1){
-    printf("New near-best objective %f\n", new_objective);
+    //printf("New near-best objective %f\n", new_objective);
     best_heuristic_supplied_yet_ = new_objective;
     NewHeuristicSol n;
     getInitialGuessFromRobotState(q_robot, n.vals, n.vars);
     new_heuristic_sols_lock_.lock();
     new_heuristic_sols_.push_back(n);
     new_heuristic_sols_lock_.unlock();
-    printf("Heuristic queue len is now %ld, seed len is %ld\n", new_heuristic_sols_.size(), icp_search_seeds_.size());
+    //printf("Heuristic queue len is now %ld, seed len is %ld\n", new_heuristic_sols_.size(), icp_search_seeds_.size());
   }
 }
 
@@ -1335,7 +1389,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   
   //prog.PrintSolution();
   printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);  
-
+  bool sol_good = (out == drake::solvers::kSolutionFound);
 
   std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
 
@@ -1344,8 +1398,15 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     printf("==================================================\n");
     printf("======================SOL %d ======================\n", sol_i);
     printf("==================================================\n");
-    auto f_est= prog.GetSolution(f_); //, sol_i);
-    auto C_est = prog.GetSolution(C_); //, sol_i);
+
+    MatrixXd f_est, C_est;
+    if (sol_good) {
+      f_est= prog.GetSolution(f_); //, sol_i);
+      C_est = prog.GetSolution(C_); //, sol_i);
+    } else {
+      f_est = f_incumbent_;
+      C_est = C_incumbent_;
+    }
 
     MIQPMultipleMeshModelDetector::Solution new_solution;
 
@@ -1358,8 +1419,19 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       printf("************************************************\n");
       printf("Concerning model %d (%s):\n", body_i, body.get_name().c_str());
       printf("------------------------------------------------\n");
-      Vector3d Tf = prog.GetSolution(transform_by_object_[body_i-1].T); //, sol_i);
-      Matrix3d Rf = prog.GetSolution(transform_by_object_[body_i-1].R); //, sol_i);
+
+      Vector3d Tf;
+      Matrix3d Rf;
+
+      if (sol_good){
+        Tf = prog.GetSolution(transform_by_object_[body_i-1].T); //, sol_i);
+        Rf = prog.GetSolution(transform_by_object_[body_i-1].R); //, sol_i);
+      } else {
+        // bending over backwards to make this fit into the old pipeline.
+        // refaaaaactoring needed
+        Tf = tfs_incumbent_[body_i - 1].inverse().translation();
+        Rf = tfs_incumbent_[body_i - 1].inverse().rotation();
+      }
 
       new_detection.R_fit = Rf;
       new_detection.T_fit = Tf;
@@ -1406,7 +1478,11 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
         new_solution.detections.push_back(new_detection);
     }
 
-    new_solution.objective = prog.GetOptimalCost();
+    if (sol_good) {
+      new_solution.objective = prog.GetOptimalCost();
+    } else {
+      new_solution.objective = best_sol_objective_yet_;
+    }
     new_solution.lower_bound = prog.GetLowerBound();
     new_solution.solve_time = elapsed;
     solutions.push_back(new_solution);

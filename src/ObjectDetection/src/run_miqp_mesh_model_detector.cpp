@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
   }
 
   // Solution save-out
-  // TODO(gizatt) This doesn't work yet, as
+  // TODO(gizatt) This doesn't work completely yet, as
   // the MIQP mesh model detector generates
   // pose estimates in maximal coords, while
   // we want to save out estimates in the joint
