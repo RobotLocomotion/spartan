@@ -56,6 +56,32 @@ getAverageTransform(std::vector<Eigen::Transform<double, 3, Eigen::Isometry>> tr
   return avg_transform;
 }
 
+
+static Eigen::MatrixXd calculateHODDescriptors(const Eigen::Matrix3Xd& pts, int n_bins, double max_dist) {
+  Eigen::MatrixXd hod_data(n_bins, pts.cols());
+  hod_data.setZero();
+  for (int i = 0; i < pts.cols(); i++) { 
+    for (int j = 0; j < pts.cols(); j++) {
+      if (i != j) {
+        double dist = (pts.col(j) - pts.col(i)).norm();
+        if (dist <= max_dist){
+          int bin = clamp((int) (dist / max_dist * n_bins), 0, n_bins-1);
+          hod_data(bin, i) += 1.0;
+        }
+      }
+    } 
+  }
+  auto hod_colwise_sums = hod_data.colwise().sum();
+  for (int j = 0; j < hod_data.cols(); j++) {
+    for (int i = 0; i < n_bins; i++) {
+      if (hod_colwise_sums(j) > 0)
+        hod_data(i, j) /= hod_colwise_sums(j);
+    }
+  }
+  return hod_data;
+}
+
+
 // Adapted from https://www.gamedev.net/topic/552906-closest-point-on-triangle/
 // and converted to Eigen by gizatt@mit.edu
 static Eigen::Vector3d closestPointOnTriangle( const std::vector<Eigen::Vector3d>& triangle, const Eigen::Vector3d& sourcePosition )
