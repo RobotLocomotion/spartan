@@ -176,6 +176,10 @@ class MIQPMultipleMeshModelDetector {
     double last_published_node_ = 0.0;
     double last_published_sol_ = 0.0;
     double best_sol_objective_yet_ = std::numeric_limits<double>::infinity();
+    Eigen::VectorXd q_incumbent_;
+    Eigen::MatrixXd C_incumbent_;
+    Eigen::MatrixXd f_incumbent_;
+    std::vector<Eigen::Affine3d> tfs_incumbent_;
     std::vector<SolveHistoryElem> solve_history; 
 
     // First in, last out structure to let us queue
