@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
   if (config["detector_options"] == NULL){
     runtime_error("Need detector options.");
   }
-  auto fgr_config = config["detector_options"];
+  auto s4pcs_config = config["detector_options"];
 
   // Read in the model.
   vtkSmartPointer<vtkPolyData> modelPolyData = ReadPolyData(modelFile.c_str());
@@ -162,38 +162,26 @@ int main(int argc, char** argv) {
   model_pts.colwise() += modelPtAvg;
 */
 
-  /*
-  // The delta for the LCP (see the paper).
-  double delta = 5.0;
-  // Estimated overlap between P and Q. This is the fraction of points in P that
-  // may have corresponding point in Q. It's being used to estimate the number
-  // of RANSAC iterations needed to guarantee small failure probability.
-  double overlap_estimation = 0.2;
-  // Maximum normal difference.
-  double max_normal_difference = 10.0;
-  // Maximum translation distance.
-  double max_translation_distance = kLargeNumber;
-  // Maximum rotation angle.
-  double max_angle = kLargeNumber;
-  // Maximum color RGB distance between corresponding vertices.
-  double max_color_distance = 100.0;
-  // Threshold on the value of the target function (LCP, see the paper).
-  // It is used to terminate the process once we reached this value.
-  double terminate_threshold = 1.0;
-  // The number of points in the sample. We sample this number of points
-  // uniformly from P and Q.
-  int sample_size = 200;
-  // Maximum time we allow the computation to take. This makes the algorithm
-  // an ANY TIME algorithm that can be stopped at any time, producing the best
-  // solution so far.
-  int max_time_seconds = 60;
-  */
   Match4PCSOptions s4pcs_opts;
-  s4pcs_opts.delta = 0.001;
-  s4pcs_opts.sample_size = 500;
-  s4pcs_opts.overlap_estimation = 0.1;
-  s4pcs_opts.max_color_distance = kLargeNumber;
-  s4pcs_opts.max_normal_difference = kLargeNumber;
+
+  if (s4pcs_config["delta"])
+    s4pcs_opts.delta = s4pcs_config["delta"].as<double>();
+  if (s4pcs_config["overlap_estimation"])
+    s4pcs_opts.overlap_estimation = s4pcs_config["overlap_estimation"].as<double>();
+  if (s4pcs_config["max_normal_difference"])
+    s4pcs_opts.max_normal_difference = s4pcs_config["max_normal_difference"].as<double>();
+  if (s4pcs_config["max_translation_distance"])
+    s4pcs_opts.max_translation_distance = s4pcs_config["max_translation_distance"].as<double>();
+  if (s4pcs_config["max_angle"])
+    s4pcs_opts.max_angle = s4pcs_config["max_angle"].as<double>();
+  if (s4pcs_config["max_color_distance"])
+    s4pcs_opts.max_color_distance = s4pcs_config["max_color_distance"].as<double>();
+  if (s4pcs_config["terminate_threshold"])
+    s4pcs_opts.terminate_threshold = s4pcs_config["terminate_threshold"].as<double>();
+  if (s4pcs_config["sample_size"])
+    s4pcs_opts.sample_size = s4pcs_config["sample_size"].as<int>();
+  if (s4pcs_config["max_time_seconds"])
+    s4pcs_opts.max_time_seconds = s4pcs_config["max_time_seconds"].as<int>();
 
   MatchSuper4PCS matcher(s4pcs_opts);
 
@@ -237,7 +225,48 @@ int main(int argc, char** argv) {
   cout << "Est tf " << est_tf.matrix() << endl;
   cout << "Est tf inv" << est_tf.inverse().matrix() << endl;
 
+  VectorXd q_out(7);
+  q_out.block<3, 1>(0, 0) = est_tf.translation();
+  q_out.block<4, 1>(3, 0) = drake::math::rotmat2quat(est_tf.rotation());
+
   publishErrorColorCodedPointCloud(est_tf * scene_pts, model_pts, "super4pcs");
+
+  if (argc > 3){
+    YAML::Emitter out;
+    out << YAML::BeginMap; {
+      out << YAML::Key << "scene";
+      out << YAML::Value << sceneFile;
+
+      out << YAML::Key << "config";
+      out << YAML::Value << config;
+
+      out << YAML::Key << "solutions";
+      out << YAML::BeginSeq; {
+        out << YAML::BeginMap; {
+          out << YAML::Key << "models";
+          out << YAML::Value << YAML::BeginSeq; {
+              out << YAML::BeginMap; {
+                out << YAML::Key << "model";
+                out << YAML::Value << modelFile;
+                out << YAML::Key << "q";
+                out << YAML::Value << YAML::Flow << vector<double>(q_out.data(), q_out.data() + q_out.rows());
+              } out << YAML::EndMap;
+          } out << YAML::EndSeq;
+
+          out << YAML::Key << "history";
+          out << YAML::Value << YAML::BeginMap; {
+            out << YAML::Key << "wall_time";
+            out << YAML::Value << YAML::Flow << time;
+          } out << YAML::EndMap;
+
+        } out << YAML::EndMap;
+      } out << YAML::EndSeq;
+    } out << YAML::EndMap;
+
+    ofstream fout(outputFile);
+    fout << out.c_str();
+    fout.close();
+  }
 
   return 0;
 }

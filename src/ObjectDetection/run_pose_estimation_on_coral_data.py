@@ -20,10 +20,10 @@ MODELS_ROOT_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/'
 DETECTORS_CONFIG_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/config'
 WORK_DIR_NAME = "pose_est_pipeline"
 
-scene_resample_spacing = 0.005
+scene_resample_spacing = 0.002
 scene_crop_width = 0.3
 
-model_resample_spacing = 0.005
+model_resample_spacing = 0.002
 
 if __name__ == "__main__":
    
@@ -102,12 +102,12 @@ if __name__ == "__main__":
       )
 
     elif detectorType == "fgr":
-      command = "run_fgr_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
+      command = "run_fgr_detector %s %s %s/fgr_detector_ex.yaml %s/%s/fgr_output.yaml" % (
         resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
       )
 
     elif detectorType == "super4pcs":
-      command = "run_super4pcs_detector %s %s %s/goicp_detector_ex.yaml %s/%s/goicp_output.yaml" % (
+      command = "run_super4pcs_detector %s %s %s/super4pcs_detector_ex.yaml %s/%s/super4pcs_output.yaml" % (
         resampled_scene_file, resampled_model_file, DETECTORS_CONFIG_DIR, data_dir, WORK_DIR_NAME
       )
 
