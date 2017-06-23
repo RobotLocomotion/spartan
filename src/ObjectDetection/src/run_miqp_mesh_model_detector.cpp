@@ -215,72 +215,82 @@ int main(int argc, char** argv) {
     string outputFilename = string(argv[3]);
 
     YAML::Emitter out;
-    out << YAML::BeginSeq;
-    for (const auto& solution : solutions){
-      out << YAML::BeginMap; {
-        out << YAML::Key << "objective";
-        out << YAML::Value << solution.objective;
-        out << YAML::Key << "bound";
-        out << YAML::Value << solution.lower_bound;
-        out << YAML::Key << "solve_time";
-        out << YAML::Key << solution.solve_time;
 
-        out << YAML::Key << "models";
-        out << YAML::Value << YAML::BeginSeq; {
-          VectorXd q_robot_this;
-          for (int i = 0; i < robot.get_num_model_instances(); i++) {
-            auto bodies = robot.FindModelInstanceBodies(i);
-            for (const auto& body : bodies){
-              int old_size = q_robot_this.rows();
-              int new_rows = body->getJoint().get_num_positions();
-              q_robot_this.conservativeResize(old_size + new_rows);
-              q_robot_this.block(old_size, 0, new_rows, 1) = 
-                q_robot_est.block(body->get_position_start_index(), 0, new_rows, 1);
+    out << YAML::BeginMap; {
+      out << YAML::Key << "scene";
+      out << YAML::Value << sceneFile;
+
+      out << YAML::Key << "config";
+      out << YAML::Value << config;
+
+      out << YAML::Key << "solutions";
+      out << YAML::BeginSeq;
+      for (const auto& solution : solutions){
+        out << YAML::BeginMap; {
+          out << YAML::Key << "objective";
+          out << YAML::Value << solution.objective;
+          out << YAML::Key << "bound";
+          out << YAML::Value << solution.lower_bound;
+          out << YAML::Key << "solve_time";
+          out << YAML::Key << solution.solve_time;
+
+          out << YAML::Key << "models";
+          out << YAML::Value << YAML::BeginSeq; {
+            VectorXd q_robot_this;
+            for (int i = 0; i < robot.get_num_model_instances(); i++) {
+              auto bodies = robot.FindModelInstanceBodies(i);
+              for (const auto& body : bodies){
+                int old_size = q_robot_this.rows();
+                int new_rows = body->getJoint().get_num_positions();
+                q_robot_this.conservativeResize(old_size + new_rows);
+                q_robot_this.block(old_size, 0, new_rows, 1) = 
+                  q_robot_est.block(body->get_position_start_index(), 0, new_rows, 1);
+              }
+
+              out << YAML::BeginMap; {
+                out << YAML::Key << "urdf";
+                // I assume the model instances are in same order as model members in the config yaml...
+                out << YAML::Key << config["detector_options"]["models"][i]["urdf"].as<string>();
+                out << YAML::Key << "q";
+                out << YAML::Value << YAML::Flow << vector<double>(q_robot_this.data(), q_robot_this.data() + q_robot_this.rows());
+              } out << YAML::EndMap;
+            }  
+          } out << YAML::EndSeq;
+
+          out << YAML::Key << "tfs";
+          out << YAML::Value << YAML::BeginSeq; {
+            for (const auto& detection : solution.detections){
+              out << YAML::BeginMap; {
+                out << YAML::Key << "obj_ind" << YAML::Value << detection.obj_ind;
+                out << YAML::Key << "R";
+                MatrixXd R = detection.R_fit.transpose();
+                out << YAML::Value << YAML::Flow << vector<double>(R.data(), R.data() + R.rows() * R.cols());
+                out << YAML::Key << "T";
+                MatrixXd T = detection.T_fit;
+                out << YAML::Value << YAML::Flow << vector<double>(T.data(), T.data() + T.rows() * T.cols());
+              } out << YAML::EndMap;
             }
+          } out << YAML::EndSeq;
 
-            out << YAML::BeginMap; {
-              out << YAML::Key << "urdf";
-              // I assume the model instances are in same order as model members in the config yaml...
-              out << YAML::Key << config["detector_options"]["models"][i]["urdf"].as<string>();
-              out << YAML::Key << "q";
-              out << YAML::Value << YAML::Flow << vector<double>(q_robot_this.data(), q_robot_this.data() + q_robot_this.rows());
-            } out << YAML::EndMap;
-          }  
-        } out << YAML::EndSeq;
+          out << YAML::Key << "history";
+          out << YAML::Value << YAML::BeginMap; {
+            out << YAML::Key << "wall_time";
+            out << YAML::Value << YAML::Flow << wall_times;
+            out << YAML::Key << "reported_runtime";
+            out << YAML::Value << YAML::Flow << reported_runtimes;
+            out << YAML::Key << "best_objective";
+            out << YAML::Value << YAML::Flow << best_objectives;
+            out << YAML::Key << "best_bound";
+            out << YAML::Value << YAML::Flow << best_bounds;
+            out << YAML::Key << "explored_node_count";
+            out << YAML::Value << YAML::Flow << explored_node_counts;
+            out << YAML::Key << "feasible_solutions_count";
+            out << YAML::Value << YAML::Flow << feasible_solutions_counts;
+          } out << YAML::EndMap;
 
-        out << YAML::Key << "tfs";
-        out << YAML::Value << YAML::BeginSeq; {
-          for (const auto& detection : solution.detections){
-            out << YAML::BeginMap; {
-              out << YAML::Key << "obj_ind" << YAML::Value << detection.obj_ind;
-              out << YAML::Key << "R";
-              MatrixXd R = detection.R_fit.transpose();
-              out << YAML::Value << YAML::Flow << vector<double>(R.data(), R.data() + R.rows() * R.cols());
-              out << YAML::Key << "T";
-              MatrixXd T = detection.T_fit;
-              out << YAML::Value << YAML::Flow << vector<double>(T.data(), T.data() + T.rows() * T.cols());
-            } out << YAML::EndMap;
-          }
-        } out << YAML::EndSeq;
-
-        out << YAML::Key << "history";
-        out << YAML::Value << YAML::BeginMap; {
-          out << YAML::Key << "wall_time";
-          out << YAML::Value << YAML::Flow << wall_times;
-          out << YAML::Key << "reported_runtime";
-          out << YAML::Value << YAML::Flow << reported_runtimes;
-          out << YAML::Key << "best_objective";
-          out << YAML::Value << YAML::Flow << best_objectives;
-          out << YAML::Key << "best_bound";
-          out << YAML::Value << YAML::Flow << best_bounds;
-          out << YAML::Key << "explored_node_count";
-          out << YAML::Value << YAML::Flow << explored_node_counts;
-          out << YAML::Key << "feasible_solutions_count";
-          out << YAML::Value << YAML::Flow << feasible_solutions_counts;
         } out << YAML::EndMap;
-
-      } out << YAML::EndMap;
-    } out << YAML::EndSeq;
+      } out << YAML::EndSeq;
+    } out << YAML::EndMap;
 
     ofstream fout(outputFilename);
     fout << out.c_str();

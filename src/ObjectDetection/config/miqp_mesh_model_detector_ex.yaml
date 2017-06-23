@@ -72,7 +72,7 @@ detector_options:
         Threads: 10
 
     gurobi_float_options:
-        TimeLimit: 10
+        TimeLimit: 300
         #PoolGap: 0.0
         #FeasRelaxBigM: 4
         MIPGapAbs: 0.00001
