@@ -151,10 +151,6 @@ int main(int argc, char** argv) {
   est_tf.matrix() = fgr_app.GetTrans().cast<double>();
  // est_tf = est_tf.inverse();
 
-  VectorXd q_out(7);
-  q_out.block<3, 1>(0, 0) = est_tf.translation();
-  q_out.block<4, 1>(3, 0) = drake::math::rotmat2quat(est_tf.rotation());
-
   // Publish the transformed scene point cloud (I'm transforming the scene because
   // the model is usually better centered )
   cout << "Est tf " << est_tf.matrix() << endl;
@@ -162,6 +158,10 @@ int main(int argc, char** argv) {
 
   publishErrorColorCodedPointCloud(est_tf * scene_pts, model_pts, "fgr");
 
+  VectorXd q_out(7);
+  q_out.block<3, 1>(0, 0) = est_tf.inverse().translation();
+  q_out.block<4, 1>(3, 0) = drake::math::rotmat2quat(est_tf.inverse().rotation());
+  
   if (argc > 3){
     YAML::Emitter out;
     out << YAML::BeginMap; {

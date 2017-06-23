@@ -236,8 +236,8 @@ int main(int argc, char** argv) {
   publishErrorColorCodedPointCloud(est_tf * scene_pts, model_pts, "goicp");
 
   VectorXd q_out(7);
-  q_out.block<3, 1>(0, 0) = est_tf.translation();
-  q_out.block<4, 1>(3, 0) = drake::math::rotmat2quat(est_tf.rotation());
+  q_out.block<3, 1>(0, 0) = est_tf.inverse().translation();
+  q_out.block<4, 1>(3, 0) = drake::math::rotmat2quat(est_tf.inverse().rotation());
 
   if (argc > 3){
     YAML::Emitter out;
