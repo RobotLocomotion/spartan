@@ -25,11 +25,11 @@ if __name__ == "__main__":
     print "\n", command, "\n\n"
     os.system(command)
 
-    #command = "python run_pose_estimation_on_coral_data.py goicp %s" % (
-    #    complete_path
-    #  )
-    #print "\n", command, "\n\n"
-    #os.system(command)
+    command = "python run_pose_estimation_on_coral_data.py goicp %s" % (
+        complete_path
+      )
+    print "\n", command, "\n\n"
+    os.system(command)
 
     command = "python run_pose_estimation_on_coral_data.py super4pcs %s" % (
         complete_path

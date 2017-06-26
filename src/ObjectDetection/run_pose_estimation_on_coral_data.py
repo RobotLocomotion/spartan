@@ -20,30 +20,32 @@ from director import transformUtils
 DEFAULT_DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/logs_test/2017-06-09-04/'
 MODELS_ROOT_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/'
 DETECTORS_CONFIG_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/config'
-WORK_DIR_NAME = "pose_est_pipeline"
 
 params = dict(
   mip = dict(
     scene_resample_spacing = 0.02,
-    scene_crop_width = 0.25,
+    scene_crop_width = 0.3,
     model_resample_spacing = 0.02
   ),
   goicp = dict(
     scene_resample_spacing = 0.005,
-    scene_crop_width = 0.25,
+    scene_crop_width = 0.3,
     model_resample_spacing = 0.02
   ),
   super4pcs = dict(
     scene_resample_spacing = 0.005,
-    scene_crop_width = 0.25,
+    scene_crop_width = 0.3,
     model_resample_spacing = 0.005
   ),
   fgr = dict(
     scene_resample_spacing = 0.005,
-    scene_crop_width = 0.25,
+    scene_crop_width = 0.3,
     model_resample_spacing = 0.005
   )
 )
+
+WORK_DIR_NAME_BASE = "pose_est_pipeline/c%0.3f_s%0.3f_m%0.3f/"
+
 
 if __name__ == "__main__":
    
@@ -71,12 +73,16 @@ if __name__ == "__main__":
     exit(0)
   # TODO(gizatt) other sanity-checks for existing files?
 
-  # Make sure there's a sandbox directory within the data dir to spit our intermediate data into
-  os.system("mkdir -p " + data_dir + "/" + WORK_DIR_NAME)
-
   scene_crop_width = params[detectorType]["scene_crop_width"]
   scene_resample_spacing = params[detectorType]["scene_resample_spacing"]
   model_resample_spacing = params[detectorType]["model_resample_spacing"]
+
+  work_dir_name = WORK_DIR_NAME_BASE % (
+      scene_crop_width, scene_resample_spacing, model_resample_spacing 
+    )
+  # Make sure there's a sandbox directory within the data dir to spit our intermediate data into
+  os.system("mkdir -p " + data_dir + "/" + work_dir_name)
+
 
   # For each model in this cloud...
   gt_pose_yaml = yaml.load(open(data_dir + "/registration_result.yaml"))
@@ -88,7 +94,7 @@ if __name__ == "__main__":
       continue
 
     # Resample the point cloud as requested by our options -- cropping + point downsampling
-    resampled_scene_file = "%s/%s/resampled_pointcloud.vtp" % (data_dir, WORK_DIR_NAME)
+    resampled_scene_file = "%s/%s/resampled_pointcloud.vtp" % (data_dir, work_dir_name)
     scene_nx = float(gt_pose_yaml[model_name]["pose"][0][0]) - scene_crop_width / 2.
     scene_px = float(gt_pose_yaml[model_name]["pose"][0][0]) + scene_crop_width / 2.
     scene_ny = float(gt_pose_yaml[model_name]["pose"][0][1]) - scene_crop_width / 2.
@@ -105,7 +111,7 @@ if __name__ == "__main__":
     os.system(command)
 
     # Resample the object as requested by our options -- point downsampling
-    resampled_model_file = "%s/%s/resampled_%s.vtp" % (data_dir, WORK_DIR_NAME, model_name)
+    resampled_model_file = "%s/%s/resampled_%s.vtp" % (data_dir, work_dir_name, model_name)
     command = "directorPython scripts/resampleVtp.py %s %s %f" % (
         model_path, resampled_model_file, model_resample_spacing
       )
@@ -113,7 +119,7 @@ if __name__ == "__main__":
     os.system(command)
 
     # And finally invoke our pose est routine
-    output_file = "%s/%s/%s_output.yaml" % (data_dir, WORK_DIR_NAME, detectorType)
+    output_file = "%s/%s/%s_output.yaml" % (data_dir, work_dir_name, detectorType)
     if detectorType == "mip":
       command = "run_miqp_mesh_model_detector %s %s/miqp_mesh_model_detector_ex.yaml %s" % (
         resampled_scene_file, DETECTORS_CONFIG_DIR, output_file
@@ -158,7 +164,7 @@ if __name__ == "__main__":
 
     # Collect those results into an appropriately named results file, along with the downsampling params used, and 
     # save it out.
-    final_results_file = "%s/%s/%s_summary.yaml" % (data_dir, WORK_DIR_NAME, detectorType)
+    final_results_file = "%s/%s/%s_summary.yaml" % (data_dir, work_dir_name, detectorType)
     out_results = dict(
                    estimated = dict(
                     est_trans = output_trans.tolist(),
