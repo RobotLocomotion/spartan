@@ -139,13 +139,13 @@ def do_update(config_dir):
   config_file = config_dir + "/config.yaml"
 
   class_names = next(os.walk(DATA_DIR))[1]
-  for class_name in class_names:
+  for class_name in sorted(class_names):
     if class_name not in TARGET_CLASSES:
       print "Skipping class_name %s because it's not a target" % (class_name)
 
     # For each test instance...
     test_instances = next(os.walk(DATA_DIR + "/" + class_name))[1]
-    for test_instance in test_instances:
+    for test_instance in sorted(test_instances):
       if not INSTANCE_PATTERN.match(test_instance):
         continue
 

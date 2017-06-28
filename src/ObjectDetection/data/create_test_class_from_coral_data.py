@@ -5,6 +5,7 @@ import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime
+import re
 import signal
 
 from director import transformUtils
@@ -28,6 +29,9 @@ CLASS_DIR_NAME = "crop_%0.3f/" % (params["scene_crop_width"])
 
 CLASS_NAME = "Crop %0.3f" % (params["scene_crop_width"])
 CLASS_NOTES = ""
+
+INSTANCE_PATTERN = re.compile(".*2017-06-13-40.*")
+
 
 if __name__ == "__main__":
    
@@ -63,6 +67,9 @@ if __name__ == "__main__":
   # Iterate over data available in Corl
   subdirs = next(os.walk(CORL_DATA_DIR))[1]
   for subdir in subdirs:
+    if not INSTANCE_PATTERN.match(subdir):
+      continue
+      
     complete_path = CORL_DATA_DIR + subdir
 
     # Sanity check a few things before we make any messes
