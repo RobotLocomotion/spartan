@@ -240,7 +240,7 @@ std::pair<Points, Feature> generatePointsAndFPFHFeaturesFromPoints(const Eigen::
     const pcl::FPFHSignature33 &feature = object_features->points[i];
     output_features.push_back(Map<const VectorXf>(feature.histogram, 33));
 
-    if (with_vis && i % (input_points.cols() / 100) == 0) {
+    if (with_vis && i % (input_points.cols() % 10) == 0) {
       Vector3d normal = Map<const Vector3f>(pt.normal).cast<double>();
       Matrix<double, 3, 2> normal_line;
       normal_line.col(0) = input_points.col(i);
@@ -249,6 +249,7 @@ std::pair<Points, Feature> generatePointsAndFPFHFeaturesFromPoints(const Eigen::
       label.clear();  
       label.insert(label.end(), prefix.begin(), prefix.end());
       label.push_back("pointsandfeatures");
+      label.push_back("normals");
       label.push_back(buf);
       rm.publishLine(normal_line, label);
     }

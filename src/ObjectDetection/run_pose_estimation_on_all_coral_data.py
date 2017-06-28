@@ -4,6 +4,13 @@ import os, sys, signal
 
 ROOT_LOGS_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/logs_test/'
 
+active = ['fgr']
+# options:
+#   super4pcs
+#   fgr
+#   mip
+#   goicp
+
 if __name__ == "__main__":
    
   def signal_handler(signal, frame):
@@ -19,26 +26,10 @@ if __name__ == "__main__":
 
     print "\n\n\n***************** STARTING SUBDIR %s *************" % subdir
 
-    command = "python run_pose_estimation_on_coral_data.py fgr %s" % (
-        complete_path
-      )
-    print "\n", command, "\n\n"
-    os.system(command)
-
-    command = "python run_pose_estimation_on_coral_data.py goicp %s" % (
-        complete_path
-      )
-    print "\n", command, "\n\n"
-    os.system(command)
-
-    command = "python run_pose_estimation_on_coral_data.py super4pcs %s" % (
-        complete_path
-      )
-    print "\n", command, "\n\n"
-    os.system(command)
-
-    command = "python run_pose_estimation_on_coral_data.py mip %s" % (
-        complete_path
-      )
-    print "\n", command, "\n\n"
-    os.system(command)
+    for method in active:
+      command = "python run_pose_estimation_on_coral_data.py %s %s" % (
+          method,
+          complete_path
+        )
+      print "\n", command, "\n\n"
+      os.system(command)

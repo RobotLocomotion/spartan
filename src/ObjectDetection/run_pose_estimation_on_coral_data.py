@@ -23,23 +23,23 @@ DETECTORS_CONFIG_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/
 
 params = dict(
   mip = dict(
-    scene_resample_spacing = 0.02,
-    scene_crop_width = 0.3,
-    model_resample_spacing = 0.02
+    scene_resample_spacing = 0.020,
+    scene_crop_width = 0.35,
+    model_resample_spacing = 0.020
   ),
   goicp = dict(
     scene_resample_spacing = 0.005,
-    scene_crop_width = 0.3,
-    model_resample_spacing = 0.02
+    scene_crop_width = 0.35,
+    model_resample_spacing = 0.020
   ),
   super4pcs = dict(
     scene_resample_spacing = 0.005,
-    scene_crop_width = 0.3,
+    scene_crop_width = 0.35,
     model_resample_spacing = 0.005
   ),
   fgr = dict(
     scene_resample_spacing = 0.005,
-    scene_crop_width = 0.3,
+    scene_crop_width = 0.35,
     model_resample_spacing = 0.005
   )
 )
