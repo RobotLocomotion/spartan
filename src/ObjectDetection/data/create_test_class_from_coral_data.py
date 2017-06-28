@@ -93,7 +93,9 @@ if __name__ == "__main__":
         os.system("mkdir -p " + this_output_dir)
 
         # Copy over ground truth
-        os.system("cp %s %s" % (complete_path + "/registration_result.yaml", this_output_dir + "/ground_truth.yaml"))
+        gt_yaml = gt_pose_yaml[model_name]
+        with (open(this_output_dir + "/ground_truth.yaml", 'w')) as f:
+          yaml.dump(gt_yaml, f)
 
         # Resample the point cloud as requested by our options -- cropping + point downsampling
         resampled_scene_file = "%s/scene_cloud.vtp" % (this_output_dir)
