@@ -1,3 +1,4 @@
+
 /*
  */
 
@@ -130,15 +131,15 @@ int main(int argc, char** argv) {
   cout << "Generating features and matching..." << endl;
   clock_t clockBegin = clock();
   
-  auto model_info = generatePointsAndFPFHFeaturesFromPoints(model_pts, {"fgr", "model"}, true, true, interpoint_scale, feature_radius_multiplier);
-  auto scene_info = generatePointsAndFPFHFeaturesFromPoints(scene_pts, {"fgr", "scene"}, false, true, interpoint_scale, feature_radius_multiplier);
+  auto model_info = generatePointsAndFPFHFeaturesFromPoints(model_pts, {"fgr", "model"}, true, false, interpoint_scale, feature_radius_multiplier);
+  auto scene_info = generatePointsAndFPFHFeaturesFromPoints(scene_pts, {"fgr", "scene"}, false, false, interpoint_scale, feature_radius_multiplier);
 
 
   printf("Adding %lu model points and %lu model features\n", model_info.first.size(), model_info.second.size());
   fgr_app.LoadFeature(model_info.first, model_info.second); 
 
   printf("Adding %lu scene points and %lu scene features\n", scene_info.first.size(), scene_info.second.size());
-  fgr_app.LoadFeature(scene_info.first, scene_info.second); 
+  fgr_app.LoadFeature(scene_info.first, scene_info.second);
 
   fgr_app.NormalizePoints();
   fgr_app.AdvancedMatching();
