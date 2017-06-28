@@ -156,7 +156,9 @@ if __name__ == "__main__":
     target_quat = np.array(gt_pose_yaml[model_name]["pose"][1])
 
     trans_error = target_trans - output_trans
-    angle_error = np.arccos( (np.dot(output_quat, target_quat)) / (np.linalg.norm(target_quat) * np.linalg.norm(output_quat)))
+    quat_diff = quaternion_multiply(target_quat, quaternion_conjugate(output_quat))
+    angle_error = 2*np.arccos(quat_diff[0])
+
     print "GT: ", target_trans, ", ", target_quat
     print "Estimated: ", output_trans, ", ", output_quat
     print "Trans error: ", list(trans_error)

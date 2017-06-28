@@ -8,8 +8,11 @@ import datetime
 import signal
 import re
 import hashlib
+import argparse
+from math import atan2
 
 from director import transformUtils
+from director.thirdparty import transformations
 
 # Make sure you have a drakevisualizer open when running this, so you can see
 # the vis output.
@@ -21,14 +24,20 @@ INSTANCE_PATTERN = re.compile(".*")
 
 
 def sha256_checksum(filename, block_size=65536):
-    sha256 = hashlib.sha256()
-    with open(filename, 'rb') as f:
-        for block in iter(lambda: f.read(block_size), b''):
-            sha256.update(block)
-    return sha256.hexdigest()
+  ''' Returns SHA256 checksum of the specified file. '''
+  sha256 = hashlib.sha256()
+  with open(filename, 'rb') as f:
+      for block in iter(lambda: f.read(block_size), b''):
+          sha256.update(block)
+  return sha256.hexdigest()
 
 
 def test_if_needs_update(config_file, input_dir, output_dir):
+  ''' Given a configuration YAML file, an input data directory,
+  and an output results directory, returns True if the
+  output directory needs to be re-generated (i.e. if the
+  output directory is incomplete, if the configuration or
+  input scene or models points have changed), and False if not. '''
   try:
     if not os.path.isdir(output_dir):
       return True
@@ -71,14 +80,34 @@ def test_if_needs_update(config_file, input_dir, output_dir):
 
 
 
-def run_fgr(config_file, input_dir, output_dir):
+def run_method(method, config_file, input_dir, output_dir):
+  ''' Runs the given method on a configuration YAML, an input data directory, and a
+  directory to output the appropriate files to. '''
   os.system("mkdir -p " + output_dir)
 
   output_file = "%s/output.yaml" % (output_dir)
-  
-  command = "run_fgr_detector %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
+
+  if method == "mip":
+    print "This isn't ready."
+    exit(0)
+    command = "run_miqp_mesh_model_detector %s %s/miqp_mesh_model_detector_ex.yaml %s" % (
+      resampled_scene_file, DETECTORS_CONFIG_DIR, output_file
+    )
+  elif method == "goicp":
+    command = "run_goicp_detector %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
       input_dir, input_dir, config_file, output_file
     )
+  elif method == "fgr":
+    command = "run_fgr_detector %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
+      input_dir, input_dir, config_file, output_file
+    )
+  elif method == "super4pcs":
+    command = "run_super4pcs_detector %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
+      input_dir, input_dir, config_file, output_file
+    )
+  else:
+    print "Detector type \"", method, "\" not recognized."
+    exit(0)
   print "\n", command
   os.system(command)
 
@@ -97,7 +126,10 @@ def run_fgr(config_file, input_dir, output_dir):
   target_quat = np.array(gt_yaml["pose"][1])
 
   trans_error = target_trans - output_trans
-  angle_error = np.arccos( (np.dot(output_quat, target_quat)) / (np.linalg.norm(target_quat) * np.linalg.norm(output_quat)))
+
+  d_1 = transformations.quaternion_multiply(output_quat, transformations.quaternion_inverse(target_quat))
+  d_2 = transformations.quaternion_multiply(-output_quat, transformations.quaternion_inverse(target_quat))
+  angle_error = min( 2*atan2(np.linalg.norm(d_1[1:]), d_1[0]), 2*atan2(np.linalg.norm(d_2[1:]), d_2[0]) )
   print "GT: ", target_trans, ", ", target_quat
   print "Estimated: ", output_trans, ", ", output_quat
   print "Trans error: ", list(trans_error)
@@ -130,7 +162,12 @@ def run_fgr(config_file, input_dir, output_dir):
   with open(final_results_file, 'w') as f:
     yaml.dump(out_results, f)
 
-def do_update(config_dir):
+def do_update(method, config_dir, rebuild_all):
+  ''' Given a configuration file, iterates through the data
+  directory, checks if each example instance has been run already
+  and needs an update, and does the updates if necessary for each
+  method that we know how to handle. '''
+
   # Iterate through available data...
   if not os.path.isdir(DATA_DIR):
     print "Data directory ", data_dir, " doesn't exist."
@@ -153,9 +190,10 @@ def do_update(config_dir):
       input_dir = "%s/%s/%s/" % (DATA_DIR, class_name, test_instance)
       result_dir = "%s/%s/%s/" % (config_dir, class_name, test_instance)
       needs_update = test_if_needs_update(config_file, input_dir, result_dir)
-      if (needs_update):
+      if rebuild_all or needs_update:
         print "\n\n***UPDATING INSTANCE %s***\n" % (test_instance)
-        run_fgr(config_file, input_dir, result_dir)
+        run_method(method, config_file, input_dir, result_dir)
+        
 
 if __name__ == "__main__":
    
@@ -165,20 +203,29 @@ if __name__ == "__main__":
 
   signal.signal(signal.SIGINT, signal_handler)
 
-  if len(sys.argv) != 2:
-    print "Usage: python <script name> <config dir to update, or 'all'"
-    exit(0)
+  parser = argparse.ArgumentParser(description='Update pose estimation results.')
+  parser.add_argument("-B", help="Rebuild all.", action='store_true')
 
-  config_dir = sys.argv[1]
+  methods = ["fgr", "goicp", "mip", "super4pcs"]
 
-  if config_dir == 'all':
-    subdirs = next(os.walk("."))[1]
-    [ do_update(subdir) for subdir in subdirs ]
+  for method in methods:
+    parser.add_argument("--" + method, help="Config to update, or \"all\"")
 
-  else:
-    if not os.path.isdir(config_dir) or not os.path.isfile(config_dir + "/config.yaml"):
-      print "%s is not a valid configuration subdirectory -- please create it and give it" % config_dir
-      print " a config.yaml file."
-      exit(0)
+  args = parser.parse_args(sys.argv[1:])
+  rebuild_all = args.B
 
-    do_update(config_dir)
+  for method in methods:
+    if hasattr(args, method):
+      config_spec = getattr(args, method)
+      if config_spec is None:
+        continue
+      elif config_spec == 'all':
+        subdirs = next(os.walk("%s/" % method))[1]
+        [ do_update(method, "%s/%s" % (method, subdir), rebuild_all) for subdir in subdirs ]
+      else:
+        config_dir = "%s/%s/" % (method, config_spec)
+        if not os.path.isdir(config_dir) or not os.path.isfile(config_dir + "/config.yaml"):
+          print "%s is not a valid configuration subdirectory -- please create it and give it" % config_dir
+          print " a config.yaml file."
+          exit(0)
+        do_update(method, config_dir, rebuild_all)
