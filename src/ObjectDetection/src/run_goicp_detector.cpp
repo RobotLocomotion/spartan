@@ -65,26 +65,14 @@ int main(int argc, char** argv) {
   }
   auto goicp_config = config["detector_options"];
 
-    // Read in the model.
-  vtkSmartPointer<vtkPolyData> modelPolyData = ReadPolyData(modelFile.c_str());
-  cout << "Loaded " << modelPolyData->GetNumberOfPoints() << " points from " << modelFile << endl;
-  Matrix3Xd model_pts(3, modelPolyData->GetNumberOfPoints());
-  for (int i=0; i<modelPolyData->GetNumberOfPoints(); i++){
-    model_pts(0, i) = modelPolyData->GetPoint(i)[0];
-    model_pts(1, i) = modelPolyData->GetPoint(i)[1];
-    model_pts(2, i) = modelPolyData->GetPoint(i)[2];
-  }
-
+  // Read in the model.
+  double downsample_spacing = -1.0;
+  if (goicp_config["downsample_spacing"])
+    downsample_spacing = goicp_config["downsample_spacing"].as<double>();
+  Matrix3Xd model_pts = LoadAndDownsamplePolyData(modelFile, downsample_spacing);
+  
   // Load in the scene cloud
-  vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(sceneFile.c_str());
-  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << sceneFile << endl;
-  Matrix3Xd scene_pts(3, cloudPolyData->GetNumberOfPoints());
-  for (int i=0; i<cloudPolyData->GetNumberOfPoints(); i++){
-    scene_pts(0, i) = cloudPolyData->GetPoint(i)[0];
-    scene_pts(1, i) = cloudPolyData->GetPoint(i)[1];
-    scene_pts(2, i) = cloudPolyData->GetPoint(i)[2];
-  }
-
+  Matrix3Xd scene_pts = LoadAndDownsamplePolyData(sceneFile, -1);
 
   // Visualize the scene points and GT, to start with.
   RemoteTreeViewerWrapper rm;
