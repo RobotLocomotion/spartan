@@ -1,5 +1,5 @@
 detector_options:
-    #downsample_to_this_many_scene_points: 10000
+    downsample_spacing: 0.01 # for model only
     #downsample_to_this_many_model_points: 10000
 
     # Mean Squared Error (MSE) convergence threshold
