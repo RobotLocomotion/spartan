@@ -13,6 +13,7 @@ import os
 from director import ioUtils
 from director import segmentation
 from director import vtkNumpy as vnp
+import yaml
 import vtk
 
 if __name__ == '__main__':
