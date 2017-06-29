@@ -529,7 +529,7 @@ void MIQPMultipleMeshModelDetector::doICPProcessing(){
   }
 }
 
-MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
+MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config, YAML::Node modelConfig){
   if (config["rotation_constraint"])
     optRotationConstraint_ = config["rotation_constraint"].as<int>();
   if (config["rotation_constraint_num_faces"])
@@ -588,13 +588,13 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config){
   config_ = config;
 
   // Load the model itself
-  if (config["models"] == NULL){
+  if (modelConfig["models"] == NULL){
     runtime_error("Must specify models for object detector to work with.");
   }
   // Model will be a RigidBodyTree.
   q_robot_gt_.resize(0);
   int old_q_robot_gt_size = 0;
-  for (auto iter=config["models"].begin(); iter!=config["models"].end(); iter++) {
+  for (auto iter=modelConfig["models"].begin(); iter!=modelConfig["models"].end(); iter++) {
     string urdf = (*iter)["urdf"].as<string>();
     AddModelInstanceFromUrdfFileWithRpyJointToWorld(urdf, &robot_);
     // And add initial state info that we were passed

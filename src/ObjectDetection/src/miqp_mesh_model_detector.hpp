@@ -49,7 +49,7 @@ class MIQPMultipleMeshModelDetector {
            std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>> R_indicators;
     };
 
-    MIQPMultipleMeshModelDetector(YAML::Node config);
+    MIQPMultipleMeshModelDetector(YAML::Node config, YAML::Node modelConfig);
   
     void handleMipSolCallbackFunction(const drake::solvers::MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info);
     void handleMipNodeCallbackFunction(const drake::solvers::MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info,

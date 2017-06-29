@@ -117,7 +117,7 @@ if __name__ == '__main__':
     ioUtils.writePolyData(polyData, outfile_vtp_name)
 
     # GENERATE A URDF
-    with open(filename_base + "_" + str(num_faces) + "faces.urdf", 'w') as f:
+    with open(filename + "." + "decimated_" + str(num_faces) + ".urdf", 'w') as f:
         f.write(urdf_base.format(name = os.path.basename(filename_base), 
             visual_file = os.path.basename(outfile_obj_name), 
             collision_file = os.path.basename(outfile_obj_name)))

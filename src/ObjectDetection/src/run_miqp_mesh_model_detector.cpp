@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
   srand(0);
 
   if (argc < 3){
-    printf("Use: run_miqp_mesh_model_detector <point cloud file, vtp> <config file> <optional output_file>\n");
+    printf("Use: run_miqp_mesh_model_detector <point cloud file, vtp> <model file, yaml> <config file> <optional output_file>\n");
     exit(-1);
   }
 
@@ -55,14 +55,17 @@ int main(int argc, char** argv) {
   cout << "***************************" << endl;
   cout << "MIQP Multiple Mesh Model Object Pose Estimator" << asctime(curtime);
   cout << "Point cloud file " << string(argv[1]) << endl;
-  cout << "Config file " << string(argv[2]) << endl;
+  cout << "Model config file " << string(argv[2]) << endl;
+  cout << "Config file " << string(argv[3]) << endl;
   if (argc > 3)
-    cout << "Output file " << string(argv[3]) << endl;
+    cout << "Output file " << string(argv[4]) << endl;
   cout << "***************************" << endl << endl;
 
   // Bring in config file
   string sceneFile = string(argv[1]);
-  string yamlString = string(argv[2]);
+  string modelYamlFile = string(argv[2]);
+  string yamlString = string(argv[3]);
+  YAML::Node modelConfig = YAML::LoadFile(modelYamlFile);
   YAML::Node config = YAML::LoadFile(yamlString);
 
   if (config["detector_options"] == NULL){
@@ -70,14 +73,19 @@ int main(int argc, char** argv) {
   }
 
   // Set up model
-  if (config["detector_options"]["models"] == NULL){
+  if (modelConfig["models"] == NULL){
     runtime_error("Model must be specified.");
   }
+
+  if (config["detector_options"] == NULL){
+    runtime_error("Config needs a detector option set.");
+  }
+
   // Model will be a RigidBodyTree.
   RigidBodyTree<double> robot;
   VectorXd q_robot;
   int old_q_robot_size = 0;
-  for (auto iter=config["detector_options"]["models"].begin(); iter!=config["detector_options"]["models"].end(); iter++){
+  for (auto iter=modelConfig["models"].begin(); iter!=modelConfig["models"].end(); iter++){
     string urdf = (*iter)["urdf"].as<string>();
     AddModelInstanceFromUrdfFileWithRpyJointToWorld(urdf, &robot);
     
@@ -104,20 +112,11 @@ int main(int argc, char** argv) {
   }
   robot.compile();
 
-  // Load in the scene cloud
-  vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(sceneFile.c_str());
-  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << sceneFile << endl;
-  Matrix3Xd scene_pts(3, cloudPolyData->GetNumberOfPoints());
-  int k_good = 0;
-  for (int i=0; i<cloudPolyData->GetNumberOfPoints(); i++){
-    scene_pts(0, k_good) = cloudPolyData->GetPoint(k_good)[0];
-    scene_pts(1, k_good) = cloudPolyData->GetPoint(k_good)[1];
-    scene_pts(2, k_good) = cloudPolyData->GetPoint(k_good)[2];
-    if (is_finite(scene_pts.col(k_good))){
-      k_good++;
-    }
-  }
-  scene_pts.conservativeResize(3, k_good);
+  // Load in the scene cloud and downsample it if requested
+  double downsample_spacing = -1.0;
+  if (config["detector_options"]["downsample_spacing"])
+    downsample_spacing = config["detector_options"]["downsample_spacing"].as<double>();
+  Matrix3Xd scene_pts = LoadAndDownsamplePolyData(sceneFile, downsample_spacing);
 
   // Visualize the scene points and GT, to start with.
   RemoteTreeViewerWrapper rm;
@@ -127,10 +126,7 @@ int main(int argc, char** argv) {
 
 
   // Load in MIQP Object Detector
-  if (config["detector_options"] == NULL){
-    runtime_error("Config needs a detector option set.");
-  }
-  MIQPMultipleMeshModelDetector detector(config["detector_options"]);
+  MIQPMultipleMeshModelDetector detector(config["detector_options"], modelConfig);
   auto solutions = detector.doObjectDetection(scene_pts);
   VectorXd q_robot_est = q_robot * 0;
 
@@ -212,7 +208,7 @@ int main(int argc, char** argv) {
   // would be forming a call to Drake's InverseKin
   // which will do the projection as an NLP.
   if (argc > 3){
-    string outputFilename = string(argv[3]);
+    string outputFilename = string(argv[4]);
 
     YAML::Emitter out;
 
@@ -250,7 +246,7 @@ int main(int argc, char** argv) {
               out << YAML::BeginMap; {
                 out << YAML::Key << "urdf";
                 // I assume the model instances are in same order as model members in the config yaml...
-                out << YAML::Key << config["detector_options"]["models"][i]["urdf"].as<string>();
+                out << YAML::Key << modelConfig["models"][i]["urdf"].as<string>();
                 out << YAML::Key << "q";
                 out << YAML::Value << YAML::Flow << vector<double>(q_robot_this.data(), q_robot_this.data() + q_robot_this.rows());
               } out << YAML::EndMap;
