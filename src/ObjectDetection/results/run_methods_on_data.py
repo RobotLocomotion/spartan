@@ -79,6 +79,29 @@ def test_if_needs_update(config_file, input_dir, output_dir):
   return False
 
 
+def generate_run_mip_command(config_file, input_dir, output_dir, output_file):
+  # Look up what kind of model we need, and form our filename path
+  model_gt = yaml.load(open(input_dir + "/ground_truth.yaml"))
+  model_file = DATA_DIR + "/" + model_gt["filename"] + ".decimated_50.urdf"
+  q0 = model_gt["pose"][0]
+  [q0.append(x) for x in model_gt["pose"][1]]
+
+  print q0
+  # Spit out a model configuration file for this script
+  config_yaml = dict(
+                   models = [
+                      dict(urdf = model_file,
+                           q0 = q0)
+                    ])
+
+  model_config_file = output_dir + "/model_config.yaml"
+  with open(model_config_file, 'w') as f:
+    yaml.dump(config_yaml, f)
+
+  command = "run_miqp_mesh_model_detector %s/scene_cloud.vtp %s %s %s" % (
+    input_dir, model_config_file, config_file, output_file
+  )
+  return command
 
 def run_method(method, config_file, input_dir, output_dir):
   ''' Runs the given method on a configuration YAML, an input data directory, and a
@@ -88,11 +111,8 @@ def run_method(method, config_file, input_dir, output_dir):
   output_file = "%s/output.yaml" % (output_dir)
 
   if method == "mip":
-    print "This isn't ready."
-    exit(0)
-    command = "run_miqp_mesh_model_detector %s %s/miqp_mesh_model_detector_ex.yaml %s" % (
-      resampled_scene_file, DETECTORS_CONFIG_DIR, output_file
-    )
+    # This gets its own function, as it's pretty complex.
+    command = generate_run_mip_command(config_file, input_dir, output_dir, output_file)
   elif method == "goicp":
     command = "run_goicp_detector %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
       input_dir, input_dir, config_file, output_file
@@ -179,6 +199,7 @@ def do_update(method, config_dir, rebuild_all):
   for class_name in sorted(class_names):
     if class_name not in TARGET_CLASSES:
       print "Skipping class_name %s because it's not a target" % (class_name)
+      continue
 
     # For each test instance...
     test_instances = next(os.walk(DATA_DIR + "/" + class_name))[1]
