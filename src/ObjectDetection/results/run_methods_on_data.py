@@ -19,14 +19,14 @@ from director.thirdparty import transformations
 
 DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/data/'
 
-#TARGET_CLASSES = ["crop_0.250"] # leave empty for all targets
-#INSTANCE_PATTERN = re.compile(".*")
+TARGET_CLASSES = ["crop_0.250"] # leave empty for all targets
+INSTANCE_PATTERN = re.compile("2017-06-16-06_drill")
 
 #TARGET_CLASSES = ["scene_scale"]
 #INSTANCE_PATTERN = re.compile("cube_resampled")
 
-TARGET_CLASSES = ["model_scale"] # leave empty for all targets
-INSTANCE_PATTERN = re.compile("cube_resampled_[0-9][0-9]")
+#TARGET_CLASSES = ["model_scale"] # leave empty for all targets
+#INSTANCE_PATTERN = re.compile("cube_resampled_[0-9][0-9]")
 
 def sha256_checksum(filename, block_size=65536):
   ''' Returns SHA256 checksum of the specified file. '''
