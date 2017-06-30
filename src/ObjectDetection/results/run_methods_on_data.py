@@ -19,9 +19,14 @@ from director.thirdparty import transformations
 
 DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/data/'
 
-TARGET_CLASSES = ["crop_0.250"] # leave empty for all targets
-INSTANCE_PATTERN = re.compile(".*")
+#TARGET_CLASSES = ["crop_0.250"] # leave empty for all targets
+#INSTANCE_PATTERN = re.compile(".*")
 
+#TARGET_CLASSES = ["scene_scale"]
+#INSTANCE_PATTERN = re.compile("cube_resampled")
+
+TARGET_CLASSES = ["model_scale"] # leave empty for all targets
+INSTANCE_PATTERN = re.compile("cube_resampled_[0-9][0-9]")
 
 def sha256_checksum(filename, block_size=65536):
   ''' Returns SHA256 checksum of the specified file. '''
@@ -244,9 +249,9 @@ if __name__ == "__main__":
         subdirs = next(os.walk("%s/" % method))[1]
         [ do_update(method, "%s/%s" % (method, subdir), rebuild_all) for subdir in subdirs ]
       else:
-        config_dir = "%s/%s/" % (method, config_spec)
-        if not os.path.isdir(config_dir) or not os.path.isfile(config_dir + "/config.yaml"):
-          print "%s is not a valid configuration subdirectory -- please create it and give it" % config_dir
-          print " a config.yaml file."
-          exit(0)
-        do_update(method, config_dir, rebuild_all)
+        config_pattern = re.compile(config_spec)
+        subdirs = next(os.walk("%s/" % method))[1]
+        for subdir in subdirs:
+          if config_pattern.match(subdir):
+            config_dir = "%s/%s/" % (method, subdir)
+            do_update(method, config_dir, rebuild_all)
