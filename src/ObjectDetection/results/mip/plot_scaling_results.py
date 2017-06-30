@@ -98,7 +98,7 @@ if __name__ == "__main__":
         summary = yaml.load(open(summary_file), yaml.CLoader)
         config = yaml.load(open(config_file), yaml.CLoader)
 
-        outlier_scale_results["outlier_num"].append(outlier_num)
+        outlier_scale_results["outlier_num"].append(float(outlier_num)*100. / 18)
         outlier_scale_results["runtimes"].append(output["solutions"][0]["solve_time"])
         outlier_scale_results["bounds"].append(output["solutions"][0]["bound"])
 
@@ -109,28 +109,36 @@ if __name__ == "__main__":
     runtime = scene_scale_results["runtimes"][i]
     scenescale = scene_scale_results["scenescales"][i]
     if runtime > 1200:
+      print "adding patch at ", (scenescale, runtime)
       ax.add_patch(
         patches.Rectangle(
-          (runtime, scenescale),   # (x,y)
+          (scenescale-0.5, runtime-50),   # (x,y)
           1,          # width
-          100,          # height
+          150,          # height,
+          hatch='/',
+          alpha=0.5
         )
       )
   plt.ylabel("Runtime (s)")
   plt.xlabel("# of scene pts")
-  plt.ylim([0, 1200])
+  plt.ylim([0, 1300])
+  plt.axvline(18, color='r', linestyle='dashed', linewidth=1)
   plt.grid()
 
   plt.subplot(1, 3, 2)
   plt.scatter(model_scale_results["modelscales"], model_scale_results["runtimes"])
   plt.xlabel("# of model faces")
-  plt.ylim([0, 1200])
+  plt.ylim([0, 1300])
+  plt.xlim([10, 33])
+  plt.axvline(12, color='r', linestyle='dashed', linewidth=1)
   plt.grid()
 
   plt.subplot(1, 3, 3)
   plt.scatter(outlier_scale_results["outlier_num"], outlier_scale_results["runtimes"])
-  plt.xlabel("# of outliers")
-  plt.ylim([0, 1200])
+  plt.xlabel("Outlier %")
+  plt.ylim([0, 1300])
+  plt.xlim([-5, 80])
+  plt.axvline(33, color='r', linestyle='dashed', linewidth=1)
   plt.grid()
 
   plt.show()
