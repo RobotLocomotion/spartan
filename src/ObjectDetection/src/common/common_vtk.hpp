@@ -11,6 +11,7 @@
 #include <vtkSmartPointer.h>
 #include <vtkSTLReader.h>
 #include <vtkXMLPolyDataReader.h>
+#include <vtkXMLPolyDataWriter.h>
 #include <vtksys/SystemTools.hxx>
 
 // Generic loader that loads common model formats into
@@ -52,6 +53,15 @@ static vtkSmartPointer<vtkPolyData> ReadPolyData(const char *fileName)
     polyData = reader->GetOutput();
   }
   return polyData;
+}
+
+static void WritePolyData(const vtkSmartPointer<vtkPolyData> polyData, const char * filename) 
+{
+  vtkSmartPointer<vtkXMLPolyDataWriter> writer =  
+      vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+  writer->SetFileName(filename);
+  writer->SetInput(polyData);
+  writer->Write();
 }
 
 static Eigen::Matrix3Xd LoadAndDownsamplePolyData(const std::string fileName, double downsample_spacing = -1.0)
