@@ -82,3 +82,7 @@ add_executable(run_super4pcs_detector run_super4pcs_detector.cpp)
 target_link_libraries(run_super4pcs_detector super4pcs_algo chealpix lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${OpenCV_LIBS} z pthread)
 install(TARGETS run_super4pcs_detector DESTINATION bin)
 add_dependencies(run_super4pcs_detector Super4PCS)
+
+add_executable(crop_pointcloud_close_to_model crop_pointcloud_close_to_model.cpp)
+target_link_libraries(crop_pointcloud_close_to_model lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} drakeMath z pthread)
+install(TARGETS crop_pointcloud_close_to_model DESTINATION bin)
