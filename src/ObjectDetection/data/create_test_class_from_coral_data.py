@@ -21,17 +21,23 @@ MODELS_ROOT_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/'
 params = dict(
   scene_resample_spacing = 0.005,
   model_resample_spacing = 0.005,
-  scene_crop_width = 0.25,
+  scene_crop_width = 0.02,
+  crop_around_model = True # Crop scene_crop_width from model surface. Otherwise, crop from model centroid.
 )
 
 OUT_DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/data/'
-CLASS_DIR_NAME = "crop_%0.3f/" % (params["scene_crop_width"])
 
-CLASS_NAME = "Crop %0.3f" % (params["scene_crop_width"])
+if params["crop_around_model"]:
+  CLASS_DIR_NAME = "crop_model_%0.3f/" % (params["scene_crop_width"])  
+  CLASS_NAME = "Crop Model %0.3f" % (params["scene_crop_width"])
+
+else:
+  CLASS_DIR_NAME = "crop_%0.3f/" % (params["scene_crop_width"])
+  CLASS_NAME = "Crop %0.3f" % (params["scene_crop_width"])
+
 CLASS_NOTES = ""
 
-INSTANCE_PATTERN = re.compile(".*2017-06-13-40.*")
-
+INSTANCE_PATTERN = re.compile(".*")
 
 if __name__ == "__main__":
    
@@ -49,6 +55,7 @@ if __name__ == "__main__":
   scene_crop_width = params["scene_crop_width"]
   scene_resample_spacing = params["scene_resample_spacing"]
   model_resample_spacing = params["model_resample_spacing"]
+  crop_around_model = params["crop_around_model"]
 
   # Make sure the output directory exists
   os.system("mkdir -p " + OUT_DATA_DIR + "/" + CLASS_DIR_NAME)
@@ -104,22 +111,6 @@ if __name__ == "__main__":
         with (open(this_output_dir + "/ground_truth.yaml", 'w')) as f:
           yaml.dump(gt_yaml, f)
 
-        # Resample the point cloud as requested by our options -- cropping + point downsampling
-        resampled_scene_file = "%s/scene_cloud.vtp" % (this_output_dir)
-        scene_nx = float(gt_pose_yaml[model_name]["pose"][0][0]) - scene_crop_width / 2.
-        scene_px = float(gt_pose_yaml[model_name]["pose"][0][0]) + scene_crop_width / 2.
-        scene_ny = float(gt_pose_yaml[model_name]["pose"][0][1]) - scene_crop_width / 2.
-        scene_py = float(gt_pose_yaml[model_name]["pose"][0][1]) + scene_crop_width / 2.
-        scene_nz = float(gt_pose_yaml[model_name]["pose"][0][2]) - scene_crop_width / 2.
-        scene_pz = float(gt_pose_yaml[model_name]["pose"][0][2]) + scene_crop_width / 2.
-        
-        command = "directorPython ../scripts/resampleVtp.py %s/reconstructed_pointcloud.vtp  %s %f %f %f %f %f %f %f" % (
-            complete_path, resampled_scene_file, scene_resample_spacing, scene_nx, scene_px, scene_ny, scene_py, scene_nz, scene_pz
-          )
-        print "\n", command
-
-        os.system(command)
-
         # Resample the object as requested by our options -- point downsampling
         resampled_model_file = "%s/model_cloud.vtp" % (this_output_dir)
         command = "directorPython ../scripts/resampleVtp.py %s %s %f" % (
@@ -127,6 +118,43 @@ if __name__ == "__main__":
           )
         print "\n", command
         os.system(command)
+
+        # Resample the point cloud as requested by our options -- cropping + point downsampling
+        if crop_around_model:
+          resampled_scene_file = "%s/scene_cloud_uncropped.vtp" % (this_output_dir)
+          command = "directorPython ../scripts/resampleVtp.py %s/reconstructed_pointcloud.vtp  %s %f" % (
+              complete_path, resampled_scene_file, scene_resample_spacing
+            )
+          print "\n", command
+          os.system(command)
+
+          command = "crop_pointcloud_close_to_model %s %s %s/scene_cloud.vtp %f %f %f %f %f %f %f %f" % (
+            resampled_scene_file, resampled_model_file, this_output_dir, scene_crop_width,
+            float(gt_pose_yaml[model_name]["pose"][0][0]),
+            float(gt_pose_yaml[model_name]["pose"][0][1]),
+            float(gt_pose_yaml[model_name]["pose"][0][2]),
+            float(gt_pose_yaml[model_name]["pose"][1][0]),
+            float(gt_pose_yaml[model_name]["pose"][1][1]),
+            float(gt_pose_yaml[model_name]["pose"][1][2]),
+            float(gt_pose_yaml[model_name]["pose"][1][3])
+          )
+          print command
+          os.system(command)
+
+        else:
+          resampled_scene_file = "%s/scene_cloud.vtp" % (this_output_dir)
+          scene_nx = float(gt_pose_yaml[model_name]["pose"][0][0]) - scene_crop_width / 2.
+          scene_px = float(gt_pose_yaml[model_name]["pose"][0][0]) + scene_crop_width / 2.
+          scene_ny = float(gt_pose_yaml[model_name]["pose"][0][1]) - scene_crop_width / 2.
+          scene_py = float(gt_pose_yaml[model_name]["pose"][0][1]) + scene_crop_width / 2.
+          scene_nz = float(gt_pose_yaml[model_name]["pose"][0][2]) - scene_crop_width / 2.
+          scene_pz = float(gt_pose_yaml[model_name]["pose"][0][2]) + scene_crop_width / 2.
+          command = "directorPython ../scripts/resampleVtp.py %s/reconstructed_pointcloud.vtp  %s %f %f %f %f %f %f %f" % (
+              complete_path, resampled_scene_file, scene_resample_spacing, scene_nx, scene_px, scene_ny, scene_py, scene_nz, scene_pz
+            )
+          print "\n", command
+          os.system(command)
+
 
       except Exception as e:
         print "Unknown error while traversing Corl data: ", e
