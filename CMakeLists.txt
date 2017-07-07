@@ -150,11 +150,20 @@ endif()
 
 if (WITH_DRIVERS)
 
+  set(IIWA_DRIVER_GIT_REPOSITORY
+	"git@github.com:RobotLocomotion/drake-iiwa-driver.git"
+	CACHE STRING
+	"Location of drake-iiwa-driver repo including kuka-fri sources")
+  set(IIWA_DRIVER_GIT_TAG
+	"19e20aa"
+	CACHE STRING
+	"Build tag of drake-iiwa-driver repo")
+
   ExternalProject_Add(drake-iiwa-driver
     SOURCE_DIR ${build_dir}/externals/drake-iiwa-driver
     BINARY_DIR ${build_dir}/drake-iiwa-driver
-    GIT_REPOSITORY git@github.com:RobotLocomotion/drake-iiwa-driver.git
-    GIT_TAG 19e20aa
+    GIT_REPOSITORY "${IIWA_DRIVER_GIT_REPOSITORY}"
+    GIT_TAG "${IIWA_DRIVER_GIT_TAG}"
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
