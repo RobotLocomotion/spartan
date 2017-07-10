@@ -56,49 +56,68 @@ build tools like ninja.
 
 Building With Drivers
 ---------------------
-Spartan has CMake options to build `WITH_*_DRIVER`, which add various
-proprietary drivers to the build. The following drivers and their
-corresponding flags are supported:
 
-* `WITH_IIWA_DRIVER`: [`drake-iiwa-driver`](https://github.com/RobotLocomotion/drake-iiwa-driver)
-* `WITH_SCHUNK_DRIVER`: `drake-schunk-driver`
-* `WITH_OPTITRACK_DRIVER`: [`optitrack-driver`](https://github.com/sammy-tri/optitrack-driver)
+Spartan has CMake options to include various proprietary drivers in the build.
+The following CMake options and their corresponding drivers are supported:
+
+-  ``WITH_IIWA_DRIVER``: drake-iiwa-driver_
+-  ``WITH_SCHUNK_DRIVER``: drake-schunk-driver
+-  ``WITH_OPTITRACK_DRIVER``: optitrack-driver_
+
+.. _drake-iiwa-driver: https://github.com/RobotLocomotion/drake-iiwa-driver
+.. _optitrack-driver: https://github.com/sammy-tri/optitrack-driver
 
 Unless you are a member of the RobotLocomotion team, you will likely not have
-access required to build all the above libraries and should these options
-disabled.
+the repository access required to download all the above libraries and should
+leave these options disabled.
 
-There is a workaround for building `drake-iiwa-driver` using a local version of
-the `kuka-fri` proprietary driver. The `drake-iiwa-driver` by default pulls this in
-as a submodule from the private RobotLocomotion kuka-fri repo. To build against
-a different version, follow these steps:
+There is a workaround for building ``drake-iiwa-driver`` using a local version
+of the ``kuka-fri`` proprietary driver. By default, ``drake-iiwa-driver`` pulls
+in ``kuka-fri`` as a submodule from a private RobotLocomotion repo. To build
+against a different version, follow these steps:
 
-1. Clone `drake-iiwa-driver` to your local machine::
+1. Clone ``drake-iiwa-driver`` to your local machine:
 
-    git clone https://github.com/RobotLocomotion/drake-iiwa-driver
+   ::
+
+       git clone https://github.com/RobotLocomotion/drake-iiwa-driver
 
 2. Delete the kuka-fri submodule.
 
-        cd drake-iiwa-driver
-        git rm kuka-fri
+   ::
 
-3. Extract your copy of the kuka drivers, and apply patches according to the
-instruction in [`drake-iiwa-driver/README.md`](https://github.com/RobotLocomotion/drake-iiwa-driver/blob/master/README.md).
+       cd drake-iiwa-driver
+       git rm kuka-fri
+
+3. Extract your copy of the kuka-fri drivers, and apply patches according to the
+   instructions in `drake-iiwa-driver/README.md`_.
 
 4. Commit the changes and note the commit hash.
 
-5. In Spartan build directory, enable `WITH_IIWA_DRIVER` and reconfigure CMake.
-Two additional options will appear:
-   * `IIWA_DRIVER_GIT_REPOSITORY`: Set to the clone of address for your local
-      `drake-iiwa-driver`. For example, `file:///home/example/drake-iiwa-driver/`
-   * `IIWA_DRIVER_GIT_TAG`: The (short) commit hash from above. For example, `a1b2c34`
+5. In the Spartan build directory, enable ``WITH_IIWA_DRIVER`` and reconfigure
+   CMake. Two additional options will appear:
+
+   -  ``IIWA_DRIVER_GIT_REPOSITORY``: Set to the clone of address for your local
+      ``drake-iiwa-driver``.
+
+   -  ``IIWA_DRIVER_GIT_TAG``: The (short) commit hash from above.
+
+   An example config might be
+
+   ::
+
+       IIWA_DRIVER_GIT_REPOSITORY="file:///home/example/drake-iiwa-driver/"
+       IIWA_DRIVER_GIT_TAG="a1b2c34"
 
 6. Reconfigure CMake once more, and build.
 
-        cd spartan/build
-        cmake ..
-        make
+   ::
 
+       cd spartan/build
+       cmake ..
+       make
+
+.. _drake-iiwa-driver/README.md: https://github.com/RobotLocomotion/drake-iiwa-driver/blob/master/README.md
 
 Common Build Errors
 -------------------
