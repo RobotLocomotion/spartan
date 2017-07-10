@@ -13,3 +13,6 @@
 [submodule "src/Gyges"]
 	path = src/Gyges
 	url = git@github.com:manuelli/Gyges.git
+[submodule "src/LabelFusion"]
+	path = src/LabelFusion
+	url = https://github.com/RobotLocomotion/LabelFusion.git
