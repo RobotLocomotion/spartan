@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, signal
+import os, sys, signal, re
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,7 +26,8 @@ if __name__ == "__main__":
 
   n_classes = len(performance.keys())
 
-  class_targets = ["crop_0.250"]
+  class_targets = ["crop_0.250", "crop_model_0.020"]
+  instance_re = re.compile(".*_drill")
 
   # For every subfolder, which is a method...
   for method in method_subdirs:
@@ -52,6 +53,9 @@ if __name__ == "__main__":
         # And for all instances in that class...
         instance_subdirs = next(os.walk("%s/%s/%s/" % (method, config, class_name)))[1]
         for instance in instance_subdirs:
+          if not instance_re.match(instance):
+            continue
+
           complete_path = "%s/%s/%s/%s/" % (method, config, class_name, instance)
 
           target_summary_file = complete_path + "summary.yaml"
@@ -61,7 +65,7 @@ if __name__ == "__main__":
             performance[method][class_name]["trans_error"].append(np.linalg.norm(np.array(summary_yaml["error"]["trans_error"])))
             performance[method][class_name]["instance_names"].append(instance)
 
-
+`
   import matplotlib.cm as cm
   colors = ["green", "blue", "red"]
 
@@ -77,7 +81,7 @@ if __name__ == "__main__":
     plt.ylabel("Angle error")
     plt.xlim([0, 1.0])
     plt.ylim([0, 3.14])
-    #plt.legend(loc='upper center', bbox_to_anchor=(0.8, 0.95))
+    plt.legend(loc='upper center', bbox_to_anchor=(0.8, 0.95))
     plt.title(method)
     plt.grid()
 
@@ -103,7 +107,7 @@ if __name__ == "__main__":
       plt.hist([performance[method][class_name]["angle_error"] for class_name in paramstrings], bins=np.arange(0, 3.14, 0.1), label=paramstrings)
       if (i == n_classes-1):
         plt.xlabel("Angle error")
-      #plt.legend()
+      plt.legend()
       plt.xlim([0, 3.14])
       plt.ylim(0, 50)
       plt.grid()
@@ -153,7 +157,7 @@ if __name__ == "__main__":
 
   print ratios
   for i in range(len(correctness_by_method_and_example_index[performance.keys()[0]])):
-    if correctness_by_method_and_example_index["mip"][i]:
+    #if correctness_by_method_and_example_index["mip"][i]:
       print "Example %s: %s" % (
           example_names_in_order[i], 
           ", ".join(["%s: %d" % (key, correctness_by_method_and_example_index[key][i]) for key in performance.keys()])
@@ -181,7 +185,7 @@ if __name__ == "__main__":
         lens.append(0)
     plt.bar(np.linspace(eps[i], eps[i] + n_classes, n_classes), this_data, label="Class %s" % class_name, color=colors[i], width = bar_width)
     [x_tick.append(x) for x in np.linspace(eps[i] + bar_width / 2., n_classes + eps[i] + bar_width / 2., n_classes)]
-    [label.append("%s"%key) for key in sorted(ratios.keys())] #\nN=%d" % (key, N)) for (key, N) in zip(sorted(ratios.keys()), lens)]
+    [label.append("%s\nN=%d" % (key, N)) for (key, N) in zip(sorted(ratios.keys()), lens)]
 
   plt.xticks(x_tick, label)
 
@@ -189,7 +193,7 @@ if __name__ == "__main__":
   plt.xlim(0, n_classes+1)
   plt.ylabel("Percent Correct Classifications") # % (trans_error_threshold, angle_error_threshold_deg))
   plt.grid()
-  #plt.legend()
+  plt.legend()
 
   plt.show()
 
