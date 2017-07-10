@@ -25,7 +25,11 @@ configure_file(config/setup_environment.sh.in ${CMAKE_BINARY_DIR}/setup_environm
 
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
-option(WITH_DRIVERS "Build the hardware lcm driver." OFF)
+
+option(WITH_IIWA_DRIVER "Build drake-iiwa-driver." OFF)
+option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
+option(WITH_OPTITRACK_DRIVER "Build optitrack-driver." OFF)
+
 option(BUILD_GYGES "Build the GYGES external project" OFF)
 option(USE_SYSTEM_VTK "Use system VTK for drake and director." OFF)
 
@@ -148,7 +152,7 @@ if (OFF)
 
 endif()
 
-if (WITH_DRIVERS)
+if (WITH_IIWA_DRIVER)
 
   set(IIWA_DRIVER_GIT_REPOSITORY
 	"git@github.com:RobotLocomotion/drake-iiwa-driver.git"
@@ -171,6 +175,10 @@ if (WITH_DRIVERS)
     DEPENDS drake
   )
 
+endif()
+
+if (WITH_SCHUNK_DRIVER)
+
   ExternalProject_Add(drake-schunk-driver
     SOURCE_DIR ${build_dir}/externals/drake-schunk-driver
     GIT_REPOSITORY git@github.com:RobotLocomotion/drake-schunk-driver.git
@@ -182,6 +190,10 @@ if (WITH_DRIVERS)
     INSTALL_COMMAND ""
     DEPENDS drake
   )
+
+endif()
+
+if (WITH_OPTITRACK_DRIVER)
 
   ExternalProject_Add(optitrack-driver
     SOURCE_DIR ${build_dir}/externals/optitrack-driver
