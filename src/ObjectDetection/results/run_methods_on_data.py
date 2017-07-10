@@ -19,8 +19,8 @@ from director.thirdparty import transformations
 
 DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/data/'
 
-TARGET_CLASSES = ["crop_0.250"] # leave empty for all targets
-INSTANCE_PATTERN = re.compile("2017-06-16-06_drill")
+TARGET_CLASSES = ["crop_model_0.020"] # leave empty for all targets
+INSTANCE_PATTERN = re.compile(".*")
 
 #TARGET_CLASSES = ["scene_scale"]
 #INSTANCE_PATTERN = re.compile("cube_resampled")
