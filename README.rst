@@ -55,9 +55,9 @@ By default, cmake generates a Makefile, but it's possible to use other
 build tools like ninja.
 
 Building With Drivers
-------------------------
+---------------------
 Spartan has CMake options to build `WITH_*_DRIVER`, which add various
-proprietary drivers to the build. This following drivers and their
+proprietary drivers to the build. The following drivers and their
 corresponding flags are supported:
 
 * `WITH_IIWA_DRIVER`: [`drake-iiwa-driver`](https://github.com/RobotLocomotion/drake-iiwa-driver)
@@ -73,27 +73,27 @@ the `kuka-fri` proprietary driver. The `drake-iiwa-driver` by default pulls this
 as a submodule from the private RobotLocomotion kuka-fri repo. To build against
 a different version, follow these steps:
 
-1. Clone `drake-iiwa-driver` to your local machine:
+1. Clone `drake-iiwa-driver` to your local machine::
 
-        git clone https://github.com/RobotLocomotion/drake-iiwa-driver
+    git clone https://github.com/RobotLocomotion/drake-iiwa-driver
 
-1. Delete the kuka-fri submodule.
+2. Delete the kuka-fri submodule.
 
         cd drake-iiwa-driver
         git rm kuka-fri
 
-1. Extract your copy of the kuka drivers, and apply patches according to the
+3. Extract your copy of the kuka drivers, and apply patches according to the
 instruction in [`drake-iiwa-driver/README.md`](https://github.com/RobotLocomotion/drake-iiwa-driver/blob/master/README.md).
 
-1. Commit the changes and note the commit hash.
+4. Commit the changes and note the commit hash.
 
-1. In Spartan build directory, enable `WITH_IIWA_DRIVER` and reconfigure CMake.
+5. In Spartan build directory, enable `WITH_IIWA_DRIVER` and reconfigure CMake.
 Two additional options will appear:
    * `IIWA_DRIVER_GIT_REPOSITORY`: Set to the clone of address for your local
       `drake-iiwa-driver`. For example, `file:///home/example/drake-iiwa-driver/`
    * `IIWA_DRIVER_GIT_TAG`: The (short) commit hash from above. For example, `a1b2c34`
 
-1. Reconfigure CMake once more, and build.
+6. Reconfigure CMake once more, and build.
 
         cd spartan/build
         cmake ..
