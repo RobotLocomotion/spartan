@@ -1020,7 +1020,7 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
       double dist = std::numeric_limits<double>::infinity();
       int face_ind = 0;
       Vector3d closest_pt;
-      if (search_body_idx[i] > 0){
+      if (is_finite(search_phi[i])){
         for (int j=0; j<all_faces_.size(); j++){
           if (B_(search_body_idx[i]-1, j) < 0.5) continue;
 
