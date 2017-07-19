@@ -2,6 +2,10 @@
 Usage:
 
 directorPython convertPolyData.py <in> <out>
+
+Uses VTK's readPolyData to open the polydata
+file, and then writes it using VTK's writePolyData.
+Can do simple format conversions.
 '''
 
 import os
