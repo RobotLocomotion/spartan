@@ -12,7 +12,7 @@ from director import transformUtils
 
 # Consumes a CorlDev log directory that contains a RECONSTRUCTED POINTCLOUD
 # of a scene, and a REGISTRATION RESULT that describes where models are in the
-# scene. Generates an test class from that data according to parameters set here.
+# scene. Generates a test class from that data according to parameters set here.
 
 CORL_DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/logs_test/'
 MODELS_ROOT_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/data/'

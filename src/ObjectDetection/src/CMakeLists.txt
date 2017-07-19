@@ -20,7 +20,6 @@ add_definitions(${PCL_DEFINITIONS})
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
-
 add_library(point_cloud_generator point_cloud_generator.cpp point_cloud_generator.hpp)
 target_link_libraries(point_cloud_generator lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeRBM drakeOptimization drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
 install(TARGETS point_cloud_generator DESTINATION lib)
@@ -33,15 +32,9 @@ add_executable(run_bogo_object_detector run_bogo_object_detector.cpp)
 target_link_libraries(run_bogo_object_detector lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
 install(TARGETS run_bogo_object_detector DESTINATION bin)
 
-
-
 add_library(miqp_mesh_model_detector miqp_mesh_model_detector.cpp miqp_mesh_model_detector.hpp)
 target_link_libraries(miqp_mesh_model_detector lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeOptimization drakeRotationConstraint drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant yaml-cpp z pthread)
 install(TARGETS miqp_mesh_model_detector DESTINATION lib)
-
-#add_executable(run_miqp_mesh_model_detector_standalone run_miqp_mesh_model_detector_standalone.cpp)
-#target_link_libraries(run_miqp_mesh_model_detector_standalone lcm RemoteTreeViewerWrapper miqp_mesh_model_detector point_cloud_generator drakeMultibodyParsers drakeOptimization drakeRotationConstraint drakeRBM drakeShapes drakeJoints drakeCommon #drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp z pthread)
-#install(TARGETS run_miqp_mesh_model_detector_standalone DESTINATION bin)
 
 add_executable(run_miqp_mesh_model_detector run_miqp_mesh_model_detector.cpp)
 target_link_libraries(run_miqp_mesh_model_detector lcm RemoteTreeViewerWrapper miqp_mesh_model_detector point_cloud_generator drakeMultibodyParsers drakeOptimization drakeRotationConstraint drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} z pthread)
@@ -61,7 +54,6 @@ add_subdirectory(FastGlobalRegistration)
 add_executable(run_fgr_detector run_fgr_detector.cpp)
 target_link_libraries(run_fgr_detector FastGlobalRegistrationLib lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} z pthread)
 install(TARGETS run_fgr_detector DESTINATION bin)
-
 
 include(ExternalProject)
 set_property(DIRECTORY PROPERTY EP_PREFIX ${CMAKE_BINARY_DIR})
