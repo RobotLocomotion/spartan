@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
 
   int nr_points = sceneCloud->points.size();
   for (int i = 0; i < nr_points; i++) {
-    if (i % (nr_points / 100) == 0){
+    if (i % (nr_points / 10) == 0){
       printf("%d / %d\n", i, nr_points);
     }
     pcl::PointXYZ searchPoint = sceneCloud->points[i];
