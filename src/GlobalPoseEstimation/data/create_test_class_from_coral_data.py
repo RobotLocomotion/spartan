@@ -25,7 +25,7 @@ params = dict(
   crop_around_model = True # Crop scene_crop_width from model surface. Otherwise, crop from model centroid.
 )
 
-OUT_DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/data/'
+OUT_DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/GlobalPoseEstimation/data/'
 
 if params["crop_around_model"]:
   CLASS_DIR_NAME = "crop_model_%0.3f/" % (params["scene_crop_width"])  

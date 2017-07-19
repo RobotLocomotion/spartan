@@ -117,9 +117,9 @@ endif()
 
 if (WITH_PERCEPTION)
 
-  ExternalProject_Add(ObjectDetection
-    SOURCE_DIR ${source_dir}/src/ObjectDetection
-    BINARY_DIR ${build_dir}/ObjectDetection
+  ExternalProject_Add(GlobalPoseEstimation
+    SOURCE_DIR ${source_dir}/src/GlobalPoseEstimation
+    BINARY_DIR ${build_dir}/GlobalPoseEstimation
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
@@ -129,7 +129,7 @@ if (WITH_PERCEPTION)
   )
 
   if (WITH_ISSUE_5456_WORKAROUND)
-    set_target_properties(ObjectDetection PROPERTIES EXCLUDE_FROM_ALL TRUE)
+    set_target_properties(GlobalPoseEstimation PROPERTIES EXCLUDE_FROM_ALL TRUE)
   endif()
 
 endif()
