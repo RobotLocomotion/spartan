@@ -141,19 +141,16 @@ if (BUILD_GYGES)
 endif()
 
 
-if (OFF)
-  ExternalProject_Add(ObjectDetection
-    SOURCE_DIR ${source_dir}/src/ObjectDetection
-    BINARY_DIR ${build_dir}/ObjectDetection
-    BUILD_ALWAYS 1
-    CMAKE_CACHE_ARGS
-      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
-      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-      -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
-    DEPENDS drake director RemoteTreeViewer
-  )
-
-endif()
+ExternalProject_Add(GlobalPoseEstimation
+  SOURCE_DIR ${source_dir}/src/GlobalPoseEstimation
+  BINARY_DIR ${build_dir}/GlobalPoseEstimation
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+    -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
+  DEPENDS drake director RemoteTreeViewer
+)
 
 if (WITH_IIWA_DRIVER)
 

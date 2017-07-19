@@ -17,7 +17,7 @@ from director.thirdparty import transformations
 # Make sure you have a drakevisualizer open when running this, so you can see
 # the vis output.
 
-DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/data/'
+DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/GlobalPoseEstimation/data/'
 
 TARGET_CLASSES = ["crop_model_0.020"] # leave empty for all targets
 INSTANCE_PATTERN = re.compile(".*")

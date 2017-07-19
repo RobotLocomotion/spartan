@@ -39,7 +39,7 @@ if __name__ == '__main__':
     # the automatic reloading of missing geometry if the viewer is restarted.
     vis.start_handler()
 
-    DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/ObjectDetection/data/'
+    DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/GlobalPoseEstimation/data/'
     CORL_ROOT_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/CorlDev/logs_test/'
     
     methods = subdirs = next(os.walk("./"))[1]
