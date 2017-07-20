@@ -25,7 +25,7 @@ target_link_libraries(point_cloud_generator lcm RemoteTreeViewerWrapper drakeMul
 install(TARGETS point_cloud_generator DESTINATION lib)
 
 add_executable(run_point_cloud_generator run_point_cloud_generator.cpp)
-target_link_libraries(run_point_cloud_generator lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
+target_link_libraries(run_point_cloud_generator lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} z pthread)
 install(TARGETS run_point_cloud_generator DESTINATION bin)
 
 add_executable(run_bogo_pose_estimator run_bogo_pose_estimator.cpp)

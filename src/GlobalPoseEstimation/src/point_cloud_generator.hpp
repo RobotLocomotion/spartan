@@ -7,7 +7,8 @@
 
 class PointCloudGenerator {
   public:
-    PointCloudGenerator(const YAML::Node& config);
+    PointCloudGenerator(const YAML::Node& config,
+                        const std::string& dirname = "");
 
     Eigen::Matrix3Xd samplePointCloud();
     Eigen::Matrix3Xd samplePointCloudFromSurface();

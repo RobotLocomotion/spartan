@@ -6,7 +6,6 @@
 #include <pcl/features/fpfh_omp.h>
 #include <pcl/features/normal_3d_omp.h>
 
-
 #include <vtkSmartPointer.h>
 #include <vtkActor.h>
 #include <vtkCellArray.h>
@@ -26,25 +25,7 @@
 #include <vtkSmartPointer.h>
 #include <vtksys/SystemTools.hxx>
 
-// Shamelessly taken from vtkPCLConversions.h in Director, which isn't installed in
-// a way that I can use it. That should be fixed and this should be eliminated.
-
-vtkSmartPointer<vtkCellArray> NewVertexCells(vtkIdType numberOfVerts)
-{
-  vtkNew<vtkIdTypeArray> cells;
-  cells->SetNumberOfValues(numberOfVerts*2);
-  vtkIdType* ids = cells->GetPointer(0);
-  for (vtkIdType i = 0; i < numberOfVerts; ++i)
-    {
-    ids[i*2] = 1;
-    ids[i*2+1] = i;
-    }
-
-  vtkSmartPointer<vtkCellArray> cellArray = vtkSmartPointer<vtkCellArray>::New();
-  cellArray->SetCells(numberOfVerts, cells.GetPointer());
-  return cellArray;
-}
-
+#include "common_vtk.hpp"
 
 //----------------------------------------------------------------------------
 static vtkSmartPointer<vtkPolyData> PolyDataFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr cloud)

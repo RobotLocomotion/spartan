@@ -1,19 +1,25 @@
 /*
  */
+#include <libgen.h>
 
 #include "yaml-cpp/yaml.h"
 #include "common/common.hpp"
+#include "common/common_vtk.hpp"
 
 #include "point_cloud_generator.hpp"
 #include "RemoteTreeViewerWrapper.hpp"
 
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_cloud.h>
+#include <vtkSmartPointer.h>
+#include <vtkActor.h>
+#include <vtkPointSource.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkPolyDataPointSampler.h>
+#include <vtkProperty.h>
+#include <vtkSmartPointer.h>
+#include <vtksys/SystemTools.hxx>
 
 using namespace std;
 using namespace Eigen;
-
-typedef pcl::PointXYZ PointType;
 
 int main(int argc, char** argv) {
   srand(getUnixTime());
@@ -44,7 +50,9 @@ int main(int argc, char** argv) {
   if (config["point_cloud_generator_options"] == NULL){
     runtime_error("Config needs a point cloud generator option set.");
   }
-  PointCloudGenerator pcg(config["point_cloud_generator_options"]);
+  // Warning: yucky string->char* conversion here that doesn't work if the base string
+  // gets modified.
+  PointCloudGenerator pcg(config["point_cloud_generator_options"], dirname(&yamlString[0]));
 
   // Generate a point set
   Matrix3Xd scene_pts = pcg.samplePointCloud();
@@ -57,12 +65,8 @@ int main(int argc, char** argv) {
 
   if (argc > 2){
     string outputFilename = string(argv[2]);
-    pcl::PointCloud<pcl::PointXYZ> cloud;
-    for (int i=0; i<scene_pts.cols(); i++){
-      cloud.push_back( PointType(scene_pts(0, i), scene_pts(1, i), scene_pts(2, i)) );
-    }
-    pcl::io::savePCDFileASCII(outputFilename, cloud);
-    cout << "Saved " << cloud.size() << " points to " << outputFilename << endl;
+    WritePolyData(PolyDataFromMatrix3Xd(scene_pts), outputFilename.c_str());
+    cout << "Saved " << scene_pts.cols() << " points to " << outputFilename << endl;
   }
 
   if (argc > 3){
