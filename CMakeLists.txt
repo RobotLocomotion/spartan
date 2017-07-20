@@ -70,6 +70,7 @@ ExternalProject_Add(director
     -DUSE_SYSTEM_EIGEN:BOOL=ON
     -DUSE_SYSTEM_LCM:BOOL=ON
     -DUSE_SYSTEM_LIBBOT:BOOL=ON
+    -DUSE_SYSTEM_VTK:BOOL=OFF
     -DUSE_PCL:BOOL=${WITH_PERCEPTION}
     -DUSE_APRILTAGS:BOOL=${WITH_PERCEPTION}
     -DUSE_KINECT:BOOL=${WITH_PERCEPTION}
@@ -131,6 +132,9 @@ if (WITH_PERCEPTION)
   if (WITH_ISSUE_5456_WORKAROUND)
     set_target_properties(GlobalPoseEstimation PROPERTIES EXCLUDE_FROM_ALL TRUE)
   endif()
+
+  add_test(test_pose_estimation_methods 
+    directorPython ${CMAKE_SOURCE_DIR}/src/GlobalPoseEstimation/scripts/demoPoseEstimationMethods.py)
 
 endif()
 
