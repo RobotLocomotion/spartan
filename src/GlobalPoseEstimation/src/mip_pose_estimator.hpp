@@ -13,7 +13,7 @@
 
 #include "yaml-cpp/yaml.h"
 
-class MIQPMultipleMeshModelDetector {
+class MIPMultipleMeshPoseEstimator {
   public:
     struct PointCorrespondence {
       Eigen::Vector3d scene_pt;
@@ -25,7 +25,7 @@ class MIQPMultipleMeshModelDetector {
       std::vector<int> vert_inds;
     };
 
-    struct ObjectDetection {
+    struct ObjectPoseEstimation {
       Eigen::Affine3d est_tf;
       Eigen::Matrix3d R_fit;
       Eigen::Vector3d T_fit;
@@ -34,7 +34,7 @@ class MIQPMultipleMeshModelDetector {
     };
 
     struct Solution {
-      std::vector<ObjectDetection> detections;
+      std::vector<ObjectPoseEstimation> pose_estimates;
       double objective;
       double solve_time;
       double lower_bound;
@@ -49,7 +49,7 @@ class MIQPMultipleMeshModelDetector {
            std::vector<drake::solvers::MatrixDecisionVariable<3, 3>>> R_indicators;
     };
 
-    MIQPMultipleMeshModelDetector(YAML::Node config, YAML::Node modelConfig);
+    MIPMultipleMeshPoseEstimator(YAML::Node config, YAML::Node modelConfig);
   
     void handleMipSolCallbackFunction(const drake::solvers::MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info);
     void handleMipNodeCallbackFunction(const drake::solvers::MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info,
@@ -70,10 +70,10 @@ class MIQPMultipleMeshModelDetector {
     void getInitialGuessFromRobotState(const Eigen::VectorXd& q_robot, 
       Eigen::VectorXd& vals, drake::solvers::VectorXDecisionVariable& vars);
 
-    std::vector<Solution> doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts);
-    std::vector<Solution> doObjectDetectionWithWorldToBodyFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts);
-    std::vector<Solution> doObjectDetectionWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts);
-    std::vector<Solution> doObjectDetection(const Eigen::Matrix3Xd& scene_pts);
+    std::vector<Solution> doObjectPoseEstimationWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts);
+    std::vector<Solution> doObjectPoseEstimationWithWorldToBodyFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts);
+    std::vector<Solution> doObjectPoseEstimationWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts);
+    std::vector<Solution> doObjectPoseEstimation(const Eigen::Matrix3Xd& scene_pts);
     
     void doICPProcessing();
 
@@ -157,7 +157,7 @@ class MIQPMultipleMeshModelDetector {
     double optHODDist_ = 0.05;
     double optHODWeight_ = 0.0;
 
-    std::vector<MIQPMultipleMeshModelDetector::TransformationVars> transform_by_object_;
+    std::vector<MIPMultipleMeshPoseEstimator::TransformationVars> transform_by_object_;
     drake::solvers::MatrixXDecisionVariable phi_;
     std::vector<drake::solvers::MatrixXDecisionVariable> alpha_;
     drake::solvers::MatrixXDecisionVariable C_;

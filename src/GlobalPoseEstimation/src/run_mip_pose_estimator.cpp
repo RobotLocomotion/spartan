@@ -33,7 +33,7 @@
 #include <vtkSmartPointer.h>
 #include <vtksys/SystemTools.hxx>
 
-#include "miqp_mesh_model_detector.hpp"
+#include "mip_pose_estimator.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
   srand(0);
 
   if (argc < 3){
-    printf("Use: run_miqp_mesh_model_detector <point cloud file, vtp> <model file, yaml> <config file> <optional output_file>\n");
+    printf("Use: run_mip_pose_estimator <point cloud file, vtp> <model file, yaml> <config file> <optional output_file>\n");
     exit(-1);
   }
 
@@ -125,9 +125,9 @@ int main(int argc, char** argv) {
   rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.1, 0.5), {"mip", "robot_gt"});
 
 
-  // Load in MIQP Object Detector
-  MIQPMultipleMeshModelDetector detector(config["detector_options"], modelConfig);
-  auto solutions = detector.doObjectDetection(scene_pts);
+  // Load in MIP estimator
+  MIPMultipleMeshPoseEstimator estimator(config["detector_options"], modelConfig);
+  auto solutions = estimator.doObjectPoseEstimation(scene_pts);
   VectorXd q_robot_est = q_robot * 0;
 
   // Iterate through the generated solutions, and:
@@ -137,14 +137,14 @@ int main(int argc, char** argv) {
   // Remote Tree Viewer Vis
   for (const auto& solution : solutions){
     stringstream sol_name;
-    sol_name << "sol_obj_" << solution.objective << detector.getDetailName();
-    for (const auto& detection : solution.detections){
+    sol_name << "sol_obj_" << solution.objective << estimator.getDetailName();
+    for (const auto& detection : solution.pose_estimates){
       // Visualize the estimated body pose
-      const RigidBody<double>& body = detector.get_robot().get_body(detection.obj_ind);
+      const RigidBody<double>& body = estimator.get_robot().get_body(detection.obj_ind);
       for (const auto& collision_elem_id : body.get_collision_element_ids()) {
         stringstream collision_elem_id_str;
         collision_elem_id_str << collision_elem_id;
-        auto element = detector.get_robot().FindCollisionElement(collision_elem_id);
+        auto element = estimator.get_robot().FindCollisionElement(collision_elem_id);
         if (element->hasGeometry()){
           vector<string> path;
           path.push_back("mip");
@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
   }
 
   // Pre-process history into separate vectors
-  auto history = detector.get_solve_history();
+  auto history = estimator.get_solve_history();
   vector<double> wall_times;
   vector<double> reported_runtimes;
   vector<double> best_objectives;
@@ -194,13 +194,13 @@ int main(int argc, char** argv) {
 
   // Solution save-out
   // TODO(gizatt) This doesn't work completely yet, as
-  // the MIQP mesh model detector generates
+  // the MIP mesh model estimator generates
   // pose estimates in maximal coords, while
   // we want to save out estimates in the joint
   // space of the robot. We'll need to write a 
   // projection operator somehow to make this
   // saving work, or switch the other 
-  // detectors to save out to maximal coords
+  // estimators to save out to maximal coords
   // as well (which might be nice). For now,
   // I'm more concerned about general runtime
   // and functionality...
@@ -255,7 +255,7 @@ int main(int argc, char** argv) {
 
           out << YAML::Key << "tfs";
           out << YAML::Value << YAML::BeginSeq; {
-            for (const auto& detection : solution.detections){
+            for (const auto& detection : solution.pose_estimates){
               out << YAML::BeginMap; {
                 out << YAML::Key << "obj_ind" << YAML::Value << detection.obj_ind;
                 out << YAML::Key << "R";

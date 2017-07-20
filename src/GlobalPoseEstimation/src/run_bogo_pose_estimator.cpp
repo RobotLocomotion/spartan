@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
   srand(getUnixTime());
 
   if (argc < 2){
-    printf("Use: run_bogo_object_detector <config file> <optional output_file>\n");
+    printf("Use: run_bogo_pose_estimator <config file> <optional output_file>\n");
     exit(-1);
   }
 
