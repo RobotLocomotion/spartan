@@ -28,17 +28,17 @@ add_executable(run_point_cloud_generator run_point_cloud_generator.cpp)
 target_link_libraries(run_point_cloud_generator lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
 install(TARGETS run_point_cloud_generator DESTINATION bin)
 
-add_executable(run_bogo_object_detector run_bogo_object_detector.cpp)
-target_link_libraries(run_bogo_object_detector lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
-install(TARGETS run_bogo_object_detector DESTINATION bin)
+add_executable(run_bogo_pose_estimator run_bogo_pose_estimator.cpp)
+target_link_libraries(run_bogo_pose_estimator lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${PCL_LIBRARIES} z pthread)
+install(TARGETS run_bogo_pose_estimator DESTINATION bin)
 
-add_library(miqp_mesh_model_detector miqp_mesh_model_detector.cpp miqp_mesh_model_detector.hpp)
-target_link_libraries(miqp_mesh_model_detector lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeOptimization drakeRotationConstraint drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant yaml-cpp z pthread)
-install(TARGETS miqp_mesh_model_detector DESTINATION lib)
+add_library(mip_pose_estimator mip_pose_estimator.cpp mip_pose_estimator.hpp)
+target_link_libraries(mip_pose_estimator lcm RemoteTreeViewerWrapper drakeMultibodyParsers drakeOptimization drakeRotationConstraint drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant yaml-cpp z pthread)
+install(TARGETS mip_pose_estimator DESTINATION lib)
 
-add_executable(run_miqp_mesh_model_detector run_miqp_mesh_model_detector.cpp)
-target_link_libraries(run_miqp_mesh_model_detector lcm RemoteTreeViewerWrapper miqp_mesh_model_detector point_cloud_generator drakeMultibodyParsers drakeOptimization drakeRotationConstraint drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} z pthread)
-install(TARGETS run_miqp_mesh_model_detector DESTINATION bin)
+add_executable(run_mip_pose_estimator run_mip_pose_estimator.cpp)
+target_link_libraries(run_mip_pose_estimator lcm RemoteTreeViewerWrapper mip_pose_estimator point_cloud_generator drakeMultibodyParsers drakeOptimization drakeRotationConstraint drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} z pthread)
+install(TARGETS run_mip_pose_estimator DESTINATION bin)
 
 add_executable(run_goicp_detector run_goicp_detector.cpp
     GoICP_V1.3/jly_goicp.cpp
@@ -71,7 +71,7 @@ CMAKE_CACHE_ARGS
 
 find_package(OpenCV 2 REQUIRED)
 add_executable(run_super4pcs_detector run_super4pcs_detector.cpp)
-target_link_libraries(run_super4pcs_detector super4pcs_algo chealpix lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${OpenCV_LIBS} z pthread)
+target_link_libraries(run_super4pcs_detector super4pcs_algo super4pcs_io super4pcs_accel chealpix lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${OpenCV_LIBS} z pthread)
 install(TARGETS run_super4pcs_detector DESTINATION bin)
 add_dependencies(run_super4pcs_detector Super4PCS)
 

@@ -28,7 +28,7 @@
 #include "rotation_helpers.h"
 
 #include "RemoteTreeViewerWrapper.hpp"
-#include "miqp_mesh_model_detector.hpp"
+#include "mip_pose_estimator.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -132,7 +132,7 @@ void doExactCollisionDetectFromPoints(const RigidBodyTree<double>& robot, const 
 const double kMaxConsideredICPDistance = 0.5;
 
 int done = 0;
-void callICPProcessingForever(MIQPMultipleMeshModelDetector * detector){
+void callICPProcessingForever(MIPMultipleMeshPoseEstimator * detector){
   while (!done){
     detector->doICPProcessing();
     usleep(1000*1000);
@@ -140,9 +140,9 @@ void callICPProcessingForever(MIQPMultipleMeshModelDetector * detector){
 }
 
 void mipSolCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info, void * usrdata){
-  ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipSolCallbackFunction(prog, solve_info);
+  ((MIPMultipleMeshPoseEstimator *)usrdata)->handleMipSolCallbackFunction(prog, solve_info);
 }
-void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info){
+void MIPMultipleMeshPoseEstimator::handleMipSolCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info){
   // Extract current solution
   VectorXd q_robot(robot_.get_num_positions());
   vector<Affine3d> tfs(robot_.get_num_bodies()-1);
@@ -203,7 +203,7 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
 
   // Record all feasible nodes, as these aren't frequent
   solve_history.push_back(
-    MIQPMultipleMeshModelDetector::SolveHistoryElem({getUnixTime(),
+    MIPMultipleMeshPoseEstimator::SolveHistoryElem({getUnixTime(),
       solve_info.reported_runtime,
       solve_info.best_objective,
       solve_info.best_bound,
@@ -215,9 +215,9 @@ void MIQPMultipleMeshModelDetector::handleMipSolCallbackFunction(const Mathemati
 }
 
 void mipNodeCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info, void * usrdata, VectorXd& vals, VectorXDecisionVariable& vars){
-  ((MIQPMultipleMeshModelDetector *)usrdata)->handleMipNodeCallbackFunction(prog, solve_info, vals, vars);
+  ((MIPMultipleMeshPoseEstimator *)usrdata)->handleMipNodeCallbackFunction(prog, solve_info, vals, vars);
 }
-void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info, VectorXd& vals, VectorXDecisionVariable& vars){
+void MIPMultipleMeshPoseEstimator::handleMipNodeCallbackFunction(const MathematicalProgram& prog, const drake::solvers::GurobiSolver::SolveStatusInfo& solve_info, VectorXd& vals, VectorXDecisionVariable& vars){
   // Extract current (relaxed!) solution
   VectorXd q_robot(robot_.get_num_positions());
   for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
@@ -275,7 +275,7 @@ void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const Mathemat
   // Record solve info once every 0.05 seconds at most frequent
   if (solve_history.size() == 0 || getUnixTime() - solve_history[solve_history.size() - 1].wall_time > 0.1){
     solve_history.push_back(
-        MIQPMultipleMeshModelDetector::SolveHistoryElem({getUnixTime(),
+        MIPMultipleMeshPoseEstimator::SolveHistoryElem({getUnixTime(),
           solve_info.reported_runtime,
           solve_info.best_objective,
           solve_info.best_bound,
@@ -287,7 +287,7 @@ void MIQPMultipleMeshModelDetector::handleMipNodeCallbackFunction(const Mathemat
   return;
 }
 
-void MIQPMultipleMeshModelDetector::doICPProcessing(){
+void MIPMultipleMeshPoseEstimator::doICPProcessing(){
   RemoteTreeViewerWrapper rm;
   VectorXd q_robot;
   icp_search_seeds_lock_.lock();
@@ -529,7 +529,7 @@ void MIQPMultipleMeshModelDetector::doICPProcessing(){
   }
 }
 
-MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config, YAML::Node modelConfig){
+MIPMultipleMeshPoseEstimator::MIPMultipleMeshPoseEstimator(YAML::Node config, YAML::Node modelConfig){
   if (config["rotation_constraint"])
     optRotationConstraint_ = config["rotation_constraint"].as<int>();
   if (config["rotation_constraint_num_faces"])
@@ -628,7 +628,7 @@ MIQPMultipleMeshModelDetector::MIQPMultipleMeshModelDetector(YAML::Node config, 
   collectBodyMeshesFromRBT(all_vertices_, all_faces_, face_body_map_);
 }
 
-void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out){
+void MIPMultipleMeshPoseEstimator::doScenePointPreprocessing(const Eigen::Matrix3Xd& scene_pts_in, Eigen::Matrix3Xd& scene_pts_out){
   // Do any requested downsampling of the scene cloud.
   if (optDownsampleToThisManyPoints_ < 0) {
     scene_pts_out = scene_pts_in;
@@ -675,7 +675,7 @@ void MIQPMultipleMeshModelDetector::doScenePointPreprocessing(const Eigen::Matri
   rm.publishPointCloud(scene_pts_out, {"mip", "scene_pts_downsampled"}, {{0.1, 1.0, 0.1}});
 }
 
-void MIQPMultipleMeshModelDetector::doModelPointSampling(Matrix3Xd& pts, MatrixXd& B){
+void MIPMultipleMeshPoseEstimator::doModelPointSampling(Matrix3Xd& pts, MatrixXd& B){
   // Extract vertices and meshes from the RBT.
   Matrix3Xd all_vertices;
   DrakeShapes::TrianglesVector all_faces;
@@ -745,7 +745,7 @@ void MIQPMultipleMeshModelDetector::doModelPointSampling(Matrix3Xd& pts, MatrixX
   rm.publishPointCloud(pts, {"mip", "model_pts_sampled"}, {{1.0, 0.0, 0.0}});
 }
 
-void MIQPMultipleMeshModelDetector::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& all_vertices, 
+void MIPMultipleMeshPoseEstimator::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& all_vertices, 
                               DrakeShapes::TrianglesVector& all_faces, 
                               std::vector<int>& face_body_map){
   // Collect faces from each body in our internally-stored RBT,
@@ -789,8 +789,8 @@ void MIQPMultipleMeshModelDetector::collectBodyMeshesFromRBT(Eigen::Matrix3Xd& a
   }
 }
 
-std::vector<MIQPMultipleMeshModelDetector::TransformationVars> 
-MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalProgram& prog, bool world_to_body_direction){
+std::vector<MIPMultipleMeshPoseEstimator::TransformationVars> 
+MIPMultipleMeshPoseEstimator::addTransformationVarsAndConstraints(MathematicalProgram& prog, bool world_to_body_direction){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
   transform_by_object_.clear();
 
@@ -888,7 +888,7 @@ MIQPMultipleMeshModelDetector::addTransformationVarsAndConstraints(MathematicalP
 double EnvelopeMinValue(int i, int num_binary_variables_per_half_axis) {
   return static_cast<double>(i) / num_binary_variables_per_half_axis;
 }
-void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd& q_robot,
+void MIPMultipleMeshPoseEstimator::getInitialGuessFromRobotState(const VectorXd& q_robot,
   VectorXd& vals, VectorXDecisionVariable& vars){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot);
     
@@ -1098,7 +1098,7 @@ void MIQPMultipleMeshModelDetector::getInitialGuessFromRobotState(const VectorXd
 
 
  ****************************************************************************/
-std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts){
+std::vector<MIPMultipleMeshPoseEstimator::Solution> MIPMultipleMeshPoseEstimator::doObjectPoseEstimationWithWorldToBodyFormulation(const Eigen::Matrix3Xd& scene_pts){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
   scene_pts_ = scene_pts;
 
@@ -1391,7 +1391,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);  
   bool sol_good = (out == drake::solvers::kSolutionFound);
 
-  std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
+  std::vector<MIPMultipleMeshPoseEstimator::Solution> solutions;
 
   // for (int sol_i = 0; sol_i < prog.get_num_solutions(); sol_i++) {
   for (int sol_i = 0; sol_i < 1; sol_i ++){
@@ -1408,13 +1408,13 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       C_est = C_incumbent_;
     }
 
-    MIQPMultipleMeshModelDetector::Solution new_solution;
+    MIPMultipleMeshPoseEstimator::Solution new_solution;
 
     for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
       const RigidBody<double>& body = robot_.get_body(body_i);
 
-      ObjectDetection new_detection;
-      new_detection.obj_ind = body_i;
+      ObjectPoseEstimation new_estimate;
+      new_estimate.obj_ind = body_i;
 
       printf("************************************************\n");
       printf("Concerning model %d (%s):\n", body_i, body.get_name().c_str());
@@ -1433,8 +1433,8 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
         Rf = tfs_incumbent_[body_i - 1].inverse().rotation();
       }
 
-      new_detection.R_fit = Rf;
-      new_detection.T_fit = Tf;
+      new_estimate.R_fit = Rf;
+      new_estimate.T_fit = Tf;
 
       printf("Transform:\n");
       printf("\tTranslation: %f, %f, %f\n", Tf(0, 0), Tf(1, 0), Tf(2, 0));
@@ -1444,11 +1444,11 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       printf("\t\t%f, %f, %f\n", Rf(2, 0), Rf(2, 1), Rf(2, 2));
       printf("------------------------------------------------\n");
       printf("************************************************\n");
-      new_detection.est_tf.setIdentity();
-      new_detection.est_tf.translation() = Tf;
-      new_detection.est_tf.matrix().block<3,3>(0,0) = Rf;
+      new_estimate.est_tf.setIdentity();
+      new_estimate.est_tf.translation() = Tf;
+      new_estimate.est_tf.matrix().block<3,3>(0,0) = Rf;
       // And flip it, so that it transforms from world -> model
-      new_detection.est_tf = new_detection.est_tf.inverse();
+      new_estimate.est_tf = new_estimate.est_tf.inverse();
 
       for (int scene_i=0; scene_i<scene_pts.cols(); scene_i++){
         for (int face_i=0; face_i<f_est.cols(); face_i++){
@@ -1457,7 +1457,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
           if (f_est(scene_i, face_i) > 0.5 && B_(body_i-1, face_i) > 0.5){
             PointCorrespondence new_corresp;
             new_corresp.scene_pt = scene_pts.col(scene_i);
-            new_corresp.model_pt = new_detection.est_tf * scene_pts.col(scene_i);
+            new_corresp.model_pt = new_estimate.est_tf * scene_pts.col(scene_i);
             new_corresp.scene_ind = scene_i;
             new_corresp.face_ind = face_i;
             for (int k_v=0; k_v<all_vertices_.cols(); k_v++){
@@ -1467,15 +1467,15 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
                 new_corresp.vert_inds.push_back(k_v);
               }
             }
-            new_detection.correspondences.push_back(new_corresp);
+            new_estimate.correspondences.push_back(new_corresp);
           }
         }
       }
 
-      // Include this as a detection if we have correspondences
+      // Include this as an estimate if we have correspondences
       // to support it.
-      if (new_detection.correspondences.size() > 0)
-        new_solution.detections.push_back(new_detection);
+      if (new_estimate.correspondences.size() > 0)
+        new_solution.pose_estimates.push_back(new_estimate);
     }
 
     if (sol_good) {
@@ -1503,7 +1503,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
 
  ****************************************************************************/
-std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithWorldToBodyFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts){
+std::vector<MIPMultipleMeshPoseEstimator::Solution> MIPMultipleMeshPoseEstimator::doObjectPoseEstimationWithWorldToBodyFormulationSampledModelPoints(const Eigen::Matrix3Xd& scene_pts){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
 
   // Common initialization needed for viz
@@ -1514,7 +1514,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   collectBodyMeshesFromRBT(all_vertices_, all_faces_, face_body_map_);
   scene_pts_ = scene_pts;
 
-  // See https://www.sharelatex.com/project/5850590c38884b7c6f6aedd1
+  // See http://groups.csail.mit.edu/robotics-center/public_papers/Izatt17b.pdf
   // for details on problem formulation.
   MathematicalProgram prog;
 
@@ -1727,7 +1727,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   //prog.PrintSolution();
   printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);
 
-  std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
+  std::vector<MIPMultipleMeshPoseEstimator::Solution> solutions;
 
   for (int sol_i = 0; sol_i < 1; sol_i ++){
     printf("==================================================\n");
@@ -1735,15 +1735,15 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     printf("==================================================\n");
     auto C_est = prog.GetSolution(C_); //, sol_i);
 
-    MIQPMultipleMeshModelDetector::Solution new_solution;
+    MIPMultipleMeshPoseEstimator::Solution new_solution;
     new_solution.objective = prog.GetOptimalCost();
     new_solution.lower_bound = prog.GetLowerBound();
 
     for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
       const RigidBody<double>& body = robot_.get_body(body_i);
 
-      ObjectDetection new_detection;
-      new_detection.obj_ind = body_i;
+      ObjectPoseEstimation new_estimate;
+      new_estimate.obj_ind = body_i;
   
       printf("************************************************\n");
       printf("Concerning model %d (%s):\n", body_i, body.get_name().c_str());
@@ -1758,10 +1758,10 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       printf("\t\t%f, %f, %f\n", Rf(2, 0), Rf(2, 1), Rf(2, 2));
       printf("------------------------------------------------\n");
       printf("************************************************\n");
-      new_detection.est_tf.setIdentity();
-      new_detection.est_tf.translation() = Tf;
-      new_detection.est_tf.matrix().block<3,3>(0,0) = Rf;
-      new_detection.est_tf = new_detection.est_tf.inverse();
+      new_estimate.est_tf.setIdentity();
+      new_estimate.est_tf.translation() = Tf;
+      new_estimate.est_tf.matrix().block<3,3>(0,0) = Rf;
+      new_estimate.est_tf = new_estimate.est_tf.inverse();
       
       for (int scene_i=0; scene_i<scene_pts.cols(); scene_i++) {
         for (int model_i=0; model_i<all_vertices_.cols(); model_i++) {
@@ -1770,15 +1770,15 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
             new_corresp.scene_pt = scene_pts.col(scene_i);
             new_corresp.scene_ind = scene_i;
             new_corresp.model_pt = all_vertices_.col(model_i);
-            new_detection.correspondences.push_back(new_corresp);
+            new_estimate.correspondences.push_back(new_corresp);
           }
         }
       }
 
-      // Include this as a detection if we have correspondences
+      // Include this as a estimate if we have correspondences
       // to support it.
-      if (new_detection.correspondences.size() > 0)
-        new_solution.detections.push_back(new_detection);
+      if (new_estimate.correspondences.size() > 0)
+        new_solution.pose_estimates.push_back(new_estimate);
     }
 
     new_solution.solve_time = elapsed;
@@ -1801,7 +1801,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
 
 
  ****************************************************************************/
-std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetectionWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts){
+std::vector<MIPMultipleMeshPoseEstimator::Solution> MIPMultipleMeshPoseEstimator::doObjectPoseEstimationWithBodyToWorldFormulation(const Eigen::Matrix3Xd& scene_pts){
   KinematicsCache<double> robot_kinematics_cache = robot_.doKinematics(q_robot_gt_);
 
   // Common initialization needed for viz
@@ -1946,7 +1946,7 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   //prog.PrintSolution();
   printf("Code %d, problem %s solved for %lu scene solved in: %f\n", out, problem_string.c_str(), scene_pts.cols(), elapsed);
 
-  std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
+  std::vector<MIPMultipleMeshPoseEstimator::Solution> solutions;
 
   for (int sol_i = 0; sol_i < 1; sol_i ++){
     printf("==================================================\n");
@@ -1954,15 +1954,15 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
     printf("==================================================\n");
     auto C_est = prog.GetSolution(C_); //, sol_i);
 
-    MIQPMultipleMeshModelDetector::Solution new_solution;
+    MIPMultipleMeshPoseEstimator::Solution new_solution;
     new_solution.objective = prog.GetOptimalCost();
     new_solution.lower_bound = prog.GetLowerBound();
 
     for (int body_i = 1; body_i < robot_.get_num_bodies(); body_i++){
       const RigidBody<double>& body = robot_.get_body(body_i);
 
-      ObjectDetection new_detection;
-      new_detection.obj_ind = body_i;
+      ObjectPoseEstimation new_estimate;
+      new_estimate.obj_ind = body_i;
   
       printf("************************************************\n");
       printf("Concerning model %d (%s):\n", body_i, body.get_name().c_str());
@@ -1977,9 +1977,9 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
       printf("\t\t%f, %f, %f\n", Rf(2, 0), Rf(2, 1), Rf(2, 2));
       printf("------------------------------------------------\n");
       printf("************************************************\n");
-      new_detection.est_tf.setIdentity();
-      new_detection.est_tf.translation() = Tf;
-      new_detection.est_tf.matrix().block<3,3>(0,0) = Rf;
+      new_estimate.est_tf.setIdentity();
+      new_estimate.est_tf.translation() = Tf;
+      new_estimate.est_tf.matrix().block<3,3>(0,0) = Rf;
       
       for (int model_i=0; model_i<model_pts.cols(); model_i++) {
         for (int scene_i=0; scene_i<scene_pts.cols(); scene_i++) {
@@ -1988,15 +1988,15 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
             new_corresp.scene_pt = scene_pts.col(scene_i);
             new_corresp.scene_ind = scene_i;
             new_corresp.model_pt = model_pts.col(model_i);
-            new_detection.correspondences.push_back(new_corresp);
+            new_estimate.correspondences.push_back(new_corresp);
           }
         }
       }
 
-      // Include this as a detection if we have correspondences
+      // Include this as a estimate if we have correspondences
       // to support it.
-      if (new_detection.correspondences.size() > 0)
-        new_solution.detections.push_back(new_detection);
+      if (new_estimate.correspondences.size() > 0)
+        new_solution.pose_estimates.push_back(new_estimate);
     }
 
     new_solution.solve_time = elapsed;
@@ -2006,25 +2006,25 @@ std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetect
   return solutions;
 }
 
-std::vector<MIQPMultipleMeshModelDetector::Solution> MIQPMultipleMeshModelDetector::doObjectDetection(const Eigen::Matrix3Xd& scene_pts_in){
+std::vector<MIPMultipleMeshPoseEstimator::Solution> MIPMultipleMeshPoseEstimator::doObjectPoseEstimation(const Eigen::Matrix3Xd& scene_pts_in){
   Eigen::Matrix3Xd scene_pts;
   doScenePointPreprocessing(scene_pts_in, scene_pts);
 
   // Branch on formulation type.
-  std::vector<MIQPMultipleMeshModelDetector::Solution> solutions;
+  std::vector<MIPMultipleMeshPoseEstimator::Solution> solutions;
   if (config_["detector_type"] == NULL){
-    runtime_error("MIQPMultipleMeshModelDetector needs a detector type specified.");
+    runtime_error("MIPMultipleMeshPoseEstimator needs a detector type specified.");
   } else if (config_["detector_type"].as<string>() == 
              "world_to_body_transforms"){
-    solutions = doObjectDetectionWithWorldToBodyFormulation(scene_pts);
+    solutions = doObjectPoseEstimationWithWorldToBodyFormulation(scene_pts);
   } else if (config_["detector_type"].as<string>() == 
             "world_to_body_transforms_with_sampled_model_points"){
-    solutions = doObjectDetectionWithWorldToBodyFormulationSampledModelPoints(scene_pts);
+    solutions = doObjectPoseEstimationWithWorldToBodyFormulationSampledModelPoints(scene_pts);
   } else if (config_["detector_type"].as<string>() == 
              "body_to_world_transforms"){
-    solutions = doObjectDetectionWithBodyToWorldFormulation(scene_pts);
+    solutions = doObjectPoseEstimationWithBodyToWorldFormulation(scene_pts);
   } else {
-    runtime_error("MIQPMultipleMeshModelDetector detector type not understood.");
+    runtime_error("MIPMultipleMeshPoseEstimator detector type not understood.");
   }
 
   return solutions;

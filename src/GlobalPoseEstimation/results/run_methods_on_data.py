@@ -103,7 +103,7 @@ def generate_run_mip_command(config_file, input_dir, output_dir, output_file):
   with open(model_config_file, 'w') as f:
     yaml.dump(config_yaml, f)
 
-  command = "run_miqp_mesh_model_detector %s/scene_cloud.vtp %s %s %s" % (
+  command = "run_mip_pose_estimator %s/scene_cloud.vtp %s %s %s" % (
     input_dir, model_config_file, config_file, output_file
   )
   return command
