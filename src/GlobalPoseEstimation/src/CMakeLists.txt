@@ -40,20 +40,20 @@ add_executable(run_mip_pose_estimator run_mip_pose_estimator.cpp)
 target_link_libraries(run_mip_pose_estimator lcm RemoteTreeViewerWrapper mip_pose_estimator point_cloud_generator drakeMultibodyParsers drakeOptimization drakeRotationConstraint drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} z pthread)
 install(TARGETS run_mip_pose_estimator DESTINATION bin)
 
-add_executable(run_goicp_detector run_goicp_detector.cpp
+add_executable(run_goicp_pose_estimator run_goicp_pose_estimator.cpp
     GoICP_V1.3/jly_goicp.cpp
     GoICP_V1.3/jly_3ddt.cpp
     GoICP_V1.3/matrix.cpp
     GoICP_V1.3/ConfigMap.cpp
     GoICP_V1.3/StringTokenizer.cpp)
-target_link_libraries(run_goicp_detector lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} z pthread)
-install(TARGETS run_goicp_detector DESTINATION bin)
+target_link_libraries(run_goicp_pose_estimator lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} z pthread)
+install(TARGETS run_goicp_pose_estimator DESTINATION bin)
 
 add_subdirectory(FastGlobalRegistration)
 
-add_executable(run_fgr_detector run_fgr_detector.cpp)
-target_link_libraries(run_fgr_detector FastGlobalRegistrationLib lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} z pthread)
-install(TARGETS run_fgr_detector DESTINATION bin)
+add_executable(run_fgr_pose_estimator run_fgr_pose_estimator.cpp)
+target_link_libraries(run_fgr_pose_estimator FastGlobalRegistrationLib lcm RemoteTreeViewerWrapper point_cloud_generator drakeMultibodyParsers drakeRBM drakeShapes drakeJoints drakeCommon drakeLcm drakeRigidBodyPlant drake_lcmtypes yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} z pthread)
+install(TARGETS run_fgr_pose_estimator DESTINATION bin)
 
 include(ExternalProject)
 set_property(DIRECTORY PROPERTY EP_PREFIX ${CMAKE_BINARY_DIR})
@@ -70,10 +70,10 @@ CMAKE_CACHE_ARGS
 )
 
 find_package(OpenCV 2 REQUIRED)
-add_executable(run_super4pcs_detector run_super4pcs_detector.cpp)
-target_link_libraries(run_super4pcs_detector super4pcs_algo super4pcs_io super4pcs_accel chealpix lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${OpenCV_LIBS} z pthread)
-install(TARGETS run_super4pcs_detector DESTINATION bin)
-add_dependencies(run_super4pcs_detector Super4PCS)
+add_executable(run_super4pcs_pose_estimator run_super4pcs_pose_estimator.cpp)
+target_link_libraries(run_super4pcs_pose_estimator super4pcs_algo super4pcs_io super4pcs_accel chealpix lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${OpenCV_LIBS} z pthread)
+install(TARGETS run_super4pcs_pose_estimator DESTINATION bin)
+add_dependencies(run_super4pcs_pose_estimator Super4PCS)
 
 add_executable(crop_pointcloud_close_to_model crop_pointcloud_close_to_model.cpp)
 target_link_libraries(crop_pointcloud_close_to_model lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} drakeMath z pthread)

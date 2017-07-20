@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
   srand(0);
 
   if (argc < 3){
-    printf("Use: run_fgr_detector <scene cloud, vtp> <model cloud, vtp> <config file> <optional output_file>\n");
+    printf("Use: run_fgr_pose_estimator <scene cloud, vtp> <model cloud, vtp> <config file> <optional output_file>\n");
     exit(-1);
   }
 
