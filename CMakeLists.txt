@@ -141,6 +141,7 @@ if (BUILD_GYGES)
 endif()
 
 
+<<<<<<< HEAD
 ExternalProject_Add(GlobalPoseEstimation
   SOURCE_DIR ${source_dir}/src/GlobalPoseEstimation
   BINARY_DIR ${build_dir}/GlobalPoseEstimation
@@ -151,6 +152,12 @@ ExternalProject_Add(GlobalPoseEstimation
     -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
   DEPENDS drake director RemoteTreeViewer
 )
+=======
+  add_test(test_pose_estimation_methods 
+    directorPython ${CMAKE_SOURCE_DIR}/src/GlobalPoseEstimation/scripts/demoPoseEstimationMethods.py)
+
+endif()
+>>>>>>> Add demo script and test to invoke it to make sure things keep working
 
 if (WITH_IIWA_DRIVER)
 
