@@ -20,7 +20,7 @@ using namespace std;
 using namespace Eigen;
 using namespace drake::parsers::urdf;
 
-PointCloudGenerator::PointCloudGenerator(const YAML::Node& config){
+PointCloudGenerator::PointCloudGenerator(const YAML::Node& config, const std::string& dirname){
   config_ = config;
 
   // Load the model itself
@@ -32,6 +32,8 @@ PointCloudGenerator::PointCloudGenerator(const YAML::Node& config){
   int old_q_robot_size = 0;
   for (auto iter=config_["models"].begin(); iter!=config_["models"].end(); iter++){
     string urdf = (*iter)["urdf"].as<string>();
+    if (dirname != "")
+      urdf = dirname + "/" + urdf;
     AddModelInstanceFromUrdfFileWithRpyJointToWorld(urdf, &robot_);
     // And add initial state info that we were passed
     vector<double> q0 = (*iter)["q0"].as<vector<double>>();
