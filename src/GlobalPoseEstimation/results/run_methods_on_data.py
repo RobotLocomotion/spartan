@@ -119,15 +119,15 @@ def run_method(method, config_file, input_dir, output_dir):
     # This gets its own function, as it's pretty complex.
     command = generate_run_mip_command(config_file, input_dir, output_dir, output_file)
   elif method == "goicp":
-    command = "run_goicp_detector %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
+    command = "run_goicp_pose_estimator %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
       input_dir, input_dir, config_file, output_file
     )
   elif method == "fgr":
-    command = "run_fgr_detector %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
+    command = "run_fgr_pose_estimator %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
       input_dir, input_dir, config_file, output_file
     )
   elif method == "super4pcs":
-    command = "run_super4pcs_detector %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
+    command = "run_super4pcs_pose_estimator %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
       input_dir, input_dir, config_file, output_file
     )
   else:
