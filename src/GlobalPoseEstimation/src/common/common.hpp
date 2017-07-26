@@ -81,6 +81,10 @@ static Eigen::MatrixXd calculateHODDescriptors(const Eigen::Matrix3Xd& pts, int 
   return hod_data;
 }
 
+static double calculateAngleBetweenUnitVectors(const Eigen::Ref<Eigen::Vector3d> x, const Eigen::Ref<Eigen::Vector3d> y)
+{
+    return atan2((x.cross(y)).norm(), x.dot(y));
+}
 
 // Adapted from https://www.gamedev.net/topic/552906-closest-point-on-triangle/
 // and converted to Eigen by gizatt@mit.edu
