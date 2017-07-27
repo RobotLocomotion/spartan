@@ -25,6 +25,7 @@
 #include <vtkSmartPointer.h>
 #include <vtksys/SystemTools.hxx>
 
+#include "common_pcl.hpp"
 #include "common_vtk.hpp"
 
 //----------------------------------------------------------------------------
@@ -225,4 +226,49 @@ PointCloudFromPolyDataWithNormals(vtkPolyData *polyData) {
   }
 
   return cloud;
+}
+
+static Eigen::Matrix<double, 6, -1>
+LoadMatrixWithVTKWithNormals(const std::string filename) {
+    // Load in the scene cloud
+  vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(filename.c_str());
+  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << filename << endl;
+
+  pcl::PointCloud<pcl::PointNormal>::Ptr sceneCloud(new pcl::PointCloud<pcl::PointNormal>());
+  if (cloudPolyData->GetPointData()->GetNormals()) {
+    sceneCloud = PointCloudFromPolyDataWithNormals(cloudPolyData);
+  } else {
+    printf("No normals available in input scene file... generating own.\n");
+    printf("Note: it's possible that VTK just isn't loading your normals!\n");
+    printf("The STL reader is known not to read normals. Try using meshlab to convert to OBJ.\n");
+    printf("Regenerate your vertex normals while you're at it :)\n");
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr sceneCloudWithoutNormals =
+        PointCloudFromPolyData(cloudPolyData);
+
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+    ne.setInputCloud (sceneCloudWithoutNormals);
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+    ne.setSearchMethod (tree);
+    pcl::PointCloud<pcl::Normal>::Ptr sceneCloudNormals (new pcl::PointCloud<pcl::Normal>);
+    ne.setRadiusSearch (0.03);
+    ne.setViewPoint (0.0, 0.0, 0.0);
+    // Compute the features
+    ne.compute (*sceneCloudNormals);
+
+    assert(sceneCloudWithoutNormals->size() == sceneCloudNormals->size());
+    sceneCloud->points.resize(sceneCloudWithoutNormals->size());
+    printf("Merging clouds...\n");
+    for (size_t i = 0; i < sceneCloud->points.size(); i++) {
+        sceneCloud->points[i].x = sceneCloudWithoutNormals->points[i].x;
+        sceneCloud->points[i].y = sceneCloudWithoutNormals->points[i].y;
+        sceneCloud->points[i].z = sceneCloudWithoutNormals->points[i].z;
+        sceneCloud->points[i].normal_x = sceneCloudNormals->points[i].normal_x;
+        sceneCloud->points[i].normal_y = sceneCloudNormals->points[i].normal_y;
+        sceneCloud->points[i].normal_z = sceneCloudNormals->points[i].normal_z;
+    }
+  }
+  printf("Done and loaded.\n");
+
+  return convertPCLPointNormalToMatrix6Xd(sceneCloud);
 }
