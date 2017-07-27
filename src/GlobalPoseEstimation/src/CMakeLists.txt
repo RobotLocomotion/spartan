@@ -79,6 +79,21 @@ add_executable(crop_pointcloud_close_to_model crop_pointcloud_close_to_model.cpp
 target_link_libraries(crop_pointcloud_close_to_model lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} drakeMath z pthread)
 install(TARGETS crop_pointcloud_close_to_model DESTINATION bin)
 
+add_library(eigen_histogram eigen_histogram.cpp eigen_histogram.hpp)
+target_link_libraries(eigen_histogram)
+install(TARGETS eigen_histogram DESTINATION lib)
+add_executable(test_eigen_histogram test_eigen_histogram.cpp)
+target_link_libraries(test_eigen_histogram eigen_histogram)
+install(TARGETS test_eigen_histogram DESTINATION bin)
+
+add_library(point_pair_features point_pair_features.cpp point_pair_features.hpp)
+target_link_libraries(point_pair_features)
+install(TARGETS point_pair_features DESTINATION lib)
+
 add_executable(compute_point_pair_features compute_point_pair_features.cpp)
-target_link_libraries(compute_point_pair_features lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} drakeMath z pthread)
+target_link_libraries(compute_point_pair_features point_pair_features lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} drakeMath z pthread)
 install(TARGETS compute_point_pair_features DESTINATION bin)
+
+add_executable(compute_point_pair_feature_histogram compute_point_pair_feature_histogram.cpp)
+target_link_libraries(compute_point_pair_feature_histogram eigen_histogram point_pair_features lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} drakeMath z pthread)
+install(TARGETS compute_point_pair_feature_histogram DESTINATION bin)

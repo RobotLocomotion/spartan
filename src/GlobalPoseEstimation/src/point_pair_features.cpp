@@ -4,14 +4,14 @@
 using Eigen::Vector3d;
 
 Eigen::Matrix<double, 4, -1>
-SamplePointPairFeatures(const Eigen::Matrix<double, 6, -1> points_and_normals,
+SamplePointPairFeatures(const Eigen::Matrix<double, 6, -1>& points_and_normals,
                         const int n_features, double max_distance) {
   int n_pts = points_and_normals.cols();
   Eigen::Matrix<double, 4, -1> features(4, n_features);
   int i = 0;
   while (i < n_features) {
     int i_1 = rand() % n_pts;
-    int i_2 = i_1;
+    int i_2 = rand() % n_pts;
     if (i_1 == i_2)
       continue;
 
@@ -28,10 +28,10 @@ SamplePointPairFeatures(const Eigen::Matrix<double, 6, -1> points_and_normals,
     Vector3d n_2 = points_and_normals.block<3, 1>(3, i_2);
     n_2 /= n_2.norm();
 
-    features(i, 0) = distance;
-    features(i, 1) = calculateAngleBetweenUnitVectors(n_1, n_2);
-    features(i, 2) = calculateAngleBetweenUnitVectors(d, n_1);
-    features(i, 3) = calculateAngleBetweenUnitVectors(d, n_2);
+    features(0, i) = distance;
+    features(1, i) = calculateAngleBetweenUnitVectors(n_1, n_2);
+    features(2, i) = calculateAngleBetweenUnitVectors(d, n_1);
+    features(3, i) = calculateAngleBetweenUnitVectors(d, n_2);
     i++;
   }
   return features;
