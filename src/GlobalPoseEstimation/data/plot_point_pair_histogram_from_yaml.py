@@ -13,6 +13,7 @@ dims = [histogram_info["n_bins"]["distance"],
 
 maxdist = histogram_info["max_distance"]
 maxondim = [maxdist, math.pi, math.pi, math.pi]
+labels = ["distance", "n1_n2", "d_n1", "d_n2"]
 
 dat = np.reshape(histogram_info["histogram"], dims, order="C")
 
@@ -24,15 +25,17 @@ for i in range(4):
 	plt.subplot(2, 2, i+1)
 	axis = range(4)[0:i] + range(4)[i+1:]
 	plt.plot(np.arange(dims[i])*maxondim[i]/dims[i], np.sum(dat, axis=tuple(axis)))
+	plt.xlabel(labels[i])
+	plt.ylabel("hits")
 
 
 plt.figure()
 
 xedges = np.linspace(0, maxdist, dims[0])
 yedges = np.linspace(0, math.pi, dims[1])
-H = np.sum(dat, axis=(2, 3))
+H = np.sum(dat, axis=(2, 3)).transpose()
 from sklearn.preprocessing import normalize
-H = normalize(H, axis=1, norm="l1")
+#H = normalize(H, axis=1, norm="l1")
 X, Y = np.meshgrid(xedges, yedges)
 plt.pcolormesh(X, Y, H)
 plt.colorbar()

@@ -8,7 +8,7 @@ import argparse
 from math import atan2
 
 CLASS_PATTERN = re.compile("crop_model_0.020")
-INSTANCE_PATTERN = re.compile("2017-06-16-51_drill")
+INSTANCE_PATTERN = re.compile(".*")
       
 if __name__ == "__main__":
    
@@ -35,8 +35,8 @@ if __name__ == "__main__":
       instance_subdirs = next(os.walk("./%s" % classname))[1]
       for instancename in instance_subdirs:
         if INSTANCE_PATTERN.match(instancename):
-          full_scene_path = "./%s/%s/scene_cloud.vtp" % (classname, instancename)
-          output_hist_file = "./%s/%s/scene_cloud_ppf_histogram.yaml" % (classname, instancename)
+          full_scene_path = "./%s/%s/scene_cloud_uncropped.vtp" % (classname, instancename)
+          output_hist_file = "./%s/%s/scene_cloud_uncropped_ppf_histogram.yaml" % (classname, instancename)
           command = "compute_point_pair_feature_histogram %s %s %d %d %f %d %d %d" % (
             full_scene_path,
             output_hist_file,

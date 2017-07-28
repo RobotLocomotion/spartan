@@ -20,7 +20,8 @@ from director.thirdparty import transformations
 DATA_DIR = os.environ['SPARTAN_SOURCE_DIR'] + '/src/GlobalPoseEstimation/data/'
 
 TARGET_CLASSES = ["crop_model_0.020"] # leave empty for all targets
-INSTANCE_PATTERN = re.compile(".*")
+#INSTANCE_PATTERN = re.compile(".*")
+INSTANCE_PATTERN = re.compile("2017-06-16-51_drill")
 
 #TARGET_CLASSES = ["scene_scale"]
 #INSTANCE_PATTERN = re.compile("cube_resampled")
