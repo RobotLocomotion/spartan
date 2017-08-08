@@ -86,6 +86,7 @@ int main(int argc, char** argv) {
     lb_pt = b_center - Vector3d::Ones()*b_width/2.;
     ub_pt = b_center + Vector3d::Ones()*b_width/2.;
     have_bounds = true;
+    cout << "Bounds: lb: " << lb_pt.transpose() << ", ub: " << ub_pt.transpose() << endl;
   }
 
   Matrix<double, 6, -1> pointNormals = LoadMatrixWithVTKWithNormals(sceneFile);
@@ -96,7 +97,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < pointNormals.cols(); i++) {
       auto this_pt = pointNormals.block<3, 1>(0, i).array();
       if ( (this_pt >= lb_pt.array()).all() && (this_pt <= ub_pt.array()).all() ) {
-        pointNormalsReduced.col(i) = pointNormals.col(i);
+        pointNormalsReduced.col(k) = pointNormals.col(i);
         k++;
       }
     }
@@ -104,6 +105,9 @@ int main(int argc, char** argv) {
     pointNormalsReduced.conservativeResize(6, k);
     pointNormals = pointNormalsReduced;
   }
+
+  RemoteTreeViewerWrapper rm;
+  rm.publishPointCloud(pointNormals.block(0, 0, 3, pointNormals.cols()), {"pointNormals"});
 
   // Generate point-pair features
   auto features = SamplePointPairFeatures(pointNormals, n_features, max_distance);
