@@ -50,19 +50,14 @@ using namespace Eigen;
 int main(int argc, char** argv) {
   srand(0);
 
-  if (argc != 9){
-    printf("Use: compute_point_pair_feature_histogram <scene cloud, vtp> <output_file> <# features> <# distance bins> <max distance> <# n1_n2 bins> <# d_n1 bins> <# d_n2 bins>\n");
+  if (argc != 4){
+    printf("Use: compute_point_pair_feature_histogram <scene cloud, vtp> <output_file> <config>\n");
     exit(-1);
   }
 
   string sceneFile = string(argv[1]);
   string outputFile = string(argv[2]);
-  int n_features = atoi(argv[3]);
-  int n_bins_distance = atoi(argv[4]);
-  double max_distance = atof(argv[5]);
-  int n_bins_n1_n2 = atoi(argv[6]);
-  int n_bins_d_n1 = atoi(argv[7]);
-  int n_bins_d_n2 = atoi(argv[8]);
+  string configFile = string(argv[3]);
 
   time_t _tm =time(NULL );
   struct tm * curtime = localtime ( &_tm );
@@ -73,18 +68,53 @@ int main(int argc, char** argv) {
   cout << "Output file " << outputFile << endl;
   cout << "***************************" << endl << endl;
 
-  auto pointNormals = LoadMatrixWithVTKWithNormals(sceneFile);
+  YAML::Node config = YAML::LoadFile(configFile);
+
+  double max_distance = config["max_distance"].as<double>();
+  int n_features = config["n_features"].as<int>();
+  int n_bins_distance = config["n_bins_distance"].as<int>();
+  int n_bins_n1_n2 = config["n_bins_n1_n2"].as<int>();
+  int n_bins_d_n1 = config["n_bins_d_n1"].as<int>();
+  int n_bins_d_n2 = config["n_bins_d_n2"].as<int>();
+
+  bool have_bounds = false;
+  Vector3d lb_pt, ub_pt;
+  if (config["bounds_center"] && config["bounds_width"]) {
+    vector<double> b_center_vector = config["bounds_center"].as<vector<double>>();
+    Vector3d b_center(b_center_vector[0], b_center_vector[1], b_center_vector[2]);
+    double b_width = config["bounds_width"].as<double>();
+    lb_pt = b_center - Vector3d::Ones()*b_width/2.;
+    ub_pt = b_center + Vector3d::Ones()*b_width/2.;
+    have_bounds = true;
+  }
+
+  Matrix<double, 6, -1> pointNormals = LoadMatrixWithVTKWithNormals(sceneFile);
+
+  if (have_bounds) {
+    Matrix<double, 6, -1> pointNormalsReduced(6, pointNormals.cols());
+    int k = 0;
+    for (int i = 0; i < pointNormals.cols(); i++) {
+      auto this_pt = pointNormals.block<3, 1>(0, i).array();
+      if ( (this_pt >= lb_pt.array()).all() && (this_pt <= ub_pt.array()).all() ) {
+        pointNormalsReduced.col(i) = pointNormals.col(i);
+        k++;
+      }
+    }
+    printf("Application of bounds reduced point set to %d points\n", k);
+    pointNormalsReduced.conservativeResize(6, k);
+    pointNormals = pointNormalsReduced;
+  }
 
   // Generate point-pair features
   auto features = SamplePointPairFeatures(pointNormals, n_features, max_distance);
 
   VectorXi n_bins(4);
   n_bins << n_bins_distance, n_bins_n1_n2, n_bins_d_n1, n_bins_d_n2;
-  VectorXd lb(4);
-  lb << 0.0, 0.0, 0.0, 0.0;
-  VectorXd ub(4);
-  ub << max_distance, 3.1415, 3.1415, 3.1415, 3.1415;
-  EigenHistogram<double> feature_histogram(n_bins, lb, ub);
+  VectorXd lb_feat(4);
+  lb_feat << 0.0, 0.0, 0.0, 0.0;
+  VectorXd ub_feat(4);
+  ub_feat << max_distance, 3.1415, 3.1415, 3.1415, 3.1415;
+  EigenHistogram<double> feature_histogram(n_bins, lb_feat, ub_feat);
   feature_histogram.AddData(features);
 
   YAML::Emitter out;
@@ -116,5 +146,6 @@ int main(int argc, char** argv) {
     fout << out.c_str();
     fout.close();
 
+    printf("Done!\n");
   return 0;
 }

@@ -4,11 +4,12 @@ import os, sys
 import datetime
 import signal
 import re
+import yaml
 import argparse
 from math import atan2
 
 CLASS_PATTERN = re.compile("crop_model_0.020")
-INSTANCE_PATTERN = re.compile(".*")
+INSTANCE_PATTERN = re.compile("2017-06-09-01_drill")
       
 if __name__ == "__main__":
    
@@ -37,15 +38,24 @@ if __name__ == "__main__":
         if INSTANCE_PATTERN.match(instancename):
           full_scene_path = "./%s/%s/scene_cloud_uncropped.vtp" % (classname, instancename)
           output_hist_file = "./%s/%s/scene_cloud_uncropped_ppf_histogram.yaml" % (classname, instancename)
-          command = "compute_point_pair_feature_histogram %s %s %d %d %f %d %d %d" % (
+          
+          # produce config file
+          config_file = "./%s/%s/ppf_histogram_config.yaml" % (classname, instancename)
+          config_params = dict(
+            n_features = num_features,
+            max_distance = max_distance,
+            n_bins_distance = bin_sizes["distance"],
+            n_bins_n1_n2 = bin_sizes["n1_n2"],
+            n_bins_d_n1 = bin_sizes["d_n1"],
+            n_bins_d_n2 = bin_sizes["d_n2"]
+          )
+          with open(config_file, 'w') as f:
+            yaml.dump(config_params, f)
+
+          command = "compute_point_pair_feature_histogram %s %s %s" % (
             full_scene_path,
             output_hist_file,
-            num_features,
-            bin_sizes["distance"],
-            max_distance,
-            bin_sizes["n1_n2"],
-            bin_sizes["d_n1"],
-            bin_sizes["d_n2"]
+            config_file
           )
           print "\n", command
           os.system(command)

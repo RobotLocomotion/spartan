@@ -1,0 +1,8 @@
+max_distance: 0.3
+n_bins_d_n1: 10
+n_bins_d_n2: 10
+n_bins_distance: 10
+n_bins_n1_n2: 10
+n_features: 100000
+#bounds_center: [-0.07214487898688046, -0.0725807223724304, 0.8684662015174907]
+#bounds_width: 0.3
