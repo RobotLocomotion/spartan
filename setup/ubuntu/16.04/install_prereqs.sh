@@ -5,6 +5,7 @@ apt install \
   build-essential \
   cmake \
   libboost-all-dev \
+  libeigen3-dev \
   libopenni2-dev \
   libopencv-dev \
   libqhull-dev \

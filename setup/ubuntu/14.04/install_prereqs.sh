@@ -5,6 +5,7 @@ apt-get update
 apt install \
   build-essential \
   cmake \
+  libeigen3-dev \
   libboost-all-dev \
   libopenni2-dev \
   libopencv-dev \
