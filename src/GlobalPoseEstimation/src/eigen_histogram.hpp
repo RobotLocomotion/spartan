@@ -15,7 +15,7 @@ public:
   void Deserialize(const std::vector<int> &histogram_data) {
     histogram_data_ = histogram_data;
   };
-  const std::vector<int> &Serialize() { return histogram_data_; };
+  const std::vector<int> &Serialize() const { return histogram_data_; };
 
   // Exposed for testing
   int convert_full_index_to_linear_index(Eigen::VectorXi full_index);
