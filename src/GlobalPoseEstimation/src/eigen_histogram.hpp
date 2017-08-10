@@ -11,6 +11,10 @@ public:
       const Eigen::Ref<const Eigen::Matrix<Scalar, -1, 1>> upper_bounds);
   void Reset();
   void AddData(const Eigen::Matrix<Scalar, -1, -1> &data);
+
+  void Deserialize(const std::vector<int> &histogram_data) {
+    histogram_data_ = histogram_data;
+  };
   const std::vector<int> &Serialize() { return histogram_data_; };
 
   // Exposed for testing
