@@ -55,7 +55,7 @@ if __name__ == "__main__":
   output = dict (
     max_distance = target_max_distance,
     n_bins = target_n_bins,
-    histogram = [float(x) for x in list(np.reshape(all_ppfs, (dims[0]*dims[1]*dims[2]*dims[3])))]
+    histogram = [int(x) for x in list(np.reshape(all_ppfs, (dims[0]*dims[1]*dims[2]*dims[3])))]
   )
 
   with open(OUTPUT_FILE, 'w') as f:
