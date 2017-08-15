@@ -15,9 +15,9 @@ maxdist = histogram_info["max_distance"]
 maxondim = [maxdist, math.pi, math.pi, math.pi]
 labels = ["distance", "n1_n2", "d_n1", "d_n2"]
 
-counts = np.reshape(histogram_info["histogram_counts"], dims, order="C")
-means = np.reshape(histogram_info["histogram_means"], dims, order="C")
-variances = np.reshape(histogram_info["histogram_variances"], dims, order="C")
+counts = np.reshape(histogram_info["histogram_counts"], dims, order="C").astype(float)
+means = np.reshape(histogram_info["histogram_means"], dims, order="C").astype(float)
+variances = np.reshape(histogram_info["histogram_variances"], dims, order="C").astype(float)
 
 plt.figure()
 

@@ -9,7 +9,7 @@ import argparse
 from math import atan2
 
 CLASS_PATTERN = re.compile("crop_model_0.020")
-INSTANCE_PATTERN = re.compile("2017-06-.*-.*")
+INSTANCE_PATTERN = re.compile("2017-06-09-01.*")
       
 if __name__ == "__main__":
    

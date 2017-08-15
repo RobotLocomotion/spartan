@@ -20,8 +20,6 @@ using namespace Eigen;
 int main(int argc, char** argv) {
   srand(0);
 
-  printf("Invoked with %d args\n", argc);
-
   if (argc == 1) {
     printf(
         "Use: collect_point_pair_feature_histograms <input_file_list_file> "
@@ -75,6 +73,9 @@ int main(int argc, char** argv) {
 
   printf("File 0/0");
   fflush(stdout);
+
+  // Factor of 1E6 to avoid possible numeric issues...
+  const double kBig = 1E5;
   for (int k = 0; k < total_num_input_files; k++) {
     printf("\rFile %d/%d", k + 1, total_num_input_files);
     fflush(stdout);
@@ -91,14 +92,19 @@ int main(int argc, char** argv) {
 
     auto this_histogram_data_map =
         Map<VectorXd>(this_ppf_raw_data.data(), this_ppf_raw_data.size());
+
+    counts += this_histogram_data_map.cast<int>();
+
+    this_histogram_data_map *= kBig / this_histogram_data_map.sum();
     delta = this_histogram_data_map - means;
     means += delta / (double)(k + 1);
     delta2 = this_histogram_data_map - means;
     M2 += (delta.array() * delta2.array()).matrix();
-
-    counts += this_histogram_data_map.cast<int>();
   }
   VectorXd variances = M2 / (total_num_input_files - 1);
+
+  means /= kBig;
+  variances /= kBig;
 
   // Save out means and variances
   YAML::Emitter out;
