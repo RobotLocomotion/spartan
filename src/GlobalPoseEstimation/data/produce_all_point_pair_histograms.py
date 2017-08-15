@@ -9,7 +9,7 @@ import argparse
 from math import atan2
 
 CLASS_PATTERN = re.compile("crop_model_0.020")
-INSTANCE_PATTERN = re.compile("2017-06-09-01_drill")
+INSTANCE_PATTERN = re.compile("2017-06-.*-.*")
       
 if __name__ == "__main__":
    
@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
   signal.signal(signal.SIGINT, signal_handler)
 
-  num_features = 100000
+  num_features = 10000
 
   max_distance = 0.3
 
@@ -30,6 +30,9 @@ if __name__ == "__main__":
     "d_n2": 10
   }
 
+  step_size = 0.2
+  minimum_pts_in_cell = 100
+
   class_subdirs = next(os.walk("."))[1]
   for classname in class_subdirs:
     if CLASS_PATTERN.match(classname):
@@ -37,7 +40,7 @@ if __name__ == "__main__":
       for instancename in instance_subdirs:
         if INSTANCE_PATTERN.match(instancename):
           full_scene_path = "./%s/%s/scene_cloud_uncropped.vtp" % (classname, instancename)
-          output_hist_file = "./%s/%s/scene_cloud_uncropped_ppf_histogram.yaml" % (classname, instancename)
+          output_hist_file = "./%s/%s/ppf_histograms/" % (classname, instancename)
           
           # produce config file
           config_file = "./%s/%s/ppf_histogram_config.yaml" % (classname, instancename)
@@ -47,7 +50,9 @@ if __name__ == "__main__":
             n_bins_distance = bin_sizes["distance"],
             n_bins_n1_n2 = bin_sizes["n1_n2"],
             n_bins_d_n1 = bin_sizes["d_n1"],
-            n_bins_d_n2 = bin_sizes["d_n2"]
+            n_bins_d_n2 = bin_sizes["d_n2"],
+            step_size = step_size,
+            minimum_pts_in_cell = minimum_pts_in_cell
           )
           with open(config_file, 'w') as f:
             yaml.dump(config_params, f)

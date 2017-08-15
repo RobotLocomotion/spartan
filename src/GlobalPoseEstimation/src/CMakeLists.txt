@@ -97,3 +97,12 @@ install(TARGETS compute_point_pair_features DESTINATION bin)
 add_executable(compute_point_pair_feature_histogram compute_point_pair_feature_histogram.cpp)
 target_link_libraries(compute_point_pair_feature_histogram eigen_histogram point_pair_features lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} drakeMath z pthread)
 install(TARGETS compute_point_pair_feature_histogram DESTINATION bin)
+
+add_executable(run_ppf_histogram_matcher run_ppf_histogram_matcher.cpp)
+target_link_libraries(run_ppf_histogram_matcher eigen_histogram point_pair_features lcm RemoteTreeViewerWrapper point_cloud_generator yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS} drakeMath z pthread)
+install(TARGETS run_ppf_histogram_matcher DESTINATION bin)
+
+add_executable(collect_point_pair_feature_histograms collect_point_pair_feature_histograms.cpp)
+target_compile_options(collect_point_pair_feature_histograms PRIVATE -g)
+target_link_libraries(collect_point_pair_feature_histograms yaml-cpp z pthread)
+install(TARGETS collect_point_pair_feature_histograms DESTINATION bin)

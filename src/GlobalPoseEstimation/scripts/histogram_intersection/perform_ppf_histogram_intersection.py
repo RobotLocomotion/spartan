@@ -58,50 +58,77 @@ dim_ind = 1
 ind_range = tuple(range(4)[0:dim_ind] + range(4)[dim_ind+1:])
 domain = np.arange(dims[dim_ind])*maxondim[dim_ind]/dims[dim_ind]
 
-plt.subplot(4, 2, 1)
+k = 0
+k+=1
+plt.subplot(4, 3, k)
 plt.ylabel("baseline")
 baseline_summed = np.sum(histograms["baseline"], axis=(ind_range)).astype(float)
 baseline_summed /= np.sum(baseline_summed)
 plt.plot(domain, baseline_summed)
-plt.subplot(4, 2, 2)
-baseline_summed = -np.log(baseline_summed)
+k+=1
+plt.subplot(4, 3, k)
+#baseline_summed = -np.log(baseline_summed)
+plt.plot(domain, baseline_summed)
+k+=1
+plt.subplot(4, 3, k)
 plt.plot(domain, baseline_summed)
 
-plt.subplot(4, 2, 3)
+
+k+=1
+plt.subplot(4, 3, k)
 plt.ylabel("template")
 template_summed = np.sum(histograms["template"], axis=(ind_range)).astype(float)
 template_summed /= np.sum(template_summed)
 plt.plot(domain, template_summed)
 plt.ylim(0, 1.0)
-plt.subplot(4, 2, 4)
-template_summed *= baseline_summed
-template_summed /= np.sum(template_summed)
+k+=1
+plt.subplot(4, 3, k)
+template_summed = template_summed - baseline_summed
 plt.plot(domain, template_summed)
-plt.ylim(0, 1.0)
+plt.ylim(-1., 1.0)
+k+=1
+plt.subplot(4, 3, k)
 
-plt.subplot(4, 2, 5)
+
+k+=1
+plt.subplot(4, 3, k)
 plt.ylabel("correct object scene")
 scene_summed = np.sum(histograms["scene"], axis=(ind_range)).astype(float)
 scene_summed /= np.sum(scene_summed)
 plt.plot(domain, scene_summed)
 plt.ylim(0, 1.0)
-plt.subplot(4, 2, 6)
-scene_summed *= baseline_summed
-scene_summed /= np.sum(scene_summed)
+k+=1
+plt.subplot(4, 3, k)
+scene_summed = scene_summed - baseline_summed
 plt.plot(domain, scene_summed)
-plt.ylim(0, 1.0)
+plt.ylim(-1.0, 1.0)
+k+=1
+plt.subplot(4, 3, k)
 
-plt.subplot(4, 2, 7)
+
+k+=1
+plt.subplot(4, 3, k)
 plt.ylabel("wrong object scene")
 scene_2_summed = np.sum(histograms["scene_2"], axis=(ind_range)).astype(float)
 scene_2_summed /= np.sum(scene_2_summed)
 plt.plot(domain, scene_2_summed)
 plt.ylim(0, 1.0)
-plt.subplot(4, 2, 8)
-scene_2_summed *= baseline_summed
-scene_2_summed /= np.sum(scene_2_summed)
+k+=1
+plt.subplot(4, 3, k)
+scene_2_summed = scene_2_summed - baseline_summed
 plt.plot(domain, scene_2_summed)
-plt.ylim(0, 1.0)
+plt.ylim(-1.0, 1.0)
+k+=1
+plt.subplot(4, 3, k)
+
+
+def compute_intersection_score(hist1, hist2):
+    return np.sum([abs(x-y) for x, y in zip(hist1, hist2)])
+score_correct = compute_intersection_score(scene_summed, template_summed)
+score_incorrect = compute_intersection_score(scene_2_summed, template_summed)
+print "Scores:"
+print "\tCorrect:", score_correct
+print "\tIncorrect:", score_incorrect
+
 
 plt.show()
-
