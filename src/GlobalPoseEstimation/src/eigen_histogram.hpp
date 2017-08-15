@@ -3,27 +3,34 @@
 #include <Eigen/Dense>
 #include <vector>
 
-template <typename Scalar> class EigenHistogram {
-public:
-  EigenHistogram(
-      const Eigen::Ref<const Eigen::VectorXi> n_bins,
-      const Eigen::Ref<const Eigen::Matrix<Scalar, -1, 1>> lower_bounds,
-      const Eigen::Ref<const Eigen::Matrix<Scalar, -1, 1>> upper_bounds);
+template <typename Scalar>
+class EigenNdArray {
+ public:
+  EigenNdArray(const Eigen::Ref<const Eigen::VectorXi> n_bins);
   void Reset();
-  void AddData(const Eigen::Matrix<Scalar, -1, -1> &data);
 
-  void Deserialize(const std::vector<int> &histogram_data) {
-    histogram_data_ = histogram_data;
-  };
-  const std::vector<int> &Serialize() const { return histogram_data_; };
+  void Deserialize(const std::vector<Scalar> &data) { data_ = data; };
+  const std::vector<Scalar> &Serialize() const { return data_; };
 
   // Exposed for testing
   int convert_full_index_to_linear_index(Eigen::VectorXi full_index);
   Eigen::VectorXi convert_linear_index_to_full_index(int linear_index);
 
-private:
+ protected:
   Eigen::VectorXi n_bins_;
+  std::vector<Scalar> data_;
+};
+
+template <typename Scalar>
+class EigenHistogram : public EigenNdArray<int> {
+ public:
+  EigenHistogram(
+      const Eigen::Ref<const Eigen::VectorXi> n_bins,
+      const Eigen::Ref<const Eigen::Matrix<Scalar, -1, 1>> lower_bounds,
+      const Eigen::Ref<const Eigen::Matrix<Scalar, -1, 1>> upper_bounds);
+  void AddData(const Eigen::Matrix<Scalar, -1, -1> &data);
+
+ private:
   Eigen::Matrix<Scalar, -1, 1> lower_bounds_;
   Eigen::Matrix<Scalar, -1, 1> upper_bounds_;
-  std::vector<int> histogram_data_;
 };
