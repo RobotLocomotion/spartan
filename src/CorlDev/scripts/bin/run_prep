@@ -1,7 +1,0 @@
-#!/bin/bash
-
-echo "Running pre-processing stage..."
-
-python $SPARTAN_SOURCE_DIR/src/CorlDev/scripts/prepareForObjectAlignment.py
-
-echo "Done."
