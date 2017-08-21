@@ -29,8 +29,6 @@ option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_IIWA_DRIVER "Build drake-iiwa-driver." OFF)
 option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
 option(WITH_OPTITRACK_DRIVER "Build optitrack-driver." OFF)
-
-option(BUILD_GYGES "Build the GYGES external project" OFF)
 option(USE_SYSTEM_VTK "Use system VTK for drake and director." OFF)
 
 
@@ -76,7 +74,7 @@ ExternalProject_Add(director
     -DUSE_SYSTEM_EIGEN:BOOL=ON
     -DUSE_SYSTEM_LCM:BOOL=ON
     -DUSE_SYSTEM_LIBBOT:BOOL=ON
-    -DUSE_SYSTEM_VTK:BOOL=${USE_SYSTEM_VTK}
+    -DUSE_SYSTEM_VTK:BOOL=ON
     -DUSE_PCL:BOOL=${WITH_PERCEPTION}
     -DUSE_APRILTAGS:BOOL=${WITH_PERCEPTION}
     -DUSE_KINECT:BOOL=${WITH_PERCEPTION}
@@ -125,18 +123,6 @@ ExternalProject_Add(RemoteTreeViewer
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   DEPENDS drake
 )
-
-if (BUILD_GYGES)
-  ExternalProject_Add(GYGES
-    SOURCE_DIR ${source_dir}/src/Gyges
-    BINARY_DIR ${build_dir}/Gyges
-    BUILD_ALWAYS 1
-    CMAKE_CACHE_ARGS
-      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
-      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-    DEPENDS drake spartan_lcmtypes
-  )
-endif()
 
 
 if (OFF)
