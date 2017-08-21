@@ -33,7 +33,7 @@ Director by running the following script::
 
 
 Make sure your submodules are up to date. From the top-level directory run::
-    scripts/bin/setup_submodules.sh
+    git submodule update
 
 You should avoid adding the ``--recursive`` flag to the git submodule command,
 since Drake will automatically manage its recursive submodules at build time.
