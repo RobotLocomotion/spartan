@@ -29,6 +29,7 @@ option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_IIWA_DRIVER "Build drake-iiwa-driver." OFF)
 option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
 option(WITH_OPTITRACK_DRIVER "Build optitrack-driver." OFF)
+option(WITH_GELSIGHT_DRIVER "Build gelsight driver." OFF)
 
 option(BUILD_GYGES "Build the GYGES external project" OFF)
 option(USE_SYSTEM_VTK "Use system VTK for drake and director." OFF)
@@ -124,7 +125,7 @@ ExternalProject_Add(RemoteTreeViewer
   CMAKE_CACHE_ARGS
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-  DEPENDS drake
+  DEPENDS drake director
 )
 
 if (BUILD_GYGES)
@@ -209,16 +210,20 @@ if (WITH_OPTITRACK_DRIVER)
     INSTALL_COMMAND ./install-optitrack.sh ${CMAKE_INSTALL_PREFIX}
   )
 
+endif()
+
+if (WITH_GELSIGHT_DRIVER)
+  
   ExternalProject_Add(gelsight-driver
     SOURCE_DIR ${build_dir}/externals/gelsight-driver
-    GIT_REPOSITORY https://github.com/gizatt/gelsight_se.git
-    GIT_TAG b6a796f7bc420ef
+    GIT_REPOSITORY https://github.com/gizatt/gelsight_driver.git
+    GIT_TAG bb894f6ba377780ea902b0fdb6761d5df10ddd59
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
       -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
-    DEPENDS drake director RemoteTreeViewer
+    DEPENDS director RemoteTreeViewer
   )
 
 endif()
