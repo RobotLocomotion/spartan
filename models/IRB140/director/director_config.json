@@ -1,0 +1,130 @@
+{
+  "modelName" : "irb140",
+
+  "urdfConfig": {
+    "default": "../urdf/irb_140_robotiq_ati.urdf",
+    "robotState": "../urdf/irb_140_robotiq_ati.urdf",
+    "ik":         "../urdf/irb_140_convhull.urdf",
+    "chull":      "../urdf/irb_140_convhull.urdf",
+    "playback":   "../urdf/irb_140_robotiq_ati.urdf",
+    "teleop":     "../urdf/irb_140_robotiq_ati.urdf"
+  },
+
+  "teleopJointGroups" : [
+
+      { "name" : "Left Arm",
+        "joints" : [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+          ],
+        "labels" : ["1", "2", "3", "4", "5", "6"]
+      },
+
+      { "name" : "Base",
+        "joints" : [
+          "base_x",
+          "base_y",
+          "base_z",
+          "base_roll",
+          "base_pitch",
+          "base_yaw"
+          ],
+        "labels" : ["x", "y", "z", "roll", "pitch", "yaw"]
+      }
+
+    ],
+
+
+  "drakeJointNames": [
+    "base_x",
+    "base_y",
+    "base_z",
+    "base_roll",
+    "base_pitch",
+    "base_yaw",
+    "joint1",
+    "joint2",
+    "joint3",
+    "joint4",
+    "joint5",
+    "joint6"
+  ],
+
+  "robotiq_joints_unused": [
+    "finger_1_joint_0",
+    "finger_1_joint_1",
+    "finger_1_joint_2",
+    "finger_1_fourbar_0_joint_0",
+    "finger_1_fourbar_0_joint_1",
+    "finger_1_fourbar_0_joint_2",
+    "finger_1_fourbar_3_joint_0",
+    "finger_1_fourbar_3_joint_1",
+    "finger_1_fourbar_3_joint_2",
+    "finger_1_fourbar_linkage_joint_0",
+    "finger_1_fourbar_0_joint_0",
+    "finger_2_joint_0",
+    "finger_2_joint_1",
+    "finger_2_joint_2",
+    "finger_2_fourbar_0_joint_0",
+    "finger_2_fourbar_0_joint_1",
+    "finger_2_fourbar_0_joint_2",
+    "finger_2_fourbar_3_joint_0",
+    "finger_2_fourbar_3_joint_1",
+    "finger_2_fourbar_3_joint_2",
+    "finger_2_fourbar_linkage_joint_0",
+    "finger_2_fourbar_0_joint_0",
+    "finger_middle_joint_0",
+    "finger_middle_joint_1",
+    "finger_middle_joint_2",
+    "finger_middle_fourbar_0_joint_0",
+    "finger_middle_fourbar_0_joint_1",
+    "finger_middle_fourbar_0_joint_2",
+    "finger_middle_fourbar_3_joint_0",
+    "finger_middle_fourbar_3_joint_1",
+    "finger_middle_fourbar_3_joint_2",
+    "finger_middle_fourbar_linkage_joint_0",
+    "finger_middle_fourbar_0_joint_0",
+    "palm_finger_1_joint",
+    "palm_finger_2_joint",
+    "palm_finger_middle_joint"
+  ],
+
+  "robotStateJointNames": [
+    "joint1",
+    "joint2",
+    "joint3",
+    "joint4",
+    "joint5",
+    "joint6"
+  ],
+
+  "planningMode" : "pydrake",
+  "fixedPointFile" : "nominal_pose.csv",
+  "postureDatabaseFile" : "stored_poses.json",
+
+
+  "comment": [{
+    "handCombinations": [
+        { "side" : "left",
+          "handType" : "left_robotiq",
+          "handLinkName" : "link_6",
+          "handUrdf" : "../../../drake/drake/examples/Atlas/urdf/robotiq.urdf",
+          "handRootLink" : "palm",
+          "robotMountLink" : "palm",
+          "palmLink" : "palm"
+        }
+    ]
+  }],
+
+  "userConfig" :["fixedBaseArm"],
+
+  "endEffectorConfig" : {
+    "endEffectorLinkNames": ["link_6"],
+    "graspOffsetFrame" : [[0.185,0.0,0], [-0.3926,0.0,0.0]],
+    "fixedJoints" : ["base_x","base_y","base_z","base_roll","base_pitch","base_yaw"]
+  }
+}

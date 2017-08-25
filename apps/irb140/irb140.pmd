@@ -1,0 +1,8 @@
+cmd "the_director" {
+    exec = "${SPARTAN_SOURCE_DIR}/apps/irb140/runapp.sh";
+    host = "localhost";
+}
+cmd "61.robotiq_tcp_node" {
+    exec = "robotiq_tcp_node LEFT 192.168.1.199";
+    host = "localhost";
+}

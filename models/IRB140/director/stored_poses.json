@@ -1,0 +1,46 @@
+{
+  "General": [
+    {
+      "allow_mirror": true,
+      "description": "nominal",
+      "joints": {
+        "joint1": 0.0,
+        "joint2": 0.0,
+        "joint3": 0.0,
+        "joint4": 0.0,
+        "joint5": 0.0,
+        "joint6": 0.0
+      },
+      "name": "Nominal, All Zeros",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "object raised",
+      "joints": {
+        "joint1": 0.03525565192103386,
+        "joint2": 0.9543460607528687,
+        "joint3": 0.16336281597614288,
+        "joint4": -0.07993607968091965,
+        "joint5": -1.1192796230316162,
+        "joint6": -1.534144401550293
+      },
+      "name": "Object Raised",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "success!",
+      "joints": {
+        "joint1": 0.03281218931078911,
+        "joint2": 0.8852310180664062,
+        "joint3": -0.15847589075565338,
+        "joint4": -0.04590215906500816,
+        "joint5": -0.9782570600509644,
+        "joint6": -1.5344934463500977
+      },
+      "name": "Object Held",
+      "nominal_handedness": "left"
+    }
+  ]
+}
