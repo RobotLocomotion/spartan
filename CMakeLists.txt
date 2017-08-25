@@ -28,6 +28,7 @@ option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 
 option(WITH_IIWA_DRIVER "Build drake-iiwa-driver." OFF)
 option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
+option(WITH_ROBOTIQ_DRIVER "Build robotiq_three_finger_driver." OFF)
 option(WITH_OPTITRACK_DRIVER "Build optitrack-driver." OFF)
 
 option(BUILD_GYGES "Build the GYGES external project" OFF)
@@ -76,7 +77,7 @@ ExternalProject_Add(director
     -DUSE_SYSTEM_EIGEN:BOOL=ON
     -DUSE_SYSTEM_LCM:BOOL=ON
     -DUSE_SYSTEM_LIBBOT:BOOL=ON
-    -DUSE_SYSTEM_VTK:BOOL=${USE_SYSTEM_VTK}
+    -DUSE_SYSTEM_VTK:BOOL=ON
     -DUSE_PCL:BOOL=${WITH_PERCEPTION}
     -DUSE_APRILTAGS:BOOL=${WITH_PERCEPTION}
     -DUSE_KINECT:BOOL=${WITH_PERCEPTION}
@@ -204,6 +205,20 @@ if (WITH_OPTITRACK_DRIVER)
     CONFIGURE_COMMAND ""
     BUILD_COMMAND bazel build //...
     INSTALL_COMMAND ./install-optitrack.sh ${CMAKE_INSTALL_PREFIX}
+  )
+
+endif()
+
+if (WITH_ROBOTIQ_DRIVER)
+
+  ExternalProject_Add(robotiq_three_finger_driver
+    SOURCE_DIR ${build_dir}/externals/robotiq_three_finger_driver
+    GIT_REPOSITORY https://github.com/gizatt/robotiq_three_finger_driver.git
+    GIT_TAG 7e1715b9f92831f7806549867dc7afcabb425c14
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   )
 
 endif()
