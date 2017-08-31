@@ -3,6 +3,7 @@ import sys
 import time
 import copy
 import imp
+import math
 
 from director import lcmUtils
 from director import lcmframe
@@ -36,36 +37,56 @@ from PythonQt import QtCore, QtGui
 import drake as lcmdrake
 import bot_core as lcmbotcore
 
+cameraToWorld = transformUtils.transformFromPose([0, 0, 0], [1, 0, 0, 0])
+tableTagToWorld = transformUtils.transformFromPose([0, 0, 0], [1, 0, 0, 0]) 
+baseTagToWorld = transformUtils.transformFromPose([0, 0, 0], [1, 0, 0, 0]) 
 
-def setTagToWorld(pos, rpy):
-    global tagToWorld
-    tagToWorld = transformUtils.frameFromPositionAndRPY(pos, rpy)
+def setBaseTagToWorld(pos, angle):
+    global baseTagToWorld
+    if len(angle) == 4:
+        rpy = np.array(transformUtils.quaternionToRollPitchYaw(angle))*180./math.pi
+    else:
+        rpy = angle
+    baseTagToWorld = transformUtils.frameFromPositionAndRPY(pos, rpy)
+def getBaseTagToWorld():
+    return baseTagToWorld
+def printbaseTagToWorld():
+    print transformUtils.poseFromTransform(getBaseTagToWorld())
 
+setBaseTagToWorld([ 0.10607076,  0.36816069, -0.0355005 ], [ 0.45320318, -0.46124285, -0.53508613,  0.54364027])
 
-def getTagToWorld():
-    return tagToWorld
+def onRobotBaseApriltag(msg, channel):
+    global cameraToWorld
 
-
-setTagToWorld([0.29,-0.38,-0.10], [-93,1,1.5])
-
-
-def onAprilTagMessage(msg, channel):
     tagToCamera = lcmframe.frameFromRigidTransformMessage(msg)
     vis.updateFrame(tagToCamera, channel, visible=False)
 
     cameraToTag = tagToCamera.GetLinearInverse()
-    tagToWorld = getTagToWorld()
-    cameraToWorld = transformUtils.concatenateTransforms([cameraToTag, tagToWorld])
+    baseTagToWorld = getBaseTagToWorld()
+    cameraToWorld = transformUtils.concatenateTransforms([cameraToTag, baseTagToWorld])
 
     cameraToWorldMsg = lcmframe.rigidTransformMessageFromFrame(cameraToWorld)
     lcmUtils.publish('OPENNI_FRAME_LEFT_TO_LOCAL', cameraToWorldMsg)
 
     vis.updateFrame(vtk.vtkTransform(), 'world', visible=False)
     vis.updateFrame(cameraToWorld, 'camera to world', visible=False)
-    vis.updateFrame(tagToWorld, 'tag to world', visible=False)
+    vis.updateFrame(baseTagToWorld, 'base tag to world', visible=False)
 
 
-lcmUtils.addSubscriber('APRIL_TAG_0218_TO_CAMERA_LEFT', lcmbotcore.rigid_transform_t, onAprilTagMessage, callbackNeedsChannel=True)
+def onTabletopApriltag(msg, channel):
+    global cameraToWorld, tableTagToWorld
+    tagToCamera = lcmframe.frameFromRigidTransformMessage(msg)
+    vis.updateFrame(tagToCamera, channel, visible=False)
+
+    tableTagToWorld = transformUtils.concatenateTransforms([tagToCamera, cameraToWorld])
+
+    vis.updateFrame(tableTagToWorld, 'table tag to world', visible=False)
+
+
+# Robot base apriltag -- #'s 100, 101, 102.
+lcmUtils.addSubscriber('APRIL_TAG_0102_TO_CAMERA_LEFT', lcmbotcore.rigid_transform_t, onRobotBaseApriltag, callbackNeedsChannel=True)
+# Table surface apriltag -- #50
+lcmUtils.addSubscriber('APRIL_TAG_0050_TO_CAMERA_LEFT', lcmbotcore.rigid_transform_t, onTabletopApriltag, callbackNeedsChannel=True)
 
 
 def setupKinect():
@@ -181,24 +202,27 @@ def gripperClose():
     sendGripperCommand(0, 255)
 
 
-def onOpenTaskPanel():
-    taskPanel.widget.show()
-    taskPanel.widget.raise_()
-
-
 def onFitCamera():
     import aligncameratool
     imp.reload(aligncameratool)
     global alignmentTool
     alignmentTool = aligncameratool.main(robotSystem, newCameraView(imageManager))
 
+def onTabletopSegmentation():
+    import tabletop_manipulation_tool
+    imp.reload(tabletop_manipulation_tool)
+    # Flip tag orientation by 180*, as the tags are oriented with -z "out"
+    tableTagFlipped = transformUtils.concatenateTransforms([
+        transformUtils.frameFromPositionAndRPY([0, 0, 0], [180, 0, 0]),
+        tableTagToWorld])
+    tabletop_manipulation_tool.doTabletopSegmentation(tableTagFlipped)
 
 def setupToolBar():
     toolBar = applogic.findToolBar('Main Toolbar')
     app.addToolBarAction(toolBar, 'Gripper Open', icon='', callback=gripperOpen)
     app.addToolBarAction(toolBar, 'Gripper Close', icon='', callback=gripperClose)
-    app.addToolBarAction(toolBar, 'Task Panel', icon='', callback=onOpenTaskPanel)
     app.addToolBarAction(toolBar, 'Fit Camera', icon='', callback=onFitCamera)
+    app.addToolBarAction(toolBar, 'Run Tabletop Segmentation', icon='', callback=onTabletopSegmentation)
 
 
 def addToolBarAction(name, callback):
@@ -237,14 +261,6 @@ roboturdf.addPathsFromPackageMap(packageMap)
 print "Package map:"
 packageMap.printPackageMap()
 robotSystem = makeRobotSystem(view)
-
-
-# TODO: move this to director/robotsystem.py as optional feature
-if useOptitrackVisualizer:
-    optitrackVis = OptitrackVisualizer('OPTITRACK_FRAMES')
-    optitrackVis.setEnabled(True)
-    applogic.MenuActionToggleHelper('Tools', optitrackVis.name, optitrackVis.isEnabled, optitrackVis.setEnabled)
-
 
 app.addWidgetToDock(robotSystem.teleopPanel.widget, QtCore.Qt.RightDockWidgetArea).hide()
 app.addWidgetToDock(robotSystem.playbackPanel.widget, QtCore.Qt.BottomDockWidgetArea).hide()
