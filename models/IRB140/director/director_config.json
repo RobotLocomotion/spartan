@@ -107,24 +107,22 @@
   "postureDatabaseFile" : "stored_poses.json",
 
 
-  "comment": [{
-    "handCombinations": [
-        { "side" : "left",
-          "handType" : "left_robotiq",
-          "handLinkName" : "link_6",
-          "handUrdf" : "../../../drake/drake/examples/Atlas/urdf/robotiq.urdf",
-          "handRootLink" : "palm",
-          "robotMountLink" : "palm",
-          "palmLink" : "palm"
-        }
-    ]
-  }],
+  "handCombinations": [
+      { "side" : "left",
+        "handType" : "left_robotiq",
+        "handLinkName" : "link_6",
+        "handUrdf" : "../../../drake/drake/examples/Atlas/urdf/robotiq.urdf",
+        "handRootLink" : "palm",
+        "robotMountLink" : "palm",
+        "palmLink" : "palm"
+      }
+  ],
 
   "userConfig" :["fixedBaseArm"],
 
   "endEffectorConfig" : {
     "endEffectorLinkNames": ["link_6"],
-    "graspOffsetFrame" : [[0.185,0.0,0], [-0.3926,0.0,0.0]],
+    "graspOffsetFrame" : [[0.27,0.0,0], [0,0.0,0.0]],
     "fixedJoints" : ["base_x","base_y","base_z","base_roll","base_pitch","base_yaw"]
   }
 }

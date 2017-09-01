@@ -14,9 +14,33 @@ from director import vtkAll as vtk
 from director import vtkNumpy as vnp
 from director.shallowCopy import shallowCopy
 import numpy as np
+from matplotlib.mlab import PCA
+import time
 
 import PythonQt
 from PythonQt import QtGui, QtCore
+
+import irb140planning
+import robotiqhand
+
+def sendGripperCommand(targetPositionMM, force):
+    #msg = lcmdrake.lcmt_schunk_wsg_command()
+    #msg.utime = int(time.time()*1e6)
+    #msg.force = force
+    #msg.target_position_mm = targetPositionMM
+    #lcmUtils.publish('SCHUNK_WSG_COMMAND', msg)
+    msg = robotiqhand.command_t()
+    msg.utime = int(time.time()*1e6)
+    msg.activate=1
+    msg.emergency_release = 0
+    msg.do_move = 1
+    msg.mode = 1
+    msg.position = targetPositionMM
+    msg.force = force
+    msg.velocity = 100
+    msg.ifc = 0
+    msg.isc = 0
+    lcmUtils.publish("ROBOTIQ_LEFT_COMMAND", msg)
 
 # Visually dissimilar colors
 # https://graphicdesign.stackexchange.com/questions/3682/where-can-i-find-a-large-palette-set-of-contrasting-colors-for-coloring-many-d
@@ -53,10 +77,9 @@ color_set = [
 def get_ith_color(i):
     return np.array(color_set[i % len(color_set)])/255.
 
-def doTabletopSegmentation(tableTransform):
+def doTabletopSegmentation(tableTransform, save=False):
     om.removeFromObjectModel(om.findObjectByName('table'))
         
-
     obj = vis.updateFrame(tableTransform, "tableTransform", parent='table')
 
     pc = om.findObjectByName('openni point cloud')
@@ -88,7 +111,7 @@ def doTabletopSegmentation(tableTransform):
 
     # Points above the table, and close to the tag of the tag
     searchPoints = segmentation.thresholdPoints(polyData, 'dist_to_plane', [0.01, 0.4])
-    searchPoints = segmentation.cropToSphere(searchPoints, viewPlaneOrigin, 0.5)
+    searchPoints = segmentation.cropToSphere(searchPoints, viewPlaneOrigin, 0.4)
     
     vis.updatePolyData(
         searchPoints,
@@ -105,3 +128,34 @@ def doTabletopSegmentation(tableTransform):
     for i, cluster in enumerate(searchPointsClusters):
         pd = vis.updatePolyData(cluster, 'table points %d' % i, parent="table", color=get_ith_color(i), visible=True)
         pd.setProperty('Point Size', 5)
+
+    if save:
+        import datetime
+        prefix = datetime.datetime.now().isoformat()
+        print "Saving %s...vtp" % prefix
+        ioUtils.writePolyData(pc.polyData, prefix + "_original.vtp")
+        for i, cluster in enumerate(searchPointsClusters):
+            ioUtils.writePolyData(cluster, prefix + "_table_points_%d.vtp" % i)
+
+def doReachToPointCluster(point_cluster_name = "table points 0"):
+    cluster = om.findObjectByName(point_cluster_name)
+
+    # Align a frame to this segmentation, with the gripper's +z along the
+    # long axis of the object, and +x straight down, centered on
+    # centroid of the segmentation
+
+    results = PCA(vnp.getNumpyFromVtk(cluster.polyData))
+    z_axis = results.Wt[0]
+    z_axis[2] = 0.
+    z_axis /= np.linalg.norm(z_axis)
+    x_axis = np.array([0., 0., -1.])
+    y_axis = np.cross(z_axis, x_axis)
+
+    pca_tf = transformUtils.getTransformFromAxes(x_axis, y_axis, z_axis)
+    pca_tf.PostMultiply()
+    pca_tf.Translate(results.mu)
+
+    pca_tf_reach = transformUtils.copyFrame(pca_tf)
+    pca_tf_reach.Translate([0., 0., 0.2])
+    reach_goal = irb140planning.makeReachGoalFrame(name='reach goal', tf=pca_tf_reach)
+    grasp_goal = irb140planning.makeReachGoalFrame(name='grasp goal', tf=pca_tf)

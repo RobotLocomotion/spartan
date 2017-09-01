@@ -19,8 +19,6 @@ from director import fieldcontainer
 from director import framevisualization
 from director import drcargs
 
-import robotiqhand
-
 try:
     from director.optitrackvisualizer import OptitrackVisualizer
     useOptitrackVisualizer = True
@@ -36,6 +34,9 @@ from PythonQt import QtCore, QtGui
 
 import drake as lcmdrake
 import bot_core as lcmbotcore
+
+import tabletop_manipulation_tool
+import irb140planning
 
 cameraToWorld = transformUtils.transformFromPose([0, 0, 0], [1, 0, 0, 0])
 tableTagToWorld = transformUtils.transformFromPose([0, 0, 0], [1, 0, 0, 0]) 
@@ -173,56 +174,33 @@ def newCameraView(imageManager, channelName='OPENNI_FRAME', cameraName='OPENNI_F
 
     return cameraView
 
-
-def sendGripperCommand(targetPositionMM, force):
-    #msg = lcmdrake.lcmt_schunk_wsg_command()
-    #msg.utime = int(time.time()*1e6)
-    #msg.force = force
-    #msg.target_position_mm = targetPositionMM
-    #lcmUtils.publish('SCHUNK_WSG_COMMAND', msg)
-    msg = robotiqhand.command_t()
-    msg.utime = int(time.time()*1e6)
-    msg.activate=1
-    msg.emergency_release = 0
-    msg.do_move = 1
-    msg.mode = 1
-    msg.position = targetPositionMM
-    msg.force = force
-    msg.velocity = 100
-    msg.ifc = 0
-    msg.isc = 0
-    lcmUtils.publish("ROBOTIQ_LEFT_COMMAND", msg)
-
-
 def gripperOpen():
-    sendGripperCommand(255, 255)
-
-
+    tabletop_manipulation_tool.sendGripperCommand(0, 125)
 def gripperClose():
-    sendGripperCommand(0, 255)
-
-
+    tabletop_manipulation_tool.sendGripperCommand(255, 125)
 def onFitCamera():
     import aligncameratool
     imp.reload(aligncameratool)
     global alignmentTool
     alignmentTool = aligncameratool.main(robotSystem, newCameraView(imageManager))
+def onPlanNominal():
+    import irb140planning
+    imp.reload(irb140planning)
+    irb140planning.planNominalPosture()
+def onOpenTaskPanel():
+    taskPanel.widget.show()
+    taskPanel.widget.raise_()
 
-def onTabletopSegmentation():
-    import tabletop_manipulation_tool
-    imp.reload(tabletop_manipulation_tool)
-    # Flip tag orientation by 180*, as the tags are oriented with -z "out"
-    tableTagFlipped = transformUtils.concatenateTransforms([
-        transformUtils.frameFromPositionAndRPY([0, 0, 0], [180, 0, 0]),
-        tableTagToWorld])
-    tabletop_manipulation_tool.doTabletopSegmentation(tableTagFlipped)
+
 
 def setupToolBar():
     toolBar = applogic.findToolBar('Main Toolbar')
     app.addToolBarAction(toolBar, 'Gripper Open', icon='', callback=gripperOpen)
     app.addToolBarAction(toolBar, 'Gripper Close', icon='', callback=gripperClose)
     app.addToolBarAction(toolBar, 'Fit Camera', icon='', callback=onFitCamera)
-    app.addToolBarAction(toolBar, 'Run Tabletop Segmentation', icon='', callback=onTabletopSegmentation)
+    app.addToolBarAction(toolBar, 'Plan Nominal', icon='', callback=onPlanNominal)
+    app.addToolBarAction(toolBar, 'Open Lonely Panel', icon='', callback=onOpenTaskPanel)
+
 
 
 def addToolBarAction(name, callback):
@@ -238,6 +216,9 @@ def showLinkFrame(name):
 def plotPlan():
     robotSystem.planPlayback.plotPlan(robotSystem.manipPlanner.lastManipPlan)
 
+def reloadIrb140Planning():
+    import irb140planning
+    imp.reload(irb140planning)
 
 def setGripperJointPositions(robotModel, pos):
     robotModel.model.setJointPositions(
@@ -262,6 +243,9 @@ print "Package map:"
 packageMap.printPackageMap()
 robotSystem = makeRobotSystem(view)
 
+import irb140planning
+irb140planning.init(robotSystem)
+
 app.addWidgetToDock(robotSystem.teleopPanel.widget, QtCore.Qt.RightDockWidgetArea).hide()
 app.addWidgetToDock(robotSystem.playbackPanel.widget, QtCore.Qt.BottomDockWidgetArea).hide()
 setupToolBar()
@@ -278,7 +262,8 @@ if havePerceptionDrivers():
     frameVisPanel = framevisualization.FrameVisualizationPanel(view)
     app.addWidgetToDock(frameVisPanel.widget, QtCore.Qt.RightDockWidgetArea).hide()
 
-    #setupKinect()
+    import loneliest_task_panel
+    taskPanel = loneliest_task_panel.LoneliestTaskPanel(robotSystem)
 else:
     print "Not setting up perception drivers."
 

@@ -16,15 +16,13 @@ from director import vtkAll as vtk
 from director import vtkNumpy as vnp
 import numpy as np
 
-def makeReachGoal(name='reach goal'):
-    t = transformUtils.frameFromPositionAndRPY([0.7, 0.0, 0.3], [-90, 0, -90])
-    return vis.updateFrame(t, 'reach goal').setProperty('Scale', 0.1)
-
+def makeReachGoalFrame(name='reach goal', tf=None):
+    t = tf or transformUtils.frameFromPositionAndRPY([0.7, 0.0, 0.3], [-90, 0, -90])
+    return vis.updateFrame(t, name).setProperty('Scale', 0.1)
 
 def planNominalPosture():
     startPose = robotSystem.planningUtils.getPlanningStartPose()
     ikPlanner.computeDatabasePosturePlan(startPose, 'General', 'Nominal, All Zeros')
-
 
 def getEndEffectorLinkName():
     config = drcargs.getDirectorConfig()['endEffectorConfig']
@@ -32,7 +30,7 @@ def getEndEffectorLinkName():
     assert linkName == ikPlanner.getHandLink()
     return linkName
 
-def getGraspToHandLink():
+def getGraspToHandLinkTransform():
     config = drcargs.getDirectorConfig()['endEffectorConfig']
     return transformUtils.frameFromPositionAndRPY(
                           config['graspOffsetFrame'][0],
@@ -40,18 +38,13 @@ def getGraspToHandLink():
 
 _callbackId = None
 
-
-TODO: START HERE!
-
-
-def planReachGoal(goalFrameName='reach goal', startPose=None, planTraj=True, interactive=False):
-
+def planToReachGoal(goalFrameName='reach goal', startPose=None, planTraj=True, interactive=False):
     goalFrame = om.findObjectByName(goalFrameName).transform
     startPoseName = 'reach_start'
     endPoseName = 'reach_end'
 
     endEffectorLinkName = getEndEffectorLinkName()
-    graspOffsetFrame = getGraspToHandLink()
+    graspOffsetFrame = getGraspToHandLinkTransform()
 
     if startPose is None:
         startPose = robotSystem.planningUtils.getPlanningStartPose()
@@ -127,7 +120,6 @@ def planReachGoal(goalFrameName='reach goal', startPose=None, planTraj=True, int
         update(None)
 
     else:
-
         endPose, info = constraintSet.runIk()
 
         if planTraj:
@@ -161,7 +153,7 @@ def drawEndEffectorTrajFromPlan(plan=None):
 
     frames = getLinkFrameSamplesFromPlan(plan, linkName)
 
-    pointInFrame = np.array(getGraspToHandLink().GetPosition())
+    pointInFrame = np.array(getGraspToHandLinkTransform().GetPosition())
 
     pts = []
     for f in frames:
@@ -184,188 +176,6 @@ def showDebugPoint(p, name='debug point', update=False, visible=True):
         vis.showPolyData(d.getPolyData(), name, colorByName='RGB255', visible=visible)
 
 
-def makeCylinder():
-    ''' has properties Radius and Length '''
-    desc = dict(classname='CylinderAffordanceItem',
-                Name='cylinder',
-                pose=transformUtils.poseFromTransform(vtk.vtkTransform()))
-    return newAffordanceFromDescription(desc)
-
-
-def makeBox():
-    ''' has property Dimensions '''
-    desc = dict(classname='BoxAffordanceItem',
-                Name='box',
-                pose=transformUtils.poseFromTransform(vtk.vtkTransform()))
-    box = newAffordanceFromDescription(desc)
-    box.getChildFrame().setProperty('Scale', 0.1)
-    return box
-
-
-def getPointCloud(name='openni point cloud'):
-    obj = om.findObjectByName(name)
-    return obj.polyData if obj else vtk.vtkPolyData()
-
-
-def addHSVArrays(polyData, rgbArrayName='rgb_colors'):
-    import colorsys
-    rgb = vnp.getNumpyFromVtk(polyData, rgbArrayName)/255.0
-    hsv = np.array([colorsys.rgb_to_hsv(*t) for t in rgb])
-    vnp.addNumpyToVtk(polyData, hsv[:,0].copy(), 'hue')
-    vnp.addNumpyToVtk(polyData, hsv[:,1].copy(), 'saturation')
-    vnp.addNumpyToVtk(polyData, hsv[:,2].copy(), 'value')
-
-
-def getMaxZCoordinate(polyData):
-    return float(np.nanmax(vnp.getNumpyFromVtk(polyData, 'Points')[:,2]))
-
-
-def fitSupport(pickPoint=[0.92858565, 0.00213802, 0.30315629]):
-
-    om.removeFromObjectModel(om.findObjectByName('cylinder'))
-
-    polyData = getPointCloud()
-
-    t = vtk.vtkTransform()
-    t.Translate(pickPoint)
-    polyData = segmentation.cropToBox(polyData, t, [0.3,0.3,0.5])
-
-    addHSVArrays(polyData)
-
-    vis.updatePolyData(polyData, 'crop region', colorByName='rgb_colors', visible=False)
-
-    zMax = getMaxZCoordinate(polyData)
-
-    cyl = makeCylinder()
-    cyl.setProperty('Radius', 0.03)
-    cyl.setProperty('Length', zMax)
-
-    origin = segmentation.computeCentroid(polyData)
-    origin[2] = zMax/2.0
-
-    t = transformUtils.frameFromPositionAndRPY(origin, [0,0,0])
-    cyl.getChildFrame().copyFrame(t)
-
-
-def cropToCylinder(polyData, p1, p2, radius):
-    polyData = segmentation.cropToLineSegment(polyData, p1, p2)
-    if polyData.GetNumberOfPoints():
-        polyData = segmentation.labelDistanceToLine(polyData, p1, p2)
-        polyData = segmentation.thresholdPoints(polyData, 'distance_to_line', [0.0, radius])
-    return polyData
-
-
-def getSupportSearchPoint(supportName='cylinder'):
-
-    obj = om.findObjectByName(supportName)
-    t = obj.getChildFrame().transform
-    zCoord = obj.getProperty('Length')/2.0
-    p = np.array(t.TransformPoint([0,0,zCoord]))
-    return p
-
-
-def extractSearchRegionAboveSupport():
-    polyData = getPointCloud()
-    p1 = getSupportSearchPoint()
-    p2 = p1 + np.array([0,0,1.0])*0.3
-    polyData = cropToCylinder(polyData, p1, p2, radius=0.1)
-    return polyData
-
-
-def spawnAffordance(affordanceName):
-    dispatch = {
-        'box' : spawnBox,
-        'blue funnel' : spawnBlueFunnel
-        }
-    dispatch[affordanceName]()
-
-
-def spawnBox():
-
-    t = transformUtils.frameFromPositionAndRPY([0.5,0.0,0.5], [0,0,0])
-
-    om.removeFromObjectModel(om.findObjectByName('box'))
-    obj = makeBox()
-    obj.setProperty('Dimensions', [0.06, 0.04, 0.12])
-    #obj.setProperty('Surface Mode', 'Wireframe')
-    obj.setProperty('Color', [1,0,0])
-    obj.getChildFrame().copyFrame(t)
-
-
-def spawnBlueFunnel():
-
-    t = transformUtils.frameFromPositionAndRPY([0.5,-0.25,0.2], [-90,0,0])
-
-    om.removeFromObjectModel(om.findObjectByName('blue funnel'))
-    obj = loadBlueFunnel()
-    obj.setProperty('Color', [0.0, 0.5, 1.0])
-    obj.getChildFrame().copyFrame(t)
-
-
-def fitSelectedGeometryObject():
-    obj = om.getActiveObject()
-    t = obj.actor.GetUserTransform()
-    polyData = filterUtils.transformPolyData(obj.polyData, t)
-    obj = fitObjectFromPolyData(polyData)
-
-
-def fitObjectOnSupport():
-
-    polyData = extractSearchRegionAboveSupport()
-    fitObjectFromPolyData(polyData)
-
-
-def fitObjectFromPolyData(polyData):
-
-    origin, edges, wireframe = segmentation.getOrientedBoundingBox(polyData)
-
-    edgeLengths = [float(np.linalg.norm(edge)) for edge in edges]
-    axes = [edge / np.linalg.norm(edge) for edge in edges]
-
-    boxCenter = segmentation.computeCentroid(wireframe)
-
-    t = transformUtils.getTransformFromAxes(axes[0], axes[1], axes[2])
-    zAxisIndex, zAxis, zAxisSign = transformUtils.findTransformAxis(t, [0,0,1.0])
-    xAxisIndex, xAxis, xAxisSign = transformUtils.findTransformAxis(t, [1.0,0,0])
-
-    assert zAxisIndex != xAxisIndex
-
-    #zAxis = zAxis*zAxisSign
-    zAxis = [0,0,1.0]
-    xAxis = xAxis*xAxisSign
-    yAxis = np.cross(zAxis, xAxis)
-    xAxis = np.cross(yAxis, zAxis)
-
-    zLength = edgeLengths[zAxisIndex]
-    xLength = edgeLengths[xAxisIndex]
-    ids = [0,1,2]
-    ids.remove(zAxisIndex)
-    ids.remove(xAxisIndex)
-    yLength = edgeLengths[ids[0]]
-
-
-    t = transformUtils.getTransformFromAxes(xAxis, yAxis, zAxis)
-    t.PostMultiply()
-    t.Translate(boxCenter)
-
-    om.removeFromObjectModel(om.findObjectByName('box'))
-    obj = makeBox()
-    obj.setProperty('Dimensions', [xLength, yLength, zLength])
-    obj.getChildFrame().copyFrame(t)
-    #obj.getChildFrame().setProperty('Visible', True)
-    obj.setProperty('Surface Mode', 'Wireframe')
-    obj.setProperty('Color', [1,0,0])
-    return obj
-
-
-def addGraspFrames(affordanceName='box'):
-    dispatch = {
-        'box' : addBoxGraspFrames,
-        'blue funnel' : addFunnelGraspFrames
-        }
-    dispatch[affordanceName]()
-
-
 def makeGraspFrames(obj, graspOffset, pregraspOffset=-0.08, suffix=''):
 
     pos, rpy = graspOffset
@@ -386,38 +196,6 @@ def makeGraspFrames(obj, graspOffset, pregraspOffset=-0.08, suffix=''):
 
     obj.getChildFrame().getFrameSync().addFrame(graspFrame, ignoreIncoming=True)
     graspFrame.getFrameSync().addFrame(preGraspFrame, ignoreIncoming=True)
-
-
-def addFunnelGraspFrames():
-
-    obj = om.findObjectByName('blue funnel')
-
-    # y axis points down into the funnel
-    # x/z axes points along funnel width/length dimensions
-    originToPinch = -0.05
-    graspOffsets = [
-        ([-0.04, originToPinch, 0.0], [0,0,90]),
-        ([-0.04, originToPinch, 0.0], [180,0,90]),
-
-        ([0.04, originToPinch, 0.0], [180,0,90]),
-        ([0.04, originToPinch, 0.0], [0,0,90]),
-
-        ([0.0, originToPinch, -0.07], [-90,0,90]),
-        ([0.0, originToPinch, -0.07], [90,0,90]),
-
-        ([0.0, originToPinch, 0.07], [90,0,90]),
-        ([0.0, originToPinch, 0.07], [-90,0,90]),
-        ]
-
-    for i, graspOffset in enumerate(graspOffsets):
-        makeGraspFrames(obj, graspOffset, suffix=' %d' % i)
-
-
-def addBoxGraspFrames():
-    obj = om.findObjectByName('box')
-    dims = obj.getProperty('Dimensions')
-    graspOffset = ([0.0, 0.0, dims[2]/2.0 - 0.025], [0,50,0])
-    makeGraspFrames(obj, graspOffset)
 
 
 def init(robotSystem_):
@@ -506,7 +284,6 @@ def makeCombinedReachPlan(suffix=''):
     lcmUtils.publish('CANDIDATE_MANIP_PLAN', plan)
     drawEndEffectorTrajFromPlan(plan)
 
-
 def getBestGraspSuffix(costs):
     sortedNames = sorted(costs.keys(), key=lambda x:costs[x].cost)
     for suffix in sortedNames:
@@ -527,25 +304,3 @@ def makeBestPlan(affordanceName):
         robotSystem.playbackRobotModel.setProperty('Color', [1, 0.75, 0])
 
     makeCombinedReachPlan(suffix)
-
-
-def moveFunnelRandomly():
-
-    xyz = [
-        np.random.uniform(0.25, 0.75),
-        np.random.uniform(-0.3, 0.3),
-        np.random.uniform(0.0, 0.5)]
-
-    rpy = [
-        np.random.uniform(-120, -60),
-        np.random.uniform(-30, 30),
-        np.random.uniform(-30, 30)]
-
-
-    t = transformUtils.frameFromPositionAndRPY(xyz, rpy)
-    om.findObjectByName('blue funnel').getChildFrame().copyFrame(t)
-
-
-def randomTest():
-    moveFunnelRandomly()
-    makeBestPlan('blue funnel')
