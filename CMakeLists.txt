@@ -76,7 +76,7 @@ ExternalProject_Add(director
     -DUSE_SYSTEM_EIGEN:BOOL=ON
     -DUSE_SYSTEM_LCM:BOOL=ON
     -DUSE_SYSTEM_LIBBOT:BOOL=ON
-    -DUSE_SYSTEM_VTK:BOOL=${USE_SYSTEM_VTK}
+    -DUSE_SYSTEM_VTK:BOOL=ON
     -DUSE_PCL:BOOL=${WITH_PERCEPTION}
     -DUSE_APRILTAGS:BOOL=${WITH_PERCEPTION}
     -DUSE_KINECT:BOOL=${WITH_PERCEPTION}
@@ -126,6 +126,19 @@ ExternalProject_Add(RemoteTreeViewer
     -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
   DEPENDS drake
 )
+
+if (WITH_PERCEPTION)
+  ExternalProject_Add(PointCloudInference
+    SOURCE_DIR ${source_dir}/src/PointCloudInference
+    BINARY_DIR ${build_dir}/PointCloudInference
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+      -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
+    DEPENDS drake RemoteTreeViewer
+  )
+endif()
 
 if (BUILD_GYGES)
   ExternalProject_Add(GYGES
