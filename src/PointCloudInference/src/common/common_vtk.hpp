@@ -93,43 +93,44 @@ static void WritePolyData(const vtkSmartPointer<vtkPolyData> polyData, const cha
   writer->Write();
 }
 
-static Eigen::Matrix3Xd LoadAndDownsamplePolyData(const std::string fileName, double downsample_spacing = -1.0)
-{
-  vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(fileName.c_str());
-  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << fileName << endl;
+static vtkSmartPointer<vtkPolyData> DownsampleAndCleanPolyData(
+    const vtkSmartPointer<vtkPolyData> polyData,
+    double downsample_spacing = -1.0) {
+  vtkSmartPointer<vtkPolyData> cloudPolyDataDownsampled = polyData;
 
-  vtkSmartPointer<vtkPolyData> cloudPolyDataOut;
-
-  if (downsample_spacing <= 0.0){
-    cloudPolyDataOut = cloudPolyData;
-    printf("... and not downsampling.\n");
-  } else {
-    vtkSmartPointer<vtkPolyDataPointSampler> pointSampler = vtkSmartPointer<vtkPolyDataPointSampler>::New();
+  if (downsample_spacing > 0.0) {
+    vtkSmartPointer<vtkPolyDataPointSampler> pointSampler =
+        vtkSmartPointer<vtkPolyDataPointSampler>::New();
     pointSampler->SetDistance(downsample_spacing);
-    pointSampler->SetInput(cloudPolyData);
+    pointSampler->SetInput(polyData);
     pointSampler->Update();
-    vtkSmartPointer<vtkPolyData> cloudPolyDataDownsampled = pointSampler->GetOutput();
-
-    printf("sampled but not cleaned\n");
-    vtkSmartPointer<vtkCleanPolyData> pointCleaner = vtkSmartPointer<vtkCleanPolyData>::New();
-    pointCleaner->SetToleranceIsAbsolute(true);
-    pointCleaner->SetAbsoluteTolerance(downsample_spacing);
-    pointCleaner->SetInput(cloudPolyDataDownsampled);
-    pointCleaner->Update();
-    cloudPolyDataOut = pointCleaner->GetOutput();
-
-    cout << "Downsampled to " << cloudPolyDataOut->GetNumberOfPoints() << " points" << endl;
+    cloudPolyDataDownsampled = pointSampler->GetOutput();
   }
+  vtkSmartPointer<vtkCleanPolyData> pointCleaner =
+      vtkSmartPointer<vtkCleanPolyData>::New();
+  pointCleaner->SetToleranceIsAbsolute(true);
+  pointCleaner->SetAbsoluteTolerance(downsample_spacing);
+  pointCleaner->SetInput(cloudPolyDataDownsampled);
+  pointCleaner->Update();
+  return pointCleaner->GetOutput();
+}
 
-  Eigen::Matrix3Xd out_pts(3, cloudPolyDataOut->GetNumberOfPoints());
-  for (int i=0; i<cloudPolyDataOut->GetNumberOfPoints(); i++){
-    out_pts(0, i) = cloudPolyDataOut->GetPoint(i)[0];
-    out_pts(1, i) = cloudPolyDataOut->GetPoint(i)[1];
-    out_pts(2, i) = cloudPolyDataOut->GetPoint(i)[2];
+static Eigen::Matrix3Xd LoadAndDownsamplePolyData(
+    const std::string fileName, double downsample_spacing = -1.0) {
+  vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(fileName.c_str());
+  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from "
+       << fileName << endl;
+
+  DownsampleAndCleanPolyData(cloudPolyData);
+
+  Eigen::Matrix3Xd out_pts(3, cloudPolyData->GetNumberOfPoints());
+  for (int i = 0; i < cloudPolyData->GetNumberOfPoints(); i++) {
+    out_pts(0, i) = cloudPolyData->GetPoint(i)[0];
+    out_pts(1, i) = cloudPolyData->GetPoint(i)[1];
+    out_pts(2, i) = cloudPolyData->GetPoint(i)[2];
   }
   return out_pts;
 }
-
 
 //----------------------------------------------------------------------------
 static vtkSmartPointer<vtkPolyData> PolyDataFromMatrix3Xd(Eigen::Matrix3Xd input)

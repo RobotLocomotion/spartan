@@ -159,6 +159,68 @@ PointCloudFromPolyData(vtkPolyData *polyData) {
 }
 
 //----------------------------------------------------------------------------
+static pcl::PointCloud<pcl::PointXYZRGBA>::Ptr
+PointCloudFromPolyDataWithRGB(vtkPolyData *polyData) {
+  const vtkIdType numberOfPoints = polyData->GetNumberOfPoints();
+
+  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
+  cloud->width = numberOfPoints;
+  cloud->height = 1;
+  cloud->is_dense = true;
+  cloud->points.resize(numberOfPoints);
+
+  if (!numberOfPoints) {
+    return cloud;
+  }
+
+  vtkFloatArray *floatPoints =
+      vtkFloatArray::SafeDownCast(polyData->GetPoints()->GetData());
+  vtkDoubleArray *doublePoints =
+      vtkDoubleArray::SafeDownCast(polyData->GetPoints()->GetData());
+  assert(floatPoints || doublePoints);
+
+  if (floatPoints) {
+    float *data = floatPoints->GetPointer(0);
+    for (vtkIdType i = 0; i < numberOfPoints; ++i) {
+      cloud->points[i].x = data[i * 3];
+      cloud->points[i].y = data[i * 3 + 1];
+      cloud->points[i].z = data[i * 3 + 2];
+    }
+  } else if (doublePoints) {
+    double *data = doublePoints->GetPointer(0);
+    for (vtkIdType i = 0; i < numberOfPoints; ++i) {
+      cloud->points[i].x = data[i * 3];
+      cloud->points[i].y = data[i * 3 + 1];
+      cloud->points[i].z = data[i * 3 + 2];
+    }
+  }
+
+  vtkUnsignedCharArray *colorArray =
+      vtkUnsignedCharArray::SafeDownCast(polyData->GetPointData()->GetScalars("rgb_colors"));
+
+  if (!colorArray) {
+    printf("No rgb channel available in this polyData!\n");
+    printf("Available:\n");
+    for (int k = 0; k < polyData->GetPointData()->GetNumberOfArrays(); k++){
+      printf("\t%d: %s\n", k, polyData->GetPointData()->GetArrayName(k));
+    }
+    return cloud;
+  }
+
+  if (colorArray) {
+    unsigned char *data = colorArray->GetPointer(0);
+    for (vtkIdType i = 0; i < numberOfPoints; ++i) {
+      cloud->points[i].r = data[i * 3];
+      cloud->points[i].g = data[i * 3 + 1];
+      cloud->points[i].b = data[i * 3 + 2];
+      cloud->points[i].a = 1.0;
+    }
+  } 
+
+  return cloud;
+}
+
+//----------------------------------------------------------------------------
 static pcl::PointCloud<pcl::PointNormal>::Ptr
 PointCloudFromPolyDataWithNormals(vtkPolyData *polyData) {
   const vtkIdType numberOfPoints = polyData->GetNumberOfPoints();
@@ -270,5 +332,5 @@ LoadMatrixWithVTKWithNormals(const std::string filename) {
   }
   printf("Done and loaded.\n");
 
-  return convertPCLPointNormalToMatrix6Xd(sceneCloud);
+  return convertPCLPointNormalToMatrix6Xd<pcl::PointNormal>(sceneCloud);
 }

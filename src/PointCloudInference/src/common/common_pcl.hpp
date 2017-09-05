@@ -130,21 +130,38 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr convertMatrix3XdToPCLPointXYZ(const Eigen::M
   return input_cloud;
 }
 
-// These can be collapsed via template magic, but I couldn't quite get it working first pass. -greg
-Matrix3Xd convertPCLPointXYZToMatrix3Xd(const pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud) {
+// TODO(gizatt): Can certainly be collapsed more with
+// some more modularization of the point vs normal vs rgb
+// handling. Or template magic.
+template <typename PointT>
+Matrix3Xd convertPCLPointXYZToMatrix3Xd(
+    const typename pcl::PointCloud<PointT>::Ptr input_cloud) {
   Matrix3Xd output_points(3, input_cloud->size());
   for (int i = 0; i < input_cloud->size(); i++) {
-    const pcl::PointXYZ &pt = input_cloud->points[i];
+    const PointT& pt = input_cloud->points[i];
     output_points(0, i) = pt.x;
     output_points(1, i) = pt.y;
     output_points(2, i) = pt.z;
   }
   return output_points;
 }
-Matrix<double, 6, -1> convertPCLPointNormalToMatrix6Xd(const pcl::PointCloud<pcl::PointNormal>::Ptr input_cloud) {
+template <typename PointT>
+std::vector<std::vector<double>> convertPCLPointRGBToVectorOfVectors(
+    const typename pcl::PointCloud<PointT>::Ptr input_cloud) {
+  std::vector<std::vector<double>> output_points;
+  for (int i = 0; i < input_cloud->size(); i++) {
+    const PointT& pt = input_cloud->points[i];
+    output_points.push_back(std::vector<double>(
+        {((double)pt.r) / 255., ((double)pt.g) / 255., ((double)pt.b) / 255.}));
+  }
+  return output_points;
+}
+template <typename PointT>
+Matrix<double, 6, -1> convertPCLPointNormalToMatrix6Xd(
+    const typename pcl::PointCloud<PointT>::Ptr input_cloud) {
   Matrix<double, 6, -1> output_points(6, input_cloud->size());
   for (int i = 0; i < input_cloud->size(); i++) {
-    const pcl::PointNormal &pt = input_cloud->points[i];
+    const pcl::PointNormal& pt = input_cloud->points[i];
     output_points(0, i) = pt.x;
     output_points(1, i) = pt.y;
     output_points(2, i) = pt.z;
@@ -195,7 +212,7 @@ static Eigen::Matrix3Xd generateNormalsFromMatrix3Xd(const Matrix3Xd& input_poin
     }
   }
 
-  return convertPCLPointNormalToMatrix6Xd(cloud_normals).block(3, 0, 3, input_points.cols());
+  return convertPCLPointNormalToMatrix6Xd<pcl::PointNormal>(cloud_normals).block(3, 0, 3, input_points.cols());
 }
 
 std::pair<Points, Feature> generatePointsAndFPFHFeaturesFromPoints(const Eigen::Matrix3Xd& input_points, 

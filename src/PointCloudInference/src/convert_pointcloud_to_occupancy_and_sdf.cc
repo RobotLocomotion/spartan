@@ -1,23 +1,22 @@
-#include <string>
-#include <stdexcept>
+#include <unistd.h>
 #include <iostream>
 #include <random>
-#include <unistd.h>
+#include <stdexcept>
+#include <string>
 #include <typeinfo>
 
 #include "argagg.hpp"
 #include "common/common.hpp"
-#include "common/common_vtk.hpp"
 #include "common/common_pcl_vtk.hpp"
+#include "common/common_vtk.hpp"
+#include "eigen_nd_array.h"
 
+#include <pcl/filters/voxel_grid_occlusion_estimation.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
-#include <pcl/filters/voxel_grid_occlusion_estimation.h>
-
 
 #include "RemoteTreeViewerWrapper.hpp"
 
-#include <vtkSmartPointer.h>
 #include <vtkActor.h>
 #include <vtkDoubleArray.h>
 #include <vtkPointData.h>
@@ -26,15 +25,13 @@
 #include <vtkPolyDataPointSampler.h>
 #include <vtkProperty.h>
 #include <vtkSmartPointer.h>
+#include <vtkSmartPointer.h>
 #include <vtksys/SystemTools.hxx>
 
 #include "yaml-cpp/yaml.h"
 
-
 using namespace std;
 using namespace Eigen;
-
-typedef pcl::PointXYZ PointType;
 
 int main(int argc, char** argv) {
   srand(0);
@@ -45,10 +42,7 @@ int main(int argc, char** argv) {
         {"-p", "--pointcloud"},
         "Point cloud file <openable by VTK>.",
         1},
-       {"output",
-        {"-o", "--output"},
-        "Output file.",
-        1}}};
+       {"output", {"-o", "--output"}, "Output file.", 1}}};
 
   argagg::parser_results args;
   try {
@@ -67,21 +61,43 @@ int main(int argc, char** argv) {
   string outputFile = args["output"].as<string>();
 
   auto sceneVTK = ReadPolyData(sceneFile.c_str());
-  auto scenePCL = PointCloudFromPolyData(sceneVTK);
+  auto scenePCL = PointCloudFromPolyDataWithRGB(sceneVTK);
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr gridPCL(new pcl::PointCloud<pcl::PointXYZ>());
-  pcl::VoxelGridOcclusionEstimation<pcl::PointXYZ> grid_estimator;
+  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr gridPCL(
+      new pcl::PointCloud<pcl::PointXYZRGBA>());
+  pcl::VoxelGridOcclusionEstimation<pcl::PointXYZRGBA> grid_estimator;
+
+  grid_estimator.setInputCloud(scenePCL);
+  grid_estimator.setLeafSize(0.01, 0.01, 0.01);
   grid_estimator.initializeVoxelGrid();
+  grid_estimator.filter(*gridPCL);
 
-  grid_estimator.setInputCloud (scenePCL);
-  grid_estimator.setLeafSize (0.01f, 0.01f, 0.01f);
-  grid_estimator.filter (*gridPCL);
-
-  // Visualize the scene points and GT, to start with.
+  // Visualize the downsampled cloud.
   RemoteTreeViewerWrapper rm;
-  // Publish the scene cloud
-  rm.publishPointCloud(convertPCLPointXYZToMatrix3Xd(scenePCL), {"pc_inference", "scenePCL"}, {{0.1, 1.0, 0.1}});
-  rm.publishPointCloud(convertPCLPointXYZToMatrix3Xd(gridPCL), {"pc_inference", "gridPCL"}, {{0.1, 0.1, 1.0}});
+  rm.publishPointCloud(
+      convertPCLPointXYZToMatrix3Xd<pcl::PointXYZRGBA>(gridPCL),
+      {"pc_inference", "gridPCL"},
+      convertPCLPointRGBToVectorOfVectors<pcl::PointXYZRGBA>(gridPCL));
+
+  // Extract out the ND array of the voxel grid
+  Vector3i grid_size = grid_estimator.getNrDivisions();
+  EigenNdArray<unsigned char> occupancy_grid(grid_size);
+
+  for (int i = 0; i < grid_size(0); i++) {
+    for (int j = 0; j < grid_size(1); j++) {
+      for (int k = 0; k < grid_size(2); k++) {
+        Vector3i here({i, j, k});
+        int out_state;
+        int ret = grid_estimator.occlusionEstimation(out_state, here);
+        auto centroid = grid_estimator.getCentroidCoordinate(here);
+        if (ret || out_state)
+          cout << centroid.transpose() << ": " << out_state << " ( " << ret
+               << " )" << endl;
+        occupancy_grid.SetValue(-out_state,
+                                here);  // -1 occluded, 0 free, 1 occupied
+      }
+    }
+  }
 
   return 0;
 }

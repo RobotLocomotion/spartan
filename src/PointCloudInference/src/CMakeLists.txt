@@ -20,6 +20,18 @@ add_definitions(${PCL_DEFINITIONS})
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
+add_library(eigen_nd_array eigen_nd_array.cc eigen_nd_array.h)
+target_link_libraries(eigen_nd_array)
+install(TARGETS eigen_nd_array DESTINATION lib)
+
+add_library(voxel_distance_field voxel_distance_field.cc voxel_distance_field.h)
+target_link_libraries(voxel_distance_field eigen_nd_array)
+install(TARGETS voxel_distance_field DESTINATION lib)
+
+add_executable(test_voxel_distance_field test_voxel_distance_field.cc)
+target_link_libraries(test_voxel_distance_field voxel_distance_field eigen_nd_array RemoteTreeViewerWrapper drakeLcm)
+install(TARGETS test_voxel_distance_field DESTINATION bin)
+
 add_executable(convert_pointcloud_to_occupancy_and_sdf convert_pointcloud_to_occupancy_and_sdf.cc)
-target_link_libraries(convert_pointcloud_to_occupancy_and_sdf lcm drakeLcm RemoteTreeViewerWrapper yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} z pthread)
+target_link_libraries(convert_pointcloud_to_occupancy_and_sdf eigen_nd_array lcm drakeLcm RemoteTreeViewerWrapper yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} z pthread)
 install(TARGETS convert_pointcloud_to_occupancy_and_sdf DESTINATION bin)
