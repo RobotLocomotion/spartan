@@ -22,12 +22,21 @@ class VoxelDistanceField {
   VoxelDistanceField(const Eigen::Ref<const Eigen::Vector3i> size,
                      const Eigen::Ref<const Eigen::Vector3d> lb,
                      const Eigen::Ref<const Eigen::Vector3d> ub);
+  // Initialize from a YAML file that has been saved out by
+  // an instance of this class.
+  VoxelDistanceField(const std::string& filename);
+  // Save self to a YAML file.
+  void Save(const std::string& filename);
 
   void Reset();
 
   const EigenNdArray<unsigned int>& GetCounts() { return counts_; }
   const EigenNdArray<double>& GetDistances() { return distances_; }
   const EigenNdArray<char>& GetKnown() { return known_; }
+  const std::vector<Eigen::Vector3i>& GetOccupiedNodes() {
+    return occupied_nodes_;
+  }
+  const Eigen::Vector3i& GetSize() { return size_; }
 
   // Adds these points to the appropriate cells to keep track of
   // counts.
@@ -53,7 +62,7 @@ class VoxelDistanceField {
   Eigen::Vector3i ComputeBinIndexFromPoint(
       const Eigen::Ref<const Eigen::Vector3d>& point);
   Eigen::Vector3d ComputePointFromBinIndex(
-    const Eigen::Ref<const Eigen::Vector3i>& bin_index);
+      const Eigen::Ref<const Eigen::Vector3i>& bin_index);
 
   bool MoveToNextNodeInDirection(
       Eigen::Ref<Eigen::Vector3d> point, Eigen::Ref<Eigen::Vector3i> bin_index,
@@ -65,9 +74,14 @@ class VoxelDistanceField {
   // Distance from each bin to the known occupied bins,
   // positive towards camera, negative away from camera:
   EigenNdArray<double> distances_;
+  // It would be reasonable to store this as
+  // <bool> and not <char>, but std::vector<bool> is not
+  // necessary contiguous in storage, so it's harder to
+  // serialize.
   EigenNdArray<char> known_;
 
   Eigen::Vector3i size_;
+  int min_points_per_bin_;
   std::vector<Eigen::Vector3i> occupied_nodes_;
   Eigen::Vector3d lb_;
   Eigen::Vector3d ub_;

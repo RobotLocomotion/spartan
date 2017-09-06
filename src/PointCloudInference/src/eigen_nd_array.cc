@@ -5,9 +5,21 @@ using namespace std;
 using namespace Eigen;
 
 template <typename Scalar>
+EigenNdArray<Scalar>::EigenNdArray() : size_(VectorXi::Zero(0)) {
+  ;
+}
+
+template <typename Scalar>
 EigenNdArray<Scalar>::EigenNdArray(const Eigen::Ref<const Eigen::VectorXi> size)
     : size_(size) {
   assert(size_.prod() > 0);
+  data_.resize(size_.prod());
+}
+
+template <typename Scalar>
+void EigenNdArray<Scalar>::Resize(const Eigen::Ref<const Eigen::VectorXi> size) {
+  assert(size.prod() >= 0);
+  size_ = size;
   data_.resize(size_.prod());
 }
 

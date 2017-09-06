@@ -6,7 +6,10 @@
 template <typename Scalar>
 class EigenNdArray {
  public:
+  // Default construction is to start empty.
+  EigenNdArray();
   EigenNdArray(const Eigen::Ref<const Eigen::VectorXi> size);
+  void Resize(const Eigen::Ref<const Eigen::VectorXi> size);
   void SetValue(Scalar value);
   void SetValue(Scalar value,
                 const Eigen::Ref<const Eigen::VectorXi> full_index) {

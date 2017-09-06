@@ -25,12 +25,27 @@ target_link_libraries(eigen_nd_array)
 install(TARGETS eigen_nd_array DESTINATION lib)
 
 add_library(voxel_distance_field voxel_distance_field.cc voxel_distance_field.h)
-target_link_libraries(voxel_distance_field eigen_nd_array)
+target_link_libraries(voxel_distance_field eigen_nd_array yaml-cpp)
 install(TARGETS voxel_distance_field DESTINATION lib)
+target_compile_options(voxel_distance_field PRIVATE -g)
 
 add_executable(test_voxel_distance_field test_voxel_distance_field.cc)
-target_link_libraries(test_voxel_distance_field voxel_distance_field eigen_nd_array RemoteTreeViewerWrapper drakeLcm)
+target_link_libraries(test_voxel_distance_field voxel_distance_field eigen_nd_array RemoteTreeViewerWrapper yaml-cpp  drakeLcm)
 install(TARGETS test_voxel_distance_field DESTINATION bin)
+
+find_package(CUDA QUIET REQUIRED)
+find_package(OpenGL REQUIRED)
+find_package(GLUT REQUIRED)
+find_package(GLEW REQUIRED)
+include_directories(${OPENGL_INCLUDE_DIRECTORIES} ${GLUT_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS})
+set(
+    CUDA_NVCC_FLAGS
+    ${CUDA_NVCC_FLAGS};
+    -O3 -g
+    )
+cuda_add_executable(cuda_volume_renderer cuda_volume_renderer/volumeRender.cpp cuda_volume_renderer/volumeRenderer_kernel.cu cuda_volume_renderer/helper_cuda.h cuda_volume_renderer/helper_functions.h cuda_volume_renderer/helper_timer.h)
+target_link_libraries(cuda_volume_renderer voxel_distance_field ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} ${GLEW_LIBRARIES})
+install(TARGETS cuda_volume_renderer DESTINATION bin)
 
 add_executable(convert_pointcloud_to_occupancy_and_sdf convert_pointcloud_to_occupancy_and_sdf.cc)
 target_link_libraries(convert_pointcloud_to_occupancy_and_sdf eigen_nd_array voxel_distance_field lcm drakeLcm RemoteTreeViewerWrapper yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} z pthread)

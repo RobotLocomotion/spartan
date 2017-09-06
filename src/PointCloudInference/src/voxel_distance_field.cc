@@ -1,6 +1,10 @@
+#include <zlib.h>
 #include <algorithm>
+#include <fstream>
 
+#include "common/common.hpp"
 #include "voxel_distance_field.h"
+#include "yaml-cpp/yaml.h"
 
 using namespace std;
 using namespace Eigen;
@@ -15,8 +19,93 @@ VoxelDistanceField::VoxelDistanceField(
       known_(size),
       lb_(lb),
       ub_(ub),
+      min_points_per_bin_(0),
       leaf_size_((ub_ - lb_).array() / size_.cast<double>().array()) {
   Reset();
+}
+
+VoxelDistanceField::VoxelDistanceField(const std::string& filename) {
+  YAML::Node config = YAML::LoadFile(filename);
+  assert(config["min_points_per_bin"]);
+  min_points_per_bin_ = config["min_points_per_bin"].as<int>();
+  assert(config["size"]);
+  assert(config["lb"]);
+  assert(config["ub"]);
+  for (int i = 0; i < 3; i++) {
+    size_[i] = config["size"].as<vector<int>>()[i];
+    lb_[i] = config["lb"].as<vector<double>>()[i];
+    ub_[i] = config["ub"].as<vector<double>>()[i];
+  }
+  counts_.Resize(size_);
+  distances_.Resize(size_);
+  known_.Resize(size_);
+  leaf_size_ = ((ub_ - lb_).array() / size_.cast<double>().array());
+
+  assert(config["counts"]);
+  assert(config["distances"]);
+  assert(config["known"]);
+
+  auto counts_binary = config["counts"].as<YAML::Binary>();
+  counts_.Deserialize(
+      unzipStdVector<unsigned int>(counts_binary.data(), counts_binary.size()));
+  auto distances_binary = config["distances"].as<YAML::Binary>();
+  distances_.Deserialize(
+      unzipStdVector<double>(distances_binary.data(), distances_binary.size()));
+  auto known_binary = config["known"].as<YAML::Binary>();
+  known_.Deserialize(
+      unzipStdVector<char>(known_binary.data(), known_binary.size()));
+
+  // Rebuild occupied nodes.
+  occupied_nodes_.clear();
+  for (int i = 0; i < size_[0]; i++) {
+    for (int j = 0; j < size_[1]; j++) {
+      for (int k = 0; k < size_[2]; k++) {
+        Eigen::Vector3i bin_index({i, j, k});
+        if (counts_.GetValue(bin_index) >= min_points_per_bin_) {
+          occupied_nodes_.push_back(bin_index);
+        }
+      }
+    }
+  }
+}
+
+// Save self to a YAML file.
+void VoxelDistanceField::Save(const std::string& filename) {
+  YAML::Emitter out;
+
+  out << YAML::BeginMap;
+  {
+    out << YAML::Key << "min_points_per_bin";
+    out << YAML::Value << min_points_per_bin_;
+
+    out << YAML::Key << "size";
+    out << YAML::Value << EigenVectorToStdVector(size_);
+
+    out << YAML::Key << "lb";
+    out << YAML::Value << EigenVectorToStdVector(lb_);
+    out << YAML::Key << "ub";
+    out << YAML::Value << EigenVectorToStdVector(ub_);
+
+    out << YAML::Key << "counts";
+    auto counts_serialized = zipStdVector(counts_.Serialize());
+    out << YAML::Value
+        << YAML::Binary(counts_serialized.data(), counts_serialized.size());
+
+    out << YAML::Key << "distances";
+    auto distances_serialized = zipStdVector(distances_.Serialize());
+    out << YAML::Value << YAML::Binary(distances_serialized.data(),
+                                       distances_serialized.size());
+
+    out << YAML::Key << "known";
+    auto known_serialized = zipStdVector(known_.Serialize());
+    out << YAML::Value
+        << YAML::Binary(known_serialized.data(), known_serialized.size());
+  }
+  out << YAML::EndMap;
+
+  ofstream fout(filename);
+  fout << out.c_str();
+  fout.close();
 }
 
 void VoxelDistanceField::Reset() {
@@ -52,7 +141,7 @@ void VoxelDistanceField::AddPoints(
     auto point = points.col(i);
     Eigen::Vector3i bin_index = ComputeBinIndexFromPoint(point);
     // Yuck, gotta improve accessors on EigenNdArray...
-    counts_.SetValue(counts_.GetValue(bin_index)+1, bin_index);
+    counts_.SetValue(counts_.GetValue(bin_index) + 1, bin_index);
   }
 }
 
@@ -65,7 +154,7 @@ void VoxelDistanceField::DoRayTraversal(Eigen::Ref<Eigen::Vector3i> bin_index) {
   known_.SetValue(1, bin_index);
   distances_.SetValue(0.0, bin_index);
 
-  if (direction.norm() != direction.norm()){
+  if (direction.norm() != direction.norm()) {
     printf("NAN norm: not doing traversal\n");
     return;
   }
@@ -156,6 +245,7 @@ void VoxelDistanceField::DoRayTraversal(Eigen::Ref<Eigen::Vector3i> bin_index) {
 }
 
 void VoxelDistanceField::UpdateOccupancy(unsigned int min_points_per_bin) {
+  min_points_per_bin_ = min_points_per_bin;
   for (int i = 0; i < size_[0]; i++) {
     for (int j = 0; j < size_[1]; j++) {
       for (int k = 0; k < size_[2]; k++) {

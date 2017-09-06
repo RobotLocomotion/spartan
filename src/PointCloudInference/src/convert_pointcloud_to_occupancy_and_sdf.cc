@@ -49,10 +49,9 @@
 using namespace std;
 using namespace Eigen;
 
-const int kSizeX = 200;
-const int kSizeY = 200;
-const int kSizeZ = 200;
-
+const int kSizeX = 100;
+const int kSizeY = 100;
+const int kSizeZ = 100;
 int main(int argc, char** argv) {
   srand(0);
 
@@ -96,101 +95,16 @@ int main(int argc, char** argv) {
          getUnixTime() - now);
 
   now = getUnixTime();
-  vdf.UpdateOccupancy(10);
+  vdf.UpdateOccupancy(1);
   printf("Updating occupancy took %f seconds.\n", getUnixTime() - now);
 
-  for (const auto& point : scenePCL->points) {
-    ;
+  auto occupied_nodes = vdf.GetOccupiedNodes();
+  for (const auto& node : occupied_nodes) {
+    printf("Node %d, %d, %d occupied\n", node[0], node[1], node[2]);
   }
 
-  // VOLUME RENDERING WITH VTK
-
-  auto known = vdf.GetKnown();
-
-  // Store the relevant volumes into vtkImageData
-  vtkSmartPointer<vtkImageData> imageData_known =
-      vtkSmartPointer<vtkImageData>::New();
-  imageData_known->SetDimensions(kSizeX, kSizeY, kSizeZ);
-#if VTK_MAJOR_VERSION <= 5
-  imageData_known->SetNumberOfScalarComponents(1);
-  imageData_known->SetScalarTypeToUnsignedChar();
-#else
-  imageData_known->AllocateScalars(VTK_UNSIGNED_CHAR, 1);
-#endif
-  int* dims = imageData_known->GetDimensions();
-  // Fill every entry of the image data with "2.0"
-  for (int z = 0; z < dims[2]; z++) {
-    for (int y = 0; y < dims[1]; y++) {
-      for (int x = 0; x < dims[0]; x++) {
-        unsigned char* pixel =
-            static_cast<unsigned char*>(imageData_known->GetScalarPointer(x, y, z));
-        pixel[0] = (unsigned char)known.GetValue(Vector3i({x, y, z}));
-        if (x == y && y == z)
-          printf("Pixel %d, %d, %d: %d\n", x, y, z, pixel[0]);
-      }
-    }
-  }
-
-  // Set up the render window.
-  vtkSmartPointer<vtkRenderWindow> renWin =
-      vtkSmartPointer<vtkRenderWindow>::New();
-  vtkSmartPointer<vtkRenderer> ren1 = vtkSmartPointer<vtkRenderer>::New();
-  ren1->SetBackground(0.0, 0.0, 0.0);
-
-  renWin->AddRenderer(ren1);
-
-  renWin->SetSize(1024, 768);
-
-  vtkSmartPointer<vtkRenderWindowInteractor> iren =
-      vtkSmartPointer<vtkRenderWindowInteractor>::New();
-  vtkSmartPointer<vtkInteractorStyleFlight> style =
-      vtkSmartPointer<vtkInteractorStyleFlight>::New();
-  iren->SetInteractorStyle(style);
-  iren->SetRenderWindow(renWin);
-  renWin->Render();  // make sure we have an OpenGL context.
-
-  // Set up the volume rendering.
-  vtkSmartPointer<vtkSmartVolumeMapper> volumeMapper =
-      vtkSmartPointer<vtkSmartVolumeMapper>::New();
-  volumeMapper->SetBlendModeToComposite();  // composite first
-#if VTK_MAJOR_VERSION <= 5
-  volumeMapper->SetInputConnection(imageData_known->GetProducerPort());
-#else
-  volumeMapper->SetInputData(imageData_known);
-#endif
-  vtkSmartPointer<vtkVolumeProperty> volumeProperty =
-      vtkSmartPointer<vtkVolumeProperty>::New();
-  volumeProperty->ShadeOff();
-  volumeProperty->SetInterpolationType(VTK_LINEAR_INTERPOLATION);
-
-  vtkSmartPointer<vtkPiecewiseFunction> compositeOpacity =
-      vtkSmartPointer<vtkPiecewiseFunction>::New();
-  compositeOpacity->AddPoint(0, 0.0);
-  compositeOpacity->AddPoint(1, 1.0);
-  compositeOpacity->AddPoint(1000, 1.0);
-  volumeProperty->SetScalarOpacity(compositeOpacity);  // composite first.
-
-  vtkSmartPointer<vtkColorTransferFunction> color =
-      vtkSmartPointer<vtkColorTransferFunction>::New();
-  color->AddRGBPoint(0, 0.0, 0.0, 1.0);
-  color->AddRGBPoint(1, 1.0, 0.0, 0.0);
-  color->AddRGBPoint(2, 1.0, 1.0, 1.0);
-  color->AddRGBPoint(1000, 1.0, 1.0, 1.0);
-  volumeProperty->SetColor(color);
-
-  vtkSmartPointer<vtkVolume> volume = vtkSmartPointer<vtkVolume>::New();
-  volume->SetMapper(volumeMapper);
-  volume->SetProperty(volumeProperty);
-  ren1->AddViewProp(volume);
-  ren1->ResetCamera();
-
-// 3D texture mode if possible
-//#if !defined(VTK_LEGACY_REMOVE) && !defined(VTK_OPENGL2)
-//  volumeMapper->SetRequestedRenderModeToRayCastAndTexture();
-//#endif  // VTK_LEGACY_REMOVE
-  renWin->Render();
-
-  iren->Start();
+  vdf.Save(outputFile);
+  printf("Saved to %s.\n", outputFile.c_str());
 
   return 0;
 }
