@@ -117,7 +117,7 @@ ExternalProject_Add(spartan_lcmtypes
 )
 
 ExternalProject_Add(RemoteTreeViewer
-  SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
+  SOURCE_DIR ${source_dir}/src/RmefaoteTreeViewer
   BINARY_DIR ${build_dir}/RemoteTreeViewer
   BUILD_ALWAYS 1
   CMAKE_CACHE_ARGS
@@ -137,6 +137,7 @@ if (WITH_PERCEPTION)
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
       -DCMAKE_MODULE_PATH:STRING=${source_dir}/drake/cmake/modules
     DEPENDS drake RemoteTreeViewer
+    INSTALL_COMMAND ""
   )
 endif()
 
