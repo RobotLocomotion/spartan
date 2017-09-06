@@ -33,5 +33,5 @@ target_link_libraries(test_voxel_distance_field voxel_distance_field eigen_nd_ar
 install(TARGETS test_voxel_distance_field DESTINATION bin)
 
 add_executable(convert_pointcloud_to_occupancy_and_sdf convert_pointcloud_to_occupancy_and_sdf.cc)
-target_link_libraries(convert_pointcloud_to_occupancy_and_sdf eigen_nd_array lcm drakeLcm RemoteTreeViewerWrapper yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} z pthread)
+target_link_libraries(convert_pointcloud_to_occupancy_and_sdf eigen_nd_array voxel_distance_field lcm drakeLcm RemoteTreeViewerWrapper yaml-cpp ${VTK_LIBRARIES} ${PCL_LIBRARIES} z pthread)
 install(TARGETS convert_pointcloud_to_occupancy_and_sdf DESTINATION bin)
