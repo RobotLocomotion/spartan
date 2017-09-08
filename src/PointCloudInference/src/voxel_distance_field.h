@@ -37,6 +37,9 @@ class VoxelDistanceField {
     return occupied_nodes_;
   }
   const Eigen::Vector3i& GetSize() { return size_; }
+  const Eigen::Vector3d& GetLb() { return lb_; }
+  const Eigen::Vector3d& GetUb() { return ub_; }
+  const Eigen::Vector3d& GetLeafSize() { return leaf_size_; }
 
   // Adds these points to the appropriate cells to keep track of
   // counts.

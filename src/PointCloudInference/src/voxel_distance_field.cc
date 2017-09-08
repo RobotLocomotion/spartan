@@ -140,6 +140,8 @@ void VoxelDistanceField::AddPoints(
   for (int i = 0; i < points.cols(); i++) {
     auto point = points.col(i);
     Eigen::Vector3i bin_index = ComputeBinIndexFromPoint(point);
+    //printf("Point (%f, %f, %f) -> (%d, %d, %d)\n", point[0], point[1], point[2],
+    //       bin_index[0], bin_index[1], bin_index[2]);
     // Yuck, gotta improve accessors on EigenNdArray...
     counts_.SetValue(counts_.GetValue(bin_index) + 1, bin_index);
   }
@@ -150,7 +152,6 @@ void VoxelDistanceField::DoRayTraversal(Eigen::Ref<Eigen::Vector3i> bin_index) {
   Vector3d point = original_point;
   Vector3d direction = -point.normalized();
 
-  occupied_nodes_.push_back(bin_index);
   known_.SetValue(1, bin_index);
   distances_.SetValue(0.0, bin_index);
 
@@ -200,23 +201,27 @@ void VoxelDistanceField::DoRayTraversal(Eigen::Ref<Eigen::Vector3i> bin_index) {
     step_z = -1;
   }
 
-  double t_max_x = (voxel_corner[0] - point[0]) / direction[0];
-  double t_max_y = (voxel_corner[1] - point[1]) / direction[1];
-  double t_max_z = (voxel_corner[2] - point[2]) / direction[2];
+  Vector3d t_max, t_delta;
 
-  double t_delta_x = leaf_size_[0] / fabs(direction[0]);
-  double t_delta_y = leaf_size_[1] / fabs(direction[1]);
-  double t_delta_z = leaf_size_[2] / fabs(direction[2]);
-
+  for (int i = 0; i < 3; i++){
+    if (direction[i] != 0.0){
+      t_max[i] = (voxel_corner[i] - point[i]) / direction[i];
+      t_delta[i] = leaf_size_[i] / fabs(direction[i]);
+    } else {
+      t_max[i] = std::numeric_limits<double>::infinity();
+      t_delta[i] = 0.0;
+    }
+  }
+  
   // estimate next voxel (move off from initial voxel)
-  if (t_max_x <= t_max_y && t_max_x <= t_max_z) {
-    t_max_x += t_delta_x;
+  if (t_max[0] <= t_max[1] && t_max[0] <= t_max[2]) {
+    t_max[0] += t_delta[0];
     bin_index[0] += step_x;
-  } else if (t_max_y <= t_max_z && t_max_y <= t_max_x) {
-    t_max_y += t_delta_y;
+  } else if (t_max[1] <= t_max[2] && t_max[1] <= t_max[0]) {
+    t_max[1] += t_delta[1];
     bin_index[1] += step_y;
   } else {
-    t_max_z += t_delta_z;
+    t_max[2] += t_delta[2];
     bin_index[2] += step_z;
   }
 
@@ -226,14 +231,14 @@ void VoxelDistanceField::DoRayTraversal(Eigen::Ref<Eigen::Vector3i> bin_index) {
     known_.SetValue(1, bin_index);
     distances_.SetValue((point - original_point).norm(), bin_index);
 
-    if (t_max_x <= t_max_y && t_max_x <= t_max_z) {
-      t_max_x += t_delta_x;
+    if (t_max[0] <= t_max[1] && t_max[0] <= t_max[2]) {
+      t_max[0] += t_delta[0];
       bin_index[0] += step_x;
-    } else if (t_max_y <= t_max_z && t_max_y <= t_max_x) {
-      t_max_y += t_delta_y;
+    } else if (t_max[1] <= t_max[2] && t_max[1] <= t_max[0]) {
+      t_max[1] += t_delta[1];
       bin_index[1] += step_y;
     } else {
-      t_max_z += t_delta_z;
+      t_max[2] += t_delta[2];
       bin_index[2] += step_z;
     }
 
@@ -251,6 +256,7 @@ void VoxelDistanceField::UpdateOccupancy(unsigned int min_points_per_bin) {
       for (int k = 0; k < size_[2]; k++) {
         Eigen::Vector3i bin_index({i, j, k});
         if (counts_.GetValue(bin_index) >= min_points_per_bin) {
+          occupied_nodes_.push_back(bin_index);
           // Propagate known state, and TSDF (approximate SDF,
           // ignoring lateral directions that could be used) state,
           // backwards along view ray.
