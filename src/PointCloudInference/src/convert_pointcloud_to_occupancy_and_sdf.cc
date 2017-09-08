@@ -84,8 +84,8 @@ int main(int argc, char** argv) {
 
   Vector3i size({kSizeX, kSizeY, kSizeZ});
 
-  Vector3d lb({-2., -2., -2.});
-  Vector3d ub({2., 2., -0.5});
+  Vector3d lb({-2., -2., 0.5});
+  Vector3d ub({2., 2., 2.0});
   VoxelDistanceField vdf(size, lb, ub);
   printf("Initialized vdf...\n");
 
@@ -97,11 +97,6 @@ int main(int argc, char** argv) {
   now = getUnixTime();
   vdf.UpdateOccupancy(1);
   printf("Updating occupancy took %f seconds.\n", getUnixTime() - now);
-
-  auto occupied_nodes = vdf.GetOccupiedNodes();
-  for (const auto& node : occupied_nodes) {
-    printf("Node %d, %d, %d occupied\n", node[0], node[1], node[2]);
-  }
 
   vdf.Save(outputFile);
   printf("Saved to %s.\n", outputFile.c_str());

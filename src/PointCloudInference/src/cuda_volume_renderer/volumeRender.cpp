@@ -47,6 +47,7 @@
 // Helper functions
 #include "helper_cuda.h"
 #include "helper_functions.h"
+#include "helper_math.h"
 #include "helper_timer.h"
 
 #include "../argagg.hpp"
@@ -64,6 +65,7 @@ const char *sSDKsample = "CUDA 3D Volume Render";
 
 const char *volumeFilename;
 cudaExtent volumeSize;
+float3 boxMin, boxMax, tStep;
 typedef unsigned char VolumeType;
 
 uint width = 1280, height = 720;
@@ -107,7 +109,8 @@ extern "C" void freeCudaBuffers();
 extern "C" void render_kernel(dim3 gridSize, dim3 blockSize, uint *d_output,
                               uint imageW, uint imageH, float density,
                               float brightness, float transferOffset,
-                              float transferScale);
+                              float transferScale, float3 boxMin, float3 boxMax,
+                              float3 t_step);
 extern "C" void copyInvViewMatrix(float *invViewMatrix, size_t sizeofMatrix);
 
 void initPixelBuffer();
@@ -147,7 +150,8 @@ void render() {
 
   // call CUDA kernel, writing results to PBO
   render_kernel(gridSize, blockSize, d_output, width, height, density,
-                brightness, transferOffset, transferScale);
+                brightness, transferOffset, transferScale, boxMin, boxMax,
+                tStep);
 
   getLastCudaError("kernel failed");
 
@@ -487,7 +491,8 @@ void runSingleTest(const char *ref_file, const char *exec_path) {
     }
 
     render_kernel(gridSize, blockSize, d_output, width, height, density,
-                  brightness, transferOffset, transferScale);
+                  brightness, transferOffset, transferScale, boxMin, boxMax,
+                  tStep);
   }
 
   cudaDeviceSynchronize();
@@ -538,6 +543,10 @@ int main(int argc, char **argv) {
   argagg::parser argparser{
       {{"help", {"-h", "--help"}, "shows this help message", 0},
        {"file", {"-f", "--file"}, "Volume distance function file.", 1},
+       {"target",
+        {"-t", "--target"},
+        "Thing to render [occupancy, known, distance, counts.",
+        1},
        {"output", {"-o", "--output"}, "Output file.", 1}}};
 
   argagg::parser_results args;
@@ -548,7 +557,7 @@ int main(int argc, char **argv) {
     return -1;
   }
 
-  if (args["help"] || !args["file"]) {
+  if (args["help"] || !args["file"] || !args["target"]) {
     cerr << argparser;
     return 0;
   }
@@ -574,14 +583,70 @@ int main(int argc, char **argv) {
   volumeSize.depth = d;
   printf("Loaded size %d, %d, %d\n", w, h, d);
 
+  boxMin = make_float3(vdf.GetLb()[0], vdf.GetLb()[1], vdf.GetLb()[2]);
+  boxMax = make_float3(vdf.GetUb()[0], vdf.GetUb()[1], vdf.GetUb()[2]);
+  float3 boxCenter = (boxMin + boxMax) / 2.;
+  boxMin = boxMin - boxCenter;
+  boxMax = boxMax - boxCenter;
+  tStep = make_float3(vdf.GetLeafSize()[0], vdf.GetLeafSize()[1],
+                      vdf.GetLeafSize()[2]);
+  cout << "Lb: " << vdf.GetLb().transpose() << endl;
+  cout << "Ub: " << vdf.GetUb().transpose() << endl;
+  cout << "Leaf size: " << vdf.GetLeafSize().transpose() << endl;
+
   // Load the actual volume of interest
   std::vector<VolumeType> h_volume(
       volumeSize.width * volumeSize.height * volumeSize.depth, 0);
+
+  auto counts = vdf.GetCounts();
+  auto distances = vdf.GetDistances();
+  auto known = vdf.GetKnown();
   auto occupied_nodes = vdf.GetOccupiedNodes();
-  for (const auto &node : occupied_nodes) {
-    h_volume[node[0] * h * d + node[1] * d + node[2]] = 255;
-    printf("Node %d, %d, %d occupied\n", node[0], node[1], node[2]);
+
+  if (args["target"].as<string>() == "occupancy") {
+    for (const auto &node : occupied_nodes) {
+      h_volume[node[2] * h * d + node[1] * d + node[0]] = 255;
+    }
+  } else if (args["target"].as<string>() == "known") {
+    for (int i = 0; i < w; i++) {
+      for (int j = 0; j < h; j++) {
+        for (int k = 0; k < d; k++) {
+          h_volume[k * h * d + j * d + i] =
+              known.GetValue(Eigen::Vector3i(i, j, k)) * 50;
+        }
+      }
+    }
+    // And overlay occupancy
+    for (const auto &node : occupied_nodes) {
+      h_volume[node[2] * h * d + node[1] * d + node[0]] = 255;
+    }
+  } else if (args["target"].as<string>() == "distance") {
+    for (int i = 0; i < w; i++) {
+      for (int j = 0; j < h; j++) {
+        for (int k = 0; k < d; k++) {
+          h_volume[k * h * d + j * d + i] =
+              min((unsigned char)(255. *
+                                  distances.GetValue(Eigen::Vector3i(i, j, k))),
+                  255);
+        }
+      }
+    }
+    for (const auto &node : occupied_nodes) {
+      h_volume[node[2] * h * d + node[1] * d + node[0]] = 255;
+    }
+  } else if (args["target"].as<string>() == "counts") {
+    for (int i = 0; i < w; i++) {
+      for (int j = 0; j < h; j++) {
+        for (int k = 0; k < d; k++) {
+          h_volume[k * h * d + j * d + i] =
+              min(counts.GetValue(Eigen::Vector3i(i, j, k)), 255);
+        }
+      }
+    }
+  } else {
+    printf("Unknown target!\n");
   }
+
   initCuda(h_volume.data(), volumeSize);
 
   sdkCreateTimer(&timer);

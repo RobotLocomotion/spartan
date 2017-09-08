@@ -140,7 +140,8 @@ void VoxelDistanceField::AddPoints(
   for (int i = 0; i < points.cols(); i++) {
     auto point = points.col(i);
     Eigen::Vector3i bin_index = ComputeBinIndexFromPoint(point);
-    //printf("Point (%f, %f, %f) -> (%d, %d, %d)\n", point[0], point[1], point[2],
+    // printf("Point (%f, %f, %f) -> (%d, %d, %d)\n", point[0], point[1],
+    // point[2],
     //       bin_index[0], bin_index[1], bin_index[2]);
     // Yuck, gotta improve accessors on EigenNdArray...
     counts_.SetValue(counts_.GetValue(bin_index) + 1, bin_index);
@@ -203,8 +204,8 @@ void VoxelDistanceField::DoRayTraversal(Eigen::Ref<Eigen::Vector3i> bin_index) {
 
   Vector3d t_max, t_delta;
 
-  for (int i = 0; i < 3; i++){
-    if (direction[i] != 0.0){
+  for (int i = 0; i < 3; i++) {
+    if (direction[i] != 0.0) {
       t_max[i] = (voxel_corner[i] - point[i]) / direction[i];
       t_delta[i] = leaf_size_[i] / fabs(direction[i]);
     } else {
@@ -212,7 +213,7 @@ void VoxelDistanceField::DoRayTraversal(Eigen::Ref<Eigen::Vector3i> bin_index) {
       t_delta[i] = 0.0;
     }
   }
-  
+
   // estimate next voxel (move off from initial voxel)
   if (t_max[0] <= t_max[1] && t_max[0] <= t_max[2]) {
     t_max[0] += t_delta[0];
@@ -225,11 +226,18 @@ void VoxelDistanceField::DoRayTraversal(Eigen::Ref<Eigen::Vector3i> bin_index) {
     bin_index[2] += step_z;
   }
 
-  while (known_.GetValue(bin_index) == 0) {
+  // Using this I-thought-it-should-be-a-clear-inductive-assumption
+  // doesn't work, and only labels *some* cells as known... I think
+  // because it prematurely terminates (some view rays may intersect
+  // and then diverge again due to state in t_max).
+  while (1) {  // known_.GetValue(bin_index) == 0) {
     point = ComputePointFromBinIndex(bin_index);
 
     known_.SetValue(1, bin_index);
-    distances_.SetValue((point - original_point).norm(), bin_index);
+    double new_distance = (point - original_point).norm();
+    if (new_distance < distances_.GetValue(bin_index)) {
+      distances_.SetValue(new_distance, bin_index);
+    }
 
     if (t_max[0] <= t_max[1] && t_max[0] <= t_max[2]) {
       t_max[0] += t_delta[0];
