@@ -49,19 +49,26 @@
 using namespace std;
 using namespace Eigen;
 
-const int kSizeX = 100;
-const int kSizeY = 100;
-const int kSizeZ = 100;
 int main(int argc, char** argv) {
   srand(0);
 
-  argagg::parser argparser{
-      {{"help", {"-h", "--help"}, "shows this help message", 0},
-       {"pointcloud",
-        {"-p", "--pointcloud"},
-        "Point cloud file <openable by VTK>.",
-        1},
-       {"output", {"-o", "--output"}, "Output file.", 1}}};
+  argagg::parser argparser{{
+      {"help", {"-h", "--help"}, "shows this help message", 0},
+      {"pointcloud",
+       {"-p", "--pointcloud"},
+       "Point cloud file <openable by VTK>.",
+       1},
+      {"output", {"-o", "--output"}, "Output file.", 1},
+      {"voxel_size", {"-v", "--voxelsize"}, "Voxel size <in meters>.", 1},
+      {"lower_bound_z",
+       {"-l", "--lowerboundz"},
+       "Lower bound (z) (optional)",
+       1},
+      {"upper_bound_z",
+       {"-u", "--upperboundz"},
+       "Upper bound (z) (optional)",
+       1},
+  }};
 
   argagg::parser_results args;
   try {
@@ -71,7 +78,8 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  if (args["help"] || !args["pointcloud"] || !args["output"]) {
+  if (args["help"] || !args["pointcloud"] || !args["output"] ||
+      !args["voxel_size"]) {
     cerr << argparser;
     return 0;
   }
@@ -80,17 +88,33 @@ int main(int argc, char** argv) {
   string outputFile = args["output"].as<string>();
 
   auto sceneVTK = ReadPolyData(sceneFile.c_str());
+  if (!sceneVTK){
+    printf("Error loading %s\n", sceneFile.c_str());
+    exit(-1);
+  }
   auto scenePCL = PointCloudFromPolyDataWithRGB(sceneVTK);
+  Matrix3Xd scenePts =
+      convertPCLPointXYZToMatrix3Xd<pcl::PointXYZRGBA>(scenePCL);
 
-  Vector3i size({kSizeX, kSizeY, kSizeZ});
+  // Get bounding box of the whole point cloud
+  Vector3d lb = scenePts.rowwise().minCoeff();
+  Vector3d ub = scenePts.colwise().maxCoeff();
 
-  Vector3d lb({-2., -2., 0.5});
-  Vector3d ub({2., 2., 2.0});
+  if (args["lower_bound_z"]) lb[2] = args["lower_bound_z"].as<double>();
+  if (args["upper_bound_z"]) ub[2] = args["upper_bound_z"].as<double>();
+
+  Vector3i size =
+      ((ub - lb).array() / args["voxel_size"].as<double>()).cast<int>();
+
+  printf("Initializing VDF with dims %d, %d, %d...\n", size[0], size[1],
+         size[2]);
+  printf("\t and bounds [%f, %f, %f] <= x <= [%f, %f, %f]\n", lb[0], lb[1],
+         lb[2], ub[0], ub[1], ub[2]);
   VoxelDistanceField vdf(size, lb, ub);
-  printf("Initialized vdf...\n");
 
   double now = getUnixTime();
-  vdf.AddPoints(convertPCLPointXYZToMatrix3Xd<pcl::PointXYZRGBA>(scenePCL));
+  printf("Adding %d points...\n", (int)scenePts.cols());
+  vdf.AddPoints(scenePts);
   printf("Added %d points took %f seconds.\n", (int)scenePCL->points.size(),
          getUnixTime() - now);
 

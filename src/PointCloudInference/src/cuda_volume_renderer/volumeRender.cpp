@@ -605,26 +605,26 @@ int main(int argc, char **argv) {
 
   if (args["target"].as<string>() == "occupancy") {
     for (const auto &node : occupied_nodes) {
-      h_volume[node[2] * h * d + node[1] * d + node[0]] = 255;
+      h_volume[node[2] * w * h + node[1] * w + node[0]] = 255;
     }
   } else if (args["target"].as<string>() == "known") {
     for (int i = 0; i < w; i++) {
       for (int j = 0; j < h; j++) {
         for (int k = 0; k < d; k++) {
-          h_volume[k * h * d + j * d + i] =
+          h_volume[k * w * h + j * w + i] =
               known.GetValue(Eigen::Vector3i(i, j, k)) * 50;
         }
       }
     }
     // And overlay occupancy
     for (const auto &node : occupied_nodes) {
-      h_volume[node[2] * h * d + node[1] * d + node[0]] = 255;
+      h_volume[node[2] * w * h + node[1] * w + node[0]] = 255;
     }
   } else if (args["target"].as<string>() == "distance") {
     for (int i = 0; i < w; i++) {
       for (int j = 0; j < h; j++) {
         for (int k = 0; k < d; k++) {
-          h_volume[k * h * d + j * d + i] =
+          h_volume[k * w * h + j * w + i] =
               min((unsigned char)(255. *
                                   distances.GetValue(Eigen::Vector3i(i, j, k))),
                   255);
@@ -632,13 +632,13 @@ int main(int argc, char **argv) {
       }
     }
     for (const auto &node : occupied_nodes) {
-      h_volume[node[2] * h * d + node[1] * d + node[0]] = 255;
+      h_volume[node[2] * w * h + node[1] * w + node[0]] = 255;
     }
   } else if (args["target"].as<string>() == "counts") {
     for (int i = 0; i < w; i++) {
       for (int j = 0; j < h; j++) {
         for (int k = 0; k < d; k++) {
-          h_volume[k * h * d + j * d + i] =
+          h_volume[k * w * h + j * h + i] =
               min(counts.GetValue(Eigen::Vector3i(i, j, k)), 255);
         }
       }
