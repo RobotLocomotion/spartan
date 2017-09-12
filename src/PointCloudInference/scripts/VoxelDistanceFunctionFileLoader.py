@@ -1,4 +1,5 @@
 import argparse
+from copy import deepcopy
 from math import floor
 import numpy as np
 import yaml
@@ -27,85 +28,45 @@ class VoxelDistanceFunction:
 
         self.padded_occupancy = None
         self.padded_known = None
-        self.padded_window_size = None
+        self.pad_amount = None
 
         f.close()
 
-    def GeneratePointwiseSampleAtPoint(self, window_size, x, y, z):
+    def GetWindowPadding(self, window_size):
+        return (int(floor((window_size-1)/2)), int(floor(window_size/2)))
+
+    def GenerateLocalRegionAtPoint(self, window_size, x, y, z, step=1):
         ''' Returns a voxel grid of edge length window_size
             centered at index x, y, z '''
         # Re-generate padding?
-        if not self.padded_window_size or self.padded_window_size != window_size:
-            self.padded_window_size = window_size
-            self.padded_occupancy = np.pad(self.occupancy, window_size/2, 'constant') # Default constant is 0
-            self.padded_known = np.pad(self.known, window_size/2, 'constant') # Default constant is 0
+        pad_amount = self.GetWindowPadding(window_size)
 
-        return np.hstack([
-                np.reshape(self.occupancy[x:(x+window_size), 
-                           y:(y+window_size),
-                           z:(z+window_size)],
-                           window_size**3),
-                np.reshape(self.known[x:(x+window_size), 
-                           y:(y+window_size),
-                           z:(z+window_size)],
-                           window_size**3)
-            ])
+        if not self.pad_amount or self.pad_amount != pad_amount:
+            self.pad_amount = pad_amount
+            self.padded_occupancy = np.pad(self.occupancy, self.pad_amount, 'constant') # Default constant is 0
+            self.padded_known = np.pad(self.known, self.pad_amount, 'constant') # Default constant is 0
 
-    def GenerateAllPointwiseSamplesFromVDF(self, window_size, step, min_positive_cells):
-        ''' Steps over the voxel grid and spits out *all* local regions as rows in a
-        large np array. This is likely to overflow memory for large voxel grids. '''
-        xmin = 0
-        xmax = self.counts.shape[0]-window_size-1
-        ymin = 0
-        ymax = self.counts.shape[1]-window_size-1
-        zmin = 0
-        zmax = self.counts.shape[2]-window_size-1
+        return (deepcopy( 
+                    self.padded_occupancy[x:(x+window_size):step, 
+                                          y:(y+window_size):step,
+                                          z:(z+window_size):step]),
+                deepcopy(
+                    self.padded_known[  x:(x+window_size):step, 
+                                        y:(y+window_size):step,
+                                        z:(z+window_size):step]))
 
-        x_range = range(xmin, xmax, step)
-        y_range = range(ymin, ymax, step)
-        z_range = range(zmin, zmax, step)
+    def GeneratePointwiseSampleAtPoint(self, window_size, x, y, z):
 
+        (local_occupancy, local_known) = self.GenerateLocalRegionAtPoint(window_size, x, y, z)
 
-        n_examples = len(x_range)*len(y_range)*len(z_range)
-        print("Generating up to %d examples, stepping by %d..." % (n_examples, step))
+        Y = local_occupancy[self.pad_amount[0], self.pad_amount[0], self.pad_amount[0]]
+        local_occupancy[self.pad_amount[0], self.pad_amount[0], self.pad_amount[0]] = 0
+        local_known[self.pad_amount[0], self.pad_amount[0], self.pad_amount[0]] = 0
 
-        batch_expand_size = 100000
-        examples_in = np.zeros((batch_expand_size, 
-            2 * (window_size**3)), dtype=np.uint8)
-        examples_out = np.zeros((batch_expand_size, 1), dtype=np.uint8)
-
-        k = 0
-        for x in x_range:
-            for y in y_range:
-                for z in z_range:
-                    if (k >= examples_out.shape[0]):
-                            examples_in.resize( (k+batch_expand_size, window_size**3) )
-                            examples_out.resize( (k+batch_expand_size, 1))
-
-                    examples_in[k, 0:window_size**3] = np.reshape(
-                        self.occupancy[x:(x+window_size), 
-                                       y:(y+window_size),
-                                       z:(z+window_size)],
-                        window_size**3)
-
-                    if np.sum(examples_in[k, 0:window_size**3] > 0) >= min_positive_cells:
-                        examples_in[k, -window_size**3:] = np.reshape(
-                            self.known[x:(x+window_size), 
-                                       y:(y+window_size),
-                                       z:(z+window_size)],
-                            window_size**3)
-                        examples_out[k] = self.occupancy[
-                              floor(x+window_size/2),
-                              floor(y+window_size/2),
-                              floor(z+window_size/2)]
-                        k+=1
-                        if k % 1000 == 0:
-                            print("k=%d, maxk=%d, xyz = %d,%d,%d" % (k, x*len(y_range)*len(z_range)+y*len(z_range) + z, x, y, z))
-
-        print("\t\t\tdone.")
-        examples_in.resize((k, 2*(window_size**3)))
-        examples_out.resize((k, 1))
-        return (examples_in, examples_out)
+        return (np.hstack([
+                    np.reshape(local_occupancy, window_size**3),
+                    np.reshape(local_known, window_size**3)]),
+                Y)
 
     def GenerateRandomPointwiseSamplesFromVDF(self, window_size, N, min_positive_cells, positive_example_ratio=-1):
         ''' Generates N random local regions as rows in an np array. (A local region is
@@ -118,11 +79,11 @@ class VoxelDistanceFunction:
         # These are the coordinates at which the box will be *centered*.
         # Out-of-range cells will be filled with empty, unknown grid cells.
         xmin = 0
-        xmax = self.counts.shape[0]-1
+        xmax = self.counts.shape[0]
         ymin = 0
-        ymax = self.counts.shape[1]-1
+        ymax = self.counts.shape[1]
         zmin = 0
-        zmax = self.counts.shape[2]-1
+        zmax = self.counts.shape[2]
 
         if positive_example_ratio < 0:
             # Just draw them all randomly
@@ -143,29 +104,15 @@ class VoxelDistanceFunction:
             y = np.random.randint(zmin, ymax)
             z = np.random.randint(zmin, zmax)
 
-            examples_in[k, :window_size**3] = np.reshape(
-                        self.occupancy[x:(x+window_size), 
-                                       y:(y+window_size),
-                                       z:(z+window_size)],
-                        window_size**3)
-
-            examples_out[k] = self.occupancy[
-                            floor(x+window_size/2),
-                            floor(y+window_size/2),
-                            floor(z+window_size/2)]
+            examples_in[k, :], examples_out[k] = self.GeneratePointwiseSampleAtPoint(window_size, x, y, z)
 
             if num_positive > 0 and examples_out[k]:
                 # If we have a ratio to meet, sample only negative cells
                 # in this round.
                 continue
-
+            
             if np.sum(examples_in[k, :] > 0) >= min_positive_cells:
                 # Grab the last bit and continue
-                examples_in[k, -window_size**3:] = np.reshape(
-                        self.known[x:(x+window_size), 
-                                       y:(y+window_size),
-                                       z:(z+window_size)],
-                        window_size**3)
                 k+=1
                 if k % 1000 == 0:
                     print("k=%d/%d" % (k, N))
@@ -177,8 +124,7 @@ class VoxelDistanceFunction:
             if     xmin <= pt[0] and pt[0] < xmax \
                and ymin <= pt[1] and pt[1] < ymax \
                and zmin <= pt[2] and pt[2] < zmax:
-                examples_in[k, :] = self.GeneratePointwiseSampleAtPoint(window_size, pt[0], pt[1], pt[2])
-                examples_out[k] = self.occupancy[pt[0], pt[1], pt[2]]
+                examples_in[k, :], examples_out[k] = self.GeneratePointwiseSampleAtPoint(window_size, pt[0], pt[1], pt[2])
                 if not examples_out[k]:
                     print("Examples out is false but should be true in sampling known occupied cells")
                     exit(-1)

@@ -14,8 +14,8 @@ def generate_random_samples_from_vdf(filename, output_prefix, window_size, N_sam
         in_file = "%s_%d.in.npy" % (output_prefix, k)
         out_file = "%s_%d.out.npy" % (output_prefix, k)
         print "Saving as: %s and %s" % (in_file, out_file)
-        np.save(in_file, examples_in)
-        np.save(out_file, examples_out)
+        np.save(in_file, examples_in, allow_pickle=False)
+        np.save(out_file, examples_out, allow_pickle=False)
 
 
 if __name__ == '__main__':
