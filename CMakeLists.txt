@@ -117,7 +117,7 @@ ExternalProject_Add(spartan_lcmtypes
 )
 
 ExternalProject_Add(RemoteTreeViewer
-  SOURCE_DIR ${source_dir}/src/RmefaoteTreeViewer
+  SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
   BINARY_DIR ${build_dir}/RemoteTreeViewer
   BUILD_ALWAYS 1
   CMAKE_CACHE_ARGS

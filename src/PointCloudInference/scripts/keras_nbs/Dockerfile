@@ -37,6 +37,7 @@ RUN conda install -y python=${python_version} && \
     conda clean -yt
 
 ADD theanorc /home/keras/.theanorc
+ADD jupyter_notebook_config.py /home/keras/.jupyter/jupyter_notebook_config.py
 
 ENV PYTHONPATH="/src/:$PYTHONPATH"
 ENV CUDA_HOME="/usr/local/cuda-8.0"
