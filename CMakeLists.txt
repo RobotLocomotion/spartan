@@ -22,12 +22,15 @@ endif()
 
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
+option(WITH_GUROBI "Build drake with support for the GUROBI solver." OFF)
+option(WITH_MOSEK "Build drake with support for the MOSEK solver." OFF)
 option(WITH_SNOPT "Build drake with support for the SNOPT solver." OFF)
 
 option(WITH_IIWA_DRIVER "Build drake-iiwa-driver." OFF)
 option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
 
 option(BUILD_GYGES "Build the GYGES external project" OFF)
+option(BUILD_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 
 # Setup external projects
 include(ExternalProject)
@@ -74,6 +77,12 @@ if(CMAKE_VERBOSE_MAKEFILE)
 endif()
 if(WITH_SNOPT)
   set(BAZEL_ARGS --config=snopt ${BAZEL_ARGS})
+endif()
+if (WITH_GUROBI)
+  set(BAZEL_ARGS --config=gurobi ${BAZEL_ARGS})
+endif()
+if (WITH_MOSEK)
+  set(BAZEL_ARGS --config=mosek ${BAZEL_ARGS})
 endif()
 
 # Check that compiler is NOT ccache. Ccache is not compatible with bazel.
@@ -206,6 +215,17 @@ ExternalProject_Add(RemoteTreeViewer
     ${CMAKE_ARGS_FOR_EXTERNALS}
   DEPENDS drake
 )
+
+if (BUILD_REACHABILITY_ANALYZER)
+  ExternalProject_Add(ReachabilityAnalyzer
+  SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
+  BINARY_DIR ${build_dir}/ReachabilityAnalyzer
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+  DEPENDS director RemoteTreeViewer
+  )
+endif()
 
 if (BUILD_GYGES)
   ExternalProject_Add(GYGES
