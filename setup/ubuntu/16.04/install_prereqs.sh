@@ -1,23 +1,24 @@
 #!/bin/bash
-set -e -x -u
 
-apt install \
-  build-essential \
-  cmake \
+set -euxo pipefail
+
+apt install --no-install-recommends \
   libboost-all-dev \
-  libeigen3-dev \
-  libopenni2-dev \
+  libjsoncpp-dev \
+  libtheora-dev \
+  libogg-dev \
   libopencv-dev \
+  libopenni2-dev \
   libqhull-dev \
-  libqt4-dev \
-  libqwt-dev \
+  libqt5opengl5-dev \
+  libqt5x11extras5-dev \
+  libqwt-qt5-dev \
+  libtheora-dev \
   libusb-1.0-0-dev \
-  libvtk5-dev \
-  libvtk5-qt4-dev \
-  python-dev \
+  libxt-dev \
   python-matplotlib \
-  python-numpy \
-  python-pip \
-  python-scipy \
-  python-vtk \
-  python-yaml \
+  qt5-default \
+  qtbase5-private-dev \
+  qtmultimedia5-dev \
+  qtscript5-dev \
+  qttools5-dev
