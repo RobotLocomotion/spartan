@@ -206,7 +206,6 @@ ExternalProject_Add(RemoteTreeViewer
   DEPENDS drake
 )
 
-
 if (OFF)
   ExternalProject_Add(ObjectDetection
     SOURCE_DIR ${source_dir}/src/ObjectDetection
@@ -220,8 +219,6 @@ if (OFF)
 endif()
 
 if (WITH_IIWA_RLG_DRIVER OR WITH_IIWA_TRI_DRIVER)
-  
-
   set(IIWA_DRIVER_GIT_REPOSITORY
 	"git@github.com:RobotLocomotion/drake-iiwa-driver.git"
 	CACHE STRING
