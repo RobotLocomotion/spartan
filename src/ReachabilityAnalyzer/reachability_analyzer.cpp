@@ -43,9 +43,9 @@ int DoMain(void) {
   RemoteTreeViewerWrapper rm;
 
   // Iteration information to define the volume we'll search.
-  Vector3i steps(10, 5, 10);
-  Vector3d min_val(-1.0, 0.0, -0.5);
-  Vector3d max_val(1.0, 1.0, 1.5);
+  Vector3i steps(50, 1, 50);
+  Vector3d min_val(0.0, 0.0, -0.5);
+  Vector3d max_val(1.0, 0.0, 1.5);
   int n_pts = steps.prod();
   const double pos_tol = 0.01;
 
@@ -112,6 +112,12 @@ int DoMain(void) {
       model.get(), 0.00, std::numeric_limits<double>::infinity(), {}, {},
       tspan);
 
+  // For calculating position from indices, precompute the step size
+  // per index
+  auto step_size =
+      (max_val - min_val).array() /
+      (steps.cast<double>().array() - 1).max(Vector3d::Ones().array());
+
   // # of unique directions reachable by the arm
   std::vector<int> reachable_dirs(n_pts, 0);
 
@@ -130,14 +136,14 @@ int DoMain(void) {
     int k_tried = 0;
     int k_reachable = 0;
     int last_published_k_reachable = k_reachable - 1;
-    printf("\nWith dir [%f,%f,%f]:\n", grasp_dir[0], grasp_dir[1], grasp_dir[2]);
+    printf("\nWith dir [%f,%f,%f]:\n", grasp_dir[0], grasp_dir[1],
+           grasp_dir[2]);
     for (int x_i = 0; x_i < steps[0]; x_i++) {
       for (int y_i = 0; y_i < steps[1]; y_i++) {
         for (int z_i = 0; z_i < steps[2]; z_i++) {
           Vector3d pos_end =
               min_val +
-              ((Vector3d(x_i, y_i, z_i).cast<double>().array()) *
-               (max_val - min_val).array() / (steps.cast<double>().array()-1))
+              ((Vector3d(x_i, y_i, z_i).cast<double>().array()) * step_size)
                   .matrix();
 
           pos_lb = pos_end - Vector3d::Constant(pos_tol);
@@ -209,24 +215,22 @@ int DoMain(void) {
       for (int z_i = 0; z_i < steps[2]; z_i++) {
         Vector3d pos_end =
             min_val +
-            ((Vector3d(x_i, y_i, z_i).cast<double>().array()) *
-             (max_val - min_val).array() / (steps.cast<double>().array()-1))
+            ((Vector3d(x_i, y_i, z_i).cast<double>().array()) * step_size)
                 .matrix();
         all_pts.col(k) = pos_end;
 
-        double good_fraction = ((double)reachable_dirs[k]) / ((double)world_grasp_dirs.size());
-        dextrous_colors[k] = {
-          1. - good_fraction,
-          good_fraction,
-          1. - (fabs(good_fraction - 0.5)*2),
-          good_fraction
-        };
+        double good_fraction =
+            ((double)reachable_dirs[k]) / ((double)world_grasp_dirs.size());
+        dextrous_colors[k] = {1. - good_fraction, good_fraction,
+                              1. - (fabs(good_fraction - 0.5) * 2),
+                              good_fraction};
         k++;
       }
     }
   }
 
-  rm.publishPointCloud(all_pts, {"reachability", "manipulable workspace"}, dextrous_colors);
+  rm.publishPointCloud(all_pts, {"reachability", "manipulable workspace"},
+                       dextrous_colors);
 
   return 0;
 }
