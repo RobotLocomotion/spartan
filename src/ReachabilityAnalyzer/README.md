@@ -2,14 +2,14 @@
 
 Numerically probes the reachability of a robot via IK.
 
-# Requirements
+## Requirements
 
 This relies on Drake for IK, and should be used with SNOPT for best
 results (IPOPT is much slower). This also relies on the
 RemoteTreeViewerWrapper library, which lives, at the time of
 writing, in Spartan.
 
-# Instructions for use
+## Instructions for use
 
 1. Make sure you have sourced spartan environment setup file in spartan/build/setup_environment.sh
 
@@ -28,8 +28,6 @@ in the drake-visualizer to select which point cloud you'll look at (and remember
 select the point cloud object itself through that menu by opening all of the subfolders
 and increase the point size to make the visiblity better).
 
-![Example Manipulability](docs/example_manipulability.png)
-
 # Arguments
 
 `reachability_analyzer --help` will report available command line flags:
@@ -46,7 +44,7 @@ Additional options -- search volume extent and step size, tolerances, and desire
 can be changed by tweaking their values in `reachability_analyzer.cpp` and recompiling. Sorry it's
 not better yet!
 
-# Code overview
+## Code overview
 
 `reachability_analyzer.cpp` loads in a specified URDF. A end effector frame (position + rotation) is
 specified. For each of a set of desired end effector frame directions (with tolerances, so you could
@@ -54,9 +52,44 @@ set this tolerance very broad to query reachability), and each of a set of set o
 spanning a query volume, we query Drake IK to place the end effector frame at that position and
 rotation. Points that return feasible are considered reachable.
 
-# TODOs
+## TODOs
 
 - Better volume rendering
 - Better command line arguments / configuration
 - Output format?
 - Test on other robots
+
+## Examples on IIWA
+### Parameters
+
+These were all generated with:
+- x range [0, 1.0] in 50 steps
+- y range [0, 0] in 5 steps (i.e. sample each point a few times)
+- z range [-0.5, 1.5] in 50 steps
+- position tolerance 0.01
+- reach directions along cardinal axes
+- cone threshold 0.01
+
+### Examples
+- Manipulability: red is reachable in only 1 of the 6 directions, while solid green
+is reachable in all 6.
+![IIWA Manipulability](docs/iiwa_manipulability.png)
+
+- Positive x direction reachability:
+![IIWA Manipulability](docs/iiwa_px.png)
+
+- Negative x direction reachability:
+![IIWA Manipulability](docs/iiwa_nx.png)
+
+- Positive y direction reachability:
+![IIWA Manipulability](docs/iiwa_py.png)
+
+- Negative y direction reachability:
+![IIWA Manipulability](docs/iiwa_ny.png)
+
+- Positive z direction reachability:
+![IIWA Manipulability](docs/iiwa_pz.png)
+
+- Negative z direction reachability:
+![IIWA Manipulability](docs/iiwa_nz.png)
+
