@@ -1,4 +1,4 @@
 #!/bin/bash
 
-cd $SPARTAN_BUILD_DIR/drake/drake || exit
-ctest $*
+cd $SPARTAN_SOURCE_DIR/drake || exit
+CC=${SPARTAN_CMAKE_C_COMPILER} CXX=${SPARTAN_CMAKE_CXX_COMPILER} bazel test //drake/... ${SPARTAN_BAZEL_ARGS}
