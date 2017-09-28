@@ -12,7 +12,7 @@ Build instructions
 ==================
 
 First, you should install the required dependencies to compile Drake and other
-submodules. Follow the platform setup instructions in the Drake documentation::
+submodules. Follow the platform setup instructions for Bazel in the Drake documentation::
 
     http://drake.mit.edu/from_source.html#mandatory-platform-specific-instructions
 
@@ -21,12 +21,7 @@ Director `README`::
 
     https://github.com/RobotLocomotion/director/#dependencies
 
-For Ubuntu 14.04, you may install a non-conservative set of dependencies for
-Director by running the following script::
-
-    sudo ./setup/ubuntu/14.04/install_prereqs.sh
-
-For Ubuntu 16.04, you may install a non-conservative set of dependencies for
+We require Ubuntu 16.04, you may install a non-conservative set of dependencies for
 Director by running the following script::
 
     sudo ./setup/ubuntu/16.04/install_prereqs.sh
@@ -162,6 +157,7 @@ Director relies on LCM for message passing. Since LCM uses UDP multicast a valid
     sudo ifconfig lo multicast
     sudo route add -net 224.0.0.0 netmask 240.0.0.0 dev lo
 
+After restarting your computer these settings can be lost depending on your network configuration.
 
 Testing
 =======
