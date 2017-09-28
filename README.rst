@@ -154,6 +154,15 @@ In addition to modifying your PATH and other variables, it also defines some
 useful aliases for developers.
 
 
+LCM Multicast Setup
+===================
+Director relies on LCM for message passing. Since LCM uses UDP multicast a valid multicast route must always be defined. Follow the instructions `here
+<http://lcm-proj.github.io/multicast_setup.html>`_ under the section "Using LCM on a Single Host." Basically you just need to run::
+
+    sudo ifconfig lo multicast
+    sudo route add -net 224.0.0.0 netmask 240.0.0.0 dev lo
+
+
 Testing
 =======
 
