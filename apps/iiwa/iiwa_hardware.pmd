@@ -46,8 +46,8 @@ cmd "4.director" {
   host = "localhost";
 }
 
-cmd "5.bot-spy" {
-  exec = "bot-spy";
+cmd "5.drake-lcm-spy" {
+  exec = "drake-lcm-spy";
   host = "localhost";
 }
 

@@ -10,8 +10,8 @@ group "0.sim" {
     host = "localhost";
   }
 
-  cmd "2.plan-runner" {
-    exec = "$SPARTAN_BUILD_DIR/drake/drake/examples/kuka_iiwa_arm/kuka_plan_runner";
+  cmd "1.plan-runner" {
+    exec = "$SPARTAN_BUILD_DIR/install/bin/kuka_plan_runner";
     host = "localhost";
   }
 
@@ -28,8 +28,8 @@ group "1.tools"{
     host = "localhost";
   }
 
-  cmd "1.bot-spy" {
-    exec = "bot-spy";
+  cmd "1.drake-lcm-spy" {
+    exec = "drake-lcm-spy";
     host = "localhost";
   }
 
