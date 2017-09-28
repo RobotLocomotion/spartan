@@ -21,14 +21,15 @@ Director `README`::
 
     https://github.com/RobotLocomotion/director/#dependencies
 
-We require Ubuntu 16.04, you may install a non-conservative set of dependencies for
+We **only support Ubuntu 16.04**, you may install a non-conservative set of dependencies for
 Director by running the following script::
 
     sudo ./setup/ubuntu/16.04/install_prereqs.sh
 
 
 Make sure your submodules are up to date. From the top-level directory run::
-    scripts/bin/setup_submodules.sh
+    git submodule init
+    git submodule update
 
 You should avoid adding the ``--recursive`` flag to the git submodule command,
 since Drake will automatically manage its recursive submodules at build time.
