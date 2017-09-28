@@ -28,6 +28,7 @@ Director by running the following script::
 
 
 Make sure your submodules are up to date. From the top-level directory run::
+
     git submodule init
     git submodule update
 
