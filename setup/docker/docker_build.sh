@@ -5,4 +5,4 @@
 
 set -exu
 
-docker build -t spartan -f setup/docker/spartan.dockerfile .
+docker build -t spartan-tmp -f setup/docker/spartan.dockerfile .
