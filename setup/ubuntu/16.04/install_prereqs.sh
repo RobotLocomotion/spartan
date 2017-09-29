@@ -21,5 +21,5 @@ apt install --no-install-recommends \
   qtbase5-private-dev \
   qtmultimedia5-dev \
   qtscript5-dev \
-  qttools5-dev
+  qttools5-dev \
   freeglut3-dev
