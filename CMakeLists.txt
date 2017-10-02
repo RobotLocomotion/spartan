@@ -106,7 +106,7 @@ ExternalProject_Add(drake
     BUILD_IN_SOURCE 1
     USES_TERMINAL_BUILD 1
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" build ${BAZEL_ARGS} //:install
+    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" build ${BAZEL_ARGS} //... //:install
     INSTALL_COMMAND ${BAZEL_ENV} "${BAZEL}" run ${BAZEL_ARGS} //:install -- "${CMAKE_INSTALL_PREFIX}"
 )
 # This is based on drake's VTK/Qt dependency (see `tools/vtk.bzl` in drake).
