@@ -9,6 +9,8 @@ if __name__=="__main__":
 
 	parser.add_argument("-c", "--container", type=str, help="(optional) name of the container")\
 
+	parser.add_argument("-d", "--dry_run", action='store_true', help="(optional) perform a dry_run, print the command that would have been executed but don't execute it.")
+
 	args = parser.parse_args()
 	print "running docker container derived from image %s" %args.image
 	source_dir=os.getcwd()
@@ -25,7 +27,12 @@ if __name__=="__main__":
 	cmd += args.image + "\n"
 	cmd += "xhost -local:root"
 
-	print "command = \n", cmd
+	print "command = \n \n", cmd
+	print ""
 
 	# build the docker image
-	os.system(cmd)
+	if not args.dry_run:
+		print "executing shell command"
+		os.system(cmd)
+	else:
+		print "dry run, not executing command"
