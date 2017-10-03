@@ -26,6 +26,7 @@ if __name__=="__main__":
 	cmd += " -v ~/.ssh:/root/.ssh "
 	cmd += " -p 30200:30200/udp " # expose udp port
 	cmd += " -p 30201:30201/udp " # expose another udp port
+	cmd += " --privileged -v /dev/bus/usb:/dev/bus/usb " # allow usb access
 	
 	
 	cmd += args.image + "\n"
