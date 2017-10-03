@@ -8,7 +8,15 @@ Drake_ and Director_.
 .. _Director: https://www.github.com/RobotLocomotion/director
 
 
-Build instructions
+
+Docker Build instructions
+==================
+
+The easiest way to build Spartan is with Docker.  See `build with Docker instructions here`_.
+
+.. _`build with Docker instructions here`: https://github.com/RobotLocomotion/spartan/blob/master/setup/docker/README.md
+
+Native Build instructions
 ==================
 
 First, you should install the required dependencies to compile Drake and other
