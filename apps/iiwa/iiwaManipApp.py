@@ -4,6 +4,8 @@ import time
 import copy
 import imp
 
+import drake
+
 from director import lcmUtils
 from director import lcmframe
 from director import transformUtils
@@ -204,9 +206,8 @@ def plotPlan():
 
 def setGripperJointPositions(robotModel, pos):
     robotModel.model.setJointPositions(
-        [pos, pos],
-        ['wsg_50_finger_left_joint', 'wsg_50_finger_right_joint'])
-
+        [-pos, pos],
+        ['wsg_50_base_joint_gripper_left', 'wsg_50_base_joint_gripper_right'])
 
 def reloadIiwaPlanning():
     imp.reload(ip)
@@ -269,6 +270,13 @@ setupToolBar()
 setGripperJointPositions(robotSystem.robotStateModel, 0.04)
 setGripperJointPositions(robotSystem.teleopRobotModel, 0.04)
 setGripperJointPositions(robotSystem.playbackRobotModel, 0.04)
+
+def onGripperStatus(msg, channel):
+    setGripperJointPositions(robotSystem.robotStateModel, msg.actual_position_mm/2000.)
+    setGripperJointPositions(robotSystem.teleopRobotModel, msg.actual_position_mm/2000.)
+    setGripperJointPositions(robotSystem.playbackRobotModel, msg.actual_position_mm/2000.)
+
+lcmUtils.addSubscriber('SCHUNK_WSG_STATUS', drake.lcmt_schunk_wsg_status, onGripperStatus, callbackNeedsChannel=True)
 
 
 robotLinkSelector = robotlinkselector.RobotLinkSelector()
