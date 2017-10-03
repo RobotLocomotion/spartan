@@ -9,3 +9,5 @@ function use_spartan()
 export -f use_spartan
 
 exec "$@"
+
+cd /root/spartan
