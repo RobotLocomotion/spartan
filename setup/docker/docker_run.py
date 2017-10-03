@@ -23,7 +23,7 @@ if __name__=="__main__":
 		cmd += " --name %(container_name)s " % {'container_name': args.container}
 
 	cmd += " -e DISPLAY -e QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix:rw -v %(source_dir)s:/root/spartan "  % {'source_dir': source_dir}
-
+	cmd += " -v ~/.ssh:/root/.ssh "
 	
 	
 	cmd += args.image + "\n"
