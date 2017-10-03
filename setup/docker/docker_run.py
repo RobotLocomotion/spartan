@@ -24,6 +24,8 @@ if __name__=="__main__":
 
 	cmd += " -e DISPLAY -e QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix:rw -v %(source_dir)s:/root/spartan "  % {'source_dir': source_dir}
 	cmd += " -v ~/.ssh:/root/.ssh "
+	cmd += " -p 30200:30200/udp " # expose udp port
+	cmd += " -p 30201:30201/udp " # expose another udp port
 	
 	
 	cmd += args.image + "\n"
