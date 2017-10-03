@@ -24,7 +24,7 @@ group "2.iiwa-drivers" {
   }
 
   cmd "1.plan-runner" {
-    exec = "$SPARTAN_BUILD_DIR/drake/drake/examples/kuka_iiwa_arm/kuka_plan_runner";
+    exec = "$SPARTAN_BUILD_DIR/install/bin/kuka_plan_runner";
     host = "localhost";
   }
 
@@ -46,8 +46,8 @@ cmd "4.director" {
   host = "localhost";
 }
 
-cmd "5.bot-spy" {
-  exec = "bot-spy";
+cmd "5.drake-lcm-spy" {
+  exec = "drake-lcm-spy";
   host = "localhost";
 }
 

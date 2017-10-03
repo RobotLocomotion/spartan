@@ -24,10 +24,10 @@ endif()
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_SNOPT "Build drake with support for the SNOPT solver." OFF)
 
-option(WITH_IIWA_DRIVER "Build drake-iiwa-driver." OFF)
+option(WITH_IIWA_DRIVER_RLG "Build drake-iiwa-driver, RLG version." OFF)
+option(WITH_IIWA_DRIVER_TRI "Build drake-iiwa-driver, TRI version." OFF)
 option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
 
-option(BUILD_GYGES "Build the GYGES external project" OFF)
 option(BUILD_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 
 # Setup external projects
@@ -219,17 +219,6 @@ if (BUILD_REACHABILITY_ANALYZER)
   )
 endif()
 
-if (BUILD_GYGES)
-  ExternalProject_Add(GYGES
-    SOURCE_DIR ${source_dir}/src/Gyges
-    BINARY_DIR ${build_dir}/Gyges
-    BUILD_ALWAYS 1
-    CMAKE_CACHE_ARGS
-      ${CMAKE_ARGS_FOR_EXTERNALS}
-    DEPENDS drake spartan_lcmtypes
-  )
-endif()
-
 if (OFF)
   ExternalProject_Add(ObjectDetection
     SOURCE_DIR ${source_dir}/src/ObjectDetection
@@ -242,16 +231,33 @@ if (OFF)
 
 endif()
 
-if (WITH_IIWA_DRIVER)
+if (WITH_IIWA_RLG_DRIVER OR WITH_IIWA_TRI_DRIVER)
+  
+
   set(IIWA_DRIVER_GIT_REPOSITORY
 	"git@github.com:RobotLocomotion/drake-iiwa-driver.git"
 	CACHE STRING
 	"Location of drake-iiwa-driver repo including kuka-fri sources")
-  set(IIWA_DRIVER_GIT_TAG
-	"3bc3424"
-	CACHE STRING
-	"Build tag of drake-iiwa-driver repo")
 
+  # initialize IIWA_DRIVER_GIT_TAG to be empty
+  # then set it based on if we are using RLG or TRI driver
+  set(IIWA_DRIVER_GIT_TAG "")
+  
+  if (WITH_IIWA_DRIVER_RLG)
+    set(IIWA_DRIVER_GIT_TAG
+    "b1cebafa9273d213cd3387deba28f4653ba30203"
+    )
+  endif()
+
+  if (WITH_IIWA_DRIVER_TRI)
+    set(IIWA_DRIVER_GIT_TAG
+    "3bc3424"
+    )
+  endif()
+
+  message("IIWA_DRIVER_GIT_TAG ${IIWA_DRIVER_GIT_TAG}")
+
+  
   ExternalProject_Add(drake-iiwa-driver
     SOURCE_DIR ${build_dir}/externals/drake-iiwa-driver
     BINARY_DIR ${build_dir}/drake-iiwa-driver

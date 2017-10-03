@@ -1,0 +1,37 @@
+# idProduct 0601 = Xtion Pro Live
+# idVendor 1d27 = ASUS
+# Make permissively useable by everyone
+SUBSYSTEM=="usb", ATTRS{idProduct}=="0601", ATTRS{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+
+
+# EVERYTHING BELOW HERE IS WIP
+# (BUT PROBABLY WORKS OK)
+
+# idVendor 0b05 = ASUSTek
+# idProduct 182c = One of the Xtion 2 cables
+SUBSYSTEM=="usb", ATTRS{idProduct}=="182c", ATTRS{idVendor}=="0b05", MODE:="0666", OWNER:="root", GROUP:="plugdev", SYMLINK+="ASUS-depth"
+
+# idVendor 0b05 = ASUSTek
+# idProduct 182d = One of the Xtion 2 cables
+SUBSYSTEM=="usb", ATTRS{idProduct}=="182d", ATTRS{idVendor}=="0b05", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+
+# I don't know what these are yet
+#SUBSYSTEM=="usb", ATTRS{idProduct}=="9103", ATTRS{idVendor}=="0451", MODE:="0666", OWNER:="root", GROUP:="plugdev", SYMLINK+="ASUS-depth"
+#SUBSYSTEM=="usb", ATTRS{idProduct}=="5825", ATTRS{idVendor}=="0bda", MODE:="0666", OWNER:="root", GROUP:="plugdev", SYMLINK+="ASUS-depth"
+#SUBSYSTEM=="usb", ATTRS{idProduct}=="022b", ATTRS{idVendor}=="05c8", MODE:="0666", OWNER:="root", GROUP:="plugdev", SYMLINK+="ASUS-depth"
+#SUBSYSTEM=="usb", ATTRS{idProduct}=="0422", ATTRS{idVendor}=="05c8", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+
+# Primesense
+SUBSYSTEM=="usb", ATTR{idProduct}=="0200", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="0300", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="0401", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="0500", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="0600", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="0601", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="0609", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="1250", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="1260", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="1270", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="1280", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="1290", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
+SUBSYSTEM=="usb", ATTR{idProduct}=="f9db", ATTR{idVendor}=="1d27", MODE:="0666", OWNER:="root", GROUP:="plugdev"
