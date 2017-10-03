@@ -17,10 +17,6 @@
 
 #include "robotlocomotion/image_array_t.hpp"
 
-#include "iiwa_common.h"
-#include "iiwa_lcm.h"
-#include "iiwa_world/iiwa_wsg_diagram_factory.h"
-#include "oracular_state_estimator.h"
 #include "drake/lcm/drake_lcm.h"
 #include "drake/lcmt_iiwa_command.hpp"
 #include "drake/lcmt_iiwa_status.hpp"
@@ -30,6 +26,7 @@
 #include "drake/manipulation/schunk_wsg/schunk_wsg_controller.h"
 #include "drake/manipulation/schunk_wsg/schunk_wsg_lcm.h"
 #include "drake/manipulation/util/world_sim_tree_builder.h"
+#include "drake/math/roll_pitch_yaw.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 #include "drake/multibody/rigid_body_plant/drake_visualizer.h"
 #include "drake/multibody/rigid_body_plant/rigid_body_plant.h"
@@ -44,6 +41,10 @@
 #include "drake/systems/sensors/image_to_lcm_image_array_t.h"
 #include "drake/systems/sensors/rgbd_camera.h"
 #include "drake/util/drakeGeometryUtil.h"
+#include "iiwa_common.h"
+#include "iiwa_lcm.h"
+#include "iiwa_world/iiwa_wsg_diagram_factory.h"
+#include "oracular_state_estimator.h"
 
 DEFINE_double(simulation_sec, std::numeric_limits<double>::infinity(),
               "Number of seconds to simulate.");
@@ -171,22 +172,27 @@ int DoMain() {
 
   // Add camera
   struct CameraConfig {
-    Eigen::Vector3d pos;
-    Eigen::Vector3d rpy;
+    Eigen::Isometry3d pose;
     double fov_y{};
     double depth_range_near{};
     double depth_range_far{};
   };
   CameraConfig config;
-  config.pos = Eigen::Vector3d(0., 0., 0.);
-  config.rpy = Eigen::Vector3d(0., 0., 0.);
+  config.pose.setIdentity();
+  config.pose.translation() = Eigen::Vector3d(0.00, 0., 0.05);
+  config.pose.matrix().block<3, 3>(0, 0) =
+      drake::math::rpy2rotmat(Eigen::Vector3d(0., 0.0, 0.));
   config.fov_y = M_PI_4;
   config.depth_range_near = 0.5;
   config.depth_range_far = 5.;
 
+  // Make camera frame
+  RigidBodyFrame<double> camera_frame(
+      "iiwa_camera_frame", tree.FindBody("iiwa_link_ee"), config.pose);
+
   auto rgbd_camera = builder.AddSystem<RgbdCameraDiscrete>(
       std::make_unique<RgbdCamera>(
-          "rgbd_camera", tree, *(tree.findFrame("iiwa_frame_camera")),
+          "rgbd_camera", tree, camera_frame,
           config.depth_range_near, config.depth_range_far, config.fov_y, true),
       FLAGS_camera_update_period);
   auto image_to_lcm_image_array =
