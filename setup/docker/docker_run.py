@@ -5,9 +5,9 @@ if __name__=="__main__":
 	
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-i", "--image", type=str,
-		help="(required) name of the image that this container is dervied from", required=True)
+		help="(required) name of the image that this container is dervied from", default="spartan")
 
-	parser.add_argument("-c", "--container", type=str, help="(optional) name of the container")\
+	parser.add_argument("-c", "--container", type=str, default="spartan", help="(optional) name of the container")\
 
 	parser.add_argument("-d", "--dry_run", action='store_true', help="(optional) perform a dry_run, print the command that would have been executed but don't execute it.")
 

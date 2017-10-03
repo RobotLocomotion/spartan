@@ -5,7 +5,7 @@ if __name__=="__main__":
 	print "building docker container . . . "
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-i", "--image", type=str,
-		help="name for the newly created docker image", required=True)
+		help="name for the newly created docker image", default="spartan")
 
 	parser.add_argument("-d", "--dry_run", action='store_true', help="(optional) perform a dry_run, print the command that would have been executed but don't execute it.")
 
