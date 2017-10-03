@@ -14,7 +14,7 @@ Docker Build instructions
 
 The easiest way to build Spartan is with Docker.  See `build with Docker instructions here`_.
 
-.. _`build with Docker instructions here`: https://github.com/RobotLocomotion/spartan/blob/master/setup/docker/README.md
+.. _`build with Docker instructions here`: ./setup/docker/README.md
 
 Native Build instructions
 ==================
