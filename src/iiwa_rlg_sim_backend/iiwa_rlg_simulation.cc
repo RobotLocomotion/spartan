@@ -15,7 +15,7 @@
 
 #include <gflags/gflags.h>
 
-#include "robotlocomotion/image_array_t.hpp"
+#include "bot_core/images_t.hpp"
 
 #include "drake/lcm/drake_lcm.h"
 #include "drake/lcmt_iiwa_command.hpp"
@@ -38,12 +38,12 @@
 #include "drake/systems/lcm/lcm_subscriber_system.h"
 #include "drake/systems/primitives/constant_vector_source.h"
 #include "drake/systems/primitives/matrix_gain.h"
-#include "drake/systems/sensors/image_to_lcm_image_array_t.h"
 #include "drake/systems/sensors/rgbd_camera.h"
 #include "drake/util/drakeGeometryUtil.h"
 #include "iiwa_common.h"
 #include "iiwa_lcm.h"
 #include "iiwa_world/iiwa_wsg_diagram_factory.h"
+#include "image_driver/image_to_images_t.h"
 #include "oracular_state_estimator.h"
 
 DEFINE_double(simulation_sec, std::numeric_limits<double>::infinity(),
@@ -73,13 +73,14 @@ using drake::systems::RigidBodyPlant;
 using drake::systems::Simulator;
 using namespace drake::examples::kuka_iiwa_arm;
 using namespace drake::systems::sensors;
+using spartan::iiwa_rlg_sim_backend::ImagesToLcmImagesT;
 
 constexpr char kCameraBaseFrameName[] = "camera_base_frame";
 constexpr char kColorCameraFrameName[] = "color_camera_optical_frame";
 constexpr char kDepthCameraFrameName[] = "depth_camera_optical_frame";
 constexpr char kLabelCameraFrameName[] = "label_camera_optical_frame";
 
-constexpr char kImageArrayLcmChannelName[] = "DRAKE_RGBD_CAMERA_IMAGES";
+constexpr char kImageArrayLcmChannelName[] = "OPENNI_FRAME";
 constexpr char kPoseLcmChannelName[] = "DRAKE_RGBD_CAMERA_POSE";
 
 const char* const kIiwaUrdf =
@@ -191,20 +192,19 @@ int DoMain() {
       "iiwa_camera_frame", tree.FindBody("iiwa_link_ee"), config.pose);
 
   auto rgbd_camera = builder.AddSystem<RgbdCameraDiscrete>(
-      std::make_unique<RgbdCamera>(
-          "rgbd_camera", tree, camera_frame,
-          config.depth_range_near, config.depth_range_far, config.fov_y, true),
+      std::make_unique<RgbdCamera>("rgbd_camera", tree, camera_frame,
+                                   config.depth_range_near,
+                                   config.depth_range_far, config.fov_y, true),
       FLAGS_camera_update_period);
-  auto image_to_lcm_image_array =
-      builder.template AddSystem<ImageToLcmImageArrayT>(
-          kColorCameraFrameName, kDepthCameraFrameName, kLabelCameraFrameName);
-  image_to_lcm_image_array->set_name("image_converter");
+  auto image_to_lcm_images_t = builder.template AddSystem<ImagesToLcmImagesT>(
+      kColorCameraFrameName, kDepthCameraFrameName);
+  image_to_lcm_images_t->set_name("image_converter");
 
-  auto image_array_lcm_publisher = builder.AddSystem(
-      LcmPublisherSystem::Make<robotlocomotion::image_array_t>(
+  auto images_t_publisher =
+      builder.AddSystem(LcmPublisherSystem::Make<bot_core::images_t>(
           kImageArrayLcmChannelName, &lcm));
-  image_array_lcm_publisher->set_name("image_publisher");
-  image_array_lcm_publisher->set_publish_period(FLAGS_camera_update_period);
+  images_t_publisher->set_name("image_publisher");
+  images_t_publisher->set_publish_period(FLAGS_camera_update_period);
 
   DrakeVisualizer* visualizer = builder.AddSystem<DrakeVisualizer>(tree, &lcm);
   visualizer->set_name("visualizer");
@@ -251,13 +251,11 @@ int DoMain() {
   builder.Connect(model->get_output_port_plant_state(),
                   rgbd_camera->state_input_port());
   builder.Connect(rgbd_camera->color_image_output_port(),
-                  image_to_lcm_image_array->color_image_input_port());
+                  image_to_lcm_images_t->color_image_input_port());
   builder.Connect(rgbd_camera->depth_image_output_port(),
-                  image_to_lcm_image_array->depth_image_input_port());
-  builder.Connect(rgbd_camera->label_image_output_port(),
-                  image_to_lcm_image_array->label_image_input_port());
-  builder.Connect(image_to_lcm_image_array->image_array_t_msg_output_port(),
-                  image_array_lcm_publisher->get_input_port(0));
+                  image_to_lcm_images_t->depth_image_input_port());
+  builder.Connect(image_to_lcm_images_t->images_t_msg_output_port(),
+                  images_t_publisher->get_input_port(0));
 
   auto wsg_command_sub = builder.AddSystem(
       LcmSubscriberSystem::Make<drake::lcmt_schunk_wsg_command>(

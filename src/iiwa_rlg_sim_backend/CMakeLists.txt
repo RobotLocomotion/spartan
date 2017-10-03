@@ -11,6 +11,15 @@ message("Eigen3 include dir" ${EIGEN3_INCLUDE_DIR})
 
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
+find_package(bot2-core-lcmtypes REQUIRED)
+add_library(image_to_images_t image_driver/image_to_images_t.cc image_driver/image_to_images_t.h)
+target_link_libraries(image_to_images_t
+    z
+    pthread
+    ${bot2-core-lcmtypes_LIBRARIES}
+    ${drake_LIBRARIES}
+    ${gflags_LIBRARIES})
+
 add_library(iiwa_common iiwa_common.cc iiwa_common.h)
 target_link_libraries(iiwa_common
     z
@@ -46,6 +55,8 @@ add_executable(iiwa_rlg_simulation iiwa_rlg_simulation.cc)
 target_link_libraries(iiwa_rlg_simulation
     z
     pthread
+    ${bot2-core-lcmtypes_LIBRARIES}
+    image_to_images_t
     iiwa_common
     iiwa_lcm
     iiwa_wsg_diagram_factory
@@ -54,4 +65,4 @@ target_link_libraries(iiwa_rlg_simulation
     RemoteTreeViewerWrapper)
 
 install(TARGETS iiwa_rlg_simulation DESTINATION bin)
-install(TARGETS iiwa_common iiwa_lcm iiwa_oracular_state_estimator iiwa_wsg_diagram_factory DESTINATION lib)
+install(TARGETS image_to_images_t iiwa_common iiwa_lcm iiwa_oracular_state_estimator iiwa_wsg_diagram_factory DESTINATION lib)
