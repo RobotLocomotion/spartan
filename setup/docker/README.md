@@ -2,8 +2,11 @@
 
 ## Quickstart
 
-The following is all of the steps to build spartan with docker:
+The following is all of the steps to build spartan with docker from a fresh Ubuntu installation:
 
+1) Install [Docker for Ubuntu](https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/)
+2) Install [`nvidia-docker`](https://github.com/NVIDIA/nvidia-docker)
+3) Clone, setup, and build Spartan:
 ```
 git clone git@github.com:RobotLocomotion/spartan.git
 cd spartan
@@ -21,7 +24,9 @@ After cloning spartan and setting up submodules, from the spartan root directory
 
 ```./setup/docker/docker_build.py```
 
-to build a docker image. Optionally you can pass the option `-i <image_name>` to specify the name of the image. Use `-h` to see a full list of command line options. This is a basic 16.04 environment with the necessary dependencies for `spartan` installed.
+to build a docker image. Optionally you can pass the option `-i <image_name>` to specify the name of the image. Use `-h` to see a full list of command line options. Note you can also rename the image after building (see Docker Cheatsheet below).
+
+This is a basic 16.04 environment with the necessary dependencies for `spartan` installed.
 
 ## Running a Docker Container
 To create container derived from the image that was just build run (from the `spartan` root directory)
@@ -46,3 +51,15 @@ mkdir build && cd build
 cmake ..
 make -j
 ```
+
+## Docker Cheatsheet
+
+Handling images
+- `docker images` - lists all docker images on machine, including REPOSITORY, TAG, IMAGE_ID, when created, size
+- `docker tag IMAGE_ID NEW_NAME` - creates a new REPOSITORY:TAG for an IMAGE_ID
+- `docker rmi REPOSITORY:TAG` - removes this tag for an image
+- `docker tag IMAGE_ID my-spartan && docker rmi spartan` -- example to combine above two commands to rename an image ID
+
+Handling containers
+- `docker ps -a` - lists all containers on machine
+- `docker rm CONTAINER_ID` - removes container id 
