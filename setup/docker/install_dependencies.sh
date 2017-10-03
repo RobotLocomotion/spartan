@@ -3,4 +3,5 @@
 set -euxo pipefail
 
 apt install --no-install-recommends \
-  terminator
+  terminator \
+  git
