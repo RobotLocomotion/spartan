@@ -6,4 +6,5 @@ apt-get update
 apt install --no-install-recommends \
   terminator \
   git \
-  openssh-client
+  openssh-client \ 
+  htop
