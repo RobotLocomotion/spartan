@@ -229,6 +229,15 @@ if (WITH_REACHABILITY_ANALYZER)
   )
 endif()
 
+ExternalProject_Add(iiwa_rlg_sim_backend
+  SOURCE_DIR ${source_dir}/src/iiwa_rlg_sim_backend
+  BINARY_DIR ${build_dir}/iiwa_rlg_sim_backend
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+  DEPENDS director RemoteTreeViewer
+)
+
 if (OFF)
   ExternalProject_Add(ObjectDetection
     SOURCE_DIR ${source_dir}/src/ObjectDetection

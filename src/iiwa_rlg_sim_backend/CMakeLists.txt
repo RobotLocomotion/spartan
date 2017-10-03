@@ -1,0 +1,57 @@
+cmake_minimum_required(VERSION 3.5)
+project(iiwa_rlg_sim_backend)
+set(CMAKE_CXX_STANDARD 11)
+
+find_package(drake REQUIRED)
+find_package(gflags REQUIRED)
+
+set(EIGEN3_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include/eigen3)
+include_directories(${EIGEN3_INCLUDE_DIR}) 
+message("Eigen3 include dir" ${EIGEN3_INCLUDE_DIR})
+
+link_directories(${CMAKE_INSTALL_PREFIX}/lib)
+
+add_library(iiwa_common iiwa_common.cc iiwa_common.h)
+target_link_libraries(iiwa_common
+    z
+    pthread
+    ${drake_LIBRARIES}
+    ${gflags_LIBRARIES})
+
+add_library(iiwa_lcm iiwa_lcm.cc iiwa_lcm.h)
+target_link_libraries(iiwa_lcm
+    z
+    pthread
+    ${drake_LIBRARIES}
+    ${gflags_LIBRARIES})
+
+add_library(iiwa_oracular_state_estimator oracular_state_estimator.cc oracular_state_estimator.h)
+target_link_libraries(iiwa_oracular_state_estimator
+    z
+    pthread
+    ${drake_LIBRARIES}
+    ${gflags_LIBRARIES})
+
+add_library(iiwa_wsg_diagram_factory iiwa_world/iiwa_wsg_diagram_factory.cc iiwa_world/iiwa_wsg_diagram_factory.h)
+target_link_libraries(iiwa_wsg_diagram_factory
+    z
+    pthread
+    iiwa_common
+    iiwa_oracular_state_estimator
+    ${drake_LIBRARIES}
+    ${gflags_LIBRARIES})
+
+add_executable(iiwa_rlg_simulation iiwa_rlg_simulation.cc)
+
+target_link_libraries(iiwa_rlg_simulation
+    z
+    pthread
+    iiwa_common
+    iiwa_lcm
+    iiwa_wsg_diagram_factory
+    ${drake_LIBRARIES}
+    ${gflags_LIBRARIES}
+    RemoteTreeViewerWrapper)
+
+install(TARGETS iiwa_rlg_simulation DESTINATION bin)
+install(TARGETS iiwa_common iiwa_lcm iiwa_oracular_state_estimator iiwa_wsg_diagram_factory DESTINATION lib)
