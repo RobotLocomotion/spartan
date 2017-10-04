@@ -5,13 +5,18 @@ group "1.vision-drivers" {
     host = "localhost";
   }
 
-  cmd "0.apriltag-driver" {
+  cmd "1.apriltag-driver" {
     exec = "drc-apriltags-driver --quiet=true --window=false --config=$SPARTAN_SOURCE_DIR/apps/iiwa/tri_iiwa_apriltags.yaml";
     host = "localhost";
   }
 
-  cmd "0.optitrack-driver" {
+  cmd "2.optitrack-driver" {
     exec = "optitrack_client";
+    host = "localhost";
+  }
+
+  cmd "3.rgbd-viewer" {
+    exec = "directorPython -m director.imageviewapp --bot-config $SPARTAN_SOURCE_DIR/apps/iiwa/iiwaManip.cfg --channel OPENNI_FRAME --rgbd --pointcloud";
     host = "localhost";
   }
 }
