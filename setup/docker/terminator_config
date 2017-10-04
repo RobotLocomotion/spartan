@@ -6,11 +6,9 @@
 [keybindings] 
   full_screen = <Ctrl><Shift>F11
 
-
 [profiles] 
-  [[default]] 
-    font = Fixed 10 
-    background_color = "#501010" # A comment 
-    foreground_color = "#FFFFFF" # Note that hex colour values must be quoted
-    scrollback_lines = '4000' #More comment. Single quotes are valid too
-    cursor_blink = True
+  [[default]] # solarized-light
+	palette = "#073642:#dc322f:#859900:#b58900:#268bd2:#d33682:#2aa198:#eee8d5:#002b36:#cb4b16:#586e75:#657b83:#839496:#6c71c4:#93a1a1:#fdf6e3"
+	foreground_color = "#eee8d5"
+	background_color = "#002b36"
+	cursor_color = "#eee8d5"
