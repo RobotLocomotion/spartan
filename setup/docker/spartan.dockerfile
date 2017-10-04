@@ -11,4 +11,7 @@ RUN yes "Y" | /tmp/spartan_install_prereqs.sh
 COPY ./drake/setup/ubuntu/16.04/install_prereqs.sh /tmp/drake_install_prereqs.sh
 RUN yes "Y" | /tmp/drake_install_prereqs.sh
 
+RUN mkdir -p /root/.config/terminator
+COPY ./setup/docker/terminator_config /root/.config/terminator/config
+
 ENTRYPOINT bash -c "source /root/spartan/setup/docker/entrypoint.sh && /bin/bash"

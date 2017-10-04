@@ -1,0 +1,16 @@
+# Modified terminator default config
+# for use in Spartan docker container
+[global_config] 
+  focus = system
+
+[keybindings] 
+  full_screen = <Ctrl><Shift>F11
+
+
+[profiles] 
+  [[default]] 
+    font = Fixed 10 
+    background_color = "#501010" # A comment 
+    foreground_color = "#FFFFFF" # Note that hex colour values must be quoted
+    scrollback_lines = '4000' #More comment. Single quotes are valid too
+    cursor_blink = True
