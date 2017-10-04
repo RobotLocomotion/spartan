@@ -7,7 +7,7 @@ if __name__=="__main__":
 	
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-i", "--image", type=str,
-		help="(required) name of the image that this container is dervied from", default="spartan")
+		help="(required) name of the image that this container is derived from", default="spartan")
 
 	parser.add_argument("-c", "--container", type=str, default="spartan", help="(optional) name of the container")\
 
@@ -24,8 +24,10 @@ if __name__=="__main__":
 
 	cmd += " -e DISPLAY -e QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix:rw -v %(source_dir)s:/root/spartan "  % {'source_dir': source_dir}
 	cmd += " -v ~/.ssh:/root/.ssh "
-	cmd += " -p 30200:30200/udp " # expose udp port
-	cmd += " -p 30201:30201/udp " # expose another udp port
+	cmd += " -p 30200:30200/udp " # expose udp ports for kuka
+	cmd += " -p 30201:30201/udp " # expose udp ports for kuka
+	cmd += " -p 1500:1500/udp " # expose udp ports for schunk
+	cmd += " -p 1501:1501/udp " # expose udp ports for schunk
 	cmd += " --privileged -v /dev/bus/usb:/dev/bus/usb " # allow usb access
 	
 	
