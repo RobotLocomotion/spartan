@@ -10,6 +10,8 @@ RUN usermod -aG sudo $USER_NAME
 RUN yes $USER_PASSWORD | passwd $USER_NAME
 
 WORKDIR /home/$USER_NAME
+# require no sudo pw in docker
+# RUN echo $USER_PASSWORD | sudo -S bash -c 'echo "'$USER_NAME' ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/docker-user' && printf "\n"
 
 COPY ./setup/docker/install_dependencies.sh /tmp/install_dependencies.sh
 RUN yes "Y" | /tmp/install_dependencies.sh
@@ -24,6 +26,6 @@ RUN yes "Y" | /tmp/drake_install_prereqs.sh
 RUN mkdir -p .config/terminator
 COPY ./setup/docker/terminator_config .config/terminator/config
 
-ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh $USER_NAME $USER_PASSWORD && /bin/bash"
+ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh && /bin/bash"
 
 
