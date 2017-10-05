@@ -53,21 +53,28 @@ comparing them to the template model's ppf.
 using namespace std;
 using namespace Eigen;
 
+static inline double lb_log_likelihood(double x, double mean, double var,
+                                       double lb) {
+  return fmax(lb, -pow(mean - x, 2) / (2. * var));
+}
 /**
  * Computes the histogram intersection score between `source_histogram` and
- * `template_histogram` given `prior_histogram`.
+ * `template_histogram` given `prior_histogram_means' and 'prior_histogram_.
  *
  */
 double ComputeWeightedHistogramIntersectionScore(
     const EigenHistogram<double> &source_histogram,
     const EigenHistogram<double> &template_histogram,
-    const EigenHistogram<double> &prior_histogram) {
+    const EigenNdArray<double> &prior_histogram_means,
+    const EigenNdArray<double> &prior_histogram_variances) {
   auto source_hist_data = source_histogram.Serialize();
   auto template_hist_data = template_histogram.Serialize();
-  auto prior_hist_data = prior_histogram.Serialize();
+  auto prior_hist_means_data = prior_histogram_means.Serialize();
+  auto prior_hist_variances_data = prior_histogram_variances.Serialize();
 
   if (source_hist_data.size() != template_hist_data.size() ||
-      source_hist_data.size() != prior_hist_data.size()) {
+      source_hist_data.size() != prior_hist_means_data.size() ||
+      source_hist_data.size() != prior_hist_variances_data.size()) {
     printf(
         "For now, I require that all input histograms have same underlying "
         "size.");
@@ -81,19 +88,23 @@ double ComputeWeightedHistogramIntersectionScore(
   VectorXd template_vec =
       Map<VectorXi>(template_hist_data.data(), template_hist_data.size())
           .cast<double>();
-  VectorXd prior_vec =
-      Map<VectorXi>(prior_hist_data.data(), prior_hist_data.size())
-          .cast<double>();
+  VectorXd prior_means_vec =
+      Map<VectorXd>(prior_hist_means_data.data(), prior_hist_means_data.size());
+  VectorXd prior_variances_vec = Map<VectorXd>(
+      prior_hist_variances_data.data(), prior_hist_variances_data.size());
 
-  // Normalize all
-  source_vec.normalize();
-  template_vec.normalize();
-  prior_vec.normalize();
+  source_vec /= source_vec.sum();
+  template_vec /= template_vec.sum();
 
   double score = 0.0;
   for (int i = 0; i < source_hist_data.size(); i++) {
-    // Yes I know the prior vec does not affect this at all...
-    score += fabs( (source_vec[i] - prior_vec[i]) - (template_vec[i] - prior_vec[i]) );
+    // Compute lower-bounded log-likelihood of both source and template at this
+    // point
+    double s = -lb_log_likelihood(source_vec[i], prior_means_vec[i],
+                                 prior_variances_vec[i], -10.);
+    double t = -lb_log_likelihood(template_vec[i], prior_means_vec[i],
+                                 prior_variances_vec[i], -10.);
+    score += fmin(s*source_vec[i], t*template_vec[i]);
   }
   return score;
 }
@@ -144,14 +155,12 @@ int main(int argc, char **argv) {
       prior_yaml["n_bins"]["n1_n2"].as<double>(),
       prior_yaml["n_bins"]["d_n1"].as<double>(),
       prior_yaml["n_bins"]["d_n2"].as<double>();
-  VectorXd lb_prior(4);
-  lb_prior << 0.0, 0.0, 0.0, 0.0;
-  VectorXd ub_prior(4);
-  ub_prior << prior_yaml["max_distance"].as<double>(), 3.1415, 3.1415, 3.1415;
-  EigenHistogram<double> prior_feature_histogram(n_bins_prior, lb_prior,
-                                                 ub_prior);
-  prior_feature_histogram.Deserialize(
-      prior_yaml["histogram"].as<vector<int>>());
+  EigenNdArray<double> prior_histogram_means(n_bins_prior);
+  EigenNdArray<double> prior_histogram_variances(n_bins_prior);
+  prior_histogram_means.Deserialize(
+      prior_yaml["histogram_means"].as<vector<double>>());
+  prior_histogram_variances.Deserialize(
+      prior_yaml["histogram_means"].as<vector<double>>());
 
   // Load the scene and model point clouds.
   Matrix<double, 6, -1> scene_point_normals =
@@ -246,7 +255,7 @@ int main(int argc, char **argv) {
         // Compute histogram inner product.
         double score = ComputeWeightedHistogramIntersectionScore(
             scene_cell_feature_histogram, model_feature_histogram,
-            prior_feature_histogram);
+            prior_histogram_means, prior_histogram_variances);
         // printf("\tScore: %f\n", score);
 
         sample_centroids.col(overall_ind) = Vector3d((lb_pt + ub_pt) / 2.);
@@ -261,7 +270,7 @@ int main(int argc, char **argv) {
   scores.conservativeResize(overall_ind);
 
   printf("Before normalization, scores ranged between min %f and max %f\n",
-    scores.minCoeff(), scores.maxCoeff());
+         scores.minCoeff(), scores.maxCoeff());
   scores -= VectorXd::Ones(scores.rows()) * scores.minCoeff();
   scores /= scores.maxCoeff();
   for (int i = 0; i < overall_ind; i++) {
