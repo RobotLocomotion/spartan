@@ -2,12 +2,14 @@
 
 import argparse
 import os
+import getpass
 
 if __name__=="__main__":
-	
+	user_name = getpass.getuser()
+	default_image_name = user_name + '-spartan'
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-i", "--image", type=str,
-		help="(required) name of the image that this container is dervied from", default="spartan")
+		help="(required) name of the image that this container is dervied from", default=default_image_name)
 
 	parser.add_argument("-c", "--container", type=str, default="spartan", help="(optional) name of the container")\
 
@@ -17,18 +19,24 @@ if __name__=="__main__":
 	print "running docker container derived from image %s" %args.image
 	source_dir=os.getcwd()
 
+	image_name = args.image
+	home_directory = '/home/' + user_name
+
 	cmd = "xhost +local:root \n"
 	cmd += "nvidia-docker run -it "
 	if args.container:
 		cmd += " --name %(container_name)s " % {'container_name': args.container}
 
-	cmd += " -e DISPLAY -e QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix:rw -v %(source_dir)s:/root/spartan "  % {'source_dir': source_dir}
-	cmd += " -v ~/.ssh:/root/.ssh "
+	cmd += " -e DISPLAY -e QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix:rw -v %(source_dir)s:%(home_directory)s/spartan "  % {'source_dir': source_dir, 'home_directory': home_directory}
+	cmd += " -v ~/.ssh:%(home_directory)s/.ssh " % {'home_directory': home_directory}
+	cmd += " --user %s " % user_name # login as current user
+
+    # expose UDP ports
 	cmd += " -p 30200:30200/udp " # expose udp port
 	cmd += " -p 30201:30201/udp " # expose another udp port
 	cmd += " --privileged -v /dev/bus/usb:/dev/bus/usb " # allow usb access
 	
-	
+	cmd += " --rm " # remove the image when you exit
 	cmd += args.image + "\n"
 	cmd += "xhost -local:root"
 
