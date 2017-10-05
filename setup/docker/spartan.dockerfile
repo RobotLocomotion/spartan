@@ -24,6 +24,6 @@ RUN yes "Y" | /tmp/drake_install_prereqs.sh
 RUN mkdir -p .config/terminator
 COPY ./setup/docker/terminator_config .config/terminator/config
 
-ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh && /bin/bash"
+ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh $USER_NAME $USER_PASSWORD && /bin/bash"
 
 
