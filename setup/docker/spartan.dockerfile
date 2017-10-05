@@ -25,6 +25,7 @@ RUN yes "Y" | /tmp/drake_install_prereqs.sh
 # set the terminator inside the docker container to be a different color
 RUN mkdir -p .config/terminator
 COPY ./setup/docker/terminator_config .config/terminator/config
+RUN chown $USER_NAME:$USER_NAME -R .config
 
 ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh && /bin/bash"
 
