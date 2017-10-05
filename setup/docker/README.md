@@ -25,7 +25,7 @@ After cloning spartan and setting up submodules, from the spartan root directory
 
 ```./setup/docker/docker_build.py```
 
-to build a docker image. Optionally you can pass the option `-i <image_name>` to specify the name of the image. Use `-h` to see a full list of command line options. Note you can also rename the image after building (see Docker Cheatsheet below).
+to build a docker image. The default image name is `<username>-spartan` where `<username>` is your username on the host machine. Optionally you can pass the option `-i <image_name>` to specify the name of the image. Use `-h` to see a full list of command line options. Note you can also rename the image after building (see Docker Cheatsheet below).
 
 This is a basic 16.04 environment with the necessary dependencies for `spartan` installed.
 
@@ -36,8 +36,10 @@ To create container derived from the image that was just build run (from the `sp
 ./setup/docker/docker_run.py
 ```
 
-By default this will create a container named `spartan` derived from an image named `spartan`. This container mounts your current
-spartan directory at `/root/spartan`. You can use the optional command line arguments `-i <image_name>` to derive a container from a specific image, and `-c <container_name>` to name the container. Use `-h` to see a full list of command line arguments. To run an already existing container just do
+By default this will create a container named `<username>-spartan` derived from an image named `<username>-spartan`. It also creates a user named `<username>` inside the docker container. By default this username will match the current username on the host machine. This is important for SSH keys used in cloning private github repos to work properly. The default password for your user inside the docker container is `kuka2017`. User the `-p` flag to set a different password.
+
+This container mounts your current
+spartan directory at `/home/<username>/spartan`. You can use the optional command line arguments `-i <image_name>` to derive a container from a specific image, and `-c <container_name>` to name the container. Use `-h` to see a full list of command line arguments. To run an already existing container just do
 
 ```
 docker start -i <container_name>
