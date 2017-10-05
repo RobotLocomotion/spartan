@@ -261,6 +261,7 @@ endif()
 
 if (WITH_SCHUNK_DRIVER)
 
+  find_program(CP cp)
   ExternalProject_Add(drake-schunk-driver
     SOURCE_DIR ${build_dir}/externals/drake-schunk-driver
     GIT_REPOSITORY git@github.com:RobotLocomotion/drake-schunk-driver.git
@@ -270,7 +271,7 @@ if (WITH_SCHUNK_DRIVER)
     USES_TERMINAL_BUILD 1
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" build //...
-    INSTALL_COMMAND ""
+    INSTALL_COMMAND "${CP}" ${build_dir}/externals/drake-schunk-driver/bazel-bin/src/schunk_driver ${build_dir}/install/bin/
     DEPENDS drake
   )
 
