@@ -2,12 +2,16 @@ FROM nvidia/cuda:8.0-devel-ubuntu16.04
 
 ARG USER_NAME
 ARG USER_PASSWORD
+ARG USER_ID
 
 RUN apt-get update
 RUN apt install sudo
 RUN useradd -ms /bin/bash $USER_NAME
 RUN usermod -aG sudo $USER_NAME
 RUN yes $USER_PASSWORD | passwd $USER_NAME
+
+# set uid to match the uid outside the container
+RUN usermod -u $USER_ID $USER_NAME 
 
 WORKDIR /home/$USER_NAME
 # require no sudo pw in docker

@@ -20,9 +20,11 @@ if __name__=="__main__":
 	parser.add_argument("-p", "--password", type=str,
                         help="(optional) password for the user", default="password")
 
+	parser.add_argument('-uid','--user_id', type=int, help="(optional) user id for this user", default=os.getuid())
+
 	args = parser.parse_args()
 	print "building docker image named ", args.image
-	cmd = "docker build --build-arg USER_NAME=%(user_name)s --build-arg USER_PASSWORD=%(password)s " %{'user_name': user_name, 'password': args.password}
+	cmd = "docker build --build-arg USER_NAME=%(user_name)s --build-arg USER_PASSWORD=%(password)s --build-arg USER_ID=%(user_id)s" %{'user_name': user_name, 'password': args.password, 'user_id': args.user_id}
 	cmd += " -t %s -f setup/docker/spartan.dockerfile ." % args.image
 	
 
