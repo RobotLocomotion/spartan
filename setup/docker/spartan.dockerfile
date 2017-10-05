@@ -13,6 +13,8 @@ RUN useradd -ms /bin/bash $USER_NAME
 RUN usermod -aG sudo $USER_NAME
 RUN yes $USER_PASSWORD | passwd $USER_NAME
 
+WORKDIR /home/$USER_NAME
+
 COPY ./setup/docker/install_dependencies.sh /tmp/install_dependencies.sh
 RUN yes "Y" | /tmp/install_dependencies.sh
 
@@ -23,8 +25,8 @@ COPY ./drake/setup/ubuntu/16.04/install_prereqs.sh /tmp/drake_install_prereqs.sh
 RUN yes "Y" | /tmp/drake_install_prereqs.sh
 
 # set the terminator inside the docker container to be a different color
-RUN mkdir -p ~/.config/terminator
-COPY ./setup/docker/terminator_config ~/.config/terminator/config
+RUN mkdir -p .config/terminator
+COPY ./setup/docker/terminator_config .config/terminator/config
 
 ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh && /bin/bash"
 
