@@ -32,8 +32,11 @@ if __name__=="__main__":
 	cmd += " --user %s " % user_name # login as current user
 
     # expose UDP ports
-	cmd += " -p 30200:30200/udp " # expose udp port
-	cmd += " -p 30201:30201/udp " # expose another udp port
+	cmd += " -p 30200:30200/udp " # expose udp ports for kuka
+	cmd += " -p 30201:30201/udp " # expose udp ports for kuka
+	cmd += " -p 1500:1500/udp " # expose udp ports for schunk
+	cmd += " -p 1501:1501/udp " # expose udp ports for schunk
+
 	cmd += " --privileged -v /dev/bus/usb:/dev/bus/usb " # allow usb access
 	
 	cmd += " --rm " # remove the image when you exit

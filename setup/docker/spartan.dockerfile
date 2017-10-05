@@ -22,4 +22,10 @@ RUN yes "Y" | /tmp/spartan_install_prereqs.sh
 COPY ./drake/setup/ubuntu/16.04/install_prereqs.sh /tmp/drake_install_prereqs.sh
 RUN yes "Y" | /tmp/drake_install_prereqs.sh
 
+# set the terminator inside the docker container to be a different color
+RUN mkdir -p ~/.config/terminator
+COPY ./setup/docker/terminator_config ~/.config/terminator/config
+
 ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh && /bin/bash"
+
+
