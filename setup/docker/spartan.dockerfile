@@ -3,10 +3,6 @@ FROM nvidia/cuda:8.0-devel-ubuntu16.04
 ARG USER_NAME
 ARG USER_PASSWORD
 
-RUN echo "user name" 
-RUN echo $USER_NAME
-RUN echo "user password"
-RUN echo $USER_PASSWORD
 RUN apt-get update
 RUN apt install sudo
 RUN useradd -ms /bin/bash $USER_NAME
