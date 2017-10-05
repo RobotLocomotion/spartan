@@ -39,11 +39,7 @@ To create container derived from the image that was just build run (from the `sp
 By default this will create a container named `<username>-spartan` derived from an image named `<username>-spartan`. It also creates a user named `<username>` inside the docker container. By default this username will match the current username on the host machine. This is important for SSH keys used in cloning private github repos to work properly. The default password for your user inside the docker container is `kuka2017`. User the `-p` flag to set a different password.
 
 This container mounts your current
-spartan directory at `/home/<username>/spartan`. You can use the optional command line arguments `-i <image_name>` to derive a container from a specific image, and `-c <container_name>` to name the container. Use `-h` to see a full list of command line arguments. To run an already existing container just do
-
-```
-docker start -i <container_name>
-```
+spartan directory at `/home/<username>/spartan`. You can use the optional command line arguments `-i <image_name>` to derive a container from a specific image, and `-c <container_name>` to name the container. Use `-h` to see a full list of command line arguments. By default the container will be deleted upon exiting the container (due to the `--rm` flag), but both the source code and the compiled binaries live outside the container.
 
 See [here](https://docs.docker.com/engine/reference/commandline/start/) for more documentation on the `docker run` command.
 
