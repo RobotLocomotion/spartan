@@ -9,7 +9,7 @@ if __name__=="__main__":
 	default_image_name = user_name + '-spartan'
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-i", "--image", type=str,
-		help="(required) name of the image that this container is dervied from", default=default_image_name)
+		help="(required) name of the image that this container is derived from", default=default_image_name)
 
 	parser.add_argument("-c", "--container", type=str, default="spartan", help="(optional) name of the container")\
 
