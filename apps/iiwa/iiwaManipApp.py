@@ -275,6 +275,11 @@ robotLinkSelector = robotlinkselector.RobotLinkSelector()
 viewBehaviors.addHandler(viewBehaviors.LEFT_DOUBLE_CLICK_EVENT, robotLinkSelector.onLeftDoubleClick)
 
 
+# broadcast the pose of the wrist mounted Xtion
+import spartan.perception.cameratransform
+cameraTransform = spartan.perception.cameratransform.CameraTransform(robotSystem)
+
+
 if havePerceptionDrivers():
 
     import mytaskpanel
