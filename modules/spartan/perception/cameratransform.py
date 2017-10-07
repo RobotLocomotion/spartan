@@ -19,6 +19,8 @@ from director import visualization as vis
 import bot_core as lcmbotcore
 
 
+# spartan
+import spartan.utils as spartanUtils
 
 pos = np.array([  1.38777878e-17,  -5.87267617e-02,   3.12766745e-02])
 quat = np.array([  6.99802244e-01,   7.14336629e-01,   4.87254201e-17,
@@ -67,3 +69,14 @@ class CameraTransform(object):
 		lcmUtils.publish(self.channelName, cameraToWorldMsg)
 
 
+	@staticmethod
+	def fromConfigFilename(robotSystem, configFilename):
+		config = spartanUtils.getDictFromYamlFilename(configFilename)
+
+		transform = config['camera_pose']['transform_to_reference_link']
+		pos = np.array([transform['pos']['x'], transform['pos']['y'], transform['pos']['z']])
+		quat = np.array([transform['quat']['w'], transform['quat']['x'], transform['quat']['y'], transform['quat']['z']])
+
+		cameraToLinkTransform = transformUtils.transformFromPose(pos, quat)
+
+		return CameraTransform(robotSystem, referenceLinkName=config['camera_pose']['reference_link_name'], cameraToLinkTransform=cameraToLinkTransform, channelName=config['channel_name'])

@@ -276,8 +276,10 @@ viewBehaviors.addHandler(viewBehaviors.LEFT_DOUBLE_CLICK_EVENT, robotLinkSelecto
 
 
 # broadcast the pose of the wrist mounted Xtion
+import spartan.utils as spartanUtils
+cameraConfigFilename = os.path.join(spartanUtils.getSpartanSourceDir(), 'config', 'RLG', 'iiwa_1', 'camera_config.yaml')
 import spartan.perception.cameratransform
-cameraTransform = spartan.perception.cameratransform.CameraTransform(robotSystem)
+cameraTransform = spartan.perception.cameratransform.CameraTransform.fromConfigFilename(robotSystem, cameraConfigFilename)
 
 
 if havePerceptionDrivers():

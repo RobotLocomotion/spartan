@@ -12,6 +12,13 @@ import drake as lcmdrake
 from director import lcmUtils
 from director import utime as utimeUtil
 
+def getSpartanSourceDir():
+    return os.getenv("SPARTAN_SOURCE_DIR")
+
+def getDictFromYamlFilename(filename):
+    stream = file(filename)
+    return yaml.load(stream)
+
 class EstRobotStatePublisher(object):
 
     def __init__(self, robotSystem):
