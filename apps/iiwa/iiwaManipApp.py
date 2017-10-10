@@ -275,11 +275,6 @@ robotLinkSelector = robotlinkselector.RobotLinkSelector()
 viewBehaviors.addHandler(viewBehaviors.LEFT_DOUBLE_CLICK_EVENT, robotLinkSelector.onLeftDoubleClick)
 
 
-# broadcast the pose of the wrist mounted Xtion
-import spartan.utils as spartanUtils
-cameraConfigFilename = os.path.join(spartanUtils.getSpartanSourceDir(), 'config', 'RLG', 'iiwa_1', 'camera_config.yaml')
-import spartan.perception.cameratransform
-cameraTransform = spartan.perception.cameratransform.CameraTransform.fromConfigFilename(robotSystem, cameraConfigFilename)
 
 
 if havePerceptionDrivers():
@@ -336,3 +331,19 @@ if useCorlDev:
 app.restoreDefaultWindowState()
 app.initWindowSettings()
 applogic.resetCamera(viewDirection=[-1,1,-0.5], view=view)
+
+
+useKukaDev = True
+if useKukaDev:
+
+    # broadcast the pose of the wrist mounted Xtion
+    import spartan.utils as spartanUtils
+    cameraConfigFilename = os.path.join(spartanUtils.getSpartanSourceDir(), 'config', 'RLG', 'iiwa_1', 'camera_config.yaml')
+    import spartan.perception.cameratransform
+    cameraTransform = spartan.perception.cameratransform.CameraTransform.fromConfigFilename(robotSystem, cameraConfigFilename)
+
+    import spartan.perception.dev as devUtils
+    efusion = devUtils.ElasticFusionReconstruction()
+
+    import spartan.perception.handeyecalibration
+    cal = spartan.perception.handeyecalibration.HandEyeCalibration(robotSystem)
