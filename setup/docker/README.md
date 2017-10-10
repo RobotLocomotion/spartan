@@ -16,8 +16,6 @@ git submodule update
 ./setup/docker/docker_run.py
 mkdir build && cd build && cmake .. && make -j8
 ```
-Note: at the moment, don't use a passphrase for your SSH keys -- a build from within the Docker container will always request the password when cloning and will thus fail.
-
 Below is explained additional options and details of the above.
 
 ## Building Docker Image
