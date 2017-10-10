@@ -4,6 +4,7 @@ ARG USER_NAME
 ARG USER_PASSWORD
 ARG USER_ID
 ARG USER_GID
+ARG BUILD_ELASTIC_FUSION=false
 
 RUN apt-get update
 RUN apt install sudo
@@ -28,6 +29,13 @@ RUN yes "Y" | /tmp/spartan_install_prereqs.sh
 
 COPY ./drake/setup/ubuntu/16.04/install_prereqs.sh /tmp/drake_install_prereqs.sh
 RUN yes "Y" | /tmp/drake_install_prereqs.sh
+
+# build elastic fusion
+COPY ./setup/docker/install_elasticfusion.sh /tmp/install_elasticfusion.sh
+RUN yes "Y" | /tmp/install_elasticfusion.sh
+ENV ELASTIC_FUSION_EXECUTABLE=~/ElasticFusion/install/bin/ElasticFusion
+
+
 
 # set the terminator inside the docker container to be a different color
 RUN mkdir -p .config/terminator

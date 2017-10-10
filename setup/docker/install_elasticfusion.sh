@@ -90,6 +90,9 @@ build_elasticfusion()
   # cleanup to make the docker image smaller
   cd ../..
   find . -name \*.o | xargs rm
+
+  # will this persist past image creation?
+  export ELASTIC_FUSION_EXECUTABLE=$install_dir/ElasticFusion
 }
 
 

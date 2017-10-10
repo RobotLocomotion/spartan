@@ -11,3 +11,4 @@ apt install --no-install-recommends \
   git \
   openssh-client \
   unzip \
+  htop
