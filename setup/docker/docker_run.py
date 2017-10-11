@@ -31,6 +31,15 @@ if __name__=="__main__":
 	cmd += " -v %(source_dir)s:%(home_directory)s/spartan "  \
 		% {'source_dir': source_dir, 'home_directory': home_directory}	            # mount source
 	cmd += " -v ~/.ssh:%(home_directory)s/.ssh " % {'home_directory': home_directory}   # mount ssh keys
+
+	# Make Bazel artifact dir if it doesn't exist
+	bazel_artifact_dir = "~/.spartan-docker/%(image_name)s-build" % {'image_name': image_name}
+	mkdir_cmd = "mkdir -p %s" % bazel_artifact_dir
+	print "command = ", mkdir_cmd
+	os.system(mkdir_cmd)
+
+	cmd += " -v %(bazel_artifact_dir)s:%(home_directory)s/.spartan-build " \
+	% {'bazel_artifact_dir': bazel_artifact_dir, 'home_directory': home_directory}   # mount bazel build artifact dirs
 	cmd += " --user %s " % user_name                                                    # login as current user
 
     # expose UDP ports
