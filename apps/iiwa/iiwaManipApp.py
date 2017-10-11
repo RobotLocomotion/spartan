@@ -333,8 +333,8 @@ app.initWindowSettings()
 applogic.resetCamera(viewDirection=[-1,1,-0.5], view=view)
 
 
-useKukaDev = True
-if useKukaDev:
+useKukaRLGDev = False
+if useKukaRLGDev:
 
     # broadcast the pose of the wrist mounted Xtion
     import spartan.utils as spartanUtils
@@ -343,7 +343,7 @@ if useKukaDev:
     cameraTransform = spartan.perception.cameratransform.CameraTransform.fromConfigFilename(robotSystem, cameraConfigFilename)
 
     import spartan.perception.dev as devUtils
-    efusion = devUtils.ElasticFusionReconstruction()
+    # efusion = devUtils.ElasticFusionReconstruction()
 
     import spartan.perception.handeyecalibration
     cal = spartan.perception.handeyecalibration.HandEyeCalibration(robotSystem)
