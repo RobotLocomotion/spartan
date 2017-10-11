@@ -91,22 +91,16 @@ def applyCameraTransform(transform_in):
 	return transform
 
 # gather world transforms
-world_effector_transforms = TransformArray()
-world_effector_transforms.header.seq = 0
-world_effector_transforms.header.stamp = 0
-world_effector_transforms.header.frame_id = "world"
+world_effector_transforms = []
 
 for i in range(10):
-	world_effector_transforms.transforms.append(randomTransform())
+	world_effector_transforms.append(randomTransform())
 
 # gather camera transforms
-camera_object_transforms = TransformArray()
-camera_object_transforms.header.seq = 0
-camera_object_transforms.header.stamp = 0
-camera_object_transforms.header.frame_id = "world"
+camera_object_transforms = []
 
-for i,v in enumerate(world_effector_transforms.transforms):
-	camera_object_transforms.transforms.append(applyCameraTransform(v))
+for i,v in enumerate(world_effector_transforms):
+	camera_object_transforms.append(applyCameraTransform(v))
 
 ## --- testing with random transforms -- ##
 
@@ -125,9 +119,9 @@ time.sleep(2)
 
 # publish Transfroms
 
-for i in range(len(world_effector_transforms.transforms)):
-	world_effector_pub.publish(world_effector_transforms.transforms[i])
-	camera_object_pub.publish(camera_object_transforms.transforms[i])
+for i in range(len(world_effector_transforms)):
+	world_effector_pub.publish(world_effector_transforms[i])
+	camera_object_pub.publish(camera_object_transforms[i])
 
 # hack: need to sleep after publishing all transforms, otherwise visp may not
 # be ready when it is asked to compute the hand-eye ("effector_camera") transform
