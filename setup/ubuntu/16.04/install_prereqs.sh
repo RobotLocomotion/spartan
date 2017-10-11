@@ -2,6 +2,8 @@
 
 set -euxo pipefail
 
+apt-get update
+
 apt install --no-install-recommends \
   cmake \
   cmake-curses-gui \
