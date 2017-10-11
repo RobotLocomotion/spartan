@@ -22,7 +22,7 @@ sys.path.append('../LabelFusion/modules/labelfusion')
 from cameraposes import CameraPoses
 
 
-path_to_calibration_folder = os.path.join(os.getcwd(),"data/20171010-173517")
+path_to_calibration_folder = os.path.join(os.getcwd(),"data/20171011-145541")
 
 ###
 # generate camera poses to match utimes of robot poses
