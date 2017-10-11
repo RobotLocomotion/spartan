@@ -28,22 +28,29 @@ path_to_calibration_folder = os.path.join(os.getcwd(),"data/20171010-173517")
 # generate camera poses to match utimes of robot poses
 ##
 
+# create CameraPoses object from timestamped posegraph of camera
 posegraph_file = os.path.join(path_to_calibration_folder,"posegraph.posegraph")
 print posegraph_file
 cameraposes = CameraPoses(posegraph_file)
+
+# read in available robot data
+yaml_file_name = os.path.join(path_to_calibration_folder, "robot_data.yaml")
+with open(yaml_file_name, 'r') as f:
+    calib_data = yaml.load(f)
+
+
+# augment data with matched camera poses
+for index, value in enumerate(calib_data):
+	print index
+	print value['utime']
+	transform = cameraposes.getCameraPoseAtUTime(value['utime'])
+	print transform
 
 
 ###
 # read in yaml file of camera poses and hand poses
 ###
 
-yaml_file_name = os.path.join(path_to_calibration_folder, "robot_data.yaml")
-with open(yaml_file_name, 'r') as f:
-    calib_data = yaml.load(f)
-
-for i in range(len(calib_data)):
-	print i
-	print calib_data[i]
 
 ###
 # compute relative transforms for all
