@@ -2,10 +2,18 @@
 
 set -euxo pipefail
 
+apt-get update
+
 apt install --no-install-recommends \
+  cmake \
+  cmake-curses-gui \
+  freeglut3-dev \
   libboost-all-dev \
+  libhdf5-dev \
   libjsoncpp-dev \
-  libtheora-dev \
+  libnetcdf-dev \
+  libnetcdf-c++4-dev \
+  libnetcdf-cxx-legacy-dev \
   libogg-dev \
   libopencv-dev \
   libopenni2-dev \
@@ -16,10 +24,12 @@ apt install --no-install-recommends \
   libtheora-dev \
   libusb-1.0-0-dev \
   libxt-dev \
+  libtheora-dev \
+  libxml2-dev \
+  make \
   python-matplotlib \
   qt5-default \
   qtbase5-private-dev \
   qtmultimedia5-dev \
   qtscript5-dev \
   qttools5-dev \
-  freeglut3-dev
