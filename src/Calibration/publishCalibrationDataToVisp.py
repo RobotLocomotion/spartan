@@ -5,16 +5,20 @@
 #
 # rosrun visp_hand2eye_calibratiosp_hand2eye_calibration_calibrator 
 #
-# ./publishCalibrationDataToVisp.py
+# directorPython publishCalibrationDataToVisp.py
 
 import rospy
 import yaml
 import time
 import random
+
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Transform
 from visp_hand2eye_calibration.msg import TransformArray
 from visp_hand2eye_calibration.srv import compute_effector_camera
+
+sys.path.append('../LabelFusion/modules/labelfusion')
+from cameraposes import CameraPoses
 
 ###
 # read in yaml file of camera poses and hand poses
@@ -24,11 +28,9 @@ yaml_file_name = "./data/20171010-173517/robot_data.yaml"
 with open(yaml_file_name, 'r') as f:
     calib_data = yaml.load(f)
 
-for i in range(len(doc)):
+for i in range(len(calib_data)):
 	print i
 	print calib_data[i]
-
-quit()
 
 ###
 # compute relative transforms for all
