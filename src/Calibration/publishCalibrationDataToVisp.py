@@ -45,16 +45,16 @@ with open(in_yaml_file_name, 'r') as f:
 for index, value in enumerate(calib_data):
 	transform = cameraposes.getCameraPoseAtUTime(value['utime'])
 	(pos, quat) = transformUtils.poseFromTransform(transform)
-	calib_data[index]['camera-pose'] = dict()
-	calib_data[index]['camera-pose']['quaternion'] = dict()
-	calib_data[index]['camera-pose']['quaternion']['w'] = float(quat[0])
-	calib_data[index]['camera-pose']['quaternion']['x'] = float(quat[1])
-	calib_data[index]['camera-pose']['quaternion']['y'] = float(quat[2])
-	calib_data[index]['camera-pose']['quaternion']['z'] = float(quat[3])
-	calib_data[index]['camera-pose']['translation'] = dict()
-	calib_data[index]['camera-pose']['translation']['x'] = float(pos[0])
-	calib_data[index]['camera-pose']['translation']['y'] = float(pos[1])
-	calib_data[index]['camera-pose']['translation']['Z'] = float(pos[2])
+	calib_data[index]['camera_frame'] = dict()
+	calib_data[index]['camera_frame']['quaternion'] = dict()
+	calib_data[index]['camera_frame']['quaternion']['w'] = float(quat[0])
+	calib_data[index]['camera_frame']['quaternion']['x'] = float(quat[1])
+	calib_data[index]['camera_frame']['quaternion']['y'] = float(quat[2])
+	calib_data[index]['camera_frame']['quaternion']['z'] = float(quat[3])
+	calib_data[index]['camera_frame']['translation'] = dict()
+	calib_data[index]['camera_frame']['translation']['x'] = float(pos[0])
+	calib_data[index]['camera_frame']['translation']['y'] = float(pos[1])
+	calib_data[index]['camera_frame']['translation']['z'] = float(pos[2])
 
 
 out_yaml_file_name = os.path.join(path_to_calibration_folder, "robot_camera_data.yaml")
@@ -66,46 +66,60 @@ with open(out_yaml_file_name, 'w') as outfile:
 # publish transforms for visp
 ###
 
-## --- testing with random transforms -- ##
-
-def randomTransform():
-	transform = Transform()
-	transform.translation.x = random.uniform(-1,1)
-	transform.translation.y = random.uniform(-1,1)
-	transform.translation.z = random.uniform(-1,1)
-	transform.rotation.x    = random.uniform(-1,1)
-	transform.rotation.y    = random.uniform(-1,1)
-	transform.rotation.z    = random.uniform(-1,1)
-	transform.rotation.w    = 1.0
-	return transform
-
-def applyCameraTransform(transform_in):
-	transform = Transform()
-	transform.translation.x = transform_in.translation.x
-	transform.translation.y = transform_in.translation.y
-	transform.translation.z = transform_in.translation.z + 0.5
-	transform.rotation.x    = transform_in.rotation.x   
-	transform.rotation.y    = transform_in.rotation.y   
-	transform.rotation.z    = transform_in.rotation.z   
-	transform.rotation.w    = transform_in.rotation.w   
-	return transform
-
-# gather world transforms
-world_effector_transforms = []
-
-for i in range(10):
-	world_effector_transforms.append(randomTransform())
-
 # gather camera transforms
 camera_object_transforms = []
-
-for i,v in enumerate(world_effector_transforms):
-	camera_object_transforms.append(applyCameraTransform(v))
+world_effector_transforms = []
 
 ## --- testing with random transforms -- ##
+# def randomTransform():
+# 	transform = Transform()
+# 	transform.translation.x = random.uniform(-1,1)
+# 	transform.translation.y = random.uniform(-1,1)
+# 	transform.translation.z = random.uniform(-1,1)
+# 	transform.rotation.x    = random.uniform(-1,1)
+# 	transform.rotation.y    = random.uniform(-1,1)
+# 	transform.rotation.z    = random.uniform(-1,1)
+# 	transform.rotation.w    = 1.0
+# 	return transform
 
-#for index, value in enumerate(calib_data):
+# def applyCameraTransform(transform_in):
+# 	transform = Transform()
+# 	transform.translation.x = transform_in.translation.x
+# 	transform.translation.y = transform_in.translation.y
+# 	transform.translation.z = transform_in.translation.z + 0.5
+# 	transform.rotation.x    = transform_in.rotation.x   
+# 	transform.rotation.y    = transform_in.rotation.y   
+# 	transform.rotation.z    = transform_in.rotation.z   
+# 	transform.rotation.w    = transform_in.rotation.w   
+# 	return transform
 
+# for i in range(10):
+# 	world_effector_transforms.append(randomTransform())
+
+# for i,v in enumerate(world_effector_transforms):
+# 	camera_object_transforms.append(applyCameraTransform(v))
+## --- testing with random transforms -- ##
+
+def yamlEntryToROSGeometryTransform(yaml_entry):
+	transform = Transform()
+	print yaml_entry['translation']
+	print yaml_entry['quaternion']
+	if 'y' not in yaml_entry['quaternion']:
+		yaml_entry['quaternion']['y'] = yaml_entry['quaternion']['y`'] 
+
+	transform.translation.x = yaml_entry['translation']['x']
+	transform.translation.y = yaml_entry['translation']['y']
+	transform.translation.z = yaml_entry['translation']['z']
+	transform.rotation.w    = yaml_entry['quaternion']['w']
+	transform.rotation.x    = yaml_entry['quaternion']['x']
+	transform.rotation.y    = yaml_entry['quaternion']['y']
+	transform.rotation.z    = yaml_entry['quaternion']['z']
+	return transform
+
+for index, value in enumerate(calib_data):
+	print index
+	world_effector_transforms.append(yamlEntryToROSGeometryTransform(value['hand_frame']))
+	camera_object_transforms.append(yamlEntryToROSGeometryTransform(value['camera_frame']))
 
 
 # init node and publishers
