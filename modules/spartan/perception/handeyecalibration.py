@@ -173,7 +173,7 @@ class HandEyeCalibration(object):
 		self.calibrationData = []
 		unique_name = time.strftime("%Y%m%d-%H%M%S")
 		self.calibrationFolderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'calibration_data',unique_name)
-		os.mkdir(self.calibrationFolderName)
+		os.system("mkdir -p " + self.calibrationFolderName)
 		os.chdir(self.calibrationFolderName)
 		cmd = "lcm-logger calibration.lcmlog"
 		self.loggerProcess = subprocess.Popen("exec " + cmd, shell = True)
