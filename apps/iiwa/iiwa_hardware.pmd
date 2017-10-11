@@ -11,7 +11,7 @@ group "1.vision-drivers" {
   }
 
   cmd "2.optitrack-driver" {
-    exec = "optitrack_client";
+    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/external/optitrack_driver/src/optitrack_client";
     host = "localhost";
   }
 
