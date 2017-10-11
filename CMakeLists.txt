@@ -106,7 +106,7 @@ ExternalProject_Add(drake
     BUILD_IN_SOURCE 1
     USES_TERMINAL_BUILD 1
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" build ${BAZEL_ARGS} //drake/examples/kuka_iiwa_arm/... //:install
+    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" build ${BAZEL_ARGS} //drake/examples/kuka_iiwa_arm/... //:install @optitrack_driver//src:optitrack_client
     INSTALL_COMMAND ${BAZEL_ENV} "${BAZEL}" run ${BAZEL_ARGS} //:install -- "${CMAKE_INSTALL_PREFIX}"
 )
 # This is based on drake's VTK/Qt dependency (see `tools/vtk.bzl` in drake).
@@ -221,7 +221,7 @@ if (OFF)
 endif()
 
 if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
-  
+
 
   set(IIWA_DRIVER_GIT_REPOSITORY
 	"git@github.com:RobotLocomotion/drake-iiwa-driver.git"
@@ -231,7 +231,7 @@ if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
   # initialize IIWA_DRIVER_GIT_TAG to be empty
   # then set it based on if we are using RLG or TRI driver
   set(IIWA_DRIVER_GIT_TAG "")
-  
+
   if (WITH_IIWA_DRIVER_RLG)
     set(IIWA_DRIVER_GIT_TAG
     "29cdd446394e0f350651271a87a105e72c41cf8e"
@@ -246,7 +246,7 @@ if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
 
   message("IIWA_DRIVER_GIT_TAG ${IIWA_DRIVER_GIT_TAG}")
 
-  
+
   ExternalProject_Add(drake-iiwa-driver
     SOURCE_DIR ${build_dir}/externals/drake-iiwa-driver
     BINARY_DIR ${build_dir}/drake-iiwa-driver
