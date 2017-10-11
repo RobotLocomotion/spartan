@@ -33,7 +33,7 @@ RUN yes "Y" | /tmp/drake_install_prereqs.sh
 # build elastic fusion
 COPY ./setup/docker/install_elasticfusion.sh /tmp/install_elasticfusion.sh
 RUN yes "Y" | /tmp/install_elasticfusion.sh
-ENV ELASTIC_FUSION_EXECUTABLE=$WORKDIR/ElasticFusion/install/bin/ElasticFusion
+ENV ELASTIC_FUSION_EXECUTABLE=WORKDIR/ElasticFusion/install/bin/ElasticFusion
 
 
 
