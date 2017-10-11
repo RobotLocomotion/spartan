@@ -26,6 +26,7 @@ import bot_core as lcmbotcore
 
 from director.timercallback import TimerCallback
 
+from labelfusion.cameraposes import CameraPoses
 
 
 
@@ -191,3 +192,34 @@ class HandEyeCalibration(object):
 
 
 		spartanUtils.saveToYaml(self.calibrationData, filename)
+
+
+"""
+calibrationData is a list of dicts as above
+cameraPoses is a CameraPoses object 
+"""
+def addCameraPosesToDataFile(calibrationData, cameraPoses):
+	# augment data with matched camera poses
+	# NOTE: camera poses are defined relative to first camera frame, hence the first one will look unintialized
+	for index, value in enumerate(calibrationData):
+		transform = cameraPoses.getCameraPoseAtUTime(value['utime'])
+		(pos, quat) = transformUtils.poseFromTransform(transform)
+		calibrationData[index]['camera_frame'] = dict()
+		calibrationData[index]['camera_frame']['quaternion'] = dict()
+		calibrationData[index]['camera_frame']['quaternion']['w'] = float(quat[0])
+		calibrationData[index]['camera_frame']['quaternion']['x'] = float(quat[1])
+		calibrationData[index]['camera_frame']['quaternion']['y'] = float(quat[2])
+		calibrationData[index]['camera_frame']['quaternion']['z'] = float(quat[3])
+		calibrationData[index]['camera_frame']['translation'] = dict()
+		calibrationData[index]['camera_frame']['translation']['x'] = float(pos[0])
+		calibrationData[index]['camera_frame']['translation']['y'] = float(pos[1])
+		calibrationData[index]['camera_frame']['translation']['z'] = float(pos[2])
+
+	return calibrationData
+
+def processCalibrationData(posegraph_file, robot_data_filename, save_data_filename):
+	cameraPoses = CameraPoses(posegraph_file)
+	calibrationData = spartanUtils.getDictFromYamlFilename(robot_data_filename)
+	calibrationData = addCameraPosesToDataFile(calibrationData, cameraPoses)
+	spartanUtils.saveToYaml(calibrationData, save_data_filename)
+
