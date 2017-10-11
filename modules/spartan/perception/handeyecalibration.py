@@ -23,6 +23,9 @@ from director import ikplanner
 from director import robotposegui
 RobotPoseGUIWrapper = ikplanner.RobotPoseGUIWrapper
 import bot_core as lcmbotcore
+from director.ikparameters import IkParameters
+
+
 
 from director.timercallback import TimerCallback
 
@@ -44,14 +47,15 @@ class RobotService(object):
 	"""
 	Joint positions should be a dict of the form{'joint_name': joint_value}
 	"""
-	def movePose(self, joint_positions):
+	def movePose(self, joint_positions, maxDegreesPerSecond=30):
 		
 		assert isinstance(joint_positions, dict)
 
 		self.manipPlanner.lastPlan = None
 		startPose = self.robotSystem.robotStateJointController.q
 		endPose = self.ikPlanner.mergePostures(startPose, joint_positions)
-		plan = self.ikPlanner.computePostureGoal(startPose, endPose)
+		ikParameters = IkParameters(maxDegreesPerSecond=maxDegreesPerSecond)
+		plan = self.ikPlanner.computePostureGoal(startPose, endPose, ikParameters=ikParameters)
 		self.manipPlanner.commitManipPlan(plan)
 
 		# block until this plan is over
@@ -120,28 +124,28 @@ class HandEyeCalibration(object):
 	def moveHome(self):
 		self.robotService.movePose(self.poseDict['center']['nominal'])
 
-	def run(self):
-		self.calibrationData = []
-		self.moveHome()
+	# def run(self):
+	# 	self.calibrationData = []
+	# 	self.moveHome()
 
-		for poseName in self.poseList:
+	# 	for poseName in self.poseList:
 			
-			poses = self.poseDict[poseName]
-			nominal = poses['nominal']
-			self.robotService.movePose(nominal)
-			data = self.captureDataAtPose('nominal')
-			self.calibrationData.append(data)
+	# 		poses = self.poseDict[poseName]
+	# 		nominal = poses['nominal']
+	# 		self.robotService.movePose(nominal)
+	# 		data = self.captureDataAtPose('nominal')
+	# 		self.calibrationData.append(data)
 
-			for subPoseName, pose in poses.iteritems():
-				if subPoseName == 'nominal':
-					continue;
+	# 		for subPoseName, pose in poses.iteritems():
+	# 			if subPoseName == 'nominal':
+	# 				continue;
 
-				self.robotService.movePose(pose)
-				data = self.captureDataAtPose(poseName + "_" + subPoseName)
-				self.calibrationData.append(data)
-				self.robotService.movePose(nominal)
+	# 			self.robotService.movePose(pose)
+	# 			data = self.captureDataAtPose(poseName + "_" + subPoseName)
+	# 			self.calibrationData.append(data)
+	# 			self.robotService.movePose(nominal)
 
-			self.moveHome()
+	# 		self.moveHome()
 			
 
 	def makePoseOrder(self):
@@ -177,6 +181,10 @@ class HandEyeCalibration(object):
 		os.chdir(self.calibrationFolderName)
 		cmd = "lcm-logger calibration.lcmlog"
 		self.loggerProcess = subprocess.Popen("exec " + cmd, shell = True)
+
+		# waiting for logger to start
+		print "waiting for logger to start . . . "
+		time.sleep(2.0) # give the logger process time to start
 
 		self.makePoseOrder()
 		self.timer.start()
