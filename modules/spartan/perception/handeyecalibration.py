@@ -36,6 +36,28 @@ from labelfusion.cameraposes import CameraPoses
 # spartan
 import spartan.utils as spartanUtils
 
+"""
+To run this set useKukaRLGDev to True in iiwaManipApp.py. This loads a
+HandEyeCalibration object into the director workspace, it is called cal.
+
+To run calibration simply do cal.runCalibration(). This creates a new directory
+in spartan/src/calibration_data which contains two files.
+
+calibration.lcmlog: a log of the run
+robot_data.yaml: relevant data for the "hand_link" poses during the run.
+
+To finish the process go to the log folder mentioned above and run
+
+run_elastic_fusion_on_log.py -l calibration.lcmlog
+add_camera_poses_to_calibration_data.py
+
+Then the file camera_poses_and_robot_data.yaml contains all the information
+needed to run an AX=XB style hand-eye calibration.
+
+
+
+"""
+
 
 class RobotService(object):
 
