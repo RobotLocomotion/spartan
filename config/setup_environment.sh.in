@@ -18,3 +18,5 @@ alias makedrake='make -C $SPARTAN_BUILD_DIR/drake/drake install'
 
 alias cds='cd $SPARTAN_SOURCE_DIR'
 alias cdbuild='cd $SPARTAN_BUILD_DIR'
+
+source $SPARTAN_INSTALL_DIR/setup.sh

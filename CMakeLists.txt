@@ -27,6 +27,7 @@ option(WITH_SNOPT "Build drake with support for the SNOPT solver." OFF)
 option(WITH_IIWA_DRIVER_RLG "Build drake-iiwa-driver, RLG version." OFF)
 option(WITH_IIWA_DRIVER_TRI "Build drake-iiwa-driver, TRI version." OFF)
 option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
+option(WITH_ROS "Build the catkin-workspace projects." OFF)
 
 # Setup external projects
 include(ExternalProject)
@@ -279,6 +280,19 @@ if (WITH_SCHUNK_DRIVER)
     DEPENDS drake
   )
 
+endif()
+
+if (WITH_ROS)
+  ExternalProject_Add(catkin-projects
+    SOURCE_DIR ${source_dir}/src/catkin_projects
+    BINARY_DIR ${build_dir}/catkin_projects
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      ${CMAKE_ARGS_FOR_EXTERNALS}
+      # Override prefix path
+      "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};$ENV{CMAKE_PREFIX_PATH}"
+    DEPENDS drake
+  )
 endif()
 
 # Configure the environment file

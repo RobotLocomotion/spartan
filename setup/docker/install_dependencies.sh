@@ -13,3 +13,5 @@ apt install --no-install-recommends \
   unzip \
   htop \
   libopenni-dev
+  apt-utils \
+  dialog
