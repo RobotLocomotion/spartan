@@ -37,7 +37,7 @@ def poseFromTransform(transform):
     d['quaternion'] = dict()
     d['quaternion']['w'] = quat[0]
     d['quaternion']['x'] = quat[1]
-    d['quaternion']['y`'] = quat[2]
+    d['quaternion']['y'] = quat[2]
     d['quaternion']['z'] = quat[3]
 
     return d
