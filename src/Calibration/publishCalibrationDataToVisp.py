@@ -12,6 +12,7 @@ import yaml
 import time
 import random
 import os
+import math
 
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Transform
@@ -79,7 +80,12 @@ def randomTransform():
 	transform.rotation.x    = random.uniform(-1,1)
 	transform.rotation.y    = random.uniform(-1,1)
 	transform.rotation.z    = random.uniform(-1,1)
-	transform.rotation.w    = 1.0
+	transform.rotation.w    = random.uniform(-1,1)
+	quat_norm = math.sqrt(transform.rotation.x**2 + transform.rotation.y**2 + transform.rotation.z**2 + transform.rotation.w**2)
+	transform.rotation.x    /= quat_norm
+	transform.rotation.y    /= quat_norm
+	transform.rotation.z    /= quat_norm
+	transform.rotation.w    /= quat_norm
 	return transform
 
 def rosTransformToVTKTransform(ros_transform):
@@ -110,8 +116,9 @@ def vtkTransformToROSTransform(vtk_transform):
 
 def constHandToCameraTransformVtk():
 	pos = [0.0, 0.0, 0.5]
-	quat = [0.0, 0.0, 0.0, 0,0]
+	quat = [1.0, 0.0, 0.0, 0.0]
 	vtk_transform = transformUtils.transformFromPose(pos, quat)
+	print vtk_transform
 	return vtk_transform
  
 def getCameraToWorld(world_to_hand_ros_transform_in):
