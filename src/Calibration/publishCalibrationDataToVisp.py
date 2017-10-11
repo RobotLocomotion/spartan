@@ -20,6 +20,16 @@ from visp_hand2eye_calibration.srv import compute_effector_camera
 # read in yaml file of camera poses and hand poses
 ###
 
+yaml_file_name = "./data/20171010-173517/robot_data.yaml"
+with open(yaml_file_name, 'r') as f:
+    calib_data = yaml.load(f)
+
+for i in range(len(doc)):
+	print i
+	print calib_data[i]
+
+quit()
+
 ###
 # compute relative transforms for all
 ###
