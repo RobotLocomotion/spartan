@@ -3,4 +3,5 @@
 /build
 /src/CorlDev/src/ply
 /src/CorlDev/automation/scp_config.yaml
-/src/Calibration/data
+/src/calibration_data
+*snopt.out
