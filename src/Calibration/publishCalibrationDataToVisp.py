@@ -11,6 +11,7 @@ import rospy
 import yaml
 import time
 import random
+import os
 
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Transform
@@ -20,11 +21,23 @@ from visp_hand2eye_calibration.srv import compute_effector_camera
 sys.path.append('../LabelFusion/modules/labelfusion')
 from cameraposes import CameraPoses
 
+
+path_to_calibration_folder = os.path.join(os.getcwd(),"data/20171010-173517")
+
+###
+# generate camera poses to match utimes of robot poses
+##
+
+posegraph_file = os.path.join(path_to_calibration_folder,"posegraph.posegraph")
+print posegraph_file
+cameraposes = CameraPoses(posegraph_file)
+
+
 ###
 # read in yaml file of camera poses and hand poses
 ###
 
-yaml_file_name = "./data/20171010-173517/robot_data.yaml"
+yaml_file_name = os.path.join(path_to_calibration_folder, "robot_data.yaml")
 with open(yaml_file_name, 'r') as f:
     calib_data = yaml.load(f)
 
