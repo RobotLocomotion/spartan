@@ -71,55 +71,84 @@ camera_object_transforms = []
 world_effector_transforms = []
 
 ## --- testing with random transforms -- ##
-# def randomTransform():
-# 	transform = Transform()
-# 	transform.translation.x = random.uniform(-1,1)
-# 	transform.translation.y = random.uniform(-1,1)
-# 	transform.translation.z = random.uniform(-1,1)
-# 	transform.rotation.x    = random.uniform(-1,1)
-# 	transform.rotation.y    = random.uniform(-1,1)
-# 	transform.rotation.z    = random.uniform(-1,1)
-# 	transform.rotation.w    = 1.0
-# 	return transform
-
-# def applyCameraTransform(transform_in):
-# 	transform = Transform()
-# 	transform.translation.x = transform_in.translation.x
-# 	transform.translation.y = transform_in.translation.y
-# 	transform.translation.z = transform_in.translation.z + 0.5
-# 	transform.rotation.x    = transform_in.rotation.x   
-# 	transform.rotation.y    = transform_in.rotation.y   
-# 	transform.rotation.z    = transform_in.rotation.z   
-# 	transform.rotation.w    = transform_in.rotation.w   
-# 	return transform
-
-# for i in range(10):
-# 	world_effector_transforms.append(randomTransform())
-
-# for i,v in enumerate(world_effector_transforms):
-# 	camera_object_transforms.append(applyCameraTransform(v))
-## --- testing with random transforms -- ##
-
-def yamlEntryToROSGeometryTransform(yaml_entry):
+def randomTransform():
 	transform = Transform()
-	print yaml_entry['translation']
-	print yaml_entry['quaternion']
-	if 'y' not in yaml_entry['quaternion']:
-		yaml_entry['quaternion']['y'] = yaml_entry['quaternion']['y`'] 
-
-	transform.translation.x = yaml_entry['translation']['x']
-	transform.translation.y = yaml_entry['translation']['y']
-	transform.translation.z = yaml_entry['translation']['z']
-	transform.rotation.w    = yaml_entry['quaternion']['w']
-	transform.rotation.x    = yaml_entry['quaternion']['x']
-	transform.rotation.y    = yaml_entry['quaternion']['y']
-	transform.rotation.z    = yaml_entry['quaternion']['z']
+	transform.translation.x = random.uniform(-1,1)
+	transform.translation.y = random.uniform(-1,1)
+	transform.translation.z = random.uniform(-1,1)
+	transform.rotation.x    = random.uniform(-1,1)
+	transform.rotation.y    = random.uniform(-1,1)
+	transform.rotation.z    = random.uniform(-1,1)
+	transform.rotation.w    = 1.0
 	return transform
 
-for index, value in enumerate(calib_data):
-	print index
-	world_effector_transforms.append(yamlEntryToROSGeometryTransform(value['hand_frame']))
-	camera_object_transforms.append(yamlEntryToROSGeometryTransform(value['camera_frame']))
+def rosTransformToVTKTransform(ros_transform):
+	pos = []
+	pos.append(ros_transform.translation.x)
+	pos.append(ros_transform.translation.y)
+	pos.append(ros_transform.translation.z)
+	quat = []
+	quat.append(ros_transform.rotation.w)
+	quat.append(ros_transform.rotation.x)
+	quat.append(ros_transform.rotation.y)
+	quat.append(ros_transform.rotation.z)
+	vtk_transform = transformUtils.transformFromPose(pos, quat)
+	return vtk_transform
+
+
+def vtkTransformToROSTransform(vtk_transform):
+	ros_transform = Transform()
+	(pos, quat) = transformUtils.poseFromTransform(transform)
+	ros_transform.translation.x = pos[0]
+	ros_transform.translation.y = pos[1]
+	ros_transform.translation.z = pos[2]
+	ros_transform.rotation.x    = quat[1]
+	ros_transform.rotation.y    = quat[2]
+	ros_transform.rotation.z    = quat[3]
+	ros_transform.rotation.w    = quat[0]   
+	return ros_transform
+
+def constHandToCameraTransformVtk():
+	pos = [0.0, 0.0, 0.5]
+	quat = [0.0, 0.0, 0.0, 0,0]
+	vtk_transform = transformUtils.transformFromPose(pos, quat)
+	return vtk_transform
+ 
+def getCameraToWorld(world_to_hand_ros_transform_in):
+	world_to_hand_transform_vtk = rosTransformToVTKTransform(world_to_hand_ros_transform_in)
+	hand_to_camera_transform_vtk = constHandToCameraTransformVtk()
+	#objectToWorld = transformUtils.concatenateTransforms([objectToFirstFrame, firstFrameToWorldTransform])   # example
+	world_to_camera_transform_vtk = transformUtils.concatenateTransforms([world_to_hand_transform_vtk, hand_to_camera_transform_vtk])
+	camera_to_world_transform_vtk = world_to_camera_transform_vtk.GetLinearInverse()
+	return vtkTransformToROSTransform(camera_to_world_transform_vtk)
+
+for i in range(10):
+	world_effector_transforms.append(randomTransform())
+
+for i,v in enumerate(world_effector_transforms):
+	camera_object_transforms.append(getCameraToWorld(v))
+## --- testing with random transforms -- ##
+
+# def yamlEntryToROSGeometryTransform(yaml_entry):
+# 	transform = Transform()
+# 	print yaml_entry['translation']
+# 	print yaml_entry['quaternion']
+# 	if 'y' not in yaml_entry['quaternion']:
+# 		yaml_entry['quaternion']['y'] = yaml_entry['quaternion']['y`'] 
+
+# 	transform.translation.x = yaml_entry['translation']['x']
+# 	transform.translation.y = yaml_entry['translation']['y']
+# 	transform.translation.z = yaml_entry['translation']['z']
+# 	transform.rotation.w    = yaml_entry['quaternion']['w']
+# 	transform.rotation.x    = yaml_entry['quaternion']['x']
+# 	transform.rotation.y    = yaml_entry['quaternion']['y']
+# 	transform.rotation.z    = yaml_entry['quaternion']['z']
+# 	return transform
+
+# for index, value in enumerate(calib_data):
+# 	print index
+# 	world_effector_transforms.append(yamlEntryToROSGeometryTransform(value['hand_frame']))
+# 	camera_object_transforms.append(yamlEntryToROSGeometryTransform(value['camera_frame']))
 
 
 # init node and publishers
