@@ -22,15 +22,11 @@ import bot_core as lcmbotcore
 # spartan
 import spartan.utils as spartanUtils
 
-pos = np.array([  1.38777878e-17,  -5.87267617e-02,   3.12766745e-02])
-quat = np.array([  6.99802244e-01,   7.14336629e-01,   4.87254201e-17,
-         5.41479628e-17])
 
-cameraToPalm = transformUtils.transformFromPose(pos,quat)
 
 class CameraTransform(object):
 
-	def __init__(self, robotSystem, referenceLinkName='palm', cameraToLinkTransform=cameraToPalm, channelName='OPENNI_FRAME_LEFT_TO_LOCAL'):
+	def __init__(self, robotSystem, referenceLinkName='palm', cameraToLinkTransform=None, channelName='OPENNI_FRAME_LEFT_TO_LOCAL'):
 
 		assert cameraToLinkTransform is not None
 
