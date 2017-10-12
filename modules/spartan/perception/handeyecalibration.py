@@ -30,7 +30,7 @@ from director.timercallback import TimerCallback
 try:
 	from labelfusion.cameraposes import CameraPoses
 except:
-	print "Have you sourced setup_environment_spartan.sh in src/LabelFusion?"
+	print "Have you sourced setup_environment_labelfusion.sh in spartan/config?"
 	quit()
 
 # spartan
