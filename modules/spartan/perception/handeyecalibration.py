@@ -43,7 +43,7 @@ from spartan.taskrunner import TaskRunner
 To run this set useKukaRLGDev to True in iiwaManipApp.py. This loads a
 HandEyeCalibration object into the director workspace, it is called cal.
 
-To run calibration simply press F8 and enter cal.runCalibration(). This creates a new directory
+To run calibration simply press F8 and enter cal.runThreaded(). This creates a new directory
 in spartan/calibration_data which contains two files.
 
 calibration.lcmlog: a log of the run
