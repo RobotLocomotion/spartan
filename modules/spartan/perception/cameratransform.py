@@ -70,8 +70,8 @@ class CameraTransform(object):
 		config = spartanUtils.getDictFromYamlFilename(configFilename)
 
 		transform = config['camera_pose']['transform_to_reference_link']
-		pos = np.array([transform['pos']['x'], transform['pos']['y'], transform['pos']['z']])
-		quat = np.array([transform['quat']['w'], transform['quat']['x'], transform['quat']['y'], transform['quat']['z']])
+		pos = [transform['pos']['x'], transform['pos']['y'], transform['pos']['z']]
+		quat = [transform['quat']['w'], transform['quat']['x'], transform['quat']['y'], transform['quat']['z']]
 
 		cameraToLinkTransform = transformUtils.transformFromPose(pos, quat)
 
