@@ -12,3 +12,4 @@ apt install --no-install-recommends \
   openssh-client \
   unzip \
   htop
+  libopenni-dev
