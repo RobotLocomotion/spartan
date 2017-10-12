@@ -25,11 +25,12 @@ RobotPoseGUIWrapper = ikplanner.RobotPoseGUIWrapper
 import bot_core as lcmbotcore
 from director.ikparameters import IkParameters
 
-
-
 from director.timercallback import TimerCallback
 
-from labelfusion.cameraposes import CameraPoses
+try:
+	from labelfusion.cameraposes import CameraPoses
+except:
+	print "Have you sourced setup_environment_spartan.sh in src/LabelFusion?"
 
 
 
@@ -41,7 +42,7 @@ To run this set useKukaRLGDev to True in iiwaManipApp.py. This loads a
 HandEyeCalibration object into the director workspace, it is called cal.
 
 To run calibration simply press F8 and enter cal.runCalibration(). This creates a new directory
-in spartan/src/calibration_data which contains two files.
+in spartan/calibration_data which contains two files.
 
 calibration.lcmlog: a log of the run
 robot_data.yaml: relevant data for the "hand_link" poses during the run.
