@@ -272,7 +272,9 @@ if (WITH_SCHUNK_DRIVER)
     USES_TERMINAL_BUILD 1
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" build //...
-    INSTALL_COMMAND "${CP}" ${build_dir}/externals/drake-schunk-driver/bazel-bin/src/schunk_driver ${build_dir}/install/bin/
+    INSTALL_COMMAND
+      "${CP}" ${build_dir}/externals/drake-schunk-driver/bazel-bin/src/schunk_driver ${build_dir}/install/bin/ &&
+      chmod ug+w ${build_dir}/install/bin/schunk_driver
     DEPENDS drake
   )
 
