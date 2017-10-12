@@ -3,6 +3,8 @@ import numpy as np
 import time
 import os
 import subprocess
+import sys
+from threading import Thread
 
 #director
 from director import lcmUtils
@@ -21,11 +23,14 @@ from director import drcargs
 from director import visualization as vis
 from director import ikplanner
 from director import robotposegui
+from director import asynctaskqueue
+from director.timercallback import TimerCallback
+
+
 RobotPoseGUIWrapper = ikplanner.RobotPoseGUIWrapper
 import bot_core as lcmbotcore
 from director.ikparameters import IkParameters
 
-from director.timercallback import TimerCallback
 
 try:
 	from labelfusion.cameraposes import CameraPoses
@@ -59,6 +64,48 @@ needed to run an AX=XB style hand-eye calibration.
 """
 
 
+class TaskRunner(object):
+
+  def __init__(self):
+    self.interval = 1/60.0
+    sys.setcheckinterval(1000)
+    #sys.setswitchinterval(self.interval)				# this is the only diff from Pat's snippet
+    													# sys.setswitchinterval is only Python 3
+    self.task_queue = asynctaskqueue.AsyncTaskQueue()
+    self.pending_tasks = []
+    self.threads = []
+    self.timer = TimerCallback(callback=self._on_timer)
+
+  def _on_timer(self):
+    time.sleep(self.interval)
+    if self.pending_tasks:
+      while True:
+        try:
+          self.task_queue.addTask(self.pending_tasks.pop(0))
+        except IndexError:
+          break
+
+      if self.task_queue.tasks and not self.task_queue.isRunning:
+        self.task_queue.start()
+
+    for t in self.threads:
+      if t.is_alive():
+        break
+    else:
+      self.threads = []
+      self.timer.stop()
+
+  def call_on_main(self, func, *args, **kwargs):
+    self.pending_tasks.append(lambda: func(*args, **kwargs))
+
+  def call_on_thread(self, func, *args, **kwargs):
+    t = Thread(target=lambda: func(*args, **kwargs))
+    self.threads.append(t)
+    t.start()
+    self.timer.targetFps = 1/self.interval
+    self.timer.start()
+
+
 class RobotService(object):
 
 	def __init__(self, robotSystem, removeFloatingBase=True):
@@ -69,7 +116,9 @@ class RobotService(object):
 
 	"""
 	Joint positions should be a dict of the form{'joint_name': joint_value}
+
 	"""
+
 	def movePose(self, joint_positions, maxDegreesPerSecond=30):
 		
 		assert isinstance(joint_positions, dict)
@@ -105,8 +154,8 @@ class HandEyeCalibration(object):
 
 		self.timer = TimerCallback(targetFps=1)
 		self.timer.callback = self.callback
+		self.task_runner = TaskRunner()
         # self.timer.callback = self.callback
-
 
 	def setup(self):
 		self.nominalPose = 'center'
@@ -147,28 +196,31 @@ class HandEyeCalibration(object):
 	def moveHome(self):
 		self.robotService.movePose(self.poseDict['center']['nominal'])
 
-	# def run(self):
-	# 	self.calibrationData = []
-	# 	self.moveHome()
+	def runThreaded(self):
+		self.task_runner.call_on_thread(self.run)
 
-	# 	for poseName in self.poseList:
+	def run(self):
+		self.calibrationData = []
+		self.moveHome()
+
+		for poseName in self.poseList:
 			
-	# 		poses = self.poseDict[poseName]
-	# 		nominal = poses['nominal']
-	# 		self.robotService.movePose(nominal)
-	# 		data = self.captureDataAtPose('nominal')
-	# 		self.calibrationData.append(data)
+			poses = self.poseDict[poseName]
+			nominal = poses['nominal']
+			self.robotService.movePose(nominal)
+			data = self.captureDataAtPose('nominal')
+			self.calibrationData.append(data)
 
-	# 		for subPoseName, pose in poses.iteritems():
-	# 			if subPoseName == 'nominal':
-	# 				continue;
+			for subPoseName, pose in poses.iteritems():
+				if subPoseName == 'nominal':
+					continue;
 
-	# 			self.robotService.movePose(pose)
-	# 			data = self.captureDataAtPose(poseName + "_" + subPoseName)
-	# 			self.calibrationData.append(data)
-	# 			self.robotService.movePose(nominal)
+				self.robotService.movePose(pose)
+				data = self.captureDataAtPose(poseName + "_" + subPoseName)
+				self.calibrationData.append(data)
+				self.robotService.movePose(nominal)
 
-	# 		self.moveHome()
+			self.moveHome()
 			
 
 	def makePoseOrder(self):
@@ -195,6 +247,7 @@ class HandEyeCalibration(object):
 		
 		pose = self.poseOrder.pop(0)
 		self.robotService.movePose(pose)
+
 
 	def runCalibration(self):
 		self.calibrationData = []
