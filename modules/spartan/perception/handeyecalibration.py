@@ -31,8 +31,7 @@ try:
 	from labelfusion.cameraposes import CameraPoses
 except:
 	print "Have you sourced setup_environment_spartan.sh in src/LabelFusion?"
-
-
+	quit()
 
 # spartan
 import spartan.utils as spartanUtils
