@@ -283,14 +283,16 @@ if (WITH_SCHUNK_DRIVER)
 endif()
 
 if (WITH_ROS)
+  string(REPLACE ":" ";" CMAKE_PREFIX_PATH_ENV $ENV{CMAKE_PREFIX_PATH})
+
   ExternalProject_Add(catkin-projects
     SOURCE_DIR ${source_dir}/src/catkin_projects
     BINARY_DIR ${build_dir}/catkin_projects
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       ${CMAKE_ARGS_FOR_EXTERNALS}
-      # Override prefix path
-      "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};$ENV{CMAKE_PREFIX_PATH}"
+      # Combine environment prefix path (with ROS) with our own
+      "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};${CMAKE_PREFIX_PATH_ENV}"
     DEPENDS drake
   )
 endif()
