@@ -23,6 +23,7 @@ sys.path.append('../LabelFusion/modules/labelfusion')
 from cameraposes import CameraPoses
 from director import transformUtils
 
+from tf import *
 
 path_to_calibration_folder = os.path.join(os.getcwd(),"data/20171011-145541")
 
@@ -77,15 +78,14 @@ def randomTransform():
 	transform.translation.x = random.uniform(-1,1)
 	transform.translation.y = random.uniform(-1,1)
 	transform.translation.z = random.uniform(-1,1)
-	transform.rotation.x    = random.uniform(-1,1)
-	transform.rotation.y    = random.uniform(-1,1)
-	transform.rotation.z    = random.uniform(-1,1)
-	transform.rotation.w    = random.uniform(-1,1)
-	quat_norm = math.sqrt(transform.rotation.x**2 + transform.rotation.y**2 + transform.rotation.z**2 + transform.rotation.w**2)
-	transform.rotation.x    /= quat_norm
-	transform.rotation.y    /= quat_norm
-	transform.rotation.z    /= quat_norm
-	transform.rotation.w    /= quat_norm
+	roll = random.uniform(-1,1)
+	pitch = random.uniform(-1,1)
+	yaw = random.uniform(-1,1)
+	quat = transformations.quaternion_from_euler(roll, pitch, yaw)
+	transform.rotation.x = quat[0]
+	transform.rotation.y = quat[1]
+	transform.rotation.z = quat[2]
+	transform.rotation.w = quat[3]
 	return transform
 
 def rosTransformToVTKTransform(ros_transform):
@@ -115,25 +115,43 @@ def vtkTransformToROSTransform(vtk_transform):
 	return ros_transform
 
 def constHandToCameraTransformVtk():
-	pos = [0.0, 0.0, 0.5]
-	quat = [1.0, 0.0, 0.0, 0.0]
+	# pos = [0.0, 0.0, 0.5]
+	# quat = [0.5, 0.5, 0.5, 0.5]
+	# vtk_transform = transformUtils.transformFromPose(pos, quat)
+	pos = [0,0,0]
+	quat = [1,0,0,0]
 	vtk_transform = transformUtils.transformFromPose(pos, quat)
+	
 	print vtk_transform
 	return vtk_transform
- 
+
+def constObjectToWorldTransformVtk():
+	# pos = [10.0, 0.0, 0.0]
+	# quat = [1.0, 0.0, 0.0, 0.0]
+	pos = [0,0,0]
+	quat = [1,0,0,0]
+	vtk_transform = transformUtils.transformFromPose(pos, quat)
+	# vtk_transform = vtk.vtkTransform()
+	print vtk_transform
+	return vtk_transform
+
 def getCameraToWorld(world_to_hand_ros_transform_in):
+	object_to_world_vtk = constObjectToWorldTransformVtk()
 	world_to_hand_transform_vtk = rosTransformToVTKTransform(world_to_hand_ros_transform_in)
 	hand_to_camera_transform_vtk = constHandToCameraTransformVtk()
 	#objectToWorld = transformUtils.concatenateTransforms([objectToFirstFrame, firstFrameToWorldTransform])   # example
-	world_to_camera_transform_vtk = transformUtils.concatenateTransforms([world_to_hand_transform_vtk, hand_to_camera_transform_vtk])
-	camera_to_world_transform_vtk = world_to_camera_transform_vtk.GetLinearInverse()
-	return vtkTransformToROSTransform(camera_to_world_transform_vtk)
+	object_to_camera_transform_vtk = transformUtils.concatenateTransforms([object_to_world_vtk, world_to_hand_transform_vtk, hand_to_camera_transform_vtk])
+	camera_to_object_transform_vtk = object_to_camera_transform_vtk.GetLinearInverse()
+	print camera_to_object_transform_vtk
+	return vtkTransformToROSTransform(camera_to_object_transform_vtk)
 
 for i in range(10):
 	world_effector_transforms.append(randomTransform())
 
 for i,v in enumerate(world_effector_transforms):
-	camera_object_transforms.append(getCameraToWorld(v))
+	camera_object_transforms.append(v)
+	
+	# camera_object_transforms.append(getCameraToWorld(v))
 ## --- testing with random transforms -- ##
 
 # def yamlEntryToROSGeometryTransform(yaml_entry):
