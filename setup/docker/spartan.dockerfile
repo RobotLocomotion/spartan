@@ -4,7 +4,6 @@ ARG USER_NAME
 ARG USER_PASSWORD
 ARG USER_ID
 ARG USER_GID
-ARG BUILD_ELASTIC_FUSION=false
 
 RUN apt-get update
 RUN apt install sudo
