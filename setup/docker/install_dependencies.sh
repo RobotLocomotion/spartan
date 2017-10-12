@@ -7,5 +7,8 @@ apt install --no-install-recommends \
   terminator \
   tmux \
   nano \
+  gedit \
   git \
-  openssh-client
+  openssh-client \
+  unzip \
+  htop

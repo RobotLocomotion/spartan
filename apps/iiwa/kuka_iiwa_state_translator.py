@@ -2,6 +2,7 @@ from director import consoleapp
 from director import lcmUtils
 from director import robotstate
 from director import drcargs
+from director.utime import getUtime
 import drake as lcmdrake
 import bot_core as lcmbotcore
 import numpy as np
@@ -45,7 +46,8 @@ class KukaIiwaStateTranslator(object):
         jointPosition = armJointPositions + self.fingerJointPositions
 
         m = lcmbotcore.robot_state_t()
-        m.utime = msg.utime
+        # m.utime = msg.utime                                        # this used to get utimes from the kuka robot.  should later fix in drake-iiwa-driver/src/kuka_driver.cc
+        m.utime = getUtime()
         m.pose = robotstate.getPoseLCMFromXYZRPY([0,0,0], [0,0,0])
         m.twist = lcmbotcore.twist_t()
         m.twist.linear_velocity = lcmbotcore.vector_3d_t()
