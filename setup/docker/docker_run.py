@@ -15,6 +15,8 @@ if __name__=="__main__":
 
 	parser.add_argument("-d", "--dry_run", action='store_true', help="(optional) perform a dry_run, print the command that would have been executed but don't execute it.")
 
+	parser.add_argument("-e", "--entrypoint", type=str, default="", help="(optional) thing to run in container")
+
 	args = parser.parse_args()
 	print "running docker container derived from image %s" %args.image
 	source_dir=os.getcwd()
@@ -23,7 +25,7 @@ if __name__=="__main__":
 	home_directory = '/home/' + user_name
 
 	cmd = "xhost +local:root \n"
-	cmd += "nvidia-docker run -it "
+	cmd += "nvidia-docker run "
 	if args.container:
 		cmd += " --name %(container_name)s " % {'container_name': args.container}
 
@@ -33,24 +35,37 @@ if __name__=="__main__":
 	cmd += " -v ~/.ssh:%(home_directory)s/.ssh " % {'home_directory': home_directory}   # mount ssh keys
 	cmd += " --user %s " % user_name                                                    # login as current user
 
-    # expose UDP ports
+	# expose UDP ports
 	cmd += " -p 30200:30200/udp " # expose udp ports for kuka
 	cmd += " -p 30201:30201/udp " # expose udp ports for kuka
 	cmd += " -p 1500:1500/udp " # expose udp ports for schunk
 	cmd += " -p 1501:1501/udp " # expose udp ports for schunk
 
 	cmd += " --privileged -v /dev/bus/usb:/dev/bus/usb " # allow usb access
-	
-	cmd += " --rm " # remove the image when you exit
-	cmd += args.image + "\n"
-	cmd += "xhost -local:root"
 
-	print "command = \n \n", cmd
+	cmd += " --rm " # remove the image when you exit
+
+	if args.entrypoint and args.entrypoint != "":
+		cmd += "--entrypoint=\"%(entrypoint)s\" " % {"entrypoint": args.entrypoint}
+	else:
+		cmd += "-it "
+	cmd += args.image
+	cmd_endxhost = "xhost -local:root"
+
+	print "command = \n \n", cmd, "\n", cmd_endxhost
 	print ""
 
 	# build the docker image
 	if not args.dry_run:
 		print "executing shell command"
-		os.system(cmd)
+		code = os.system(cmd)
+		print("Executed with code ", code)
+		os.system(cmd_endxhost)
+		# Squash return code to 0/1, as
+		# Docker's very large return codes
+		# were tricking Jenkins' failure
+		# detection
+		exit(code != 0)
 	else:
 		print "dry run, not executing command"
+		exit(0)
