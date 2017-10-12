@@ -11,6 +11,8 @@ mkdir -p $root_dir
 mkdir -p $install_dir
 
 
+apt update
+
 apt install -y \
   libglew-dev \
   libsuitesparse-dev \
