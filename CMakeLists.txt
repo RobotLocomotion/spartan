@@ -244,7 +244,7 @@ if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
     )
   endif()
 
-  message("IIWA_DRIVER_GIT_TAG ${IIWA_DRIVER_GIT_TAG}")
+ #message("IIWA_DRIVER_GIT_TAG ${IIWA_DRIVER_GIT_TAG}")
 
 
   ExternalProject_Add(drake-iiwa-driver
