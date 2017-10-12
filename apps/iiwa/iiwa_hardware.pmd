@@ -1,3 +1,15 @@
+group "0.sim" {
+    cmd "0.kuka_simulation" {
+    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/drake/examples/kuka_iiwa_arm/kuka_simulation";
+    host = "localhost";
+  }
+
+  cmd "1.kuka_simulation_w_schunk_gripper" {
+    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/drake/examples/kuka_iiwa_arm/iiwa_wsg_simulation";
+    host = "localhost";
+  }
+}
+
 group "1.vision-drivers" {
 
   cmd "0.openni-driver" {
@@ -85,6 +97,29 @@ group "7.ContactParticleFilter" {
 
 }
 
+group "8.ROS" {
+
+  cmd "0.roscore" {
+    exec = "roscore";
+    host = "localhost";
+  }
+
+  cmd "1.LCM->ROS State Translator" {
+    exec = "rosrun robot_server pub_joint_state.py";
+    host = "localhost";
+  }
+
+  cmd "2.ROS Model and TF Publisher" {
+    exec = "roslaunch robot_server robot_state_publisher.launch";
+    host = "localhost";
+  }
+
+  cmd "3.rviz" {
+    exec = "rosrun rviz rviz";
+    host = "localhost";
+  }
+
+}
 
 script "1.robot_startup" {
     start group "1.vision-drivers";
@@ -97,4 +132,11 @@ script "2.restart_controller" {
     stop group "2.iiwa-drivers";
     wait ms 2000;
     start group "2.iiwa-drivers";
+}
+
+script "3.sim_startup" {
+    start cmd "4.director";
+    wait ms 4000;
+    start cmd "1.kuka_simulation_w_schunk_gripper";
+    start cmd "0.kuka-driver";
 }
