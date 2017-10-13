@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+  <param name="robot_description" command="cat '$(env SPARTAN_SOURCE_DIR)/models/iiwa/iiwa_description/iiwa14_schunk_gripper.urdf'"/>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen">
+    <param name="publish_frequency" type="double" value="100.0"/>
+  </node>
+</launch>
+
