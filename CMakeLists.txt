@@ -283,6 +283,10 @@ if (WITH_SCHUNK_DRIVER)
 endif()
 
 if (WITH_ROS)
+  if ((NOT DEFINED ENV{CMAKE_PREFIX_PATH}) OR (NOT $ENV{CMAKE_PREFIX_PATH} MATCHES ".*ros.*"))
+    message(FATAL_ERROR "\nWITH_ROS is set, but I don't see ROS in your CMAKE_PREFIX_PATH. Did you call USE_ROS in your terminal?")
+  endif()
+
   string(REPLACE ":" ";" CMAKE_PREFIX_PATH_ENV $ENV{CMAKE_PREFIX_PATH})
 
   ExternalProject_Add(catkin-projects
