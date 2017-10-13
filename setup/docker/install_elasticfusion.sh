@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# This script is run by the dockerfile during the docker build.
+# This script can be used to build elasticfusion
 #
 
 set -exu
