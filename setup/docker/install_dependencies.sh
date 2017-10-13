@@ -12,6 +12,6 @@ apt install --no-install-recommends \
   openssh-client \
   unzip \
   htop \
-  libopenni-dev
+  libopenni-dev \
   apt-utils \
   dialog
