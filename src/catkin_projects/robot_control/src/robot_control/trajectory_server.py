@@ -1,12 +1,25 @@
 #!/usr/bin/env python
 
-import os, copy, numpy as np, threading, lcm
+# system
+import os
+import copy
+import numpy as np
+import threading
+import time
+import math
+
+# drake
+import lcm
 from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
-import rospy, time, math
 import pydrake
 from pydrake.solvers import ik
 from robotlocomotion import robot_plan_t
 from bot_core import robot_state_t
+
+# ROS
+import rospy
+
+# ROS custom packages
 from robot_msgs.msg import *
 from robot_msgs.srv import *
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
@@ -66,7 +79,7 @@ class TrajectoryServer:
 
         robotState.utime = TrajectoryServer.ROSdurationToUtime(jointTrajectoryPoint.time_from_start)
 
-        
+
 
         robotState.joint_position = jointTrajectoryPoint.positions
         robotState.joint_velocity = jointTrajectoryPoint.velocities
