@@ -16,7 +16,7 @@ class TaskRunner(object):
     self.taskQueue = asynctaskqueue.AsyncTaskQueue()
     self.pendingTasks = []
     self.threads = []
-    self.timer = TimerCallback(callback=self._onTimer)
+    self.timer = TimerCallback(callback=self._onTimer, targetFps=1/self.interval)
 
   def _onTimer(self):
     # Give up control to another python thread in self.threads
@@ -56,5 +56,4 @@ class TaskRunner(object):
     t = Thread(target=lambda: func(*args, **kwargs))
     self.threads.append(t)
     t.start()
-    self.timer.targetFps = 1/self.interval
     self.timer.start()
