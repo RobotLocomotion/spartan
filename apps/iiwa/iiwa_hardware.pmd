@@ -109,13 +109,23 @@ group "8.ROS" {
     host = "localhost";
   }
 
-  cmd "2.ROS Model and TF Publisher" {
+  cmd "2.ROS Trajectory Server" {
+    exec = "roslaunch robot_control robot_control.launch";
+    host = "localhost";
+  }
+
+  cmd "3.ROS Model and TF Publisher" {
     exec = "roslaunch robot_server robot_state_publisher.launch";
     host = "localhost";
   }
 
-  cmd "3.rviz" {
+  cmd "4.rviz" {
     exec = "rosrun rviz rviz";
+    host = "localhost";
+  }
+
+  cmd "5.Example Command" {
+    exec = "rosrun robot_control test_command.py";
     host = "localhost";
   }
 
