@@ -336,6 +336,8 @@ applogic.resetCamera(viewDirection=[-1,1,-0.5], view=view)
 useKukaRLGDev = False
 if useKukaRLGDev:
 
+
+
     # broadcast the pose of the wrist mounted Xtion
     import spartan.utils as spartanUtils
     cameraConfigFilename = os.path.join(spartanUtils.getSpartanSourceDir(), 'config', 'RLG', 'iiwa_1', 'camera_config.yaml')
@@ -347,3 +349,14 @@ if useKukaRLGDev:
 
     import spartan.perception.handeyecalibration
     cal = spartan.perception.handeyecalibration.HandEyeCalibration(robotSystem)
+
+def testFunction():
+    print "sleeping for 5 seconds"
+    time.sleep(5.0)
+    print "finished testFunction"
+
+from spartan import taskrunner
+from spartan import taskrunnerold
+
+taskRunner = taskrunner.TaskRunner()
+taskRunnerOld = taskrunnerold.TaskRunner()
