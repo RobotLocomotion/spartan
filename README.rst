@@ -219,3 +219,34 @@ Scripts
 
 You can add executable scripts to the scripts/bin folder.  These scripts will
 appear in your PATH via the sourced environment file.
+
+
+CI with Jenkins
+=======
+CI is provided by Jenkins, presently running on a DRC laptop running Ubuntu
+16.04 with nvidia-375 and CUDA 8, plus docker and nvidia-docker. Two Jenkins jobs test
+our build:
+- A nightly-plus-whenever-it-is-updated build of the master branch. Master is
+tested by following the build-and-test routine described below.
+- A whenever-it-is-requested build of PR branches, which can be requested
+by including the phrase "Jenkins please test" in a comment on the PR. The branches
+are tested by merging them into master (if possible) and then following the
+build-and-test routine described below. For now, tests can only be demanded by
+`gizatt`, `manuelli`, and `peteflorence`. Anyone else can *request* a test, but
+one of those admins will have to confirm to Jenkins that the test can be run. This
+feature uses [this tool](https://github.com/jenkinsci/ghprb-plugin) under the
+hood, so admins can use the command `ok to test` to accept a PR for testing, and
+`add to whitelist` to add the author of the PR to the whitelist forever.
+
+Jenkins clones a completely fresh copy of the repository into a working directory,
+run `git submodule update --init`, and then runs
+```
+python ${WORKSPACE}/setup/docker/docker_build.py
+python ${WORKSPACE}/setup/docker/docker_run.py --entrypoint "/home/jenkins/spartan/setup/docker/run_jenkins.sh"
+```
+
+If any step of this returns a nonzero error code, the build is considered failed.
+That includes failures in initializing any submodule; errors provisioning or
+launching a docker container; or errors detected by the `run_jenkins` script,
+which contains its own error checking on the CMake configuration and the build.
+Eventually, we'll be able to test a full simulation stack too!
