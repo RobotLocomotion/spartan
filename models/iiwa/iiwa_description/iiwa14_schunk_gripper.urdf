@@ -55,7 +55,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/visual/link_0.obj"/>
+        <mesh filename="package://iiwa_description/meshes/visual/link_0.obj"/>
       </geometry>
       <material name="Grey"/>
     </visual>
@@ -92,7 +92,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/visual/link_1.obj"/>
+        <mesh filename="package://iiwa_description/meshes/visual/link_1.obj"/>
       </geometry>
       <material name="Grey"/>
     </visual>
@@ -123,7 +123,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/visual/link_2.obj"/>
+        <mesh filename="package://iiwa_description/meshes/visual/link_2.obj"/>
       </geometry>
       <material name="Orange"/>
     </visual>
@@ -154,7 +154,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/visual/link_3.obj"/>
+        <mesh filename="package://iiwa_description/meshes/visual/link_3.obj"/>
       </geometry>
       <material name="Grey"/>
     </visual>
@@ -185,7 +185,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/visual/link_4.obj"/>
+        <mesh filename="package://iiwa_description/meshes/visual/link_4.obj"/>
       </geometry>
       <material name="Orange"/>
     </visual>
@@ -216,7 +216,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/visual/link_5.obj"/>
+        <mesh filename="package://iiwa_description/meshes/visual/link_5.obj"/>
       </geometry>
       <material name="Grey"/>
     </visual>
@@ -247,14 +247,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/visual/link_6.obj"/>
+        <mesh filename="package://iiwa_description/meshes/visual/link_6.obj"/>
       </geometry>
       <material name="Orange"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/collision/link_6.obj"/>
+        <mesh filename="package://iiwa_description/meshes/collision/link_6.obj"/>
       </geometry>
       <material name="Orange"/>
     </collision>
@@ -278,14 +278,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/visual/link_7.obj"/>
+        <mesh filename="package://iiwa_description/meshes/visual/link_7.obj"/>
       </geometry>
       <material name="Grey"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/collision/link_7.obj"/>
+        <mesh filename="package://iiwa_description/meshes/collision/link_7.obj"/>
       </geometry>
       <material name="Grey"/>
     </collision>
@@ -470,7 +470,7 @@
     <parent link="palm"/>
     <child link="wsg_50_finger_left_link"/>
     <axis xyz="0 0 -1"/>
-    <!--<limit effort="10" lower="-0.001" upper="0.109" velocity="1.0"/>-->
+    <limit effort="10" lower="-0.001" upper="0.109" velocity="1.0"/>
   </joint>
   <link name="wsg_50_finger_left_link">
     <inertial>
@@ -496,7 +496,7 @@
     <parent link="palm"/>
     <child link="wsg_50_finger_right_link"/>
     <axis xyz="0 0 1"/>
-    <!--<limit effort="10" lower="-0.001" upper="0.109" velocity="1.0"/> -->
+    <limit effort="10" lower="-0.001" upper="0.109" velocity="1.0"/>
   </joint>
   <link name="wsg_50_finger_right_link">
     <inertial>
