@@ -67,6 +67,7 @@ else()
   set(BAZEL_COMPILATION_MODE opt)
 endif()
 set(BAZEL_ENV CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
+set(BAZEL_DRAKE_STARTUP_ARGS "--output_base=/$ENV{HOME}/.spartan-build/drake-build")
 set(BAZEL_ARGS --compilation_mode=${BAZEL_COMPILATION_MODE} --config=unsupported_crosstool --cxxopt=-std=c++1y --host_cxxopt=-std=c++1y)
 if(CMAKE_VERBOSE_MAKEFILE)
   set(BAZEL_ARGS --subcommands ${BAZEL_ARGS})
@@ -106,8 +107,8 @@ ExternalProject_Add(drake
     BUILD_IN_SOURCE 1
     USES_TERMINAL_BUILD 1
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" build ${BAZEL_ARGS} //drake/examples/kuka_iiwa_arm/... //:install @optitrack_driver//src:optitrack_client
-    INSTALL_COMMAND ${BAZEL_ENV} "${BAZEL}" run ${BAZEL_ARGS} //:install -- "${CMAKE_INSTALL_PREFIX}"
+    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} build ${BAZEL_ARGS} //drake/examples/kuka_iiwa_arm/... //:install @optitrack_driver//src:optitrack_client
+    INSTALL_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} run ${BAZEL_ARGS} //:install -- "${CMAKE_INSTALL_PREFIX}"
 )
 # This is based on drake's VTK/Qt dependency (see `tools/vtk.bzl` in drake).
 # On MacOS, Drake uses homebrew VTK compiled with Qt5 and brew Python
