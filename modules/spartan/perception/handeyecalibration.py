@@ -109,7 +109,7 @@ class HandEyeCalibration(object):
 
 		self.timer = TimerCallback(targetFps=1)
 		self.timer.callback = self.callback
-		self.task_runner = TaskRunner()
+		self.taskRunner = TaskRunner()
         # self.timer.callback = self.callback
 
 	def setup(self):
@@ -152,7 +152,7 @@ class HandEyeCalibration(object):
 		self.robotService.movePose(self.poseDict['center']['nominal'])
 
 	def runThreaded(self):
-		self.task_runner.call_on_thread(self.run)
+		self.taskRunner.callOnThread(self.run)
 
 	def run(self):
 		self.calibrationData = []

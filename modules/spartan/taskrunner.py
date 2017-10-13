@@ -13,24 +13,27 @@ class TaskRunner(object):
     self.interval = 1/60.0
     sys.setcheckinterval(1000)
     #sys.setswitchinterval(self.interval)			# sys.setswitchinterval is only Python 3
-    self.task_queue = asynctaskqueue.AsyncTaskQueue()
-    self.pending_tasks = []
+    self.taskQueue = asynctaskqueue.AsyncTaskQueue()
+    self.pendingTasks = []
     self.threads = []
-    self.timer = TimerCallback(callback=self._on_timer)
+    self.timer = TimerCallback(callback=self._onTimer)
 
-  def _on_timer(self):
+  def _onTimer(self):
+    # Give up control to another python thread in self.threads
+    # that might be running
+    time.sleep(self.interval)
     
-    # add all tasks in self.pending_tasks to the AsyncTaskQueue
-    if self.pending_tasks:
+    # add all tasks in self.pendingTasks to the AsyncTaskQueue
+    if self.pendingTasks:
       while True:
         try:
-          self.task_queue.addTask(self.pending_tasks.pop(0))
+          self.taskQueue.addTask(self.pendingTasks.pop(0))
         except IndexError:
           break
 
       # start the AsyncTaskQueue if it's not already running
-      if self.task_queue.tasks and not self.task_queue.isRunning:
-        self.task_queue.start()
+      if self.taskQueue.tasks and not self.taskQueue.isRunning:
+        self.taskQueue.start()
     
     # check which threads are live
     liveThreads = []
@@ -45,11 +48,11 @@ class TaskRunner(object):
     if len(self.threads) == 0:
       self.timer.stop()
 
-  def call_on_main(self, func, *args, **kwargs):
-    self.pending_tasks.append(lambda: func(*args, **kwargs))
+  def callOnMain(self, func, *args, **kwargs):
+    self.pendingTasks.append(lambda: func(*args, **kwargs))
     self.timer.start()
 
-  def call_on_thread(self, func, *args, **kwargs):
+  def callOnThread(self, func, *args, **kwargs):
     t = Thread(target=lambda: func(*args, **kwargs))
     self.threads.append(t)
     t.start()
