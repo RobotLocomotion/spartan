@@ -1,6 +1,8 @@
 Spartan
 =======
 
+<a href='http://jenkins.protos.us.to:8080/job/spartan-master'><img src='http://jenkins.protos.us.to:8080/buildStatus/icon?job=spartan-master'></a>
+
 This is a project repository for robotics research and applications using
 Drake_ and Director_.
 
