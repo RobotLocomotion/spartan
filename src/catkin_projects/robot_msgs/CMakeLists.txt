@@ -56,18 +56,7 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  GoToConf.srv
-  GetRobotConf.srv
-  GetRobotJointNames.srv
   SendJointTrajectory.srv
-  ChangeTool.srv
-  ControlGripper.srv
-  MoveHead.srv
-  ExecuteVisuoGrasp.srv
-  ExecutePlace.srv
-  LookAtObjPose.srv
-  CalibrationLog.srv
-	SetHeadSpeed.srv
 )
 
 ## Generate actions in the 'action' folder

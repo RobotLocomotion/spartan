@@ -65,7 +65,8 @@ class JointStatePublisher:
         self.pub_joint_state.publish(self.robot_state)
 
     def runServer(self):
-        s1 = rospy.Service('robot_server/getRobotConf', GetRobotConf, self.handle_get_conf)
+        #s1 = rospy.Service('robot_server/getRobotConf', GetRobotConf, self.handle_get_conf)
+        pass
 
 if __name__ == '__main__':
     rospy.init_node('JointStatePublisher')
