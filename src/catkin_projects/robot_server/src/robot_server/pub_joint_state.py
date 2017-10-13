@@ -1,13 +1,22 @@
 #!/usr/bin/env python
 
-import lcm
+# system
 import numpy as np, math
+
+
+# drake + LCM
+from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
+from bot_core import robot_state_t
+import lcm
+
+
+# ROS standard library
 import rospy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Header
 
-from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
-from bot_core import robot_state_t
+
+# ROS custom packages
 from robot_msgs.srv import *
 from robot_msgs.msg import *
 
@@ -24,7 +33,7 @@ class JointStatePublisher:
         self.joint_idx = {}
 
         self.lc = lcm.LCM()
-        iiwa_status_sub = self.lc.subscribe("IIWA_STATUS", self.iiwa_status_sub)
+        self.lc.subscribe("IIWA_STATUS", self.onIiwaStatus)
         #gripper_sub = self.lc.subscribe("command_topic", self.gripper_sub)
         
         self.base_names = ['base_x', 'base_y', 'base_theta']
@@ -45,17 +54,21 @@ class JointStatePublisher:
             self.joint_idx[str(self.joints[j])] = idx
             idx = idx + 1
 
-    def iiwa_status_sub(self, channel, data):
+    def onIiwaStatus(self, channel, data):
+        msg = lcmt_iiwa_status.decode(data)
         for data_idx in xrange(0, len(self.iiwa_joint_names)):
             joint_name = self.iiwa_joint_names[data_idx]
             if joint_name in self.joint_idx:
                 idx = self.joint_idx[joint_name]
-                self.joint_positions[idx] = lcmt_iiwa_status.decode(data).joint_position_measured[data_idx]
-                self.joint_velocities[idx] = 0.0 # TODO(gizatt) See which other fields are valid and add them here
+                self.joint_positions[idx] = msg.joint_position_measured[data_idx]
+                self.joint_velocities[idx] = msg.joint_velocity_estimated[data_idx] # TODO(gizatt) See which other fields are valid and add them here
+                self.joint_efforts[idx] = msg.joint_torque_measured[data_idx]
 
     def run(self):
         self.lc.handle_timeout(0.005)
+        self.publishROSJointStateMessage()
 
+    def publishROSJointStateMessage(self):
         self.robot_state.header = Header()
         self.robot_state.header.stamp = rospy.Time.now()
         self.robot_state.name = self.joint_names

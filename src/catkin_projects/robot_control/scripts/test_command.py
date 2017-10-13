@@ -35,19 +35,25 @@ if __name__ == "__main__":
 	p.velocities = [0, 0, 0, 0, 0, 0, 0.0]
 	p.accelerations = [0, 0, 0, 0, 0, 0, 0.0]
 	p.effort = [0, 0, 0, 0, 0, 0, 0.0]
+	p.time_from_start = rospy.Duration(secs=3)
 	traj.points.append(p)
+
 	p2 = JointTrajectoryPoint()
 	p2.positions = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0]
 	p2.velocities = [0, 0, 0, 0, 0, 0, 0.0]
 	p2.accelerations = [0, 0, 0, 0, 0, 0, 0.0]
 	p2.effort = [0, 0, 0, 0, 0, 0, 0.0]
+	p2.time_from_start = p.time_from_start + rospy.Duration(secs=3)
 	traj.points.append(p2)
+
 	p3 = JointTrajectoryPoint()
 	p3.positions = [-0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -1.0]
 	p3.velocities = [0, 0, 0, 0, 0, 0, 0.0]
 	p3.accelerations = [0, 0, 0, 0, 0, 0, 0.0]
 	p3.effort = [0, 0, 0, 0, 0, 0, 0.0]
+	p3.time_from_start = p2.time_from_start + rospy.Duration(secs=3)
 	traj.points.append(p3)
+
 	print 'Going'
 	resp = s(traj, duration)
 	print resp.success
