@@ -19,7 +19,8 @@ class TaskRunner(object):
     self.timer = TimerCallback(callback=self._on_timer)
 
   def _on_timer(self):
-    time.sleep(self.interval)
+    
+    # add all tasks in self.pending_tasks to the AsyncTaskQueue
     if self.pending_tasks:
       while True:
         try:
@@ -27,18 +28,26 @@ class TaskRunner(object):
         except IndexError:
           break
 
+      # start the AsyncTaskQueue if it's not already running
       if self.task_queue.tasks and not self.task_queue.isRunning:
         self.task_queue.start()
-
+    
+    # check which threads are live
+    liveThreads = []
     for t in self.threads:
       if t.is_alive():
-        break
-    else:
-      self.threads = []
+        liveThreads.append(t)
+
+    # only retain the live threads
+    self.threads = liveThreads
+
+    # if no liveThreads then stop the timer
+    if len(self.threads) == 0:
       self.timer.stop()
 
   def call_on_main(self, func, *args, **kwargs):
     self.pending_tasks.append(lambda: func(*args, **kwargs))
+    self.timer.start()
 
   def call_on_thread(self, func, *args, **kwargs):
     t = Thread(target=lambda: func(*args, **kwargs))
