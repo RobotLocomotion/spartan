@@ -57,3 +57,8 @@ def conf_to_traj(conf, current, names): #Both are confDict
     p2.velocities, p2.accelerations, p2.effort = [0]*len(traj.joint_names), [0]*len(traj.joint_names), [0]*len(traj.joint_names)
     traj.points.append(p2)
     return traj
+
+def getIiwaJointNames():
+    return ['iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3',
+     'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6',
+     'iiwa_joint_7']

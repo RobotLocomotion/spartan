@@ -36,12 +36,12 @@ class JointStatePublisher:
         self.lc.subscribe("IIWA_STATUS", self.onIiwaStatus)
         #gripper_sub = self.lc.subscribe("command_topic", self.gripper_sub)
         
-        self.base_names = ['base_x', 'base_y', 'base_theta']
+        # self.base_names = ['base_x', 'base_y', 'base_theta']
         self.iiwa_joint_names = ['iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3', 'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6', 'iiwa_joint_7']
         #self.gripper_names = ['robotiq_hand'] # !! Jay, maybe want the "actual" name...not that it matters...
 
         self.joints = []
-        self.joints.extend(self.base_names)
+        # self.joints.extend(self.base_names)
         self.joints.extend(self.iiwa_joint_names)
         #self.joints.extend(self.gripper_names)
 

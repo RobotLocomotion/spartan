@@ -129,6 +129,11 @@ group "8.ROS" {
     host = "localhost";
   }
 
+  cmd "6.Robot Movement Service" {
+    exec = "rosrun robot_control robotmovementservice.py";
+    host = "localhost";
+  }
+
 }
 
 script "1.robot_startup" {
