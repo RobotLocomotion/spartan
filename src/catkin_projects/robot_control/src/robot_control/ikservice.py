@@ -43,14 +43,7 @@ class IkService(object):
         self.config = dict()
         self.config['ikservice_name'] = "robot_control/IkService"
 
-    def runIK(self, targetFrame, startPose=None, graspToHandLinkFrame=None, positionTolerance=0.0, angleToleranceInDegrees=0.0,
-              maxDegreesPerSecond=60):
-
-        """
-        Sets the cameraFrame to the targetFrame using IK
-        :param targetFrame:
-        :return:
-        """
+    def runIK(self, targetFrame, startPose=None, graspToHandLinkFrame=None, positionTolerance=0.0, angleToleranceInDegrees=0.0, seedPoseName='q_nom'):
 
         if graspToHandLinkFrame is None:
             graspToHandLinkFrame = vtk.vtkTransform()
@@ -86,17 +79,21 @@ class IkService(object):
 
         constraintSet = ConstraintSet(ikPlanner, constraints, 'reach_end',
                                       startPoseName)
-        constraintSet.ikParameters = IkParameters(maxDegreesPerSecond=maxDegreesPerSecond)
+        constraintSet.ikParameters = IkParameters()
 
-
+        constraintSet.seedPoseName = seedPoseName
 
         print "consraintSet ", constraintSet
+        print "constraintSet.seedPoseName ", constraintSet.seedPoseName
+        print "constraintSet.nominalPoseName ", constraintSet.nominalPoseName
 
 
         endPose, info = constraintSet.runIk()
         returnData = dict()
         returnData['info'] = info
         returnData['endPose'] = endPose
+
+
 
         return returnData
 
@@ -123,6 +120,8 @@ class IkService(object):
 
         ikResult = self.runIK(targetFrame)
 
+        rospy.loginfo("IK info = %d", ikResult['info'])
+
         response = robot_msgs.srv.RunIKResponse()
         response.success = (ikResult['info'] == 1)
         rospy.loginfo("IK solution found = %s", response.success)
@@ -139,7 +138,7 @@ class IkService(object):
     # run this in a thread
     def runRosNode(self):
         self.advertiseServices()
-        rospy.loginfo("RobotMovementService ready!")
+        rospy.loginfo("IkService ready!")
         while not rospy.is_shutdown():
             rospy.spin()
 

@@ -47,7 +47,7 @@ if __name__ == '__main__':
     globals().update(**myObjects)
 
     # toggle show/hide of window
-    showWindow = True
+    showWindow = False
     if showWindow:
         fields.app.start()
     else:

@@ -155,6 +155,7 @@ catkin_package(
 catkin_install_python(PROGRAMS
 	scripts/test_command.py
 	scripts/test_movement_service.py
+	scripts/test_ikservice.py
 	src/robot_control/trajectory_server.py
 	src/robot_control/robotmovementservice.py
 	src/robot_control/ikservice.py

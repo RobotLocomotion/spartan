@@ -23,7 +23,6 @@ import rospy
 from robot_msgs.msg import *
 from robot_msgs.srv import *
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from robot_control.control_utils import wait_for_convergence, update_conf_state
 
 
 class TrajectoryServer:
@@ -38,15 +37,14 @@ class TrajectoryServer:
         planDuration = req.trajectory.points[-1].time_from_start
 
         self.lc.publish(self.publishChannel, plan.encode())
-        eps_nsecs = int((0.2)*1e9)
-        rospy.sleep(planDuration + rospy.Duration(nsecs=eps_nsecs))
+        eps = 0.2
+        rospy.sleep(planDuration + rospy.Duration.from_sec(eps))
 
         resp.success = True
         return resp
 
     def spinOnce(self):
         self.lc.handle()
-        self.robot_conf_state = update_conf_state(self.robot_conf_state, self.joint_positions, self.command_positions, isDict=False)
 
     def advertiseService(self):
         rospy.Service('/robot_control/SendJointTrajectory', SendJointTrajectory, self.handle_send_trajectory)
