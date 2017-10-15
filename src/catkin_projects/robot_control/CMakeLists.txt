@@ -157,6 +157,7 @@ catkin_install_python(PROGRAMS
 	scripts/test_movement_service.py
 	src/robot_control/trajectory_server.py
 	src/robot_control/robotmovementservice.py
+	src/robot_control/ikservice.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 ## Mark executable scripts (Python etc.) for installation
