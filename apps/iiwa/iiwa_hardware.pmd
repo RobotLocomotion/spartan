@@ -134,16 +134,6 @@ group "8.ROS" {
     host = "localhost";
   }
 
-  cmd "7. Test Movement Service" {
-    exec = "rosrun robot_control test_movement_service.py";
-    host = "localhost";
-  }
-
-  cmd "8.Test IK Service" {
-    exec = "rosrun robot_control test_ikservice.py";
-    host = "localhost";
-  }
-
 }
 
 script "1.robot_startup" {
@@ -164,4 +154,10 @@ script "3.sim_startup" {
     wait ms 4000;
     start cmd "1.kuka_simulation_w_schunk_gripper";
     start cmd "0.kuka-driver";
+}
+
+script "3.start_ROS" {
+  start cmd "0.roscore";
+  wait ms 3000;
+  start group "8.ROS";
 }
