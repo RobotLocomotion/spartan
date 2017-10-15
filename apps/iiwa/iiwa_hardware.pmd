@@ -124,13 +124,23 @@ group "8.ROS" {
     host = "localhost";
   }
 
-  cmd "5.Example Command" {
-    exec = "rosrun robot_control test_command.py";
+  cmd "5.Robot Movement Service" {
+    exec = "rosrun robot_control robotmovementservice.py";
     host = "localhost";
   }
 
-  cmd "6.Robot Movement Service" {
-    exec = "rosrun robot_control robotmovementservice.py";
+  cmd "6.IK Service" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/src/catkin_projects/robot_control/src/robot_control/ikserviceapp.py --director-config $SPARTAN_SOURCE_DIR/models/iiwa/director/director_config_no_gripper.json";
+    host = "localhost";
+  }
+
+  cmd "7. Test Movement Service" {
+    exec = "rosrun robot_control test_movement_service.py";
+    host = "localhost";
+  }
+
+  cmd "8.Test IK Service" {
+    exec = "rosrun robot_control test_ikservice.py";
     host = "localhost";
   }
 
