@@ -11,8 +11,14 @@ function use_ros()
 	. /opt/ros/kinetic/setup.sh
 }
 
+function use_spartan_ros()
+{
+	. ~/spartan/build/catkin_projects/devel/setup.bash
+}
+
 export -f use_spartan
 export -f use_ros
+export -f use_spartan_ros
 
 exec "$@"
 
