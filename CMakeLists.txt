@@ -171,6 +171,14 @@ ExternalProject_Add(director
   DEPENDS drake
 )
 
+ExternalProject_Add(common_utils
+  SOURCE_DIR ${source_dir}/src/common_utils
+  BINARY_DIR ${build_dir}/common_utils
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+)
+
 ExternalProject_Add(signal-scope
   SOURCE_DIR ${source_dir}/signal-scope
   BINARY_DIR ${build_dir}/signal-scope
