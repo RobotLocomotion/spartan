@@ -279,7 +279,7 @@ viewBehaviors.addHandler(viewBehaviors.LEFT_DOUBLE_CLICK_EVENT, robotLinkSelecto
 
 if havePerceptionDrivers():
 
-    import mytaskpanel
+    
 
     imageManager = initImageManager()
     openniDepthPointCloud = initDepthPointCloud(imageManager, view)
@@ -288,11 +288,15 @@ if havePerceptionDrivers():
     frameVisPanel = framevisualization.FrameVisualizationPanel(view)
     app.addWidgetToDock(frameVisPanel.widget, QtCore.Qt.RightDockWidgetArea).hide()
 
-    taskPanel = mytaskpanel.MyTaskPanel(robotSystem, cameraView)
-    taskPanel.planner.openGripperFunc = gripperOpen
-    taskPanel.planner.closeGripperFunc = gripperClose
+    try:
+        import mytaskpanel
+        taskPanel = mytaskpanel.MyTaskPanel(robotSystem, cameraView)
+        taskPanel.planner.openGripperFunc = gripperOpen
+        taskPanel.planner.closeGripperFunc = gripperClose
 
-    ip = mytaskpanel.iiwaplanning
+        ip = mytaskpanel.iiwaplanning
+    except:
+        print "couldn't find mytaskpanel, skipping"
 
     #affordanceName = 'box'
     #ip.spawnAffordance(affordanceName)
@@ -333,7 +337,7 @@ app.initWindowSettings()
 applogic.resetCamera(viewDirection=[-1,1,-0.5], view=view)
 
 
-useKukaRLGDev = False
+useKukaRLGDev = True
 if useKukaRLGDev:
 
     # broadcast the pose of the wrist mounted Xtion
@@ -347,3 +351,10 @@ if useKukaRLGDev:
 
     import spartan.perception.handeyecalibration
     cal = spartan.perception.handeyecalibration.HandEyeCalibration(robotSystem)
+
+    # setup the director node
+
+useROS = True
+if useROS:
+    import rospy
+    rospy.init_node('director')
