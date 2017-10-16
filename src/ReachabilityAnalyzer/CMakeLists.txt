@@ -13,7 +13,7 @@ include_directories(${VTK_INCLUDE_DIRS})
 
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
-add_executable(reachability_analyzer reachability_analyzer.cpp)
+add_executable(reachability_analyzer reachability_analyzer.cpp reachability_analyzer.hpp)
 target_link_libraries(reachability_analyzer
     z
     pthread
