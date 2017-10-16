@@ -5,9 +5,8 @@ set(CMAKE_CXX_STANDARD 11)
 find_package(drake REQUIRED)
 find_package(gflags REQUIRED)
 
-set(EIGEN3_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include/eigen3)
-include_directories(${EIGEN3_INCLUDE_DIR}) 
-message("Eigen3 include dir" ${EIGEN3_INCLUDE_DIR})
+find_package(Eigen3 REQUIRED)
+include_directories(${Eigen3_INCLUDE_DIR})
 
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
