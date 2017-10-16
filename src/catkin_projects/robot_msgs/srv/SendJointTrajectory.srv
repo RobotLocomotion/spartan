@@ -1,0 +1,5 @@
+trajectory_msgs/JointTrajectory trajectory
+float32 duration
+---
+robot_msgs/RobotConfiguration conf
+bool success

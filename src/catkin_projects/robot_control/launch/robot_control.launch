@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!--<node name="kuka_control" pkg="robot_control" type="kuka_control.sh" />-->
+  <!--<node name="kuka_plan_runner" pkg="robot_control" type="kuka_plan_runner.sh" />-->
+	
+  <rosparam command="load" file="$(find robot_control)/data/robot_control_params.yaml"/>
+
+  <!-- Provides the GoToConf service (requested with robot_msgs/RobotConfiguration) -->
+  <!-- <node name="robot_conf_controller" pkg="robot_control" type="robot_go_to_conf.py"  output="screen" /> -->
+
+  <!-- Provides the SendJointTrajectory service (requested with trajectory_msgs/JointTrajectory)-->
+  <node name="trajectory_server" pkg="robot_control" type="trajectory_server.py" output="screen" />
+
+</launch>
