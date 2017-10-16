@@ -28,6 +28,9 @@ from director.timercallback import TimerCallback
 from director import robotstate
 from director.ikplanner import ConstraintSet
 import director.vtkAll as vtk
+from director.debugVis import DebugData
+from director import objectmodel as om
+
 
 
 
@@ -275,18 +278,107 @@ class HandEyeCalibration(object):
 
     def computeCalibrationPoses(self):
         config = dict()
-        config['yaw_min'] = -90
-        config['yaw_max'] = 90
-        config['pitch_min'] = 0
-        config['pitch_max'] = 120
+        config['yaw'] = dict()
+        config['yaw']['min'] = -90
+        config['yaw']['max'] = 90
+        config['yaw']['step_size'] = 15
+
+        config['pitch'] = dict()
+        config['pitch']['min'] = 0
+        config['pitch']['max'] = 120
+        config['pitch']['step_size'] = 15
+
+        config['distance'] = dict()
+        config['distance']['min'] = 0.8
+        config['distance']['max'] = 1.5
+        config['distance']['step_size'] = 0.2
+
+        config['direction_to_target'] = [1, 0, 0]
+
+        def arrayFromConfig(d):
+            return np.arange(d['min'], d['max'], d['step_size'])
 
         # vector going from the target back towards the robot
-        config['target_to_robot'] = [-1,0,0]
+
+
+
+        yawAngles = arrayFromConfig(config['yaw'])
+        pitchAngles = arrayFromConfig(config['pitch'])
+        distances = arrayFromConfig(config['distance'])
+
+
+
+        calibrationPoses = []
+        returnData = dict()
+        returnData['cameraLocations'] = []
+        returnData['feasiblePoses'] = []
+
+
+        for yaw in yawAngles:
+            for pitch in pitchAngles:
+                for dist in distances:
+                    cameraLocation = HandEyeCalibration.gripperPositionTarget(config['direction_to_target'], yaw=yaw, pitch=pitch, roll=0, distance=dist)
+
+                    ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation)
+
+                    returnData['cameraLocations'].append(cameraLocation)
+
+
+                    if (ikResult['info'] == 1):
+                        d = dict()
+                        d['yaw'] = yaw
+                        d['pitch'] = pitch
+                        d['dist'] = dist
+                        d['joint_angles'] = ikResult['endPose']
+                        d['cameraLocation'] = cameraLocation
+                        returnData['feasiblePoses'].append(d)
+
+
+                        print "\n yaw %.2f, pitch %.2f, distance %.2f" % (yaw, pitch, dist)
+                        print "info = ", ikResult['info']
+                        print ""
+                        calibrationPoses.append(ikResult['endPose'])
+
+
+        return returnData
+
+
+
+    def drawResult(self, result):
+
+        radius = 0.01
+        parent = om.getOrCreateContainer('Hand Eye Calibration')
+
+        d = DebugData()
+        for cameraLocation in result['cameraLocations']:
+            d.addSphere(cameraLocation, radius=radius)
+
+
+        vis.updatePolyData(d.getPolyData(), 'All Camera Locations', parent=parent, color=[1,0,0])
+
+        d = DebugData()
+        for data in result['feasiblePoses']:
+            d.addSphere(data['cameraLocation'], radius=radius)
+
+        vis.updatePolyData(d.getPolyData(), 'Feasible Camera Locations', parent=parent, color=[0,1,0])
+
+    @staticmethod
+    def gripperPositionTarget(directionToTarget, yaw=None, pitch=None, roll=0, distance=None):
+        t = transformUtils.frameFromPositionAndRPY([0,0,0], [roll, pitch, yaw])
+        tInv = t.GetLinearInverse()
+        v = np.array(tInv.TransformVector(directionToTarget))
+
+        # normalize it
+        v = v/np.linalg.norm(v) * distance
+
+        return v
+
 
     @staticmethod
     def createCameraGazeTargetConstraint(linkName=None, cameraToLinkFrame=None, cameraAxis=None, worldPoint=None, coneThresholdDegrees=0.0):
 
-        print [linkName, cameraToLinkFrame, cameraAxis, worldPoint]
+        # WorldGazeTargetConstraint can't be parsed by pydrakeik.py so we need to use WorldGazeDirConstraint
+
         if None in [linkName, cameraToLinkFrame, cameraAxis, worldPoint]:
             raise ValueError("must specify a field")
 
@@ -302,6 +394,29 @@ class HandEyeCalibration(object):
         g.axis = axis
         g.coneThreshold = np.deg2rad(coneThresholdDegrees)
 
+
+        return g
+
+    @staticmethod
+    def createCameraGazeDirConstraint(linkName=None, cameraToLinkFrame=None, cameraAxis=None, worldPoint=None,
+                                         coneThresholdDegrees=0.0):
+
+        # WorldGazeTargetConstraint can't be parsed by pydrakeik.py so we need to use WorldGazeDirConstraint
+
+        if None in [linkName, cameraToLinkFrame, cameraAxis, worldPoint]:
+            raise ValueError("must specify a field")
+
+        g = ikconstraints.WorldGazeTargetConstraint()
+        g.linkName = linkName
+        g.tspan = [1.0, 1.0]
+        g.worldPoint = worldPoint
+
+        g.bodyPoint = cameraToLinkFrame.GetPosition()
+
+        # axis expressed in link frame
+        axis = cameraToLinkFrame.TransformVector(cameraAxis)
+        g.axis = axis
+        g.coneThreshold = np.deg2rad(coneThresholdDegrees)
 
         return g
 
@@ -350,7 +465,7 @@ class HandEyeCalibration(object):
 
 
         constraints.append(positionConstraint)
-        # constraints.append(cameraGazeConstraint)
+        constraints.append(cameraGazeConstraint)
 
         constraintSet = ConstraintSet(ikPlanner, constraints, 'reach_end',
                                       startPoseName)
