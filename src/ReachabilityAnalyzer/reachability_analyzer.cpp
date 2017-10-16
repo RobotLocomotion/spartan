@@ -137,30 +137,30 @@ ReachabilityAnalyzer::ReachabilityAnalyzer(std::string yaml_config_path)
 // Options unique to a single
 // grasp direction-constrained
 // scan over the workspace.
-void ReachabilityAnalyzer::BuildGraspSearchOptions() {
-  grasp_search_entries_.clear();
-  grasp_search_entries_["+x"] = ReachabilityAnalyzer::GraspSearchEntry(
+void ReachabilityAnalyzer::BuildReachabilitySearchOptions() {
+  reachability_search_entries_.clear();
+  reachability_search_entries_["+x"] = ReachabilityAnalyzer::ReachabilitySearchEntry(
       {.grasp_direction = Vector3d(1, 0, 0), .vis_color = {1.0, 0.0, 0.0}});
-  grasp_search_entries_["+y"] = ReachabilityAnalyzer::GraspSearchEntry(
+  reachability_search_entries_["+y"] = ReachabilityAnalyzer::ReachabilitySearchEntry(
       {.grasp_direction = Vector3d(0, 1, 0), .vis_color = {0.0, 1.0, 0.0}});
-  grasp_search_entries_["+z"] = ReachabilityAnalyzer::GraspSearchEntry(
+  reachability_search_entries_["+z"] = ReachabilityAnalyzer::ReachabilitySearchEntry(
       {.grasp_direction = Vector3d(0, 0, 1), .vis_color = {0.0, 0.0, 1.0}});
-  grasp_search_entries_["-x"] = ReachabilityAnalyzer::GraspSearchEntry(
+  reachability_search_entries_["-x"] = ReachabilityAnalyzer::ReachabilitySearchEntry(
       {.grasp_direction = Vector3d(-1, 0, 0), .vis_color = {1.0, 0.0, 1.0}});
-  grasp_search_entries_["-y"] = ReachabilityAnalyzer::GraspSearchEntry(
+  reachability_search_entries_["-y"] = ReachabilityAnalyzer::ReachabilitySearchEntry(
       {.grasp_direction = Vector3d(0, -1, 0), .vis_color = {0.0, 1.0, 1.0}});
-  grasp_search_entries_["-z"] = ReachabilityAnalyzer::GraspSearchEntry(
+  reachability_search_entries_["-z"] = ReachabilityAnalyzer::ReachabilitySearchEntry(
       {.grasp_direction = Vector3d(0, 0, -1), .vis_color = {1.0, 1.0, 0.0}});
 }
 
-void ReachabilityAnalyzer::DoGraspSearch(
-    string grasp_entry_name,
-    ReachabilityAnalyzer::GraspSearchEntry grasp_info) {
+void ReachabilityAnalyzer::DoReachabilitySearch(
+    string reachability_entry_name,
+    ReachabilityAnalyzer::ReachabilitySearchEntry reachability_info) {
   auto console = spdlog::get("console");
 
   RemoteTreeViewerWrapper rm;
-  Vector3d grasp_dir = grasp_info.grasp_direction;
-  vector<double> grasp_dir_color = grasp_info.vis_color;
+  Vector3d grasp_dir = reachability_info.grasp_direction;
+  vector<double> grasp_dir_color = reachability_info.vis_color;
 
   // Provide a dummy timespan for our single-time-point
   // constraints.
@@ -243,7 +243,7 @@ void ReachabilityAnalyzer::DoGraspSearch(
         if (k_reachable - last_published_k_reachable >= 50 &&
             k_reachable != last_published_k_reachable) {
           rm.publishPointCloud(pts.block(0, 0, 3, k_reachable),
-                               {"reachability", grasp_entry_name},
+                               {"reachability", reachability_entry_name},
                                {grasp_dir_color});
 
           if (info == 1) {
@@ -261,17 +261,17 @@ void ReachabilityAnalyzer::DoGraspSearch(
          n_pts);
   if (k_reachable > 0) {
     rm.publishPointCloud(pts.block(0, 0, 3, k_reachable),
-                         {"reachability", grasp_entry_name}, {grasp_dir_color});
+                         {"reachability", reachability_entry_name}, {grasp_dir_color});
   }
 
   if (save_output_) {
     SaveColorizedVTP(
         pts.block(0, 0, 3, k_reachable), colors,
-        (output_directory_ + "/" + grasp_entry_name + ".vtp").c_str());
+        (output_directory_ + "/" + reachability_entry_name + ".vtp").c_str());
   }
 }
 
-void ReachabilityAnalyzer::DoGraspSearchPostProcessing() {
+void ReachabilityAnalyzer::DoReachabilitySearchPostProcessing() {
   auto console = spdlog::get("console");
 
   RemoteTreeViewerWrapper rm;
@@ -290,7 +290,7 @@ void ReachabilityAnalyzer::DoGraspSearchPostProcessing() {
         all_pts.col(k) = pos_end;
 
         double good_fraction = ((double)reachable_dirs_[k]) /
-                               ((double)grasp_search_entries_.size());
+                               ((double)reachability_search_entries_.size());
         dextrous_colors[k] = {1. - good_fraction, good_fraction,
                               1. - (fabs(good_fraction - 0.5) * 2),
                               good_fraction};
@@ -308,25 +308,25 @@ void ReachabilityAnalyzer::DoGraspSearchPostProcessing() {
   }
 }
 
-void ReachabilityAnalyzer::DoGraspAnalysis() {
+void ReachabilityAnalyzer::DoReachabilityAnalysis() {
   // Build grasp search directions we wish to constrain the grasp -- i.e., all
   // principal
   // directions.
-  BuildGraspSearchOptions();
+  BuildReachabilitySearchOptions();
 
   // # of unique directions reachable by the arm -- indexed into
-  // in same order as the search performed in DoGraspSearch.
+  // in same order as the search performed in DoReachabilitySearch.
   // TODO(gizatt) Replace by EigenNdArray once I PR that tool.
   reachable_dirs_.clear();
   reachable_dirs_.resize(steps_.prod(), 0);
 
-  for (const auto& it : grasp_search_entries_) {
-    DoGraspSearch(it.first, it.second);
+  for (const auto& it : reachability_search_entries_) {
+    DoReachabilitySearch(it.first, it.second);
   }
 
   // And collate and publish a complete dextrous-workspace color-mapped point
   // cloud.
-  DoGraspSearchPostProcessing();
+  DoReachabilitySearchPostProcessing();
 }
 
 static int DoMain(void) {
@@ -335,7 +335,7 @@ static int DoMain(void) {
   ReachabilityAnalyzer analyzer(
       expandEnvironmentVariables(FLAGS_config_filename));
 
-  analyzer.DoGraspAnalysis();
+  analyzer.DoReachabilityAnalysis();
 
   return 0;
 }
