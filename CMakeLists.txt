@@ -225,7 +225,7 @@ if (WITH_REACHABILITY_ANALYZER)
   BUILD_ALWAYS 1
   CMAKE_CACHE_ARGS
     ${CMAKE_ARGS_FOR_EXTERNALS}
-  DEPENDS drake director RemoteTreeViewer
+  DEPENDS drake director RemoteTreeViewer common_utils
   )
 endif()
 

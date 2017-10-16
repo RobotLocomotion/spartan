@@ -2,7 +2,8 @@
 #include <string>
 #include <vector>
 
-#include <gflags/gflags.h>
+#include "common_utils/math_utils.h"
+#include "common_utils/system_utils.h"
 
 #include "drake/common/find_resource.h"
 #include "drake/common/text_logging_gflags.h"
@@ -13,15 +14,15 @@
 #include "drake/multibody/rigid_body_ik.h"
 #include "drake/multibody/rigid_body_tree.h"
 
+#include <gflags/gflags.h>
+#include "spdlog/spdlog.h"
+
 #include "RemoteTreeViewerWrapper.hpp"
 
-DEFINE_string(urdf,
-              "drake/manipulation/models/iiwa_description/urdf/"
-              "iiwa14_primitive_collision.urdf",
-              "Path to robot URDF.");
+#include "yaml-cpp/yaml.h"
 
-DEFINE_string(end_effector_frame_name, "iiwa_frame_ee",
-              "End effector frame name.");
+DEFINE_string(config_filename, "config_filename",
+              "YAML config file supplying search parameters.");
 
 using Eigen::Vector2d;
 using Eigen::Vector3d;
@@ -33,46 +34,90 @@ using Eigen::MatrixXd;
 using Eigen::Isometry3d;
 
 using std::vector;
+using std::string;
 
-int DoMain(void) {
-  auto model = std::make_unique<RigidBodyTree<double>>();
-  drake::parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
-      drake::FindResourceOrThrow(FLAGS_urdf), drake::multibody::joints::kFixed,
-      model.get());
-
+static int DoMain(void) {
+  auto console = spdlog::stdout_color_mt("console");
   RemoteTreeViewerWrapper rm;
+  auto model = std::make_unique<RigidBodyTree<double>>();
+  YAML::Node config =
+      YAML::LoadFile(expandEnvironmentVariables(FLAGS_config_filename));
+
+  // Load configuration parameters from configuration file.
+  if (config["urdf"]) {
+    drake::parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+        expandEnvironmentVariables(config["urdf"].as<string>()),
+        drake::multibody::joints::kFixed, model.get());
+  } else {
+    console->error("Config had no 'urdf' field!\n");
+    exit(1);
+  }
 
   // Iteration information to define the volume we'll search.
-  Vector3i steps(50, 1, 50);
-  Vector3d min_val(0.0, 0.0, -0.5);
-  Vector3d max_val(1.0, 0.0, 1.5);
-  int n_pts = steps.prod();
-  const double pos_tol = 0.01;
+  if (!config["steps"] || !config["x_range"] || !config["y_range"] ||
+      !config["z_range"]) {
+    console->error(
+        "Missing one or more of the fields ['steps', 'x_range', 'y_range', "
+        "'z_range']!");
+    exit(1);
+  }
 
-  // Search directions we wish to constrain the grasp.
-  std::vector<Vector3d> world_grasp_dirs;
-  world_grasp_dirs.push_back(Vector3d(1, 0, 0));
-  world_grasp_dirs.push_back(Vector3d(-1, 0, 0));
-  world_grasp_dirs.push_back(Vector3d(0, 1, 0));
-  world_grasp_dirs.push_back(Vector3d(0, -1, 0));
-  world_grasp_dirs.push_back(Vector3d(0, 0, 1));
-  world_grasp_dirs.push_back(Vector3d(0, 0, -1));
-  std::vector<std::vector<double>> color_map;
-  color_map.push_back({1.0, 0.0, 0.0});
-  color_map.push_back({0.0, 1.0, 0.0});
-  color_map.push_back({1.0, 1.0, 0.0});
-  color_map.push_back({0.0, 0.0, 1.0});
-  color_map.push_back({1.0, 0.0, 1.0});
-  color_map.push_back({0.0, 1.0, 1.0});
-  std::vector<std::string> name_map;
-  name_map.push_back("+x");
-  name_map.push_back("-x");
-  name_map.push_back("+y");
-  name_map.push_back("-y");
-  name_map.push_back("+z");
-  name_map.push_back("-z");
-  Vector3d frame_grasp_dir(0.0, 1.0, 0.0);
-  double cone_threshold = 0.01;
+  Vector3i steps = StdVectorToEigenVector(config["steps"].as<vector<int>>());
+
+  auto config_x_range = config["x_range"].as<vector<double>>();
+  auto config_y_range = config["y_range"].as<vector<double>>();
+  auto config_z_range = config["z_range"].as<vector<double>>();
+
+  Vector3d min_val(config_x_range[0], config_y_range[0], config_z_range[0]);
+  Vector3d max_val(config_x_range[1], config_y_range[1], config_z_range[1]);
+  int n_pts = steps.prod();
+
+  if (!config["position_tolerance"] || !config["cone_tolerance"]) {
+    console->error(
+        "Missing one or more of the fields ['position_tolerance', "
+        "'cone_tolerance']!");
+    exit(1);
+  }
+  const double position_tolerance = config["position_tolerance"].as<double>();
+  const double cone_tolerance = config["cone_tolerance"].as<double>();
+
+  // Search directions we wish to constrain the grasp -- i.e., all principal
+  // directions.
+  struct GraspSearchInfo {
+    Vector3d grasp_direction;
+    vector<double> vis_color;
+  };
+  std::map<string, GraspSearchInfo> grasp_search_options;
+  grasp_search_options["+x"] = GraspSearchInfo(
+      {.grasp_direction = Vector3d(1, 0, 0), .vis_color = {1.0, 0.0, 0.0}});
+  grasp_search_options["+y"] = GraspSearchInfo(
+      {.grasp_direction = Vector3d(0, 1, 0), .vis_color = {0.0, 1.0, 0.0}});
+  grasp_search_options["+z"] = GraspSearchInfo(
+      {.grasp_direction = Vector3d(0, 0, 1), .vis_color = {0.0, 0.0, 1.0}});
+  grasp_search_options["-x"] = GraspSearchInfo(
+      {.grasp_direction = Vector3d(-1, 0, 0), .vis_color = {1.0, 0.0, 1.0}});
+  grasp_search_options["-y"] = GraspSearchInfo(
+      {.grasp_direction = Vector3d(0, -1, 0), .vis_color = {0.0, 1.0, 1.0}});
+  grasp_search_options["-z"] = GraspSearchInfo(
+      {.grasp_direction = Vector3d(0, 0, -1), .vis_color = {1.0, 1.0, 0.0}});
+
+  if (!config["frame_grasp_direction"]) {
+    console->error("Missing the `frame_grasp_direction` field!");
+    exit(1);
+  }
+  Vector3d frame_grasp_direction = StdVectorToEigenVector(
+      config["frame_grasp_direction"].as<vector<double>>());
+
+  // Extract the end effector body_index and position
+  // info from the supplied frame name.
+  if (!config["end_effector_frame_name"]) {
+    console->error("Config has no 'end_effector_frame_name' field!");
+    exit(1);
+  }
+  const auto end_effector_frame =
+      model->findFrame(config["end_effector_frame_name"].as<string>());
+  const int link_index = end_effector_frame->get_rigid_body().get_body_index();
+  const Isometry3d frame_tf = end_effector_frame->get_transform_to_body();
 
   // Provide a dummy timespan for our single-time-point
   // constraints.
@@ -89,19 +134,13 @@ int DoMain(void) {
   // Vector4d quat_end;
   Vector3d pos_lb, pos_ub;
 
-  // Extract the end effector body_index and position
-  // info from the supplied frame name.
-  const auto end_effector_frame =
-      model->findFrame(FLAGS_end_effector_frame_name);
-  const int link_index = end_effector_frame->get_rigid_body().get_body_index();
-  const Isometry3d frame_tf = end_effector_frame->get_transform_to_body();
-
   // Data structures that can be shared between ik calls.
   IKoptions ikoptions(model.get());
   // ikoptions.setMajorIterationsLimit(10);
   // ikoptions.setIterationsLimit(1000);
-  printf("Running with major iter lim %d and iter limt %d\n",
-         ikoptions.getMajorIterationsLimit(), ikoptions.getIterationsLimit());
+  console->info("Running with major iter lim {0:d} and iter limt {1:d}\n",
+                ikoptions.getMajorIterationsLimit(),
+                ikoptions.getIterationsLimit());
 
   VectorXd q_sol = qnom;
   int info = 0;
@@ -121,13 +160,15 @@ int DoMain(void) {
   // # of unique directions reachable by the arm
   std::vector<int> reachable_dirs(n_pts, 0);
 
-  for (int dir_i = 0; dir_i < world_grasp_dirs.size(); dir_i++) {
-    Vector3d grasp_dir = world_grasp_dirs[dir_i];
+  for (const auto& it : grasp_search_options) {
+    string grasp_dir_name = it.first;
+    Vector3d grasp_dir = it.second.grasp_direction;
+    vector<double> grasp_dir_color = it.second.vis_color;
 
     // Gaze constraint
     WorldGazeDirConstraint wgdc(model.get(), link_index,
-                                frame_tf.rotation() * frame_grasp_dir,
-                                grasp_dir, cone_threshold, tspan);
+                                frame_tf.rotation() * frame_grasp_direction,
+                                grasp_dir, cone_tolerance, tspan);
 
     // Store volume information, temporarily, as a colored point cloud.
     Matrix3Xd pts(3, n_pts);
@@ -136,8 +177,8 @@ int DoMain(void) {
     int k_tried = 0;
     int k_reachable = 0;
     int last_published_k_reachable = k_reachable - 1;
-    printf("\nWith dir [%f,%f,%f]:\n", grasp_dir[0], grasp_dir[1],
-           grasp_dir[2]);
+    console->info("With dir [{0:f},{1:f},{2:f}]:\n", grasp_dir[0], grasp_dir[1],
+                  grasp_dir[2]);
     for (int x_i = 0; x_i < steps[0]; x_i++) {
       for (int y_i = 0; y_i < steps[1]; y_i++) {
         for (int z_i = 0; z_i < steps[2]; z_i++) {
@@ -146,8 +187,8 @@ int DoMain(void) {
               ((Vector3d(x_i, y_i, z_i).cast<double>().array()) * step_size)
                   .matrix();
 
-          pos_lb = pos_end - Vector3d::Constant(pos_tol);
-          pos_ub = pos_end + Vector3d::Constant(pos_tol);
+          pos_lb = pos_end - Vector3d::Constant(position_tolerance);
+          pos_ub = pos_end + Vector3d::Constant(position_tolerance);
 
           WorldPositionConstraint wpc(model.get(), link_index,
                                       frame_tf.translation(), pos_lb, pos_ub,
@@ -174,6 +215,8 @@ int DoMain(void) {
           }
 
           k_tried++;
+          // printf here because I'm abusing carriage returns and lack of
+          // newlines...
           printf("\rTried %d/%d, reachable %d/%d", k_tried, n_pts, k_reachable,
                  n_pts);
           fflush(stdout);
@@ -181,8 +224,8 @@ int DoMain(void) {
               k_reachable != last_published_k_reachable) {
             if (k_reachable > 0) {
               rm.publishPointCloud(pts.block(0, 0, 3, k_reachable),
-                                   {"reachability", name_map[dir_i]},
-                                   {color_map[dir_i]});
+                                   {"reachability", grasp_dir_name},
+                                   {grasp_dir_color});
               rm.publishRigidBodyTree(*model, q_sol,
                                       Vector4d(0.5, 0.5, 0.5, 1.0),
                                       {"reachability", "robot"});
@@ -193,12 +236,12 @@ int DoMain(void) {
       }
     }
 
+    // printf here because I'm hacking a progress bar in...
     printf("\rTried %d/%d, reachable %d/%d\n", k_tried, n_pts, k_reachable,
            n_pts);
     if (k_reachable > 0) {
       rm.publishPointCloud(pts.block(0, 0, 3, k_reachable),
-                           {"reachability", name_map[dir_i]},
-                           {color_map[dir_i]});
+                           {"reachability", grasp_dir_name}, {grasp_dir_color});
       rm.publishRigidBodyTree(*model, q_sol, Vector4d(0.5, 0.5, 0.5, 1.0),
                               {"reachability", "robot"});
     }
@@ -220,7 +263,7 @@ int DoMain(void) {
         all_pts.col(k) = pos_end;
 
         double good_fraction =
-            ((double)reachable_dirs[k]) / ((double)world_grasp_dirs.size());
+            ((double)reachable_dirs[k]) / ((double)grasp_search_options.size());
         dextrous_colors[k] = {1. - good_fraction, good_fraction,
                               1. - (fabs(good_fraction - 0.5) * 2),
                               good_fraction};
