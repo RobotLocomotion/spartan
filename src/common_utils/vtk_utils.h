@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vtkSmartPointer.h>
 #include <vtkActor.h>
 #include <vtkCellArray.h>
 #include <vtkCleanPolyData.h>
@@ -8,67 +7,58 @@
 #include <vtkFloatArray.h>
 #include <vtkIdList.h>
 #include <vtkIntArray.h>
-#include <vtkObjectFactory.h>
 #include <vtkNew.h>
 #include <vtkOBJReader.h>
+#include <vtkObjectFactory.h>
 #include <vtkPLYReader.h>
-#include <vtkPoints.h>
 #include <vtkPointData.h>
 #include <vtkPointSource.h>
+#include <vtkPoints.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkPolyDataNormals.h>
 #include <vtkPolyDataPointSampler.h>
 #include <vtkProperty.h>
-#include <vtkSmartPointer.h>
 #include <vtkSTLReader.h>
-#include <vtksys/SystemTools.hxx>
+#include <vtkSmartPointer.h>
+#include <vtkSmartPointer.h>
 #include <vtkXMLPolyDataReader.h>
 #include <vtkXMLPolyDataWriter.h>
+#include <vtksys/SystemTools.hxx>
 
 // Generic loader that loads common model formats into
 // a vtkPolyData object.
-static vtkSmartPointer<vtkPolyData> ReadPolyData(const char *fileName)
-{
+static vtkSmartPointer<vtkPolyData> ReadPolyData(const char* fileName) {
   vtkSmartPointer<vtkPolyData> polyData;
-  std::string extension = vtksys::SystemTools::GetFilenameExtension(std::string(fileName));
-  if (extension == ".ply")
-  {
-    vtkSmartPointer<vtkPLYReader> reader =
-      vtkSmartPointer<vtkPLYReader>::New();
-    reader->SetFileName (fileName);
+  std::string extension =
+      vtksys::SystemTools::GetFilenameExtension(std::string(fileName));
+  if (extension == ".ply") {
+    vtkSmartPointer<vtkPLYReader> reader = vtkSmartPointer<vtkPLYReader>::New();
+    reader->SetFileName(fileName);
     reader->Update();
     polyData = reader->GetOutput();
-  }
-  else if (extension == ".vtp")
-  {
+  } else if (extension == ".vtp") {
     vtkSmartPointer<vtkXMLPolyDataReader> reader =
-      vtkSmartPointer<vtkXMLPolyDataReader>::New();
-    reader->SetFileName (fileName);
+        vtkSmartPointer<vtkXMLPolyDataReader>::New();
+    reader->SetFileName(fileName);
     reader->Update();
     polyData = reader->GetOutput();
-  }
-  else if (extension == ".obj")
-  {
-    vtkSmartPointer<vtkOBJReader> reader =
-      vtkSmartPointer<vtkOBJReader>::New();
-    reader->SetFileName (fileName);
+  } else if (extension == ".obj") {
+    vtkSmartPointer<vtkOBJReader> reader = vtkSmartPointer<vtkOBJReader>::New();
+    reader->SetFileName(fileName);
     reader->Update();
     polyData = reader->GetOutput();
-  }
-  else if (extension == ".stl")
-  {
-    vtkSmartPointer<vtkSTLReader> reader =
-      vtkSmartPointer<vtkSTLReader>::New();
-    reader->SetFileName (fileName);
+  } else if (extension == ".stl") {
+    vtkSmartPointer<vtkSTLReader> reader = vtkSmartPointer<vtkSTLReader>::New();
+    reader->SetFileName(fileName);
     reader->Update();
     polyData = reader->GetOutput();
   }
   return polyData;
 }
 
-static void WritePolyData(const vtkSmartPointer<vtkPolyData> polyData, const char * filename) 
-{
-  vtkSmartPointer<vtkXMLPolyDataWriter> writer =  
+static void WritePolyData(const vtkSmartPointer<vtkPolyData> polyData,
+                          const char* filename) {
+  vtkSmartPointer<vtkXMLPolyDataWriter> writer =
       vtkSmartPointer<vtkXMLPolyDataWriter>::New();
   writer->SetFileName(filename);
   writer->SetInputData(polyData);
@@ -115,34 +105,31 @@ static Eigen::Matrix3Xd LoadAndDownsamplePolyData(
 }
 
 // Shamelessly taken from vtkPCLConversions.h in Director.
-vtkSmartPointer<vtkCellArray> NewVertexCells(vtkIdType numberOfVerts)
-{
+vtkSmartPointer<vtkCellArray> NewVertexCells(vtkIdType numberOfVerts) {
   vtkNew<vtkIdTypeArray> cells;
-  cells->SetNumberOfValues(numberOfVerts*2);
+  cells->SetNumberOfValues(numberOfVerts * 2);
   vtkIdType* ids = cells->GetPointer(0);
-  for (vtkIdType i = 0; i < numberOfVerts; ++i)
-    {
-    ids[i*2] = 1;
-    ids[i*2+1] = i;
-    }
+  for (vtkIdType i = 0; i < numberOfVerts; ++i) {
+    ids[i * 2] = 1;
+    ids[i * 2 + 1] = i;
+  }
 
-  vtkSmartPointer<vtkCellArray> cellArray = vtkSmartPointer<vtkCellArray>::New();
+  vtkSmartPointer<vtkCellArray> cellArray =
+      vtkSmartPointer<vtkCellArray>::New();
   cellArray->SetCells(numberOfVerts, cells.GetPointer());
   return cellArray;
 }
 
-static vtkSmartPointer<vtkPolyData> PolyDataFromMatrix3Xd(Eigen::Matrix3Xd input)
-{
+static vtkSmartPointer<vtkPolyData> PolyDataFromMatrix3Xd(
+    Eigen::Matrix3Xd input) {
   vtkIdType nr_points = input.cols();
 
   vtkNew<vtkPoints> points;
   points->SetDataTypeToFloat();
   points->SetNumberOfPoints(nr_points);
 
-
   for (vtkIdType i = 0; i < nr_points; ++i) {
-    float point[3] = {(float)input(0, i),
-                      (float)input(1, i),
+    float point[3] = {(float)input(0, i), (float)input(1, i),
                       (float)input(2, i)};
     points->SetPoint(i, point);
   }
@@ -151,4 +138,24 @@ static vtkSmartPointer<vtkPolyData> PolyDataFromMatrix3Xd(Eigen::Matrix3Xd input
   polyData->SetPoints(points.GetPointer());
   polyData->SetVerts(NewVertexCells(nr_points));
   return polyData;
+}
+
+static void AddColorToPolyData(
+    const vtkSmartPointer<vtkPolyData> polyData,
+    std::vector<std::vector<double>> colors) {
+  vtkSmartPointer<vtkUnsignedCharArray> colors_vtk =
+      vtkSmartPointer<vtkUnsignedCharArray>::New();
+  colors_vtk->SetNumberOfComponents(3);
+  colors_vtk->SetName("Colors");
+
+  // Convert colors from floats on [0, 1] to chars on [0, 255]
+  for (int i = 0; i < colors.size(); i++) {
+    unsigned char color[3];
+    for (int j = 0; j < 3; j++) {
+      color[j] = colors[i][j] * 255;
+    }
+    colors_vtk->InsertNextTypedTuple(color);
+  }
+
+  polyData->GetPointData()->SetScalars(colors_vtk);
 }

@@ -4,6 +4,7 @@
 
 #include "common_utils/math_utils.h"
 #include "common_utils/system_utils.h"
+#include "common_utils/vtk_utils.h"
 
 #include "drake/common/find_resource.h"
 #include "drake/common/text_logging_gflags.h"
@@ -274,6 +275,18 @@ static int DoMain(void) {
 
   rm.publishPointCloud(all_pts, {"reachability", "manipulable workspace"},
                        dextrous_colors);
+
+  if (config["output_directory"]){
+    string output_directory = expandEnvironmentVariables(config["output_directory"].as<string>());
+    const int dir_err = system((string("mkdir -p ") + output_directory).c_str());
+    if (dir_err){
+      console->error("Error creating output directory {0}", output_directory);
+      exit(1);
+    }
+    auto all_pts_vtk = PolyDataFromMatrix3Xd(all_pts);
+    AddColorToPolyData(all_pts_vtk, dextrous_colors);
+    WritePolyData(all_pts_vtk, (output_directory + "/all_pts.vtp").c_str());
+  }
 
   return 0;
 }
