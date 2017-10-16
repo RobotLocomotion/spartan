@@ -28,7 +28,7 @@ option(WITH_IIWA_DRIVER_RLG "Build drake-iiwa-driver, RLG version." OFF)
 option(WITH_IIWA_DRIVER_TRI "Build drake-iiwa-driver, TRI version." OFF)
 option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
 option(WITH_ROS "Build the catkin-workspace projects." OFF)
-option(BUILD_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
+option(WITH_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 
 # Setup external projects
 include(ExternalProject)
@@ -210,14 +210,14 @@ ExternalProject_Add(RemoteTreeViewer
   DEPENDS drake
 )
 
-if (BUILD_REACHABILITY_ANALYZER)
+if (WITH_REACHABILITY_ANALYZER)
   ExternalProject_Add(ReachabilityAnalyzer
   SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
   BINARY_DIR ${build_dir}/ReachabilityAnalyzer
   BUILD_ALWAYS 1
   CMAKE_CACHE_ARGS
     ${CMAKE_ARGS_FOR_EXTERNALS}
-  DEPENDS director RemoteTreeViewer
+  DEPENDS drake director RemoteTreeViewer
   )
 endif()
 
