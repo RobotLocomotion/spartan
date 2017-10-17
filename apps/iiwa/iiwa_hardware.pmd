@@ -124,8 +124,18 @@ group "8.ROS" {
     host = "localhost";
   }
 
-  cmd "5.Example Command" {
-    exec = "rosrun robot_control test_command.py";
+  cmd "5.Robot Movement Service" {
+    exec = "rosrun robot_control robotmovementservice.py";
+    host = "localhost";
+  }
+
+  cmd "6.IK Service" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/src/catkin_projects/robot_control/src/robot_control/ikserviceapp.py --director-config $SPARTAN_SOURCE_DIR/models/iiwa/director/director_config.json";
+    host = "localhost";
+  }
+
+  cmd "7.ROS-OpenNI" {
+    exec = "roslaunch openni2_launch openni2.launch";
     host = "localhost";
   }
 
@@ -149,4 +159,10 @@ script "3.sim_startup" {
     wait ms 4000;
     start cmd "1.kuka_simulation_w_schunk_gripper";
     start cmd "0.kuka-driver";
+}
+
+script "3.start_ROS" {
+  start cmd "0.roscore";
+  wait ms 3000;
+  start group "8.ROS";
 }

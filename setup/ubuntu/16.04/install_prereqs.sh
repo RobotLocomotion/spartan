@@ -44,4 +44,6 @@ apt-get update
 apt install -y --no-install-recommends \
   ros-kinetic-desktop \
   ros-kinetic-librealsense \
-  ros-kinetic-realsense-camera
+  ros-kinetic-realsense-camera \
+  ros-kinetic-moveit \
+  ros-kinetic-openni2-launch

@@ -42,6 +42,20 @@ def poseFromTransform(transform):
 
     return d
 
+def transformFromPose(d):
+    pos = [0]*3
+    pos[0] = d['translation']['x']
+    pos[1] = d['translation']['y']
+    pos[2] = d['translation']['z']
+
+    quat = [0] * 4
+    quat[0] = d['quaternion']['w']
+    quat[1] = d['quaternion']['x']
+    quat[2] = d['quaternion']['y']
+    quat[3] = d['quaternion']['z']
+
+    return transformUtils.transformFromPose(pos, quat)
+
 class EstRobotStatePublisher(object):
 
     def __init__(self, robotSystem):

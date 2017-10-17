@@ -55,6 +55,6 @@ if __name__ == "__main__":
 	traj.points.append(p3)
 
 	print 'Going'
-	resp = s(traj, duration)
+	resp = s(traj)
 	print resp.success
 	print 'Done!'

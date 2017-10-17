@@ -20,59 +20,56 @@ import bot_core as lcmbotcore
 
 
 # spartan
-import spartan.utils as spartanUtils
+import spartan.utils.utils as spartanUtils
 
 
 
 class CameraTransform(object):
 
-	def __init__(self, robotSystem, referenceLinkName='palm', cameraToLinkTransform=None, channelName='OPENNI_FRAME_LEFT_TO_LOCAL'):
+    def __init__(self, robotSystem, referenceLinkName='palm', cameraToLinkTransform=None, channelName='OPENNI_FRAME_LEFT_TO_LOCAL'):
 
-		assert cameraToLinkTransform is not None
+        assert cameraToLinkTransform is not None
 
-		self.robotSystem = robotSystem
-		self.robotStateModel = self.robotSystem.robotStateModel
-		self.referenceLinkName = referenceLinkName
-		self.cameraToLinkTransform = cameraToLinkTransform
-		self.channelName = channelName
-		self.setupSubscribers()
+        self.robotSystem = robotSystem
+        self.robotStateModel = self.robotSystem.robotStateModel
+        self.referenceLinkName = referenceLinkName
+        self.cameraToLinkTransform = cameraToLinkTransform
+        self.channelName = channelName
+        self.setupSubscribers()
 
-	def setupSubscribers(self):
-		lcmUtils.addSubscriber("EST_ROBOT_STATE", lcmbotcore.robot_state_t, self.onEstRobotState)
+    def setupSubscribers(self):
+        lcmUtils.addSubscriber("EST_ROBOT_STATE", lcmbotcore.robot_state_t, self.onEstRobotState)
 
-	"""
-	Publishes the camera transform each time EST_ROBOT_STATE is received
-	"""
-	def onEstRobotState(self, msg):
-		
-		cameraToWorld = self.getCameraToWorld()
+    """
+    Publishes the camera transform each time EST_ROBOT_STATE is received
+    """
+    def onEstRobotState(self, msg):
 
-		# make the message and publish it out
-		cameraToWorldMsg = lcmframe.rigidTransformMessageFromFrame(cameraToWorld)
-		lcmUtils.publish(self.channelName, cameraToWorldMsg)
+        cameraToWorld = self.getCameraToWorld()
 
-	def getCameraToWorld(self):
-		linkFrame = self.robotStateModel.getLinkFrame(self.referenceLinkName) # this is a vtkTransform object
-		cameraToWorld = transformUtils.concatenateTransforms([self.cameraToLinkTransform, linkFrame])
-		return cameraToWorld
+        # make the message and publish it out
+        cameraToWorldMsg = lcmframe.rigidTransformMessageFromFrame(cameraToWorld)
+        lcmUtils.publish(self.channelName, cameraToWorldMsg)
 
-	def makeCameraFrameTeleop(self):
-		self.cameraToWorld = self.getCameraToWorld()
-		vis.updateFrame(self.cameraToWorld, 'camera frame teleop')
+    def getCameraToWorld(self):
+        linkFrame = self.robotStateModel.getLinkFrame(self.referenceLinkName) # this is a vtkTransform object
+        cameraToWorld = transformUtils.concatenateTransforms([self.cameraToLinkTransform, linkFrame])
+        return cameraToWorld
 
-	def publishTeleopCameraFrame(self):
-		cameraToWorldMsg = lcmframe.rigidTransformMessageFromFrame(self.cameraToWorld)
-		lcmUtils.publish(self.channelName, cameraToWorldMsg)
+    def makeCameraFrameTeleop(self):
+        self.cameraToWorld = self.getCameraToWorld()
+        vis.updateFrame(self.cameraToWorld, 'camera frame teleop')
+
+    def publishTeleopCameraFrame(self):
+        cameraToWorldMsg = lcmframe.rigidTransformMessageFromFrame(self.cameraToWorld)
+        lcmUtils.publish(self.channelName, cameraToWorldMsg)
 
 
-	@staticmethod
-	def fromConfigFilename(robotSystem, configFilename):
-		config = spartanUtils.getDictFromYamlFilename(configFilename)
+    @staticmethod
+    def fromConfigFilename(robotSystem, configFilename):
+        config = spartanUtils.getDictFromYamlFilename(configFilename)
 
-		transform = config['camera_pose']['transform_to_reference_link']
-		pos = [transform['pos']['x'], transform['pos']['y'], transform['pos']['z']]
-		quat = [transform['quat']['w'], transform['quat']['x'], transform['quat']['y'], transform['quat']['z']]
+        transformDict = config['camera_pose']['transform_to_reference_link']
+        cameraToLinkTransform = spartanUtils.transformFromPose(transformDict)
 
-		cameraToLinkTransform = transformUtils.transformFromPose(pos, quat)
-
-		return CameraTransform(robotSystem, referenceLinkName=config['camera_pose']['reference_link_name'], cameraToLinkTransform=cameraToLinkTransform, channelName=config['channel_name'])
+        return CameraTransform(robotSystem, referenceLinkName=config['camera_pose']['reference_link_name'], cameraToLinkTransform=cameraToLinkTransform, channelName=config['channel_name'])
