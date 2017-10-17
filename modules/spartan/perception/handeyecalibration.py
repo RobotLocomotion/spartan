@@ -47,12 +47,15 @@ except:
 
 # spartan
 import spartan.utils as spartanUtils
+import spartan.ros_utils as spartanROSUtils
 from spartan.taskrunner import TaskRunner
 
 
 # ROS
 import rospy
 import sensor_msgs.msg
+from cv_bridge import CvBridge, CvBridgeError
+import cv2
 
 # ROS custom
 import robot_msgs.srv
@@ -152,10 +155,17 @@ class HandEyeCalibration(object):
         self.setup()
         self.calibrationData = None
 
+        self.setupConfig()
+
         self.timer = TimerCallback(targetFps=1)
         self.timer.callback = self.callback
         self.taskRunner = TaskRunner()
     # self.timer.callback = self.callback
+
+    def setupConfig(self):
+        self.config = dict()
+        self.config['rgb_raw_topic'] = '/camera/rgb/image_raw'
+        self.config['ir_raw_topic'] = '/camera/ir/image'
 
     def setup(self):
         self.nominalPose = 'center'
@@ -188,6 +198,70 @@ class HandEyeCalibration(object):
         data['hand_frame'] = spartanUtils.poseFromTransform(handTransform)
         data['utime'] = self.robotSystem.robotStateJointController.lastRobotStateMessage.utime
         return data
+
+    def getImages(self, captureRGB=True, captureIR=True):
+        d = dict()
+        if captureRGB:
+            d['rgb'] = self.getSingleImage(self.config['rgb_raw_topic'])
+
+        if captureIR:
+            d['ir'] = self.getSingleImage(self.config['ir_raw_topic'])
+
+
+    def getSingleImage(self, topic):
+        rospy.loginfo("waiting for image on topic %s", topic)
+        # bridge = CvBridge()
+        d = dict()
+        msg = self.subscribers[topic].waitForNextMessage()
+        rospy.loginfo("received message on topic %s", topic)
+        print "type(msg) ", type(msg)
+
+        try:
+            # Convert your ROS Image message to OpenCV2
+            cv2_img = bridge.imgmsg_to_cv2(msg, "bgr8")
+
+        except CvBridgeError, e:
+            print(e)
+
+        d['msg'] = msg
+        d['cv2_img'] = cv2_img
+
+        rospy.loginfo("converted msg to cv2 img on topic %s", topic)
+
+        return d
+
+    def saveSingleImage(self, topic, filename):
+        cmd = "ros_image_logger.py -t %s -f %s" % (topic, filename)
+        os.system(cmd)
+
+    def captureCurrentRobotAndImageData(self):
+        data = dict()
+        data['joint_positions'] = self.robotService.getPose().tolist()
+        data['hand_frame_name'] = self.handFrame
+
+        handTransform = self.robotSystem.robotStateModel.getLinkFrame(self.handFrame)
+        data['hand_frame'] = spartanUtils.poseFromTransform(handTransform)
+
+        rosTime = rospy.Time.now()
+        data['ros_timestamp'] = rosTime.to_sec()
+
+
+        data['images'] = dict()
+        imgTopics = dict()
+        imgTopics['rgb'] = self.config['rgb_raw_topic']
+        # imgData = self.getImages(captureRGB=True, captureIR=False)
+
+        filenamePrefix = os.path.join(self.calibrationFolderName, str(data['ros_timestamp']))
+        for key, topic in imgTopics.iteritems():
+            imageFilename = filenamePrefix + "_" + key + ".jpeg"
+            # self.saveSingleImage(topic, imageFilename)
+            singleImgData = dict()
+            singleImgData['filename'] = imageFilename
+            data['images'][key] = singleImgData
+
+
+        return data
+
 
     def testCaptureData(self):
         data = self.captureDataAtPose()
@@ -230,7 +304,7 @@ class HandEyeCalibration(object):
             self.poseOrder.append(self.poseDict[poseName]['nominal'])
             for subPoseName, pose in poses.iteritems():
                 if subPoseName == 'nominal':
-                    continue;
+                    continue
                 self.poseOrder.append(self.poseDict[poseName][subPoseName])
 
             self.poseOrder.append(self.poseDict['center']['nominal'])
@@ -266,8 +340,7 @@ class HandEyeCalibration(object):
         self.timer.start()
 
     def test(self):
-        pose = self.poseDict['center']['nominal']
-        self.robotService.movePose(pose)
+        self.taskRunner.callOnThread(self.getImages, True, False)
 
     def saveCalibrationData(self, filename=None):
         if filename is None:
@@ -275,6 +348,53 @@ class HandEyeCalibration(object):
 
 
         spartanUtils.saveToYaml(self.calibrationData, filename)
+
+    """
+    Warning: Don't call this function directly, use runROSCalibrationThreaded
+    """
+    def runROSCalibration(self):
+        unique_name = time.strftime("%Y%m%d-%H%M%S")
+        self.calibrationFolderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'calibration_data', unique_name)
+        os.system("mkdir -p " + self.calibrationFolderName)
+        os.chdir(self.calibrationFolderName)
+
+        poseDict = self.computeCalibrationPoses()
+        rospy.loginfo("finished making calibration poses")
+        rospy.loginfo("starting calibration run")
+
+        calibrationData = []
+
+        # topic = self.config['rgb_raw_topic']
+        # msgType = sensor_msgs.msg.Image
+        # self.subscribers = dict()
+        # self.subscribers[topic] = spartanROSUtils.SimpleSubscriber(topic, msgType)
+        # self.subscribers[topic].start()
+
+
+
+        for pose in poseDict['feasiblePoses']:
+            # move robot to that joint position
+            rospy.loginfo("moving to pose")
+            self.robotService.moveToJointPosition(pose['joint_angles'])
+
+            rospy.loginfo("waiting for images")
+            data = self.captureCurrentRobotAndImageData()
+            calibrationData.append(data)
+
+        rospy.loginfo("finished calibration routine, saving data to file")
+
+        calibrationRunData = dict()
+        calibrationRunData['header'] = dict()
+        calibrationRunData['header']['camera'] = 'xtion pro'
+
+        calibrationRunData['data_list'] = calibrationData
+
+        spartanUtils.saveToYaml(calibrationRunData, os.path.join(self.calibrationFolderName, 'robot_data.yaml'))
+
+        return calibrationRunData
+
+    def runROSCalibrationThreaded(self):
+        self.taskRunner.callOnThread(self.runROSCalibration)
 
     def computeCalibrationPoses(self):
         config = dict()
@@ -285,18 +405,20 @@ class HandEyeCalibration(object):
 
         config['pitch'] = dict()
         config['pitch']['min'] = 0
-        config['pitch']['max'] = 120
-        config['pitch']['step_size'] = 15
+        config['pitch']['max'] = 60
+        config['pitch']['step_size'] = 10
 
         config['distance'] = dict()
-        config['distance']['min'] = 0.8
-        config['distance']['max'] = 1.5
+        config['distance']['min'] = 0.60
+        config['distance']['max'] = 1.3
         config['distance']['step_size'] = 0.2
 
-        config['direction_to_target'] = [1, 0, 0]
+        config['direction_to_target'] = [1, 0, 0] # this should be in the x,y plane
+        config['target_location'] = [0.75, 0, 0]
 
         def arrayFromConfig(d):
-            return np.arange(d['min'], d['max'], d['step_size'])
+            n = int(np.ceil((d['max'] - d['min'])/d['step_size']))
+            return np.linspace(d['min'], d['max'], n)
 
         # vector going from the target back towards the robot
 
@@ -310,14 +432,19 @@ class HandEyeCalibration(object):
 
         calibrationPoses = []
         returnData = dict()
+        returnData['yawAngles'] = yawAngles
+        returnData['pitchAngles'] = pitchAngles
         returnData['cameraLocations'] = []
         returnData['feasiblePoses'] = []
 
-
-        for yaw in yawAngles:
+        for dist in distances:
             for pitch in pitchAngles:
-                for dist in distances:
-                    cameraLocation = HandEyeCalibration.gripperPositionTarget(config['direction_to_target'], yaw=yaw, pitch=pitch, roll=0, distance=dist)
+                for yaw in yawAngles:
+                    # if (pitch > 70) and (dist < 0.8):
+                    #     print "skipping pose"
+                    #     continue
+
+                    cameraLocation = HandEyeCalibration.gripperPositionTarget(config['target_location'], yaw=yaw, pitch=pitch, radius=dist)
 
                     ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation)
 
@@ -363,15 +490,53 @@ class HandEyeCalibration(object):
         vis.updatePolyData(d.getPolyData(), 'Feasible Camera Locations', parent=parent, color=[0,1,0])
 
     @staticmethod
-    def gripperPositionTarget(directionToTarget, yaw=None, pitch=None, roll=0, distance=None):
-        t = transformUtils.frameFromPositionAndRPY([0,0,0], [roll, pitch, yaw])
-        tInv = t.GetLinearInverse()
-        v = np.array(tInv.TransformVector(directionToTarget))
+    def gripperPositionTarget(directionToTarget, yaw=None, pitch=None, roll=0, radius=None):
 
-        # normalize it
-        v = v/np.linalg.norm(v) * distance
+        # project into x,y plane
+        d = np.array(directionToTarget)
+        d = d/np.linalg.norm(d)
+        d[2] = 0
 
-        return v
+        theta = np.deg2rad(pitch)
+        phi = np.deg2rad(yaw)
+        v = np.zeros(3)
+        v[0] = np.sin(theta) * np.cos(phi)
+        v[1] = np.sin(theta) * np.sin(phi)
+        v[2] = np.cos(theta)
+
+        v = v/np.linalg.norm(v)
+
+        # transform that takes [1,0,0] to v
+        # t = transformUtils.getTransformFromOriginAndNormal([0,0,0], v)
+
+
+        # d = np.array(directionToTarget)
+        # d = d/np.linalg.norm(d)
+        # t = transformUtils.getTransformFromOriginAndNormal([0,0,0], d, normalAxis=0)
+        # s = radius * np.array(t.TransformVector(v))
+
+        s = radius * v
+
+        # rotate s if needed
+        # alpha = angle between [1,0,0] and d
+        xAxis = np.array([1,0,0])
+        alpha = np.arccos(np.dot(xAxis, d))
+        alphaDegrees = np.rad2deg(alpha)
+        t = vtk.vtkTransform()
+        t.RotateZ(alphaDegrees)
+        xAxisPlus = np.array(t.TransformVector(xAxis))
+
+        t2 = vtk.vtkTransform()
+        t2.RotateZ(-alphaDegrees)
+        xAxisMinus = np.array(t2.TransformVector(xAxis))
+
+        if np.dot(xAxisPlus, d) > np.dot(xAxisMinus, d):
+            s = t.TransformVector(s)
+        else:
+            s = t2.TransformVector(s)
+
+        
+        return s
 
 
     @staticmethod
@@ -481,9 +646,26 @@ class HandEyeCalibration(object):
         return returnData
 
     def testROS(self):
-        d = self.computeSingleCameraPose()
-        self.taskRunner.callOnThread(self.robotService.moveToJointPosition, d['endPose'])
+        topic = self.config['rgb_raw_topic']
+        msgType = sensor_msgs.msg.Image
+        self.simpleSubscriber = spartanROSUtils.SimpleSubscriber(topic, msgType)
+        self.taskRunner.callOnThread(self.simpleSubscriber.start)
 
+        topic = "/joint_states"
+        msgType = sensor_msgs.msg.JointState
+        self.jointStatesSubscriber = spartanROSUtils.SimpleSubscriber(topic, msgType)
+        self.taskRunner.callOnThread(self.jointStatesSubscriber.start)
+
+
+    def testImageLogger(self, filename = "test.jpeg"):
+        fullFilename = os.path.join('/home/manuelli/sandbox', filename)
+        topic = self.config['rgb_raw_topic']
+        cmd = "ros_image_logger.py -t %s -f %s" %(topic, fullFilename)
+        self.taskRunner.callOnThread(os.system, cmd)
+
+    def testComputePoses(self):
+        result = self.computeCalibrationPoses()
+        self.drawResult(result)
 """
 calibrationData is a list of dicts as above
 cameraPoses is a CameraPoses object 
