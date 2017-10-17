@@ -1,0 +1,13 @@
+urdf: "${SPARTAN_SOURCE_DIR}/drake/drake/manipulation/models/iiwa_description/urdf/iiwa14_primitive_collision.urdf"
+end_effector_frame_name: "iiwa_frame_ee"
+steps: [10, 2, 10] # Sample only in XY plane
+x_range: [0.0, 1.0]
+y_range: [0.0, 0.0]
+z_range: [-0.5, 1.5]
+
+frame_grasp_direction: [0.0, 1.0, 0.0] # +y is forward for our hand
+
+position_tolerance: 0.01
+cone_tolerance: 0.1
+
+output_directory: "${SPARTAN_SOURCE_DIR}/data/iiwa14_primitive_collision_analysis"
