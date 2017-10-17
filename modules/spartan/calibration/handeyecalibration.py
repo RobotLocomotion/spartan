@@ -239,7 +239,7 @@ class HandEyeCalibration(object):
         return d
 
     def saveSingleImage(self, topic, filename):
-        rosImageLoggerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',
+        rosImageLoggerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
                                                 'calibration','ros_image_logger.py')
         cmd = "%s -t %s -f %s" % (rosImageLoggerExecutable, topic, filename)
         os.system(cmd)
@@ -268,8 +268,8 @@ class HandEyeCalibration(object):
         filenamePrefix = os.path.join(self.calibrationFolderName, str(data['ros_timestamp']))
         for key, topic in imgTopics.iteritems():
             imageFilename = filenamePrefix + "_" + key + ".jpeg"
-            if self.saveImages:
-                self.saveSingleImage(topic, imageFilename)
+            self.saveSingleImage(topic, imageFilename)
+
             singleImgData = dict()
             singleImgData['filename'] = imageFilename
             data['images'][key] = singleImgData
@@ -409,7 +409,7 @@ class HandEyeCalibration(object):
 
         return calibrationRunData
 
-    def run(self, saveImages=True, captureRGB=True, captureIR=False):
+    def run(self, captureRGB=True, captureIR=False):
         self.captureRGB = captureRGB
         self.captureIR = captureIR
         self.taskRunner.callOnThread(self.runROSCalibration)
