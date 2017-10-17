@@ -391,7 +391,10 @@ class HandEyeCalibration(object):
     Warning: Don't call this function directly, use run() instead, which
     calls this function in a thread
     """
-    def runROSCalibration(self):
+    def runROSCalibration(self, headerData):
+
+        calibrationRunData = dict()
+        calibrationRunData['header'] = headerData
 
 
         #setup our passive subscribers to the IR or RGB data
@@ -437,10 +440,7 @@ class HandEyeCalibration(object):
 
         rospy.loginfo("finished calibration routine, saving data to file")
 
-        calibrationRunData = dict()
-        calibrationRunData['header'] = dict()
-        calibrationRunData['header']['camera'] = 'xtion pro'
-
+        
         calibrationRunData['data_list'] = calibrationData
 
         spartanUtils.saveToYaml(calibrationRunData, os.path.join(self.calibrationFolderName, 'robot_data.yaml'))
@@ -450,7 +450,8 @@ class HandEyeCalibration(object):
 
         return calibrationRunData
 
-    def run(self, captureRGB=True, captureIR=False):
+    def run(self, captureRGB=True, captureIR=False, cameraName="xtion pro", targetWidth=4,
+        targetHeight=5, targetSquareSize=0.05):
 
         if captureRGB and captureIR:
             print "you can't capture IR and RGB at the same time, returning"
@@ -458,7 +459,19 @@ class HandEyeCalibration(object):
 
         self.captureRGB = captureRGB
         self.captureIR = captureIR
-        self.taskRunner.callOnThread(self.runROSCalibration)
+        
+        # setup header information for storing along with the log
+        calibrationHeaderData = dict()
+        calibrationHeaderData['camera'] = camera
+        
+        targetData = dict()
+        targetData['width'] = targetWidth
+        targetData['height'] = targetHeight
+        targetData['square_edge_length'] = targetSquareSize
+
+        calibrationHeaderData['target'] = targetData
+
+        self.taskRunner.callOnThread(self.runROSCalibration, calibrationHeaderData)
 
     def computeCalibrationPoses(self):
         config = dict()
