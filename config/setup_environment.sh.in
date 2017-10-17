@@ -13,9 +13,7 @@ export LD_LIBRARY_PATH=$SPARTAN_INSTALL_DIR/lib:$LD_LIBRARY_PATH
 export PYTHONPATH=$PYTHONPATH:$SPARTAN_INSTALL_DIR/lib/python2.7/site-packages:$SPARTAN_INSTALL_DIR/lib/python2.7/dist-packages:$SPARTAN_SOURCE_DIR/modules:$VTK_PYTHON_DIR
 export PATH=$SPARTAN_INSTALL_DIR/bin:$SPARTAN_SOURCE_DIR/scripts/bin:$PATH
 
-# Director uses ROS_PACKAGE_PATH to find robot urdf packages
-# Some of these that we use live in drake's manipulation folder:
-export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$SPARTAN_SOURCE_DIR/drake/drake/manipulation/models
+
 
 alias makedirector='make -C $SPARTAN_BUILD_DIR/director/src/director-build install'
 alias makedrake='make -C $SPARTAN_BUILD_DIR/drake/drake install'
@@ -23,4 +21,12 @@ alias makedrake='make -C $SPARTAN_BUILD_DIR/drake/drake install'
 alias cds='cd $SPARTAN_SOURCE_DIR'
 alias cdbuild='cd $SPARTAN_BUILD_DIR'
 
-source $SPARTAN_INSTALL_DIR/setup.sh
+
+# sourcing our ROS catkin_ws build
+# make sure you do this BEFORE adding to ROS_PACKAGE_PATH as below since
+# this command resets the ROS_PACKAGE_PATH and removes the previous modifications
+source $SPARTAN_INSTALL_DIR/setup.sh --extend
+
+# Director uses ROS_PACKAGE_PATH to find robot urdf packages
+# Some of these that we use live in drake's manipulation folder:
+export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$SPARTAN_SOURCE_DIR/drake/drake/manipulation/models:$SPARTAN_SOURCE_DIR/models
