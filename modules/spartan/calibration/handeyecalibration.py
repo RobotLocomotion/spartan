@@ -46,9 +46,9 @@ except:
     quit()
 
 # spartan
-import spartan.utils as spartanUtils
-import spartan.ros_utils as spartanROSUtils
-from spartan.taskrunner import TaskRunner
+import spartan.utils.utils as spartanUtils
+import spartan.utils.ros_utils as spartanROSUtils
+from spartan.utils.taskrunner import TaskRunner
 
 
 # ROS
@@ -164,6 +164,7 @@ class HandEyeCalibration(object):
         self.calibrationData = None
 
         self.setupConfig()
+        self.initSimpleSubscriber()
 
         self.timer = TimerCallback(targetFps=1)
         self.timer.callback = self.callback
@@ -174,6 +175,18 @@ class HandEyeCalibration(object):
         self.config = dict()
         self.config['rgb_raw_topic'] = '/camera/rgb/image_raw'
         self.config['ir_raw_topic'] = '/camera/ir/image'
+
+    # This function inits a simple subscriber node to passively listen to the recorded image topics
+    # This ensures that saving .jpg images is not corrupted
+    def initSimpleSubscriber(self):
+        rosSimpleSubscriberExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
+                                                'utils','simple_subscriber.py')
+        cmd  = "%s --topic-package-type " % (rosSimpleSubscriberExecutable)
+        cmd += " ['%s','%s','%s'] " % (self.config['rgb_raw_topic'], 'sensor_msgs.msg', 'Image')
+        cmd += " ['%s','%s','%s'] " % (self.config['ir_raw_topic'], 'sensor_msgs.msg', 'Image')
+        cmd += " &"    # this node needs to be backgrounded
+        print "CMD IS", cmd
+        os.system(cmd)
 
     def setup(self):
         self.nominalPose = 'center'

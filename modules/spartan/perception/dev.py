@@ -22,7 +22,7 @@ import bot_core as lcmbotcore
 
 
 # spartan
-import spartan.utils as spartanUtils
+import spartan.utils.utils as spartanUtils
 
 
 #labelfusion
