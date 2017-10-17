@@ -8,7 +8,7 @@ function use_spartan()
 
 function use_ros()
 {
-	. /opt/ros/kinetic/setup.sh
+	. /opt/ros/kinetic/setup.bash
 }
 
 export -f use_spartan
