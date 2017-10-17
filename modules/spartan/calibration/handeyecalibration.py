@@ -240,11 +240,11 @@ class HandEyeCalibration(object):
 
     def saveSingleImage(self, topic, filename):
         rosImageLoggerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',
-                                                'calibration',ros_image_logger.py)
+                                                'calibration','ros_image_logger.py')
         cmd = "%s -t %s -f %s" % (rosImageLoggerExecutable, topic, filename)
         os.system(cmd)
 
-    def captureCurrentRobotAndImageData(self):
+    def captureCurrentRobotAndImageData(self, captureRGB=False, captureIR=False):
         data = dict()
         data['joint_positions'] = self.robotService.getPose().tolist()
         data['hand_frame_name'] = self.handFrame
@@ -258,13 +258,18 @@ class HandEyeCalibration(object):
 
         data['images'] = dict()
         imgTopics = dict()
-        imgTopics['rgb'] = self.config['rgb_raw_topic']
-        # imgData = self.getImages(captureRGB=True, captureIR=False)
+        if captureRGB:
+            imgTopics['rgb'] = self.config['rgb_raw_topic']
+
+        if captureIR:
+            imgTopics['ir'] = self.config['ir_raw_topic']
+
 
         filenamePrefix = os.path.join(self.calibrationFolderName, str(data['ros_timestamp']))
         for key, topic in imgTopics.iteritems():
             imageFilename = filenamePrefix + "_" + key + ".jpeg"
-            # self.saveSingleImage(topic, imageFilename)
+            if self.saveImages:
+                self.saveSingleImage(topic, imageFilename)
             singleImgData = dict()
             singleImgData['filename'] = imageFilename
             data['images'][key] = singleImgData
@@ -385,11 +390,11 @@ class HandEyeCalibration(object):
 
         for pose in poseDict['feasiblePoses']:
             # move robot to that joint position
-            rospy.loginfo("moving to pose")
+            rospy.loginfo("\n moving to pose")
             self.robotService.moveToJointPosition(pose['joint_angles'])
 
-            rospy.loginfo("waiting for images")
-            data = self.captureCurrentRobotAndImageData()
+            rospy.loginfo("capturing images and robot data")
+            data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB, captureIR=self.captureIR)
             calibrationData.append(data)
 
         rospy.loginfo("finished calibration routine, saving data to file")
@@ -404,7 +409,9 @@ class HandEyeCalibration(object):
 
         return calibrationRunData
 
-    def run(self):
+    def run(self, saveImages=True, captureRGB=True, captureIR=False):
+        self.captureRGB = captureRGB
+        self.captureIR = captureIR
         self.taskRunner.callOnThread(self.runROSCalibration)
 
     def computeCalibrationPoses(self):
