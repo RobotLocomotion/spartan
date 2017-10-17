@@ -176,6 +176,27 @@ class HandEyeCalibration(object):
         self.config['rgb_raw_topic'] = '/camera/rgb/image_raw'
         self.config['ir_raw_topic'] = '/camera/ir/image'
 
+        config = dict()
+        config['yaw'] = dict()
+        config['yaw']['min'] = -180
+        config['yaw']['max'] = 180
+        config['yaw']['step_size'] = 15
+
+        config['pitch'] = dict()
+        config['pitch']['min'] = 10
+        config['pitch']['max'] = 60
+        config['pitch']['step_size'] = 10
+
+        config['distance'] = dict()
+        config['distance']['min'] = 0.60
+        config['distance']['max'] = 1.3
+        config['distance']['step_size'] = 0.2
+
+        config['direction_to_target'] = [1, 0, 0] # this should be in the x,y plane
+        config['target_location'] = [0.75, 0, 0]
+
+        self.calibrationPosesConfig = config
+
     # This function inits a simple subscriber node to passively listen to the recorded image topics
     # This ensures that saving .jpg images is not corrupted
     def initSimpleSubscriber(self):
@@ -278,9 +299,12 @@ class HandEyeCalibration(object):
             imgTopics['ir'] = self.config['ir_raw_topic']
 
 
-        filenamePrefix = os.path.join(self.calibrationFolderName, str(data['ros_timestamp']))
+
+        
         for key, topic in imgTopics.iteritems():
-            imageFilename = filenamePrefix + "_" + key + ".jpeg"
+
+            imageFilename =str(data['ros_timestamp']) + "_" + key + ".jpeg"
+            fullImageFilename = os.path.join(self.calibrationFolderName, imageFilename)
 
             encoding = None
             if key == "rgb":
@@ -291,7 +315,7 @@ class HandEyeCalibration(object):
                 raise ValueError("I only know how to handle ir and rgb")
 
 
-            self.saveSingleImage(topic, imageFilename, encoding)
+            self.saveSingleImage(topic, fullImageFilename, encoding)
 
             singleImgData = dict()
             singleImgData['filename'] = imageFilename
@@ -393,8 +417,10 @@ class HandEyeCalibration(object):
     """
     def runROSCalibration(self, headerData):
 
+        headerData['target']['location_estimate_in_robot_base_frame'] = self.calibrationPosesConfig['target_location'] 
         calibrationRunData = dict()
         calibrationRunData['header'] = headerData
+
 
 
         #setup our passive subscribers to the IR or RGB data
@@ -416,6 +442,7 @@ class HandEyeCalibration(object):
         os.chdir(self.calibrationFolderName)
 
         poseDict = self.computeCalibrationPoses()
+        self.drawResult(poseDict)
         rospy.loginfo("finished making calibration poses")
         rospy.loginfo("starting calibration run")
 
@@ -462,7 +489,7 @@ class HandEyeCalibration(object):
         
         # setup header information for storing along with the log
         calibrationHeaderData = dict()
-        calibrationHeaderData['camera'] = camera
+        calibrationHeaderData['camera'] = cameraName
         
         targetData = dict()
         targetData['width'] = targetWidth
@@ -474,24 +501,8 @@ class HandEyeCalibration(object):
         self.taskRunner.callOnThread(self.runROSCalibration, calibrationHeaderData)
 
     def computeCalibrationPoses(self):
-        config = dict()
-        config['yaw'] = dict()
-        config['yaw']['min'] = -90
-        config['yaw']['max'] = 90
-        config['yaw']['step_size'] = 15
 
-        config['pitch'] = dict()
-        config['pitch']['min'] = 0
-        config['pitch']['max'] = 60
-        config['pitch']['step_size'] = 10
-
-        config['distance'] = dict()
-        config['distance']['min'] = 0.60
-        config['distance']['max'] = 1.3
-        config['distance']['step_size'] = 0.2
-
-        config['direction_to_target'] = [1, 0, 0] # this should be in the x,y plane
-        config['target_location'] = [0.75, 0, 0]
+        config = self.calibrationPosesConfig
 
         def arrayFromConfig(d):
             n = int(np.ceil((d['max'] - d['min'])/d['step_size']))
@@ -521,9 +532,10 @@ class HandEyeCalibration(object):
                     #     print "skipping pose"
                     #     continue
 
-                    cameraLocation = HandEyeCalibration.gripperPositionTarget(config['target_location'], yaw=yaw, pitch=pitch, radius=dist)
+                    # cameraLocation = HandEyeCalibration.gripperPositionTarget(config['target_location'], yaw=yaw, pitch=pitch, radius=dist)
+                    cameraLocation = HandEyeCalibration.gripperPositionTargetRadialFromCalibrationPlate(config['target_location'], yaw=yaw, pitch=pitch, radius=dist)
 
-                    ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation)
+                    ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation, targetLocationWorld=config['target_location'])
 
                     returnData['cameraLocations'].append(cameraLocation)
 
@@ -613,6 +625,24 @@ class HandEyeCalibration(object):
             s = t2.TransformVector(s)
 
         
+        return s
+
+    @staticmethod
+    def gripperPositionTargetRadialFromCalibrationPlate(calibrationPlateLocation, yaw=None, pitch=None, roll=0, radius=None):
+
+        calibrationPlateLocation = np.array(calibrationPlateLocation)
+
+        theta = np.deg2rad(pitch)
+        phi = np.deg2rad(yaw)
+        v = np.zeros(3)
+        v[0] = np.sin(theta) * np.cos(phi)
+        v[1] = np.sin(theta) * np.sin(phi)
+        v[2] = np.cos(theta)
+
+        v = v/np.linalg.norm(v)
+
+        s = radius * v + calibrationPlateLocation
+
         return s
 
 
