@@ -349,8 +349,8 @@ if useKukaRLGDev:
     import spartan.perception.dev as devUtils
     # efusion = devUtils.ElasticFusionReconstruction()
 
-    import spartan.perception.handeyecalibration
-    cal = spartan.perception.handeyecalibration.HandEyeCalibration(robotSystem)
+    import spartan.calibration.handeyecalibration
+    cal = spartan.calibration.handeyecalibration.HandEyeCalibration(robotSystem)
 
     # setup the director node
 
