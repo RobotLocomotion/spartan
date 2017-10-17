@@ -60,15 +60,25 @@ import cv2
 # ROS custom
 import robot_msgs.srv
 
+
 """
-To run this set useKukaRLGDev to True in iiwaManipApp.py. This loads a
+To run this set useKukaRLGDev and useROS to True in iiwaManipApp.py. This loads a
 HandEyeCalibration object into the director workspace, it is called cal.
 
-To run calibration simply press F8 and enter cal.runThreaded(). This creates a new directory
+To run calibration simply press F8 and enter cal.run(). This creates a new directory
 in spartan/calibration_data which contains two files.
 
-calibration.lcmlog: a log of the run
-robot_data.yaml: relevant data for the "hand_link" poses during the run.
+robot_data.yaml:
+    - relevant data for the "hand_link" poses during the run.
+    - filenames corresponding to images that were saved
+
+
+
+
+"""
+
+"""
+DEPRECATED
 
 To finish the process go to the log folder mentioned above and run
 
@@ -77,8 +87,6 @@ add_camera_poses_to_calibration_data.py
 
 Then the file camera_poses_and_robot_data.yaml contains all the information
 needed to run an AX=XB style hand-eye calibration.
-
-
 
 """
 
@@ -231,7 +239,9 @@ class HandEyeCalibration(object):
         return d
 
     def saveSingleImage(self, topic, filename):
-        cmd = "ros_image_logger.py -t %s -f %s" % (topic, filename)
+        rosImageLoggerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',
+                                                'calibration',ros_image_logger.py)
+        cmd = "%s -t %s -f %s" % (rosImageLoggerExecutable, topic, filename)
         os.system(cmd)
 
     def captureCurrentRobotAndImageData(self):
@@ -271,9 +281,9 @@ class HandEyeCalibration(object):
         self.robotService.movePose(self.poseDict['center']['nominal'])
 
     def runThreaded(self):
-        self.taskRunner.callOnThread(self.run)
+        self.taskRunner.callOnThread(self.runLCMCalibration)
 
-    def run(self):
+    def runLCMCalibration(self):
         self.calibrationData = []
         self.moveHome()
 
@@ -350,7 +360,8 @@ class HandEyeCalibration(object):
         spartanUtils.saveToYaml(self.calibrationData, filename)
 
     """
-    Warning: Don't call this function directly, use runROSCalibrationThreaded
+    Warning: Don't call this function directly, use run() instead, which
+    calls this function in a thread
     """
     def runROSCalibration(self):
         unique_name = time.strftime("%Y%m%d-%H%M%S")
@@ -393,7 +404,7 @@ class HandEyeCalibration(object):
 
         return calibrationRunData
 
-    def runROSCalibrationThreaded(self):
+    def run(self):
         self.taskRunner.callOnThread(self.runROSCalibration)
 
     def computeCalibrationPoses(self):
