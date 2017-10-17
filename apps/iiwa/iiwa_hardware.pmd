@@ -134,6 +134,11 @@ group "8.ROS" {
     host = "localhost";
   }
 
+  cmd "7.ROS-OpenNI" {
+    exec = "roslaunch openni2_launch openni2.launch";
+    host = "localhost";
+  }
+
 }
 
 script "1.robot_startup" {
