@@ -72,12 +72,12 @@ robot_data.yaml:
     - relevant data for the "hand_link" poses during the run.
     - filenames corresponding to images that were saved
 
+You must calibrate IR and RGB in separate runs as the ROS driver cannot stream both simultaneously. 
+For example first run cal.run(createRGB=True, createIR=False) then
+cal.run(createRGB=False, createIR=True).    
 
 
 
-"""
-
-"""
 DEPRECATED
 
 To finish the process go to the log folder mentioned above and run
