@@ -164,7 +164,7 @@ class HandEyeCalibration(object):
         self.calibrationData = None
 
         self.setupConfig()
-        self.initSimpleSubscriber()
+        
 
         self.timer = TimerCallback(targetFps=1)
         self.timer.callback = self.callback
@@ -251,10 +251,10 @@ class HandEyeCalibration(object):
 
         return d
 
-    def saveSingleImage(self, topic, filename):
+    def saveSingleImage(self, topic, filename, encoding):
         rosImageLoggerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
                                                 'calibration','ros_image_logger.py')
-        cmd = "%s -t %s -f %s" % (rosImageLoggerExecutable, topic, filename)
+        cmd = "%s -t %s -f %s -e %s" % (rosImageLoggerExecutable, topic, filename, encoding)
         os.system(cmd)
 
     def captureCurrentRobotAndImageData(self, captureRGB=False, captureIR=False):
@@ -281,7 +281,17 @@ class HandEyeCalibration(object):
         filenamePrefix = os.path.join(self.calibrationFolderName, str(data['ros_timestamp']))
         for key, topic in imgTopics.iteritems():
             imageFilename = filenamePrefix + "_" + key + ".jpeg"
-            self.saveSingleImage(topic, imageFilename)
+
+            encoding = None
+            if key == "rgb":
+                encoding = 'bgr8'
+            elif key == "ir":
+                encoding = 'mono16'
+            else:
+                raise ValueError("I only know how to handle ir and rgb")
+
+
+            self.saveSingleImage(topic, imageFilename, encoding)
 
             singleImgData = dict()
             singleImgData['filename'] = imageFilename
@@ -382,6 +392,21 @@ class HandEyeCalibration(object):
     calls this function in a thread
     """
     def runROSCalibration(self):
+
+
+        #setup our passive subscribers to the IR or RGB data
+        topicName = None
+        self.passiveSubscriber = None
+        if self.captureRGB:
+            topicName = self.config['rgb_raw_topic']
+
+        if self.captureIR:
+            topicName = self.config['ir_raw_topic']
+
+        if topicName:
+            self.passiveSubscriber = spartanROSUtils.SimpleSubscriber(topicName, sensor_msgs.msg.Image)
+            self.passiveSubscriber.start()
+
         unique_name = time.strftime("%Y%m%d-%H%M%S")
         self.calibrationFolderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'calibration_data', unique_name)
         os.system("mkdir -p " + self.calibrationFolderName)
@@ -420,9 +445,17 @@ class HandEyeCalibration(object):
 
         spartanUtils.saveToYaml(calibrationRunData, os.path.join(self.calibrationFolderName, 'robot_data.yaml'))
 
+        if self.passiveSubscriber:
+            self.passiveSubscriber.stop()
+
         return calibrationRunData
 
     def run(self, captureRGB=True, captureIR=False):
+
+        if captureRGB and captureIR:
+            print "you can't capture IR and RGB at the same time, returning"
+            return
+
         self.captureRGB = captureRGB
         self.captureIR = captureIR
         self.taskRunner.callOnThread(self.runROSCalibration)
