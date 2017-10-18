@@ -40,10 +40,14 @@
 #include "drake/systems/primitives/matrix_gain.h"
 #include "drake/systems/sensors/rgbd_camera.h"
 #include "drake/util/drakeGeometryUtil.h"
+
+#include "ros/ros.h"
+
 #include "iiwa_common.h"
 #include "iiwa_lcm.h"
 #include "iiwa_world/iiwa_wsg_diagram_factory.h"
 #include "image_driver/image_to_images_t.h"
+#include "image_driver/rgbd_to_ros_pointcloud2_driver.h"
 #include "oracular_state_estimator.h"
 
 DEFINE_double(simulation_sec, std::numeric_limits<double>::infinity(),
@@ -74,6 +78,7 @@ using drake::systems::Simulator;
 using namespace drake::examples::kuka_iiwa_arm;
 using namespace drake::systems::sensors;
 using spartan::iiwa_rlg_sim_backend::ImagesToLcmImagesT;
+using spartan::iiwa_rlg_sim_backend::RgbdCameraRosDriver;
 
 constexpr char kCameraBaseFrameName[] = "camera_base_frame";
 constexpr char kColorCameraFrameName[] = "color_camera_optical_frame";
@@ -153,7 +158,7 @@ std::unique_ptr<RigidBodyPlant<T>> BuildCombinedPlant(
   return plant;
 }
 
-int DoMain() {
+int DoMain(ros::NodeHandle& node_handle) {
   DiagramBuilder<double> builder;
 
   ModelInstanceInfo<double> iiwa_instance, wsg_instance, box_instance;
@@ -196,15 +201,14 @@ int DoMain() {
                                    config.depth_range_near,
                                    config.depth_range_far, config.fov_y, true),
       FLAGS_camera_update_period);
-  auto image_to_lcm_images_t = builder.template AddSystem<ImagesToLcmImagesT>(
-      kColorCameraFrameName, kDepthCameraFrameName);
-  image_to_lcm_images_t->set_name("image_converter");
 
-  auto images_t_publisher =
-      builder.AddSystem(LcmPublisherSystem::Make<bot_core::images_t>(
-          kImageArrayLcmChannelName, &lcm));
-  images_t_publisher->set_name("image_publisher");
-  images_t_publisher->set_publish_period(FLAGS_camera_update_period);
+  auto rgbd_to_ros_pointcloud2_driver =
+      builder.template AddSystem<RgbdCameraRosDriver>(
+          kColorCameraFrameName, kDepthCameraFrameName, "/camera",
+          node_handle);
+  rgbd_to_ros_pointcloud2_driver->set_name("image_publisher");
+  rgbd_to_ros_pointcloud2_driver->set_publish_period(
+      FLAGS_camera_update_period);
 
   DrakeVisualizer* visualizer = builder.AddSystem<DrakeVisualizer>(tree, &lcm);
   visualizer->set_name("visualizer");
@@ -251,11 +255,9 @@ int DoMain() {
   builder.Connect(model->get_output_port_plant_state(),
                   rgbd_camera->state_input_port());
   builder.Connect(rgbd_camera->color_image_output_port(),
-                  image_to_lcm_images_t->color_image_input_port());
+                  rgbd_to_ros_pointcloud2_driver->color_image_input_port());
   builder.Connect(rgbd_camera->depth_image_output_port(),
-                  image_to_lcm_images_t->depth_image_input_port());
-  builder.Connect(image_to_lcm_images_t->images_t_msg_output_port(),
-                  images_t_publisher->get_input_port(0));
+                  rgbd_to_ros_pointcloud2_driver->depth_image_input_port());
 
   auto wsg_command_sub = builder.AddSystem(
       LcmSubscriberSystem::Make<drake::lcmt_schunk_wsg_command>(
@@ -322,6 +324,11 @@ int DoMain() {
 }
 
 int main(int argc, char* argv[]) {
+  ros::init(argc, argv, "iiwa_rlg_simulation");
+  ros::NodeHandle node_handle;
+
+  // ROS will remove the ROS-specific arguments
   gflags::ParseCommandLineFlags(&argc, &argv, true);
-  return DoMain();
+
+  return DoMain(node_handle);
 }

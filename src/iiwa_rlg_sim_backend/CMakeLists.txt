@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 11)
 find_package(drake REQUIRED)
 find_package(gflags REQUIRED)
 
+# Hah I'm circumventing catkin
+find_package(roscpp REQUIRED)
+find_package(image_transport REQUIRED)
+
 set(EIGEN3_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include/eigen3)
 include_directories(${EIGEN3_INCLUDE_DIR}) 
 message("Eigen3 include dir" ${EIGEN3_INCLUDE_DIR})
@@ -19,6 +23,16 @@ target_link_libraries(image_to_images_t
     ${bot2-core-lcmtypes_LIBRARIES}
     ${drake_LIBRARIES}
     ${gflags_LIBRARIES})
+
+add_library(rgbd_to_ros_pointcloud2_driver image_driver/rgbd_to_ros_pointcloud2_driver.cc image_driver/rgbd_to_ros_pointcloud2_driver.h)
+target_link_libraries(rgbd_to_ros_pointcloud2_driver
+    z
+    pthread
+    ${roscpp_LIBRARIES}
+    ${image_transport_LIBRARIES}
+    ${drake_LIBRARIES}
+    ${gflags_LIBRARIES})
+
 
 add_library(iiwa_common iiwa_common.cc iiwa_common.h)
 target_link_libraries(iiwa_common
@@ -57,12 +71,14 @@ target_link_libraries(iiwa_rlg_simulation
     pthread
     ${bot2-core-lcmtypes_LIBRARIES}
     image_to_images_t
+    rgbd_to_ros_pointcloud2_driver
     iiwa_common
     iiwa_lcm
     iiwa_wsg_diagram_factory
+    ${roscpp_LIBRARIES}
     ${drake_LIBRARIES}
     ${gflags_LIBRARIES}
     RemoteTreeViewerWrapper)
 
 install(TARGETS iiwa_rlg_simulation DESTINATION bin)
-install(TARGETS image_to_images_t iiwa_common iiwa_lcm iiwa_oracular_state_estimator iiwa_wsg_diagram_factory DESTINATION lib)
+install(TARGETS image_to_images_t iiwa_common iiwa_lcm iiwa_oracular_state_estimator rgbd_to_ros_pointcloud2_driver iiwa_wsg_diagram_factory DESTINATION lib)
