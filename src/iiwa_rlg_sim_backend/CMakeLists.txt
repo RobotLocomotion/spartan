@@ -9,14 +9,14 @@ find_package(gflags REQUIRED)
 find_package(roscpp REQUIRED)
 find_package(image_transport REQUIRED)
 
-set(EIGEN3_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include/eigen3)
-include_directories(${EIGEN3_INCLUDE_DIR}) 
-message("Eigen3 include dir" ${EIGEN3_INCLUDE_DIR})
+find_package(Eigen3)
+include_directories(${Eigen3_INCLUDE_DIR}) 
 
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
 find_package(bot2-core-lcmtypes REQUIRED)
 add_library(image_to_images_t image_driver/image_to_images_t.cc image_driver/image_to_images_t.h)
+message("including" ${roscpp_INCLUDE_DIRS} "and" ${image_transport_INCLUDE_DIRS})
 target_link_libraries(image_to_images_t
     z
     pthread
@@ -25,9 +25,14 @@ target_link_libraries(image_to_images_t
     ${gflags_LIBRARIES})
 
 add_library(rgbd_to_ros_pointcloud2_driver image_driver/rgbd_to_ros_pointcloud2_driver.cc image_driver/rgbd_to_ros_pointcloud2_driver.h)
+target_include_directories(rgbd_to_ros_pointcloud2_driver PUBLIC 
+    ${roscpp_INCLUDE_DIRS} 
+    ${image_transport_INCLUDE_DIRS}
+)
 target_link_libraries(rgbd_to_ros_pointcloud2_driver
     z
     pthread
+    ${roscpp_LIBRARIES}
     ${roscpp_LIBRARIES}
     ${image_transport_LIBRARIES}
     ${drake_LIBRARIES}
