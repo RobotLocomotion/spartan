@@ -1,8 +1,8 @@
 Spartan
 =======
 
-.. image:: http://jenkins.protos.us.to:8080/buildStatus/icon?job=spartan-master
-   :target: http://jenkins.protos.us.to:8080/job/spartan-master
+.. image:: http://spartan-jenkins.csail.mit.edu:8080/buildStatus/icon?job=spartan-master
+   :target: http://spartan-jenkins.csail.mit.edu:8080/job/spartan-master
 
 This is a project repository for robotics research and applications using
 Drake_ and Director_.
