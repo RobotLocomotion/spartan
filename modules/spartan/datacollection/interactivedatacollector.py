@@ -3,6 +3,7 @@ import numpy as np
 import time
 import os
 import subprocess
+import random
 
 #director
 from director import transformUtils
@@ -94,13 +95,13 @@ class InteractiveDataCollector(object):
         config = dict()
 
         config['direction_to_target'] = [1, 0, 0]   # this should be in the x,y plane
-        config['table_center'] = [1.0, 0, 0]        # in world frame, where world origin is robot base
+        config['table_center'] = [0.7, 0, 0.3]        # in world frame, where world origin is robot base
 
         config['table_width'] = 0.5
         config['table_width_step_size'] = 0.05
 
         config['table_depth'] = 0.2
-        config['table_depth_step_size'] = 0.05
+        config['table_depth_step_size'] = 0.025
 
         self.tableTopPosesConfig = config
 
@@ -190,10 +191,17 @@ class InteractiveDataCollector(object):
 
         autoCollectedData = []
 
-        for pose in poseDict['feasiblePoses']:
+        num_interactions = 10
+        for i in range(num_interactions):
+
+            # pick random feasible pose
+            pose = random.choice(poseDict['feasiblePoses'])
+
             # move robot to that joint position
             rospy.loginfo("\n moving to pose")
             self.robotService.moveToJointPosition(pose['joint_angles'])
+
+            # save data
             rospy.loginfo("capturing images and robot data")
             data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB)
             autoCollectedData.append(data)
@@ -207,7 +215,7 @@ class InteractiveDataCollector(object):
 
         return autoCollectedData
 
-    def run(self, captureRGB=True):
+    def run(self, captureRGB=False):
         self.captureRGB = captureRGB
         self.taskRunner.callOnThread(self.runROSDataCollect)
 
