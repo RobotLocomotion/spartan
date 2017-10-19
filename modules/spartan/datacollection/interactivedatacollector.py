@@ -92,26 +92,20 @@ class InteractiveDataCollector(object):
         self.config['rgb_raw_topic'] = '/camera/rgb/image_raw'
 
         config = dict()
-        config['yaw'] = dict()
-        config['yaw']['min'] = -180
-        config['yaw']['max'] = 180
-        config['yaw']['step_size'] = 5
 
-        config['pitch'] = dict()
-        config['pitch']['min'] = 10
-        config['pitch']['max'] = 60
-        config['pitch']['step_size'] = 5
+        config['direction_to_target'] = [1, 0, 0]   # this should be in the x,y plane
+        config['table_center'] = [1.0, 0, 0]        # in world frame, where world origin is robot base
 
-        config['distance'] = dict()
-        config['distance']['min'] = 0.60
-        config['distance']['max'] = 1.3
-        config['distance']['step_size'] = 0.4
+        config['table_width'] = 0.5
+        config['table_width_step_size'] = 0.05
 
-        config['direction_to_target'] = [1, 0, 0] # this should be in the x,y plane
-        config['target_location'] = [0.75, 0, 0]
+        config['table_depth'] = 0.2
+        config['table_depth_step_size'] = 0.05
 
-        self.calibrationPosesConfig = config
+        self.tableTopPosesConfig = config
 
+    def getTableHeight(self):
+        return self.tableTopPosesConfig['table_center'][2]
 
     def captureDataAtPose(self, poseName=""):
         data = dict()
@@ -195,34 +189,36 @@ class InteractiveDataCollector(object):
         os.system("mkdir -p " + self.calibrationFolderName)
         os.chdir(self.calibrationFolderName)
 
-        poseDict = self.computeCalibrationPoses()
-        self.drawResult(poseDict)
-        rospy.loginfo("finished making calibration poses")
-        rospy.loginfo("starting calibration run")
+        return
 
-        calibrationData = []
+        # poseDict = self.computeCalibrationPoses()
+        # self.drawResult(poseDict)
+        # rospy.loginfo("finished making calibration poses")
+        # rospy.loginfo("starting calibration run")
+
+        # calibrationData = []
 
 
-        for pose in poseDict['feasiblePoses']:
-            # move robot to that joint position
-            rospy.loginfo("\n moving to pose")
-            self.robotService.moveToJointPosition(pose['joint_angles'])
+        # for pose in poseDict['feasiblePoses']:
+        #     # move robot to that joint position
+        #     rospy.loginfo("\n moving to pose")
+        #     self.robotService.moveToJointPosition(pose['joint_angles'])
 
-            rospy.loginfo("capturing images and robot data")
-            data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB)
-            calibrationData.append(data)
+        #     rospy.loginfo("capturing images and robot data")
+        #     data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB)
+        #     calibrationData.append(data)
 
-        rospy.loginfo("finished calibration routine, saving data to file")
+        # rospy.loginfo("finished calibration routine, saving data to file")
 
         
-        calibrationRunData['data_list'] = calibrationData
+        # calibrationRunData['data_list'] = calibrationData
 
-        spartanUtils.saveToYaml(calibrationRunData, os.path.join(self.calibrationFolderName, 'robot_data.yaml'))
+        # spartanUtils.saveToYaml(calibrationRunData, os.path.join(self.calibrationFolderName, 'robot_data.yaml'))
 
-        if self.passiveSubscriber:
-            self.passiveSubscriber.stop()
+        # if self.passiveSubscriber:
+        #     self.passiveSubscriber.stop()
 
-        return calibrationRunData
+        # return calibrationRunData
 
     def run(self, captureRGB=True, cameraName="xtion pro", targetWidth=4,
         targetHeight=5, targetSquareSize=0.05):
@@ -242,59 +238,52 @@ class InteractiveDataCollector(object):
 
         self.taskRunner.callOnThread(self.runROSCalibration, calibrationHeaderData)
 
-    def computeCalibrationPoses(self):
 
-        config = self.calibrationPosesConfig
+    def computeSingleTablePosition(self, table_center, x_position, y_position):
+        x = table_center[0] + x_position
+        y = table_center[1] + y_position
+        z = table_center[2]
+        return [x, y, z]
 
-        def arrayFromConfig(d):
-            n = int(np.ceil((d['max'] - d['min'])/d['step_size']))
-            return np.linspace(d['min'], d['max'], n)
 
-        # vector going from the target back towards the robot
+    def computeTableTopPoses(self):
 
-        yawAngles = arrayFromConfig(config['yaw'])
-        pitchAngles = arrayFromConfig(config['pitch'])
-        distances = arrayFromConfig(config['distance'])
+        config = self.tableTopPosesConfig
 
-        calibrationPoses = []
+        n_y= int(np.ceil(config['table_width']/config['table_width_step_size']))
+        y_samples = np.linspace(-config['table_width']/2, config['table_width']/2, n_y)
+
+        n_x = int(np.ceil(config['table_depth']/config['table_depth_step_size']))
+        x_samples = np.linspace(-config['table_depth']/2, config['table_depth']/2, n_x)
+
+        print 'x_samples', x_samples
+        print 'y_samples', y_samples
+
+        tableTopPoses = []
         returnData = dict()
-        returnData['yawAngles'] = yawAngles
-        returnData['pitchAngles'] = pitchAngles
+        returnData['x_samples'] = x_samples
+        returnData['y_samples'] = y_samples
         returnData['cameraLocations'] = []
         returnData['feasiblePoses'] = []
 
-        for dist in distances:
-            for pitch in pitchAngles:
-                for yaw in yawAngles:
-                    # if (pitch > 70) and (dist < 0.8):
-                    #     print "skipping pose"
-                    #     continue
+        for x_position in x_samples:
+            for y_position in y_samples:
+                
+                cameraLocation = self.computeSingleTablePosition(config['table_center'], x_position, y_position)
+                ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation)
+                returnData['cameraLocations'].append(cameraLocation)
 
-                    cameraLocation = HandEyeCalibration.gripperPositionTargetRadialFromCalibrationPlate(config['target_location'], yaw=yaw, pitch=pitch, radius=dist)
+                if (ikResult['info'] == 1):
+                    d = dict()
+                    d['joint_angles'] = ikResult['endPose']
+                    d['cameraLocation'] = cameraLocation
+                    returnData['feasiblePoses'].append(d)
 
-                    ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation, targetLocationWorld=config['target_location'])
-
-                    returnData['cameraLocations'].append(cameraLocation)
-
-
-                    if (ikResult['info'] == 1):
-                        d = dict()
-                        d['yaw'] = yaw
-                        d['pitch'] = pitch
-                        d['dist'] = dist
-                        d['joint_angles'] = ikResult['endPose']
-                        d['cameraLocation'] = cameraLocation
-                        returnData['feasiblePoses'].append(d)
-
-
-                        print "\n yaw %.2f, pitch %.2f, distance %.2f" % (yaw, pitch, dist)
-                        print "info = ", ikResult['info']
-                        print ""
-                        calibrationPoses.append(ikResult['endPose'])
-
+                    print "info = ", ikResult['info']
+                    print ""
+                    tableTopPoses.append(ikResult['endPose'])
 
         return returnData
-
 
 
     def drawResult(self, result):
@@ -314,46 +303,6 @@ class InteractiveDataCollector(object):
             d.addSphere(data['cameraLocation'], radius=radius)
 
         vis.updatePolyData(d.getPolyData(), 'Feasible Camera Locations', parent=parent, color=[0,1,0])
-
-    @staticmethod
-    def gripperPositionTargetRadialFromCalibrationPlate(calibrationPlateLocation, yaw=None, pitch=None, roll=0, radius=None):
-
-        calibrationPlateLocation = np.array(calibrationPlateLocation)
-
-        theta = np.deg2rad(pitch)
-        phi = np.deg2rad(yaw)
-        v = np.zeros(3)
-        v[0] = np.sin(theta) * np.cos(phi)
-        v[1] = np.sin(theta) * np.sin(phi)
-        v[2] = np.cos(theta)
-
-        v = v/np.linalg.norm(v)
-
-        s = radius * v + calibrationPlateLocation
-
-        return s
-
-
-    @staticmethod
-    def createCameraGazeTargetConstraint(linkName=None, cameraToLinkFrame=None, cameraAxis=None, worldPoint=None, coneThresholdDegrees=0.0):
-
-        if None in [linkName, cameraToLinkFrame, cameraAxis, worldPoint]:
-            raise ValueError("must specify a field")
-
-        g = ikconstraints.WorldGazeTargetConstraint()
-        g.linkName = linkName
-        g.tspan = [1.0, 1.0]
-        g.worldPoint = worldPoint
-
-        g.bodyPoint = cameraToLinkFrame.GetPosition()
-
-        # axis expressed in link frame
-        axis = cameraToLinkFrame.TransformVector(cameraAxis)
-        g.axis = axis
-        g.coneThreshold = np.deg2rad(coneThresholdDegrees)
-
-
-        return g
 
     @staticmethod
     def createPositionConstraint(targetPosition=None, positionTolerance=0.0, linkName=None, linkOffsetFrame=None):
@@ -377,7 +326,7 @@ class InteractiveDataCollector(object):
 
         return p
 
-    def computeSingleCameraPose(self, targetLocationWorld=[1,0,0], cameraFrameLocation=[0.22, 0, 0.89]):
+    def computeSingleCameraPose(self, cameraFrameLocation=[0.22, 0, 0.89]):
         cameraAxis = [0,-1,0] # assuming we are using 'palm' as the link frame
 
         linkName = self.handFrame
@@ -394,13 +343,9 @@ class InteractiveDataCollector(object):
         constraints = []
         constraints.append(ikPlanner.createPostureConstraint(startPoseName, robotstate.matchJoints('base_')))
 
-        positionConstraint = HandEyeCalibration.createPositionConstraint(targetPosition=cameraFrameLocation, linkName=linkName, linkOffsetFrame=cameraToLinkFrame, positionTolerance=0.05)
-
-        cameraGazeConstraint = HandEyeCalibration.createCameraGazeTargetConstraint(linkName=linkName, cameraToLinkFrame=cameraToLinkFrame, cameraAxis=cameraAxis, worldPoint=targetLocationWorld, coneThresholdDegrees=5.0)
-
+        positionConstraint = InteractiveDataCollector.createPositionConstraint(targetPosition=cameraFrameLocation, linkName=linkName, linkOffsetFrame=cameraToLinkFrame, positionTolerance=0.05)
 
         constraints.append(positionConstraint)
-        constraints.append(cameraGazeConstraint)
 
         constraintSet = ConstraintSet(ikPlanner, constraints, 'reach_end',
                                       startPoseName)
@@ -416,5 +361,5 @@ class InteractiveDataCollector(object):
         return returnData
 
     def testComputePoses(self):
-        result = self.computeCalibrationPoses()
+        result = self.computeTableTopPoses()
         self.drawResult(result)
