@@ -8,6 +8,11 @@
 #include "common_utils/system_utils.h"
 #include "common_utils/vtk_utils.h"
 
+#include <vtkImageCast.h>
+#include <vtkImageData.h>
+#include <vtkPNGReader.h>
+#include <vtkPNGWriter.h>
+
 #include "drake/common/text_logging_gflags.h"
 #include "drake/math/quaternion.h"
 
@@ -49,6 +54,12 @@
  *
  *
  *    Of course, this can be dramatically reduced by cropping the input mesh.
+ *
+ *
+ *  General TODOs:
+ *    * Can probably replace this pipeline with vtkProjectedTexture and
+ *      doing operations in texture space rather than on a per-vertex
+ *      level. That'll be for a next pass, though.
  */
 
 DEFINE_string(config_filename, "config_filename",
@@ -57,9 +68,11 @@ DEFINE_string(config_filename, "config_filename",
 DEFINE_string(mesh_filename, "mesh",
               "VTP-openable mesh with vertices with normals.");
 
-DEFINE_string(labelfusion_data_dir, "data_dir",
-              "Root of a LabelFusion log dir with a posegraph.posegraph file, "
-              "a info.yaml file with camera intrinsics, and an images folder.");
+DEFINE_string(
+    labelfusion_data_dir, "data_dir",
+    "Root of a LabelFusion log dir with a posegraph.posegraph file, "
+    "a info.yaml file with camera intrinsics, "
+    "and an images folder.");
 // Assumption about labelfusion data:
 //  the ith row (1-indexed) of the posegraph file corresponds to the rgb file
 /// "%010d_rgb.png" % i
@@ -90,19 +103,23 @@ vector<Isometry3d> GeneratePoseList(string posegraph_filename) {
     // Every line is a timestamp and then a 7-element pose
     while (getline(file, line)) {
       std::stringstream ss(line);
-      for (int i = 0; i < 7; i++) {
+      for (int i = 0; i < 8; i++) {
         ss >> line_of_floats[i];
       }
 
       // Stick the 7-element pose into an isometry (xyz then quat)
       // and discard the timestamp
       Isometry3d tf;
+      tf.setIdentity();
       tf.matrix()(0, 3) = line_of_floats[1];
       tf.matrix()(1, 3) = line_of_floats[2];
       tf.matrix()(2, 3) = line_of_floats[3];
-      tf.matrix().block<3, 3>(0, 0) = drake::math::quat2rotmat(
-          Eigen::Map<const Vector4d>(line_of_floats + 4));
-      tfs.push_back(tf);
+      // Posegraph.posegraph lists quat in xyzw order
+      Vector4d quat(line_of_floats[7], line_of_floats[4], line_of_floats[5],
+                    line_of_floats[6]);
+      tf.matrix().block<3, 3>(0, 0) = drake::math::quat2rotmat(quat);
+
+      tfs.push_back(tf.inverse());
     }
   } else {
     console->error("Couldn't open posegraph {0:s}", posegraph_filename);
@@ -123,9 +140,10 @@ vector<Isometry3d> GeneratePoseList(string posegraph_filename) {
  * i.e. assumes 0 skew, and assumes focal length is supplied
  * in pixel units already.
  */
-Matrix3d GenerateCameraIntrinsics(string config_filename) {
+typedef Eigen::Matrix<double, 3, 3> CameraMatrixd;
+CameraMatrixd GenerateCameraIntrinsics(string config_filename) {
   auto console = spdlog::get("console");
-  Matrix3d K;
+  CameraMatrixd K;
   K.setZero();
 
   YAML::Node config = YAML::LoadFile(config_filename);
@@ -138,7 +156,8 @@ Matrix3d GenerateCameraIntrinsics(string config_filename) {
 
     double f = config["intrinsics"]["focalLength"].as<double>();
     K(0, 0) = f;
-    K(1, 1) = f;
+    K(1, 1) = -f; // Why is this flip necessary? I don't understand...
+    K(2, 2) = 1.;
 
   } else {
     console->error("Config file had no intrinsics!");
@@ -184,13 +203,15 @@ void InitializeVertexDataSets(const vtkSmartPointer<vtkPolyData> meshPolyData,
       normalsGeneric->GetTuple(0, normals);
       for (int k = 0; k < 3; k++) {
         vertexDataSets->at(k_good_vertices).v[k] = vtk_pt[k];
-        vertexDataSets->at(k_good_vertices).n[k] = normals[k];
+        //vertexDataSets->at(k_good_vertices).n[k] = normals[k];
       }
       vertexDataSets->at(k_good_vertices).color_observations.clear();
       vertIndToDatasetInd->insert(std::pair<int, int>(i, k_good_vertices));
       k_good_vertices++;
     }
   }
+
+  vertexDataSets->resize(k_good_vertices);
 }
 
 static int DoMain(void) {
@@ -206,11 +227,9 @@ static int DoMain(void) {
 
   // Extract camera intrinsics matrix
   string config_filename = FLAGS_labelfusion_data_dir + "/info.yaml";
-  Matrix3d K = GenerateCameraIntrinsics(config_filename);
+  CameraMatrixd K = GenerateCameraIntrinsics(config_filename);
   console->info("Loaded camera intrinsics:");
   std::cout << K << std::endl;
-
-  string images_directory = FLAGS_labelfusion_data_dir + "/images/";
 
   // Open mesh with VTK
   vtkSmartPointer<vtkPolyData> meshPolyData =
@@ -223,10 +242,65 @@ static int DoMain(void) {
   double bb[6] = {-0.3, 0.3, -0.2, 0.2, 0.8, 1.1};
   vector<VertexDataSet> vertexDataSets;
   std::map<int, int> vertIndToDatasetInd;
-  InitializeVertexDataSets(meshPolyData, bb, &vertexDataSets, &vertIndToDatasetInd);
+  InitializeVertexDataSets(meshPolyData, bb, &vertexDataSets,
+                           &vertIndToDatasetInd);
   console->info("Initialized {0:d} vertex data sets", vertexDataSets.size());
 
+  // Iterate over images...
+  for (int i = 1; i <= tfs.size(); i += 1000) {  // tfs.size(); i++){
+    console->info("TF {0:d}:", i);
+    Isometry3d tf = tfs[i - 1];
+    std::cout << tf.matrix() << std::endl;
 
+    char im_filename[1000];
+    sprintf(im_filename, "%s/images/%010d_rgb.png",
+            FLAGS_labelfusion_data_dir.c_str(), i);
+    console->info("Loading picture {0:s}", im_filename);
+
+    vtkSmartPointer<vtkPNGReader> reader = vtkSmartPointer<vtkPNGReader>::New();
+    reader->SetFileName(im_filename);
+    reader->Update();
+    vtkSmartPointer<vtkImageData> imageData = reader->GetOutput();
+
+    int* dims = imageData->GetDimensions();
+    console->info("Loaded with dims {0:d}, {1:d}", dims[0], dims[1]);
+
+    // For every vertex in the data set, project into the image
+    int k = 0;
+
+    for (auto& vertexDataSet : vertexDataSets) {
+      Vector3d uv = K * tf * vertexDataSet.v;
+
+      // And then rescale so that the 3rd element is 1
+      uv /= uv[2];
+
+      if (uv[0] >= 0 && uv[0] < dims[0] && uv[1] >= 0 && uv[1] < dims[1]) {
+        unsigned char* pixel = static_cast<unsigned char*>(
+            imageData->GetScalarPointer(uv[0], uv[1], 0));
+        pixel[0] = 255;
+        pixel[1] = 255;
+        pixel[2] = 255;
+        k++;
+      }
+    }
+
+    char out_filename[1000];
+    sprintf(out_filename, "%s/%010d_rgb_mask.png",
+            FLAGS_labelfusion_data_dir.c_str(), i);
+    console->info("Writing picture {0:s}, having touched {1:d} verts",
+                  out_filename, k);
+
+    vtkSmartPointer<vtkImageCast> castFilter =
+        vtkSmartPointer<vtkImageCast>::New();
+    castFilter->SetOutputScalarTypeToUnsignedChar();
+    castFilter->SetInputData(imageData);
+    castFilter->Update();
+
+    vtkSmartPointer<vtkPNGWriter> writer = vtkSmartPointer<vtkPNGWriter>::New();
+    writer->SetFileName(out_filename);
+    writer->SetInputConnection(castFilter->GetOutputPort());
+    writer->Write();
+  }
 
   return 0;
 }
