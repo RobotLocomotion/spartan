@@ -168,13 +168,7 @@ class InteractiveDataCollector(object):
     Warning: Don't call this function directly, use run() instead, which
     calls this function in a thread
     """
-    def runROSCalibration(self, headerData):
-
-        headerData['target']['location_estimate_in_robot_base_frame'] = self.calibrationPosesConfig['target_location'] 
-        calibrationRunData = dict()
-        calibrationRunData['header'] = headerData
-
-        #setup our passive subscribers to the IR or RGB data
+    def runROSDataCollect(self):
         topicName = None
         self.passiveSubscriber = None
         if self.captureRGB:
@@ -185,58 +179,37 @@ class InteractiveDataCollector(object):
             self.passiveSubscriber.start()
 
         unique_name = time.strftime("%Y%m%d-%H%M%S")
-        self.calibrationFolderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'calibration_data', unique_name)
+        self.calibrationFolderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'auto_interactive_data', unique_name)
         os.system("mkdir -p " + self.calibrationFolderName)
         os.chdir(self.calibrationFolderName)
 
-        return
+        poseDict = self.computeTableTopPoses()
+        self.drawResult(poseDict)
+        rospy.loginfo("finished making calibration poses")
+        rospy.loginfo("starting calibration run")
 
-        # poseDict = self.computeCalibrationPoses()
-        # self.drawResult(poseDict)
-        # rospy.loginfo("finished making calibration poses")
-        # rospy.loginfo("starting calibration run")
+        autoCollectedData = []
 
-        # calibrationData = []
+        for pose in poseDict['feasiblePoses']:
+            # move robot to that joint position
+            rospy.loginfo("\n moving to pose")
+            self.robotService.moveToJointPosition(pose['joint_angles'])
+            rospy.loginfo("capturing images and robot data")
+            data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB)
+            autoCollectedData.append(data)
 
+        rospy.loginfo("finished data collection routine, saving data to file")
 
-        # for pose in poseDict['feasiblePoses']:
-        #     # move robot to that joint position
-        #     rospy.loginfo("\n moving to pose")
-        #     self.robotService.moveToJointPosition(pose['joint_angles'])
+        spartanUtils.saveToYaml(autoCollectedData, os.path.join(self.calibrationFolderName, 'robot_data.yaml'))
 
-        #     rospy.loginfo("capturing images and robot data")
-        #     data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB)
-        #     calibrationData.append(data)
+        if self.passiveSubscriber:
+            self.passiveSubscriber.stop()
 
-        # rospy.loginfo("finished calibration routine, saving data to file")
+        return autoCollectedData
 
-        
-        # calibrationRunData['data_list'] = calibrationData
-
-        # spartanUtils.saveToYaml(calibrationRunData, os.path.join(self.calibrationFolderName, 'robot_data.yaml'))
-
-        # if self.passiveSubscriber:
-        #     self.passiveSubscriber.stop()
-
-        # return calibrationRunData
-
-    def run(self, captureRGB=True, cameraName="xtion pro", targetWidth=4,
-        targetHeight=5, targetSquareSize=0.05):
-
+    def run(self, captureRGB=True):
         self.captureRGB = captureRGB
-        
-        # setup header information for storing along with the log
-        calibrationHeaderData = dict()
-        calibrationHeaderData['camera'] = cameraName
-        
-        targetData = dict()
-        targetData['width'] = targetWidth
-        targetData['height'] = targetHeight
-        targetData['square_edge_length'] = targetSquareSize
-
-        calibrationHeaderData['target'] = targetData
-
-        self.taskRunner.callOnThread(self.runROSCalibration, calibrationHeaderData)
+        self.taskRunner.callOnThread(self.runROSDataCollect)
 
 
     def computeSingleTablePosition(self, table_center, x_position, y_position):
