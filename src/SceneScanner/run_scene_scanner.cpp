@@ -73,6 +73,9 @@ DEFINE_string(labelfusion_data_dir, "data_dir",
               "a info.yaml file with camera intrinsics, "
               "and an images folder.");
 
+DEFINE_int64(dataset_skip_amount, 100,
+           "Use 1 out of every x images and tfs from the dataset.");
+
 DEFINE_double(
     depth_culling_threshold, 0.02,
     "In order for a vertex to accept the color of a pixel as an "
@@ -220,6 +223,104 @@ void InitializeVertexDataSets(const vtkSmartPointer<vtkPolyData> meshPolyData,
   vertexDataSets->resize(k_good_vertices);
 }
 
+void CollectVertexObservations(vector<VertexDataSet>* vertexDataSets,
+                               CameraMatrixd K, vector<Isometry3d> tfs) {
+  auto console = spdlog::get("console");
+
+  vtkSmartPointer<vtkPNGReader> rgb_reader =
+      vtkSmartPointer<vtkPNGReader>::New();
+  vtkSmartPointer<vtkPNGReader> depth_reader =
+      vtkSmartPointer<vtkPNGReader>::New();
+
+  for (int i = 1; i <= tfs.size();
+       i += FLAGS_dataset_skip_amount) {
+    console->info("TF {0:d}:", i);
+    Isometry3d tf = tfs[i - 1];
+    std::cout << tf.matrix() << std::endl;
+
+    char im_filename[1000];
+    sprintf(im_filename, "%s/images/%010d_rgb.png",
+            FLAGS_labelfusion_data_dir.c_str(), i);
+    console->info("Loading picture {0:s}", im_filename);
+
+    rgb_reader->SetFileName(im_filename);
+    rgb_reader->Update();
+    vtkSmartPointer<vtkImageData> rgbImageData = rgb_reader->GetOutput();
+
+    int* dims = rgbImageData->GetDimensions();
+    console->info("Loaded RGB with dims {0:d}, {1:d}", dims[0], dims[1]);
+
+    sprintf(im_filename, "%s/images/%010d_depth.png",
+            FLAGS_labelfusion_data_dir.c_str(), i);
+    depth_reader->SetFileName(im_filename);
+    depth_reader->Update();
+    vtkSmartPointer<vtkImageData> depthImageData = depth_reader->GetOutput();
+
+    // For every vertex in the data set, project into the image
+    int verts_touched = 0;
+    int verts_depth_culled = 0;
+
+    for (auto& vertexDataSet : *vertexDataSets) {
+      Vector3d uv = K * tf * vertexDataSet.v;
+      // And then rescale so that the 3rd element is 1
+      uv /= uv[2];
+
+      if (uv[0] >= 0 && uv[0] < dims[0] && uv[1] >= 0 && uv[1] < dims[1]) {
+        // First check the value at the depth image, and compare against our
+        // depth.
+        short int* pixel = static_cast<short int*>(
+            depthImageData->GetScalarPointer(uv[0], uv[1], 0));
+
+        double measured_depth = ((double)pixel[0]) / 1000.;
+        double vertex_depth = (tf * vertexDataSet.v).norm();
+        if (fabs(vertex_depth - measured_depth) <
+            FLAGS_depth_culling_threshold) {
+          unsigned char* pixel = static_cast<unsigned char*>(
+              rgbImageData->GetScalarPointer(uv[0], uv[1], 0));
+          vertexDataSet.color_observations.push_back(
+              {i, pixel[0], pixel[1], pixel[2]});
+          verts_touched++;
+        } else {
+          verts_depth_culled++;
+        }
+      }
+    }
+
+    console->info("Touched {0:d} verts and culled {1:d}", verts_touched,
+                  verts_depth_culled);
+  }
+}
+
+void PublishAverageColoredPointCloud(vector<VertexDataSet>* vertexDataSets) {
+  RemoteTreeViewerWrapper rm;
+
+  Matrix3Xd verts(3, vertexDataSets->size());
+  vector<vector<double>> colors(vertexDataSets->size(), vector<double>(3));
+  for (int i = 0; i < vertexDataSets->size(); i++) {
+    auto& vertexDataSet = vertexDataSets->at(i);
+    Vector3d avg_color_for_vert(0., 0., 0.);
+    for (const auto& color : vertexDataSet.color_observations) {
+      avg_color_for_vert +=
+          Vector3d((double)color.r, (double)color.g, (double)color.b);
+    }
+    if (vertexDataSet.color_observations.size() > 0) {
+      avg_color_for_vert /= (double)vertexDataSet.color_observations.size();
+      avg_color_for_vert /= 255.;
+      colors[i][0] = avg_color_for_vert[0];
+      colors[i][1] = avg_color_for_vert[1];
+      colors[i][2] = avg_color_for_vert[2];
+    } else {
+      colors[i][0] = 1.0;
+      colors[i][1] = 0.0;
+      colors[i][2] = 1.0;
+    }
+
+    verts.col(i) = vertexDataSet.v;
+  }
+
+  rm.publishPointCloud(verts, {"SceneScanner", "avgcoloredpoints"}, colors);
+}
+
 static int DoMain(void) {
   RemoteTreeViewerWrapper rm;
   auto console = spdlog::get("console");
@@ -253,99 +354,11 @@ static int DoMain(void) {
   console->info("Initialized {0:d} vertex data sets", vertexDataSets.size());
 
   // Iterate over images...
-  {
-    vtkSmartPointer<vtkPNGReader> rgb_reader =
-        vtkSmartPointer<vtkPNGReader>::New();
-    vtkSmartPointer<vtkPNGReader> depth_reader =
-        vtkSmartPointer<vtkPNGReader>::New();
-
-    for (int i = 1; i <= tfs.size(); i += 100) {  // tfs.size(); i++){
-      console->info("TF {0:d}:", i);
-      Isometry3d tf = tfs[i - 1];
-      std::cout << tf.matrix() << std::endl;
-
-      char im_filename[1000];
-      sprintf(im_filename, "%s/images/%010d_rgb.png",
-              FLAGS_labelfusion_data_dir.c_str(), i);
-      console->info("Loading picture {0:s}", im_filename);
-
-      rgb_reader->SetFileName(im_filename);
-      rgb_reader->Update();
-      vtkSmartPointer<vtkImageData> rgbImageData = rgb_reader->GetOutput();
-
-      int* dims = rgbImageData->GetDimensions();
-      console->info("Loaded RGB with dims {0:d}, {1:d}", dims[0], dims[1]);
-
-      sprintf(im_filename, "%s/images/%010d_depth.png",
-              FLAGS_labelfusion_data_dir.c_str(), i);
-      depth_reader->SetFileName(im_filename);
-      depth_reader->Update();
-      vtkSmartPointer<vtkImageData> depthImageData = depth_reader->GetOutput();
-
-      // For every vertex in the data set, project into the image
-      int verts_touched = 0;
-      int verts_depth_culled = 0;
-
-      for (auto& vertexDataSet : vertexDataSets) {
-        Vector3d uv = K * tf * vertexDataSet.v;
-        // And then rescale so that the 3rd element is 1
-        uv /= uv[2];
-
-        if (uv[0] >= 0 && uv[0] < dims[0] && uv[1] >= 0 && uv[1] < dims[1]) {
-          // First check the value at the depth image, and compare against our
-          // depth.
-          short int* pixel = static_cast<short int*>(
-              depthImageData->GetScalarPointer(uv[0], uv[1], 0));
-
-          double measured_depth = ((double)pixel[0]) / 1000.;
-          double vertex_depth = (tf * vertexDataSet.v).norm();
-          if (fabs(vertex_depth - measured_depth) <
-              FLAGS_depth_culling_threshold) {
-            unsigned char* pixel = static_cast<unsigned char*>(
-                rgbImageData->GetScalarPointer(uv[0], uv[1], 0));
-            vertexDataSet.color_observations.push_back(
-                {i, pixel[0], pixel[1], pixel[2]});
-            verts_touched++;
-          } else {
-            verts_depth_culled++;
-          }
-        }
-      }
-
-      console->info("Touched {0:d} verts and culled {1:d}", verts_touched,
-                    verts_depth_culled);
-    }
-  }
+  CollectVertexObservations(&vertexDataSets, K, tfs);
 
   // Compute average vertex color for all verts and publish as a colored point
-  // cloud
-  {
-    Matrix3Xd verts(3, vertexDataSets.size());
-    vector<vector<double>> colors(vertexDataSets.size(), vector<double>(3));
-    for (int i = 0; i < vertexDataSets.size(); i++) {
-      auto vertexDataSet = vertexDataSets[i];
-      Vector3d avg_color_for_vert(0., 0., 0.);
-      for (const auto& color : vertexDataSet.color_observations) {
-        avg_color_for_vert +=
-            Vector3d((double)color.r, (double)color.g, (double)color.b);
-      }
-      if (vertexDataSet.color_observations.size() > 0) {
-        avg_color_for_vert /= (double)vertexDataSet.color_observations.size();
-        avg_color_for_vert /= 255.;
-        colors[i][0] = avg_color_for_vert[0];
-        colors[i][1] = avg_color_for_vert[1];
-        colors[i][2] = avg_color_for_vert[2];
-      } else {
-        colors[i][0] = 1.0;
-        colors[i][1] = 0.0;
-        colors[i][2] = 1.0;
-      }
-
-      verts.col(i) = vertexDataSet.v;
-    }
-
-    rm.publishPointCloud(verts, {"SceneScanner", "avgcoloredpoints"}, colors);
-  }
+  // cloud, as a debug aid / feature
+  PublishAverageColoredPointCloud(&vertexDataSets);
 
   return 0;
 }
