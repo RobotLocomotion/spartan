@@ -62,17 +62,23 @@
  *      level. That'll be for a next pass, though.
  */
 
-DEFINE_string(config_filename, "config_filename",
+DEFINE_string(config_filename, "none",
               "YAML config file supplying search parameters.");
 
-DEFINE_string(mesh_filename, "mesh",
+DEFINE_string(mesh_filename, "none",
               "VTP-openable mesh with vertices with normals.");
 
-DEFINE_string(
-    labelfusion_data_dir, "data_dir",
-    "Root of a LabelFusion log dir with a posegraph.posegraph file, "
-    "a info.yaml file with camera intrinsics, "
-    "and an images folder.");
+DEFINE_string(labelfusion_data_dir, "data_dir",
+              "Root of a LabelFusion log dir with a posegraph.posegraph file, "
+              "a info.yaml file with camera intrinsics, "
+              "and an images folder.");
+
+DEFINE_double(
+    depth_culling_threshold, 0.02,
+    "In order for a vertex to accept the color of a pixel as an "
+    "observation, its distance to the camera origin must be within "
+    "this threshold of the depth value from the corresponding depth image.");
+
 // Assumption about labelfusion data:
 //  the ith row (1-indexed) of the posegraph file corresponds to the rgb file
 /// "%010d_rgb.png" % i
@@ -156,7 +162,7 @@ CameraMatrixd GenerateCameraIntrinsics(string config_filename) {
 
     double f = config["intrinsics"]["focalLength"].as<double>();
     K(0, 0) = f;
-    K(1, 1) = -f; // Why is this flip necessary? I don't understand...
+    K(1, 1) = -f;  // Why is this flip necessary? I don't understand...
     K(2, 2) = 1.;
 
   } else {
@@ -203,7 +209,7 @@ void InitializeVertexDataSets(const vtkSmartPointer<vtkPolyData> meshPolyData,
       normalsGeneric->GetTuple(0, normals);
       for (int k = 0; k < 3; k++) {
         vertexDataSets->at(k_good_vertices).v[k] = vtk_pt[k];
-        //vertexDataSets->at(k_good_vertices).n[k] = normals[k];
+        // vertexDataSets->at(k_good_vertices).n[k] = normals[k];
       }
       vertexDataSets->at(k_good_vertices).color_observations.clear();
       vertIndToDatasetInd->insert(std::pair<int, int>(i, k_good_vertices));
@@ -239,7 +245,7 @@ static int DoMain(void) {
 
   // Initialize the list of vertex sample info
   // Hack a bounding box for now, this should be a config parameter.
-  double bb[6] = {-0.3, 0.3, -0.2, 0.2, 0.8, 1.1};
+  double bb[6] = {-0.3, 0.3, -0.4, 0.2, 0.6, 1.1};
   vector<VertexDataSet> vertexDataSets;
   std::map<int, int> vertIndToDatasetInd;
   InitializeVertexDataSets(meshPolyData, bb, &vertexDataSets,
@@ -247,7 +253,12 @@ static int DoMain(void) {
   console->info("Initialized {0:d} vertex data sets", vertexDataSets.size());
 
   // Iterate over images...
-  for (int i = 1; i <= tfs.size(); i += 1000) {  // tfs.size(); i++){
+  vtkSmartPointer<vtkPNGReader> rgb_reader =
+      vtkSmartPointer<vtkPNGReader>::New();
+  vtkSmartPointer<vtkPNGReader> depth_reader =
+      vtkSmartPointer<vtkPNGReader>::New();
+
+  for (int i = 1; i <= tfs.size(); i += 100) {  // tfs.size(); i++){
     console->info("TF {0:d}:", i);
     Isometry3d tf = tfs[i - 1];
     std::cout << tf.matrix() << std::endl;
@@ -257,50 +268,80 @@ static int DoMain(void) {
             FLAGS_labelfusion_data_dir.c_str(), i);
     console->info("Loading picture {0:s}", im_filename);
 
-    vtkSmartPointer<vtkPNGReader> reader = vtkSmartPointer<vtkPNGReader>::New();
-    reader->SetFileName(im_filename);
-    reader->Update();
-    vtkSmartPointer<vtkImageData> imageData = reader->GetOutput();
+    rgb_reader->SetFileName(im_filename);
+    rgb_reader->Update();
+    vtkSmartPointer<vtkImageData> rgbImageData = rgb_reader->GetOutput();
 
-    int* dims = imageData->GetDimensions();
-    console->info("Loaded with dims {0:d}, {1:d}", dims[0], dims[1]);
+    int* dims = rgbImageData->GetDimensions();
+    console->info("Loaded RGB with dims {0:d}, {1:d}", dims[0], dims[1]);
+
+    sprintf(im_filename, "%s/images/%010d_depth.png",
+            FLAGS_labelfusion_data_dir.c_str(), i);
+    depth_reader->SetFileName(im_filename);
+    depth_reader->Update();
+    vtkSmartPointer<vtkImageData> depthImageData = depth_reader->GetOutput();
 
     // For every vertex in the data set, project into the image
-    int k = 0;
+    int verts_touched = 0;
+    int verts_depth_culled = 0;
 
     for (auto& vertexDataSet : vertexDataSets) {
       Vector3d uv = K * tf * vertexDataSet.v;
-
       // And then rescale so that the 3rd element is 1
       uv /= uv[2];
 
       if (uv[0] >= 0 && uv[0] < dims[0] && uv[1] >= 0 && uv[1] < dims[1]) {
-        unsigned char* pixel = static_cast<unsigned char*>(
-            imageData->GetScalarPointer(uv[0], uv[1], 0));
-        pixel[0] = 255;
-        pixel[1] = 255;
-        pixel[2] = 255;
-        k++;
+        // First check the value at the depth image, and compare against our
+        // depth.
+        short int* pixel = static_cast<short int*>(
+            depthImageData->GetScalarPointer(uv[0], uv[1], 0));
+
+        double measured_depth = ((double)pixel[0]) / 1000.;
+        double vertex_depth = (tf * vertexDataSet.v).norm();
+        if (fabs(vertex_depth - measured_depth) <
+            FLAGS_depth_culling_threshold) {
+          unsigned char* pixel = static_cast<unsigned char*>(
+              rgbImageData->GetScalarPointer(uv[0], uv[1], 0));
+          vertexDataSet.color_observations.push_back(
+              {i, pixel[0], pixel[1], pixel[2]});
+          verts_touched++;
+        } else {
+          verts_depth_culled++;
+        }
       }
     }
 
-    char out_filename[1000];
-    sprintf(out_filename, "%s/%010d_rgb_mask.png",
-            FLAGS_labelfusion_data_dir.c_str(), i);
-    console->info("Writing picture {0:s}, having touched {1:d} verts",
-                  out_filename, k);
-
-    vtkSmartPointer<vtkImageCast> castFilter =
-        vtkSmartPointer<vtkImageCast>::New();
-    castFilter->SetOutputScalarTypeToUnsignedChar();
-    castFilter->SetInputData(imageData);
-    castFilter->Update();
-
-    vtkSmartPointer<vtkPNGWriter> writer = vtkSmartPointer<vtkPNGWriter>::New();
-    writer->SetFileName(out_filename);
-    writer->SetInputConnection(castFilter->GetOutputPort());
-    writer->Write();
+    console->info("Touched {0:d} verts and culled {1:d}", verts_touched,
+                  verts_depth_culled);
   }
+
+  // Compute average vertex color for all verts and publish as a colored point
+  // cloud
+  Matrix3Xd verts(3, vertexDataSets.size());
+  vector<vector<double>> colors(vertexDataSets.size(), vector<double>(3));
+  for (int i = 0; i < vertexDataSets.size(); i++) {
+    auto vertexDataSet = vertexDataSets[i];
+    Vector3d avg_color_for_vert(0., 0., 0.);
+    for (const auto& color : vertexDataSet.color_observations) {
+      avg_color_for_vert +=
+          Vector3d((double)color.r, (double)color.g, (double)color.b);
+    }
+    if (vertexDataSet.color_observations.size() > 0) {
+      avg_color_for_vert /= (double)vertexDataSet.color_observations.size();
+      avg_color_for_vert /= 255.;
+      colors[i][0] = avg_color_for_vert[0];
+      colors[i][1] = avg_color_for_vert[1];
+      colors[i][2] = avg_color_for_vert[2];
+    } else {
+      colors[i][0] = 1.0;
+      colors[i][1] = 0.0;
+      colors[i][2] = 1.0;
+    }
+
+    verts.col(i) = vertexDataSet.v;
+  }
+
+  rm.publishPointCloud(verts, {"SceneScanner", "avgcoloredpoints"}, colors);
 
   return 0;
 }
