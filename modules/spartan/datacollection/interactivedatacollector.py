@@ -18,6 +18,7 @@ import director.vtkAll as vtk
 from director.debugVis import DebugData
 from director import objectmodel as om
 from director.ikparameters import IkParameters
+RobotPoseGUIWrapper = ikplanner.RobotPoseGUIWrapper
 
 # spartan
 import spartan.utils.utils as spartanUtils
@@ -165,6 +166,14 @@ class InteractiveDataCollector(object):
 
         return data
 
+
+    def iiwaJointDictToList(self, iiwa_joint_dict):
+        joint_angles_list = []
+        for i in range(7):
+            joint_key = 'iiwa_joint_' + str(i+1)
+            joint_angles_list.append(iiwa_joint_dict[joint_key])
+        return joint_angles_list
+
     """
     Warning: Don't call this function directly, use run() instead, which
     calls this function in a thread
@@ -198,8 +207,16 @@ class InteractiveDataCollector(object):
             pose = random.choice(poseDict['feasiblePoses'])
 
             # move robot to that joint position
+            print "1", pose['joint_angles']
             rospy.loginfo("\n moving to pose")
             self.robotService.moveToJointPosition(pose['joint_angles'])
+
+            # move back home
+            homePose = RobotPoseGUIWrapper.getPose('Elastic Fusion', 'home')
+            print "2", homePose
+            homeJointAngles = self.iiwaJointDictToList(homePose)
+            rospy.loginfo("\n moving to home")
+            self.robotService.moveToJointPosition(homeJointAngles)
 
             # save data
             rospy.loginfo("capturing images and robot data")
