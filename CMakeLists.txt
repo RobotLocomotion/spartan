@@ -175,6 +175,15 @@ ExternalProject_Add(RemoteTreeViewer
   DEPENDS drake
 )
 
+ExternalProject_Add(SceneScanner
+  SOURCE_DIR ${source_dir}/src/SceneScanner
+  BINARY_DIR ${build_dir}/SceneScanner
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+  DEPENDS drake director RemoteTreeViewer common_utils
+)
+
 if (WITH_REACHABILITY_ANALYZER)
   ExternalProject_Add(ReachabilityAnalyzer
   SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
