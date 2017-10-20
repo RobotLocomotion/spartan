@@ -245,6 +245,9 @@ class InteractiveDataCollector(object):
             self.robotService.gripperClose()
             time.sleep(1)
 
+            # flick motion
+            self.performFlickMotion(currentPose=pose)
+
             # open gripper
             self.robotService.gripperOpen()
             time.sleep(1)
@@ -269,6 +272,27 @@ class InteractiveDataCollector(object):
             self.passiveSubscriber.stop()
 
         return autoCollectedData
+
+    def performFlickMotion(self, currentPose):
+        print "pose['cameraLocation']", currentPose['cameraLocation']
+        print "pose['joint_angles']", currentPose['joint_angles']
+
+        # create random flick vector
+        flickMotionX = random.uniform(-0.1, 0.1)
+        flickMotionY = random.uniform(-0.1, 0.1)
+        flickMotionZ = random.uniform(0.0, 0.2)
+        flickMotionVector = np.array([flickMotionX, flickMotionY, flickMotionZ])
+
+        flickFinalPosition = np.array(currentPose['cameraLocation']) + flickMotionVector
+        ikResult = self.computeSingleCameraPose(cameraFrameLocation=flickFinalPosition)
+        
+        if (ikResult['info'] == 1):
+            rospy.loginfo("\n flicking")
+            self.robotService.moveToJointPosition(ikResult['endPose'])
+            time.sleep(1)
+        else:
+            rospy.loginfo("\n could not flick")
+
 
     def run(self, captureRGB=False):
         self.captureRGB = captureRGB
