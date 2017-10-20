@@ -120,11 +120,6 @@ class InteractiveDataCollector(object):
         expectedNormal = pointAboveTable - pointOnTable
         expectedNormal = expectedNormal/np.linalg.norm(expectedNormal)
 
-        # d = DebugData()
-        # d.addArrow(pointOnTable, pointOnTable + 0.3*expectedNormal,
-        #                headRadius=0.3)
-        
-        # pointCloudPolyData = d.getPolyData()
         pointCloudPolyData = self.pointCloud.polyData
         transformedPointCloudPolyData = filterUtils.transformPolyData(pointCloudPolyData, self.cameraTransform.getCameraToWorld())
         polyData, normal = segmentation.applyPlaneFit(pointCloudPolyData, searchOrigin=pointOnTable, searchRadius=0.3, expectedNormal=expectedNormal)
@@ -133,7 +128,9 @@ class InteractiveDataCollector(object):
         thickness = 0.01
         abovePolyData = filterUtils.thresholdPoints(polyData, 'dist_to_plane', [thickness / 2.0, np.inf])
         belowPolyData = filterUtils.thresholdPoints(polyData, 'dist_to_plane', [-np.inf, -thickness / 2.0])
-        self.aboveTablePolyData = abovePolyData
+        
+        # crop to sphere
+        croppedPolyData = segmentation.cropToSphere(abovePolyData, self.tableTopPosesConfig['table_center'], 0.4)
 
         # some debugging visualization
         visualize = True
@@ -144,22 +141,10 @@ class InteractiveDataCollector(object):
             vis.showPolyData(pointCloudPolyData, 'all point cloud', color=[1, 0, 0],
                              parent=self.visFolder)
 
-            vis.showPolyData(transformedPointCloudPolyData, 'transformed point cloud', color=[0, 0, 1],
+            vis.showPolyData(croppedPolyData, 'cropped to Sphere', color=[0, 0, 1],
                              parent=self.visFolder)
 
-            # arrowLength = 0.3
-            # headRadius = 0.02
-            # d = DebugData()
-            # d.addArrow(pointOnTable, pointOnTable + arrowLength*expectedNormal,
-            #            headRadius=headRadius)
-            # vis.showPolyData(d.getPolyData(), 'expected normal', color=[1, 0, 0],
-            #                  parent=self.visFolder)
-
-            # d = DebugData()
-            # d.addArrow(pointOnTable, pointOnTable + arrowLength * normal,
-            #            headRadius=headRadius)
-            # vis.showPolyData(d.getPolyData(), 'computed normal', color=[0, 1, 0],
-            #                  parent=self.visFolder)
+        self.croppedPolyData = croppedPolyData
 
 
     def setupConfig(self):
