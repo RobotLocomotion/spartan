@@ -26,8 +26,10 @@ class PhongVertexShaderInput : public drake::systems::BasicVector<T> {
   /// batch.
   explicit PhongVertexShaderInput(int n_vertices);
 
-  void SetVertex(int index, const Eigen::Map<const Eigen::Vector3d>& v);
-  void SetNormal(int index, const Eigen::Map<const Eigen::Vector3d>& v);
+  void SetVertex(int index, const Eigen::Ref<const drake::Vector3<T>>& v);
+  void SetNormal(int index, const Eigen::Ref<const drake::Vector3<T>>& n);
+  drake::Vector3<T> GetVertex(int index) const;
+  drake::Vector3<T> GetNormal(int index) const;
 
  protected:
   PhongVertexShaderInput* DoClone() const override;
@@ -50,7 +52,8 @@ class PhongVertexShaderOutput : public drake::systems::BasicVector<T> {
   /// batch.
   explicit PhongVertexShaderOutput(int n_vertices);
 
-  Eigen::Vector3d GetRGB(int index);
+  void SetRGB(int index, const Eigen::Ref<const drake::Vector3<T>>& rgb);
+  drake::Vector3<T> GetRGB(int index) const;
 
  protected:
   PhongVertexShaderOutput* DoClone() const override;
