@@ -20,6 +20,7 @@ from director.debugVis import DebugData
 from director import objectmodel as om
 from director.ikparameters import IkParameters
 from director import filterUtils
+from director import vtkNumpy
 RobotPoseGUIWrapper = ikplanner.RobotPoseGUIWrapper
 
 # spartan
@@ -114,7 +115,7 @@ class InteractiveDataCollector(object):
         if cameraTransform:
             self.cameraTransform = cameraTransform
 
-    def testPointCloud(self):
+    def segmentPointCloud(self):
         pointAboveTable = np.array([0.7, 0, 0.4])
         pointOnTable = np.array([0.7, 0, 0.2])
         expectedNormal = pointAboveTable - pointOnTable
@@ -146,6 +147,29 @@ class InteractiveDataCollector(object):
 
         self.croppedPolyData = croppedPolyData
 
+
+    def graspHighestPoint(self):
+        self.segmentPointCloud()
+        numpyPointCloud = vtkNumpy.getNumpyFromVtk(self.croppedPolyData)
+        highestPointIndex = np.argmax(numpyPointCloud[:,2])
+        highestPoint = numpyPointCloud[highestPointIndex]
+        # hack to effectively transform to gripper point
+        highestPoint = highestPoint + np.array([0.03, 0.0, 0.14])
+        downwardRotation = np.array([0.0,0,1.0,0.0])
+        downwardRotation = downwardRotation/np.linalg.norm(downwardRotation)
+        ikResult = self.computeSingleCameraPose(cameraFrameLocation=highestPoint, quaternionDesired=downwardRotation)
+        
+        if (ikResult['info'] == 1):
+            rospy.loginfo("\n grasping")
+            self.robotService.moveToJointPosition(ikResult['endPose'])
+            time.sleep(1)
+            result = dict()
+            result['joint_angles'] = ikResult['endPose']
+            result['cameraLocation'] = highestPoint
+            return result, True
+        else:
+            rospy.loginfo("\n could not grasp")
+            return None, False
 
     def setupConfig(self):
         self.config = dict()
@@ -269,16 +293,16 @@ class InteractiveDataCollector(object):
 
         autoCollectedData = []
 
-        num_interactions = 10
+        num_interactions = 1
         for i in range(num_interactions):
 
-            # pick random feasible pose
-            pose = random.choice(poseDict['feasiblePoses'])
-
-            # move robot to that joint position
-            print "1", pose['joint_angles']
-            rospy.loginfo("\n moving to pose")
-            self.robotService.moveToJointPosition(pose['joint_angles'])
+            # pick towel-picking pose
+            pose, success = self.graspHighestPoint()
+            if not success:
+                pose = random.choice(poseDict['feasiblePoses'])
+                print "1", pose['joint_angles']
+                rospy.loginfo("\n moving to pose")
+                self.robotService.moveToJointPosition(pose['joint_angles'])
 
             # close gripper
             self.robotService.gripperClose()
@@ -313,13 +337,10 @@ class InteractiveDataCollector(object):
         return autoCollectedData
 
     def performFlickMotion(self, currentPose):
-        print "pose['cameraLocation']", currentPose['cameraLocation']
-        print "pose['joint_angles']", currentPose['joint_angles']
-
         # create random flick vector
         flickMotionX = random.uniform(-0.1, 0.1)
         flickMotionY = random.uniform(-0.1, 0.1)
-        flickMotionZ = random.uniform(0.0, 0.2)
+        flickMotionZ = random.uniform(0.02, 0.2)
         flickMotionVector = np.array([flickMotionX, flickMotionY, flickMotionZ])
 
         flickFinalPosition = np.array(currentPose['cameraLocation']) + flickMotionVector
@@ -425,7 +446,17 @@ class InteractiveDataCollector(object):
 
         return p
 
-    def computeSingleCameraPose(self, cameraFrameLocation=[0.22, 0, 0.89]):
+    @staticmethod
+    def createRotationConstraint(quaternion, linkName=None):
+
+        p = ikconstraints.QuatConstraint()
+        p.linkName = linkName
+        p.angleToleranceInDegrees = 5.0
+        p.quaternion = np.array(quaternion)
+
+        return p
+
+    def computeSingleCameraPose(self, cameraFrameLocation=[0.22, 0, 0.89], quaternionDesired=None):
         cameraAxis = [0,-1,0] # assuming we are using 'palm' as the link frame
 
         linkName = self.handFrame
@@ -443,8 +474,11 @@ class InteractiveDataCollector(object):
         constraints.append(ikPlanner.createPostureConstraint(startPoseName, robotstate.matchJoints('base_')))
 
         positionConstraint = InteractiveDataCollector.createPositionConstraint(targetPosition=cameraFrameLocation, linkName=linkName, linkOffsetFrame=cameraToLinkFrame, positionTolerance=0.05)
-
         constraints.append(positionConstraint)
+
+        if quaternionDesired is not None:
+            rotationConstraint = InteractiveDataCollector.createRotationConstraint(quaternionDesired, linkName=linkName)
+            constraints.append(rotationConstraint)
 
         constraintSet = ConstraintSet(ikPlanner, constraints, 'reach_end',
                                       startPoseName)
