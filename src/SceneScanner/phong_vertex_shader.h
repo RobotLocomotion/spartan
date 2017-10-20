@@ -13,40 +13,47 @@
 #include "drake/systems/framework/system.h"
 #include "drake/systems/rendering/pose_vector.h"
 
-/// Specializes BasicVector for the Phong Fragment shader N-elementRGB output.
+/// Specializes BasicVector for the Phong Vertex shader N-element
+/// oriented vertex input.
 template <typename T>
-class PhongFragmentShaderOutput : public drake::systems::BasicVector<T> {
+class PhongVertexShaderInput : public drake::systems::BasicVector<T> {
  public:
-  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(PhongFragmentShaderOutput)
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(PhongVertexShaderInput)
 
   /// Default constructor.  Sets all rows to zero.
   ///
   /// @param[in] n_vertices The number of vertices the system consumes in a
   /// batch.
-  explicit PhongFragmentShaderOutput(int n_vertices);
+  explicit PhongVertexShaderInput(int n_vertices);
+
+  void SetVertex(int index, const Eigen::Map<const Eigen::Vector3d>& v);
+  void SetNormal(int index, const Eigen::Map<const Eigen::Vector3d>& v);
 
  protected:
-  PhongFragmentShaderOutput* DoClone() const override;
+  PhongVertexShaderInput* DoClone() const override;
 
  private:
   const int n_vertices_{};
 };
 
-/// Specializes BasicVector for the Phong Fragment shader N-element
-/// oriented vertex input.
+/// Specializes BasicVector for the Phong vertex shader output.
+/// Represents a list of RGB intensity values produced by each
+/// corresponding input vertex.
 template <typename T>
-class PhongFragmentShaderInput : public drake::systems::BasicVector<T> {
+class PhongVertexShaderOutput : public drake::systems::BasicVector<T> {
  public:
-  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(PhongFragmentShaderInput)
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(PhongVertexShaderOutput)
 
   /// Default constructor.  Sets all rows to zero.
   ///
   /// @param[in] n_vertices The number of vertices the system consumes in a
   /// batch.
-  explicit PhongFragmentShaderInput(int n_vertices);
+  explicit PhongVertexShaderOutput(int n_vertices);
+
+  Eigen::Vector3d GetRGB(int index);
 
  protected:
-  PhongFragmentShaderInput* DoClone() const override;
+  PhongVertexShaderOutput* DoClone() const override;
 
  private:
   const int n_vertices_{};
@@ -67,11 +74,11 @@ class PhongFragmentShaderInput : public drake::systems::BasicVector<T> {
 ///      harder...
 ///    - Ambient, diffuse, and specular colors for each of the N vertices.
 
-class PhongFragmentShader : public drake::systems::LeafSystem<double> {
+class PhongVertexShader : public drake::systems::LeafSystem<double> {
  public:
-  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(PhongFragmentShader)
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(PhongVertexShader)
 
-  /// A %PhongFragmentShader constructor.
+  /// A %PhongVertexShader constructor.
   ///
   /// @param[in] name A name for the system.
   ///
@@ -79,24 +86,30 @@ class PhongFragmentShader : public drake::systems::LeafSystem<double> {
   /// in a batch.
   ///
   /// @param[in] n_lights The number of lights the shader will support.
-  PhongFragmentShader(const std::string& name, int n_vertices, int n_lights);
+  PhongVertexShader(const std::string& name, int n_vertices, int n_lights);
 
   /// Returns a descriptor of the camera pose input port.
-  const drake::systems::InputPortDescriptor<double>& get_camera_pose_input_port() const;
+  const drake::systems::InputPortDescriptor<double>& get_camera_pose_input_port() const {
+    return System<double>::get_input_port(camera_pose_input_port_index_);
+  }
 
   /// Returns a descriptor of the vertex/normal pairs input port.
-  const drake::systems::InputPortDescriptor<double>& get_fragment_input_port() const;
+  const drake::systems::InputPortDescriptor<double>& get_vertex_input_port() const {
+    return System<double>::get_input_port(vertex_input_port_index_);
+  }
 
   /// Returns the RGB value output port.
-  const drake::systems::OutputPort<double>& get_fragment_output_port() const;
+  const drake::systems::OutputPort<double>& get_rgb_output_port() const {
+    return System<double>::get_output_port(rgb_output_port_index_);
+  }
 
   friend std::ostream& operator<<(
-      std::ostream& out, const PhongFragmentShader& phong_fragment_shader);
+      std::ostream& out, const PhongVertexShader& phong_vertex_shader);
 
  private:
   // These are calculators for the output.
-  void CalcFragmentOutput(const drake::systems::Context<double>& context,
-                          PhongFragmentShaderOutput<double>* data_output) const;
+  void CalcVertexOutput(const drake::systems::Context<double>& context,
+                          PhongVertexShaderOutput<double>* data_output) const;
 
   const std::string name_;
 
@@ -104,8 +117,8 @@ class PhongFragmentShader : public drake::systems::LeafSystem<double> {
   const int n_lights_{};
 
   int camera_pose_input_port_index_{};
-  int fragment_input_port_index_{};
-  int fragment_output_port_index_{};
+  int vertex_input_port_index_{};
+  int rgb_output_port_index_{};
 
   // int input_port_index_{};
   // int depth_output_port_index_{};

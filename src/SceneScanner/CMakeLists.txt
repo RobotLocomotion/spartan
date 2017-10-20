@@ -13,8 +13,8 @@ include_directories(${VTK_INCLUDE_DIRS})
 
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
-add_library(phong_fragment_shader phong_fragment_shader.cpp phong_fragment_shader.h)
-target_link_libraries(phong_fragment_shader
+add_library(phong_vertex_shader phong_vertex_shader.cpp phong_vertex_shader.h)
+target_link_libraries(phong_vertex_shader
 	${drake_LIBRARIES})
 	
 add_executable(run_scene_scanner run_scene_scanner.cpp)
