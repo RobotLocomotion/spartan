@@ -25,6 +25,10 @@ import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as spartanROSUtils
 from spartan.utils.taskrunner import TaskRunner
 
+# drake
+import drake as lcmdrake
+from director import lcmUtils
+
 # ROS
 import rospy
 import sensor_msgs.msg
@@ -77,6 +81,21 @@ class RobotService(object):
             q = q[6:]
 
         return q
+
+    def sendGripperCommand(self, targetPositionMM, force):
+        msg = lcmdrake.lcmt_schunk_wsg_command()
+        msg.utime = int(time.time()*1e6)
+        msg.force = force
+        msg.target_position_mm = targetPositionMM
+        lcmUtils.publish('SCHUNK_WSG_COMMAND', msg)
+
+
+    def gripperOpen(self):
+        self.sendGripperCommand(100, 40)
+
+
+    def gripperClose(self):
+        self.sendGripperCommand(0, 40)
 
 
 class InteractiveDataCollector(object):
@@ -174,6 +193,17 @@ class InteractiveDataCollector(object):
             joint_angles_list.append(iiwa_joint_dict[joint_key])
         return joint_angles_list
 
+
+    def testGripper(self):
+        # close gripper
+        self.robotService.gripperClose()
+        time.sleep(1)
+
+        # open gripper
+        self.robotService.gripperOpen()
+        time.sleep(1)
+
+
     """
     Warning: Don't call this function directly, use run() instead, which
     calls this function in a thread
@@ -210,6 +240,14 @@ class InteractiveDataCollector(object):
             print "1", pose['joint_angles']
             rospy.loginfo("\n moving to pose")
             self.robotService.moveToJointPosition(pose['joint_angles'])
+
+            # close gripper
+            self.robotService.gripperClose()
+            time.sleep(1)
+
+            # open gripper
+            self.robotService.gripperOpen()
+            time.sleep(1)
 
             # move back home
             homePose = RobotPoseGUIWrapper.getPose('Elastic Fusion', 'home')
