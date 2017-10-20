@@ -24,33 +24,71 @@ using std::make_unique;
 using std::move;
 
 using drake::VectorX;
+using drake::Vector3;
 using drake::systems::rendering::PoseVector;
 using namespace drake::systems;
 
 template <typename T>
 PhongVertexShaderInput<T>::PhongVertexShaderInput(int n_vertices)
     : n_vertices_(n_vertices), BasicVector<double>(n_vertices * 6) {
-  this->SetFromVector(VectorX<double>::Zero(n_vertices * 6));
+  this->SetFromVector(VectorX<T>::Zero(n_vertices * 6));
 }
 template <typename T>
 PhongVertexShaderInput<T>* PhongVertexShaderInput<T>::DoClone() const {
   return new PhongVertexShaderInput(n_vertices_);
 }
+template <typename T>
+void PhongVertexShaderInput<T>::SetVertex(
+    int index, const Eigen::Ref<const Vector3<T>>& v) {
+  (*this)[index * 6 + 0] = v[0];
+  (*this)[index * 6 + 1] = v[1];
+  (*this)[index * 6 + 2] = v[2];
+}
+template <typename T>
+void PhongVertexShaderInput<T>::SetNormal(
+    int index, const Eigen::Ref<const Vector3<T>>& n) {
+  (*this)[index * 6 + 3] = n[0];
+  (*this)[index * 6 + 4] = n[1];
+  (*this)[index * 6 + 5] = n[2];
+}
+template <typename T>
+Vector3<T> PhongVertexShaderInput<T>::GetVertex(int index) const {
+  return Vector3<T>((*this)[index * 6 + 0], (*this)[index * 6 + 1],
+                    (*this)[index * 6 + 2]);
+}
+template <typename T>
+Vector3<T> PhongVertexShaderInput<T>::GetNormal(int index) const {
+  return Vector3<T>((*this)[index * 6 + 3], (*this)[index * 6 + 4],
+                    (*this)[index * 6 + 5]);
+}
+
 template class PhongVertexShaderInput<double>;
 
 template <typename T>
 PhongVertexShaderOutput<T>::PhongVertexShaderOutput(int n_vertices)
     : n_vertices_(n_vertices), BasicVector<double>(n_vertices * 3) {
-  this->SetFromVector(VectorX<double>::Zero(n_vertices * 3));
+  this->SetFromVector(VectorX<T>::Zero(n_vertices * 3));
 }
 template <typename T>
 PhongVertexShaderOutput<T>* PhongVertexShaderOutput<T>::DoClone() const {
   return new PhongVertexShaderOutput(n_vertices_);
 }
+template <typename T>
+void PhongVertexShaderOutput<T>::SetRGB(
+    int index, const Eigen::Ref<const Vector3<T>>& rgb) {
+  (*this)[index * 3 + 0] = rgb[0];
+  (*this)[index * 3 + 1] = rgb[1];
+  (*this)[index * 3 + 2] = rgb[2];
+}
+template <typename T>
+Vector3<T> PhongVertexShaderOutput<T>::GetRGB(int index) const {
+  return Vector3<T>((*this)[index * 3 + 0], (*this)[index * 3 + 1],
+                    (*this)[index * 3 + 2]);
+}
 template class PhongVertexShaderOutput<double>;
 
-PhongVertexShader::PhongVertexShader(const std::string& name,
-                                         int n_vertices, int n_lights)
+PhongVertexShader::PhongVertexShader(const std::string& name, int n_vertices,
+                                     int n_lights)
     : name_(name), n_vertices_(n_vertices), n_lights_(n_lights) {
   camera_pose_input_port_index_ =
       DeclareVectorInputPort(PoseVector<double>()).get_index();
