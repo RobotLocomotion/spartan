@@ -13,11 +13,13 @@ from director import visualization as vis
 from director import ikplanner
 from director import ikconstraints
 from director import robotstate
+from director import segmentation
 from director.ikplanner import ConstraintSet
 import director.vtkAll as vtk
 from director.debugVis import DebugData
 from director import objectmodel as om
 from director.ikparameters import IkParameters
+from director import filterUtils
 RobotPoseGUIWrapper = ikplanner.RobotPoseGUIWrapper
 
 # spartan
@@ -100,12 +102,64 @@ class RobotService(object):
 
 class InteractiveDataCollector(object):
 
-    def __init__(self, robotSystem, handFrame='palm'):
+    def __init__(self, robotSystem, handFrame='palm', pointCloud=None, cameraTransform=None):
         self.robotSystem = robotSystem
         self.robotService = RobotService(robotSystem)
         self.handFrame = handFrame
         self.setupConfig()
         self.taskRunner = TaskRunner()
+        self.visFolder = om.getOrCreateContainer('interactive data collector')
+        if pointCloud:
+            self.pointCloud = pointCloud
+        if cameraTransform:
+            self.cameraTransform = cameraTransform
+
+    def testPointCloud(self):
+        pointAboveTable = np.array([0.7, 0, 0.4])
+        pointOnTable = np.array([0.7, 0, 0.2])
+        expectedNormal = pointAboveTable - pointOnTable
+        expectedNormal = expectedNormal/np.linalg.norm(expectedNormal)
+
+        # d = DebugData()
+        # d.addArrow(pointOnTable, pointOnTable + 0.3*expectedNormal,
+        #                headRadius=0.3)
+        
+        # pointCloudPolyData = d.getPolyData()
+        pointCloudPolyData = self.pointCloud.polyData
+        transformedPointCloudPolyData = filterUtils.transformPolyData(pointCloudPolyData, self.cameraTransform.getCameraToWorld())
+        polyData, normal = segmentation.applyPlaneFit(pointCloudPolyData, searchOrigin=pointOnTable, searchRadius=0.3, expectedNormal=expectedNormal)
+
+        # get points above plane
+        thickness = 0.01
+        abovePolyData = filterUtils.thresholdPoints(polyData, 'dist_to_plane', [thickness / 2.0, np.inf])
+        belowPolyData = filterUtils.thresholdPoints(polyData, 'dist_to_plane', [-np.inf, -thickness / 2.0])
+        self.aboveTablePolyData = abovePolyData
+
+        # some debugging visualization
+        visualize = True
+        if visualize:
+            vis.showPolyData(abovePolyData, 'above table segmentation', color=[0, 1, 0],
+                             parent=self.visFolder)
+
+            vis.showPolyData(pointCloudPolyData, 'all point cloud', color=[1, 0, 0],
+                             parent=self.visFolder)
+
+            vis.showPolyData(transformedPointCloudPolyData, 'transformed point cloud', color=[0, 0, 1],
+                             parent=self.visFolder)
+
+            # arrowLength = 0.3
+            # headRadius = 0.02
+            # d = DebugData()
+            # d.addArrow(pointOnTable, pointOnTable + arrowLength*expectedNormal,
+            #            headRadius=headRadius)
+            # vis.showPolyData(d.getPolyData(), 'expected normal', color=[1, 0, 0],
+            #                  parent=self.visFolder)
+
+            # d = DebugData()
+            # d.addArrow(pointOnTable, pointOnTable + arrowLength * normal,
+            #            headRadius=headRadius)
+            # vis.showPolyData(d.getPolyData(), 'computed normal', color=[0, 1, 0],
+            #                  parent=self.visFolder)
 
 
     def setupConfig(self):
