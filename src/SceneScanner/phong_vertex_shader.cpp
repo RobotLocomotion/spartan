@@ -61,9 +61,9 @@ Vector3<T> PhongVertexShaderInput<T>::GetNormal(int index) const {
   return Vector3<T>((*this)[index * 6 + 3], (*this)[index * 6 + 4],
                     (*this)[index * 6 + 5]);
 }
-
 template class PhongVertexShaderInput<double>;
 
+//////////////////////////////////////////
 template <typename T>
 PhongVertexShaderOutput<T>::PhongVertexShaderOutput(int n_vertices)
     : n_vertices_(n_vertices), BasicVector<double>(n_vertices * 3) {
@@ -87,6 +87,79 @@ Vector3<T> PhongVertexShaderOutput<T>::GetRGB(int index) const {
 }
 template class PhongVertexShaderOutput<double>;
 
+//////////////////////////////////////////
+template <typename T>
+PhongVertexShaderMaterialParameters<T>::PhongVertexShaderMaterialParameters(
+    int n_vertices)
+    : n_vertices_(n_vertices), BasicVector<double>(n_vertices * 9) {
+  this->SetFromVector(VectorX<T>::Zero(n_vertices * 9));
+}
+template <typename T>
+PhongVertexShaderMaterialParameters<T>*
+PhongVertexShaderMaterialParameters<T>::DoClone() const {
+  return new PhongVertexShaderMaterialParameters(n_vertices_);
+}
+template <typename T>
+void PhongVertexShaderMaterialParameters<T>::SetMaterial(
+    int index, const PhongVertexShaderMaterialParameters::Material& material) {
+  for (int i = 0; i < 3; i++) {
+    (*this)[index * 9 + 0 + i] = material.ambient[i];
+    (*this)[index * 9 + 3 + i] = material.diffuse[i];
+    (*this)[index * 9 + 6 + i] = material.specular[i];
+  }
+}
+template <typename T>
+typename PhongVertexShaderMaterialParameters<T>::Material
+PhongVertexShaderMaterialParameters<T>::GetMaterial(int index) const {
+  Material material;
+  for (int i = 0; i < 3; i++) {
+    material.ambient[i] = (*this)[index * 9 + 0 + i];
+    material.diffuse[i] = (*this)[index * 9 + 3 + i];
+    material.specular[i] = (*this)[index * 9 + 6 + i];
+  }
+  return material;
+}
+template class PhongVertexShaderMaterialParameters<double>;
+
+//////////////////////////////////////////
+template <typename T>
+PhongVertexShaderLightParameters<T>::PhongVertexShaderLightParameters(
+    int n_lights)
+    : n_lights_(n_lights), BasicVector<double>(n_lights * 12) {
+  this->SetFromVector(VectorX<T>::Zero(n_lights * 12));
+}
+template <typename T>
+PhongVertexShaderLightParameters<T>*
+PhongVertexShaderLightParameters<T>::DoClone() const {
+  return new PhongVertexShaderLightParameters(n_lights_);
+}
+template <typename T>
+void PhongVertexShaderLightParameters<T>::SetLight(
+    int index, const PhongVertexShaderLightParameters::Light& light) {
+  for (int i = 0; i < 3; i++) {
+    (*this)[index * 12 + 0 + i] = light.position[i];
+    (*this)[index * 12 + 3 + i] = light.ambient[i];
+    (*this)[index * 12 + 6 + i] = light.diffuse[i];
+    (*this)[index * 12 + 9 + i] = light.specular[i];
+  }
+}
+template <typename T>
+typename PhongVertexShaderLightParameters<T>::Light
+PhongVertexShaderLightParameters<T>::GetLight(int index) const {
+  Light light;
+  for (int i = 0; i < 3; i++) {
+    light.position[i] = (*this)[index * 12 + 0 + i];
+    light.ambient[i] = (*this)[index * 12 + 3 + i];
+    light.diffuse[i] = (*this)[index * 12 + 6 + i];
+    light.specular[i] = (*this)[index * 12 + 9 + i];
+  }
+  return light;
+}
+template class PhongVertexShaderLightParameters<double>;
+
+//////////////////////////////////////////
+//////////////////////////////////////////
+//////////////////////////////////////////
 PhongVertexShader::PhongVertexShader(const std::string& name, int n_vertices,
                                      int n_lights)
     : name_(name), n_vertices_(n_vertices), n_lights_(n_lights) {
@@ -101,12 +174,28 @@ PhongVertexShader::PhongVertexShader(const std::string& name, int n_vertices,
       DeclareVectorOutputPort(PhongVertexShaderOutput<double>(n_vertices),
                               &PhongVertexShader::CalcVertexOutput)
           .get_index();
+
+  material_parameters_index_ = this->DeclareNumericParameter(
+      PhongVertexShaderMaterialParameters<double>(n_vertices));
+  light_parameters_index_ = this->DeclareNumericParameter(
+      PhongVertexShaderLightParameters<double>(n_lights));
 }
 
 void PhongVertexShader::CalcVertexOutput(
     const Context<double>& context,
     PhongVertexShaderOutput<double>* data_output) const {
-  printf("NOPE!\n");
+  auto vertex_input = this->EvalVectorInput<PhongVertexShaderInput>(
+      context, vertex_input_port_index_);
+  auto camera_pose_input =
+      this->EvalVectorInput<PoseVector>(context, camera_pose_input_port_index_);
+
+  drake::Vector3<double> camera_T =
+      camera_pose_input->get_translation().vector();
+
+  // For every vertiex in the input...
+  for (int i = 0; i < vertex_input->getNumVertices(); i++) {
+  }
+
   return;
 }
 

@@ -26,6 +26,8 @@ class PhongVertexShaderInput : public drake::systems::BasicVector<T> {
   /// batch.
   explicit PhongVertexShaderInput(int n_vertices);
 
+  int getNumVertices() const { return n_vertices_; };
+
   void SetVertex(int index, const Eigen::Ref<const drake::Vector3<T>>& v);
   void SetNormal(int index, const Eigen::Ref<const drake::Vector3<T>>& n);
   drake::Vector3<T> GetVertex(int index) const;
@@ -52,6 +54,8 @@ class PhongVertexShaderOutput : public drake::systems::BasicVector<T> {
   /// batch.
   explicit PhongVertexShaderOutput(int n_vertices);
 
+  int getNumVertices() const { return n_vertices_; };
+
   void SetRGB(int index, const Eigen::Ref<const drake::Vector3<T>>& rgb);
   drake::Vector3<T> GetRGB(int index) const;
 
@@ -61,6 +65,73 @@ class PhongVertexShaderOutput : public drake::systems::BasicVector<T> {
  private:
   const int n_vertices_{};
 };
+
+
+/// Specializes BasicVector for the Phong Vertex shader material parameters:
+/// a vector of N material property sets for the N vertices.
+/// Encodes ambient, diffuse, and specular materials for each vertex.
+template <typename T>
+class PhongVertexShaderMaterialParameters : public drake::systems::BasicVector<T> {
+ public:
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(PhongVertexShaderMaterialParameters)
+
+  /// Default constructor.  Sets all rows to zero.
+  ///
+  /// @param[in] n_vertices The number of vertices the system consumes in a
+  /// batch.
+  explicit PhongVertexShaderMaterialParameters(int n_vertices);
+
+  int getNumVertices() const { return n_vertices_; };
+
+  struct Material {
+    drake::Vector3<T> ambient;
+    drake::Vector3<T> diffuse;
+    drake::Vector3<T> specular;
+  };
+
+  void SetMaterial(int index, const Material& material);
+  Material GetMaterial(int index) const;
+
+ protected:
+  PhongVertexShaderMaterialParameters* DoClone() const override;
+
+ private:
+  const int n_vertices_{};
+};
+
+/// Specializes BasicVector for the Phong Vertex shader light properties
+/// a vector of N light details for N lights.
+/// Encodes ambient, diffuse, and specular sources, plus the light position,
+/// for each light.
+template <typename T>
+class PhongVertexShaderLightParameters : public drake::systems::BasicVector<T> {
+ public:
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(PhongVertexShaderLightParameters)
+
+  /// Default constructor.  Sets all rows to zero.
+  ///
+  /// @param[in] n_lights The number of lights in the system.
+  explicit PhongVertexShaderLightParameters(int n_vertices);
+
+  int getNumLights() const { return n_lights_; };
+
+  struct Light {
+    drake::Vector3<T> position;
+    drake::Vector3<T> ambient;
+    drake::Vector3<T> diffuse;
+    drake::Vector3<T> specular;
+  };
+
+  void SetLight(int index, const Light& material);
+  Light GetLight(int index) const;
+
+ protected:
+  PhongVertexShaderLightParameters* DoClone() const override;
+
+ private:
+  const int n_lights_{};
+};
+
 
 /// Input:
 ///   - A 6DOF camera pose
@@ -122,6 +193,9 @@ class PhongVertexShader : public drake::systems::LeafSystem<double> {
   int camera_pose_input_port_index_{};
   int vertex_input_port_index_{};
   int rgb_output_port_index_{};
+
+  int material_parameters_index_{};
+  int light_parameters_index_{};
 
   // int input_port_index_{};
   // int depth_output_port_index_{};
