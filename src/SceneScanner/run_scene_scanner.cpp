@@ -21,6 +21,8 @@
 
 #include "RemoteTreeViewerWrapper.hpp"
 
+#include "phong_vertex_shader.h"
+
 #include "yaml-cpp/yaml.h"
 
 /**
@@ -74,7 +76,7 @@ DEFINE_string(labelfusion_data_dir, "data_dir",
               "and an images folder.");
 
 DEFINE_int64(dataset_skip_amount, 100,
-           "Use 1 out of every x images and tfs from the dataset.");
+             "Use 1 out of every x images and tfs from the dataset.");
 
 DEFINE_double(
     depth_culling_threshold, 0.02,
@@ -232,8 +234,7 @@ void CollectVertexObservations(vector<VertexDataSet>* vertexDataSets,
   vtkSmartPointer<vtkPNGReader> depth_reader =
       vtkSmartPointer<vtkPNGReader>::New();
 
-  for (int i = 1; i <= tfs.size();
-       i += FLAGS_dataset_skip_amount) {
+  for (int i = 1; i <= tfs.size(); i += FLAGS_dataset_skip_amount) {
     console->info("TF {0:d}:", i);
     Isometry3d tf = tfs[i - 1];
     std::cout << tf.matrix() << std::endl;
@@ -291,11 +292,14 @@ void CollectVertexObservations(vector<VertexDataSet>* vertexDataSets,
   }
 }
 
-void PublishAverageColoredPointCloud(vector<VertexDataSet>* vertexDataSets) {
+void PublishAverageColoredPointCloud(vector<VertexDataSet>* vertexDataSets,
+                                     Matrix3Xd* verts,
+                                     vector<vector<double>>* colors) {
   RemoteTreeViewerWrapper rm;
 
-  Matrix3Xd verts(3, vertexDataSets->size());
-  vector<vector<double>> colors(vertexDataSets->size(), vector<double>(3));
+  verts->resize(3, vertexDataSets->size());
+  colors->resize(vertexDataSets->size(), vector<double>(3));
+
   for (int i = 0; i < vertexDataSets->size(); i++) {
     auto& vertexDataSet = vertexDataSets->at(i);
     Vector3d avg_color_for_vert(0., 0., 0.);
@@ -306,19 +310,19 @@ void PublishAverageColoredPointCloud(vector<VertexDataSet>* vertexDataSets) {
     if (vertexDataSet.color_observations.size() > 0) {
       avg_color_for_vert /= (double)vertexDataSet.color_observations.size();
       avg_color_for_vert /= 255.;
-      colors[i][0] = avg_color_for_vert[0];
-      colors[i][1] = avg_color_for_vert[1];
-      colors[i][2] = avg_color_for_vert[2];
+      colors->at(i)[0] = avg_color_for_vert[0];
+      colors->at(i)[1] = avg_color_for_vert[1];
+      colors->at(i)[2] = avg_color_for_vert[2];
     } else {
-      colors[i][0] = 1.0;
-      colors[i][1] = 0.0;
-      colors[i][2] = 1.0;
+      colors->at(i)[0] = 1.0;
+      colors->at(i)[1] = 0.0;
+      colors->at(i)[2] = 1.0;
     }
 
-    verts.col(i) = vertexDataSet.v;
+    verts->col(i) = vertexDataSet.v;
   }
 
-  rm.publishPointCloud(verts, {"SceneScanner", "avgcoloredpoints"}, colors);
+  rm.publishPointCloud(*verts, {"SceneScanner", "avgcoloredpoints"}, *colors);
 }
 
 static int DoMain(void) {
@@ -358,7 +362,61 @@ static int DoMain(void) {
 
   // Compute average vertex color for all verts and publish as a colored point
   // cloud, as a debug aid / feature
-  PublishAverageColoredPointCloud(&vertexDataSets);
+  Matrix3Xd verts;
+  vector<vector<double>> colors;
+  PublishAverageColoredPointCloud(&vertexDataSets, &verts, &colors);
+
+  // Now set up the optimization.
+  // Vert shader that takes all of our verts in a batch, and has 1 light
+  PhongVertexShader vert_shader("vert_shader", vertexDataSets.size(), 1);
+  auto context = vert_shader.CreateDefaultContext();
+  auto material_params = vert_shader.get_material_parameters(context.get());
+  auto light_params = vert_shader.get_light_parameters(context.get());
+
+  // Set lighting to full
+  PhongVertexShaderLightParameters<double>::Light light_full = {
+      .position = {0., 0., 10.},
+      .ambient = {1., 1., 1.},
+      .diffuse = {1., 1., 1.},
+      .specular = {1., 1., 1.}};
+  light_params->SetLight(0, light_full);
+
+  // Copy over material diffuse parameters
+  for (int i = 0; i < vertexDataSets.size(); i++) {
+    PhongVertexShaderMaterialParameters<double>::Material material_vert = {
+        .ambient = {colors[i][0], colors[i][1], colors[i][2]},
+        .diffuse = {colors[i][0], colors[i][1], colors[i][2]},
+        .specular = {1., 1., 1.}};
+    material_params->SetMaterial(i, material_vert);
+  }
+
+  auto vertex_input =
+      std::make_unique<PhongVertexShaderInput<double>>(vertexDataSets.size());
+  for (int i = 0; i < vertexDataSets.size(); i++) {
+    vertex_input->SetVertex(i, vertexDataSets[i].v);
+    vertex_input->SetNormal(i, vertexDataSets[i].n);
+  }
+  context->FixInputPort(vert_shader.get_vertex_input_port().get_index(),
+                        std::move(vertex_input));
+
+  auto pose_input =
+      std::make_unique<drake::systems::rendering::PoseVector<double>>();
+  pose_input->set_translation({0., 0., 0.});
+  context->FixInputPort(vert_shader.get_camera_pose_input_port().get_index(),
+                        std::move(pose_input));
+
+  auto abstract_output = vert_shader.get_rgb_output_port().Allocate(*context);
+  PhongVertexShaderOutput<double>& rgb_output =
+      dynamic_cast<PhongVertexShaderOutput<double>&>(
+          abstract_output->template GetMutableValueOrThrow<
+              drake::systems::BasicVector<double>>());
+
+  vert_shader.get_rgb_output_port().Calc(*context, abstract_output.get());
+
+  for (int i = 0; i < vertexDataSets.size(); i++) {
+    auto rgb = rgb_output.GetRGB(i);
+    // And now do something with it...
+  }
 
   return 0;
 }

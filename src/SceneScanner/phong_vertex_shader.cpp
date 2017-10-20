@@ -200,11 +200,12 @@ void PhongVertexShader::CalcVertexOutput(
       camera_pose_input->get_translation().vector();
 
   // For every vertiex in the input...
-  for (int i = 0; i < vertex_input->getNumVertices(); i++) {
+  for (int i = 0; i < vertex_input->get_num_vertices(); i++) {
     // First pass: just use ambient lighting
     Vector3<double> rgb_intensity;
     rgb_intensity.setZero();
-    for (int light_i = 0; i < light_parameters.getNumLights(); i++) {
+    for (int light_i = 0; light_i < light_parameters.get_num_lights();
+         light_i++) {
       rgb_intensity += (material_parameters.GetMaterial(i).ambient.array() *
                         light_parameters.GetLight(light_i).ambient.array())
                            .matrix();
