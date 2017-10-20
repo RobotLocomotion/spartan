@@ -189,11 +189,27 @@ void PhongVertexShader::CalcVertexOutput(
   auto camera_pose_input =
       this->EvalVectorInput<PoseVector>(context, camera_pose_input_port_index_);
 
+  auto& material_parameters =
+      this->GetNumericParameter<PhongVertexShaderMaterialParameters>(
+          context, material_parameters_index_);
+  auto& light_parameters =
+      this->GetNumericParameter<PhongVertexShaderLightParameters>(
+          context, light_parameters_index_);
+
   drake::Vector3<double> camera_T =
       camera_pose_input->get_translation().vector();
 
   // For every vertiex in the input...
   for (int i = 0; i < vertex_input->getNumVertices(); i++) {
+    // First pass: just use ambient lighting
+    Vector3<double> rgb_intensity;
+    rgb_intensity.setZero();
+    for (int light_i = 0; i < light_parameters.getNumLights(); i++) {
+      rgb_intensity += (material_parameters.GetMaterial(i).ambient.array() *
+                        light_parameters.GetLight(light_i).ambient.array())
+                           .matrix();
+    }
+    data_output->SetRGB(i, rgb_intensity);
   }
 
   return;
