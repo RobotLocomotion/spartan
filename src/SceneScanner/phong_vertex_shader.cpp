@@ -1,4 +1,4 @@
-#include "phong_fragment_shader.h"
+#include "phong_vertex_shader.h"
 
 #include <algorithm>
 #include <cmath>
@@ -28,52 +28,52 @@ using drake::systems::rendering::PoseVector;
 using namespace drake::systems;
 
 template <typename T>
-PhongFragmentShaderInput<T>::PhongFragmentShaderInput(int n_vertices)
+PhongVertexShaderInput<T>::PhongVertexShaderInput(int n_vertices)
     : n_vertices_(n_vertices), BasicVector<double>(n_vertices * 6) {
   this->SetFromVector(VectorX<double>::Zero(n_vertices * 6));
 }
 template <typename T>
-PhongFragmentShaderInput<T>* PhongFragmentShaderInput<T>::DoClone() const {
-  return new PhongFragmentShaderInput(n_vertices_);
+PhongVertexShaderInput<T>* PhongVertexShaderInput<T>::DoClone() const {
+  return new PhongVertexShaderInput(n_vertices_);
 }
-template class PhongFragmentShaderInput<double>;
+template class PhongVertexShaderInput<double>;
 
 template <typename T>
-PhongFragmentShaderOutput<T>::PhongFragmentShaderOutput(int n_vertices)
+PhongVertexShaderOutput<T>::PhongVertexShaderOutput(int n_vertices)
     : n_vertices_(n_vertices), BasicVector<double>(n_vertices * 3) {
   this->SetFromVector(VectorX<double>::Zero(n_vertices * 3));
 }
 template <typename T>
-PhongFragmentShaderOutput<T>* PhongFragmentShaderOutput<T>::DoClone() const {
-  return new PhongFragmentShaderOutput(n_vertices_);
+PhongVertexShaderOutput<T>* PhongVertexShaderOutput<T>::DoClone() const {
+  return new PhongVertexShaderOutput(n_vertices_);
 }
-template class PhongFragmentShaderOutput<double>;
+template class PhongVertexShaderOutput<double>;
 
-PhongFragmentShader::PhongFragmentShader(const std::string& name,
+PhongVertexShader::PhongVertexShader(const std::string& name,
                                          int n_vertices, int n_lights)
     : name_(name), n_vertices_(n_vertices), n_lights_(n_lights) {
   camera_pose_input_port_index_ =
       DeclareVectorInputPort(PoseVector<double>()).get_index();
 
-  fragment_input_port_index_ =
-      DeclareVectorInputPort(PhongFragmentShaderInput<double>(n_vertices))
+  vertex_input_port_index_ =
+      DeclareVectorInputPort(PhongVertexShaderInput<double>(n_vertices))
           .get_index();
 
-  fragment_output_port_index_ =
-      DeclareVectorOutputPort(PhongFragmentShaderOutput<double>(n_vertices),
-                              &PhongFragmentShader::CalcFragmentOutput)
+  rgb_output_port_index_ =
+      DeclareVectorOutputPort(PhongVertexShaderOutput<double>(n_vertices),
+                              &PhongVertexShader::CalcVertexOutput)
           .get_index();
 }
 
-void PhongFragmentShader::CalcFragmentOutput(
+void PhongVertexShader::CalcVertexOutput(
     const Context<double>& context,
-    PhongFragmentShaderOutput<double>* data_output) const {
+    PhongVertexShaderOutput<double>* data_output) const {
   printf("NOPE!\n");
   return;
 }
 
-std::ostream& operator<<(std::ostream& out, const PhongFragmentShader& sensor) {
-  out << "Self-printing not implemented yet for PhongFragmentShader system.";
+std::ostream& operator<<(std::ostream& out, const PhongVertexShader& sensor) {
+  out << "Self-printing not implemented yet for PhongVertexShader system.";
 
   return out;
 }
