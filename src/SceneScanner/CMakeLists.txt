@@ -15,7 +15,8 @@ link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
 add_library(phong_vertex_shader phong_vertex_shader.cpp phong_vertex_shader.h)
 target_link_libraries(phong_vertex_shader
-	${drake_LIBRARIES})
+	${drake_LIBRARIES}
+    ${gflags_LIBRARIES})
 	
 add_executable(run_scene_scanner run_scene_scanner.cpp)
 target_link_libraries(run_scene_scanner
@@ -24,6 +25,8 @@ target_link_libraries(run_scene_scanner
     ${drake_LIBRARIES}
     ${gflags_LIBRARIES}
     ${VTK_LIBRARIES}
-    RemoteTreeViewerWrapper)
+    RemoteTreeViewerWrapper
+    phong_vertex_shader)
 
 install(TARGETS run_scene_scanner DESTINATION bin)
+install(TARGETS phong_vertex_shader DESTINATION lib)

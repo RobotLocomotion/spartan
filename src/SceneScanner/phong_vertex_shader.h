@@ -26,7 +26,7 @@ class PhongVertexShaderInput : public drake::systems::BasicVector<T> {
   /// batch.
   explicit PhongVertexShaderInput(int n_vertices);
 
-  int getNumVertices() const { return n_vertices_; };
+  int get_num_vertices() const { return n_vertices_; };
 
   void SetVertex(int index, const Eigen::Ref<const drake::Vector3<T>>& v);
   void SetNormal(int index, const Eigen::Ref<const drake::Vector3<T>>& n);
@@ -54,7 +54,7 @@ class PhongVertexShaderOutput : public drake::systems::BasicVector<T> {
   /// batch.
   explicit PhongVertexShaderOutput(int n_vertices);
 
-  int getNumVertices() const { return n_vertices_; };
+  int get_num_vertices() const { return n_vertices_; };
 
   void SetRGB(int index, const Eigen::Ref<const drake::Vector3<T>>& rgb);
   drake::Vector3<T> GetRGB(int index) const;
@@ -66,12 +66,12 @@ class PhongVertexShaderOutput : public drake::systems::BasicVector<T> {
   const int n_vertices_{};
 };
 
-
 /// Specializes BasicVector for the Phong Vertex shader material parameters:
 /// a vector of N material property sets for the N vertices.
 /// Encodes ambient, diffuse, and specular materials for each vertex.
 template <typename T>
-class PhongVertexShaderMaterialParameters : public drake::systems::BasicVector<T> {
+class PhongVertexShaderMaterialParameters
+    : public drake::systems::BasicVector<T> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(PhongVertexShaderMaterialParameters)
 
@@ -81,7 +81,7 @@ class PhongVertexShaderMaterialParameters : public drake::systems::BasicVector<T
   /// batch.
   explicit PhongVertexShaderMaterialParameters(int n_vertices);
 
-  int getNumVertices() const { return n_vertices_; };
+  int get_num_vertices() const { return n_vertices_; };
 
   struct Material {
     drake::Vector3<T> ambient;
@@ -113,7 +113,7 @@ class PhongVertexShaderLightParameters : public drake::systems::BasicVector<T> {
   /// @param[in] n_lights The number of lights in the system.
   explicit PhongVertexShaderLightParameters(int n_vertices);
 
-  int getNumLights() const { return n_lights_; };
+  int get_num_lights() const { return n_lights_; };
 
   struct Light {
     drake::Vector3<T> position;
@@ -131,7 +131,6 @@ class PhongVertexShaderLightParameters : public drake::systems::BasicVector<T> {
  private:
   const int n_lights_{};
 };
-
 
 /// Input:
 ///   - A 6DOF camera pose
@@ -163,27 +162,44 @@ class PhongVertexShader : public drake::systems::LeafSystem<double> {
   PhongVertexShader(const std::string& name, int n_vertices, int n_lights);
 
   /// Returns a descriptor of the camera pose input port.
-  const drake::systems::InputPortDescriptor<double>& get_camera_pose_input_port() const {
+  const drake::systems::InputPortDescriptor<double>&
+  get_camera_pose_input_port() const {
     return System<double>::get_input_port(camera_pose_input_port_index_);
   }
 
   /// Returns a descriptor of the vertex/normal pairs input port.
-  const drake::systems::InputPortDescriptor<double>& get_vertex_input_port() const {
-    return System<double>::get_input_port(vertex_input_port_index_);
+  const drake::systems::InputPortDescriptor<double>& get_vertex_input_port()
+      const {
+    return drake::systems::System<double>::get_input_port(
+        vertex_input_port_index_);
+  }
+
+  PhongVertexShaderMaterialParameters<double>* get_material_parameters(
+      drake::systems::Context<double>* context) {
+    return drake::systems::LeafSystem<double>::GetMutableNumericParameter<
+        PhongVertexShaderMaterialParameters>(context,
+                                             material_parameters_index_);
+  }
+
+  PhongVertexShaderLightParameters<double>* get_light_parameters(
+      drake::systems::Context<double>* context) {
+    return drake::systems::LeafSystem<double>::GetMutableNumericParameter<
+        PhongVertexShaderLightParameters>(context, light_parameters_index_);
   }
 
   /// Returns the RGB value output port.
   const drake::systems::OutputPort<double>& get_rgb_output_port() const {
-    return System<double>::get_output_port(rgb_output_port_index_);
+    return drake::systems::System<double>::get_output_port(
+        rgb_output_port_index_);
   }
 
-  friend std::ostream& operator<<(
-      std::ostream& out, const PhongVertexShader& phong_vertex_shader);
+  friend std::ostream& operator<<(std::ostream& out,
+                                  const PhongVertexShader& phong_vertex_shader);
 
  private:
   // These are calculators for the output.
   void CalcVertexOutput(const drake::systems::Context<double>& context,
-                          PhongVertexShaderOutput<double>* data_output) const;
+                        PhongVertexShaderOutput<double>* data_output) const;
 
   const std::string name_;
 
