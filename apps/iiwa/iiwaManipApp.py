@@ -6,6 +6,7 @@ import imp
 
 from director import lcmUtils
 from director import lcmframe
+from director import ioUtils
 from director import transformUtils
 from director import robotsystem
 from director import segmentation
@@ -17,6 +18,8 @@ from director import robotlinkselector
 from director import fieldcontainer
 from director import framevisualization
 from director import drcargs
+from director import visualization as vis
+from director.shallowCopy import shallowCopy
 
 
 try:
@@ -179,6 +182,38 @@ def onFitCamera():
     global alignmentTool
     alignmentTool = aligncameratool.main(robotSystem, newCameraView(imageManager))
 
+def onMerge():
+    to_merge = om.findObjectByName("openni point cloud")
+    if to_merge is None:
+        print "No openni point cloud?"
+    else:
+        to_merge_into = om.findObjectByName("merged polydata")
+    
+        appender = vtk.vtkAppendPolyData()
+        appender.AddInputData(to_merge.polyData)
+        if to_merge_into is not None:
+            appender.AddInputData(to_merge_into.polyData)
+        appender.Update()
+        pd = appender.GetOutput()
+
+        if to_merge_into is not None:
+            to_merge_into.setPolyData(pd)
+        else:
+            to_merge_into = vis.PolyDataItem("merged polydata", pd, view)
+            om.addToObjectModel(to_merge_into, parentObj = om.findObjectByName("sensors"))
+
+
+def onClear():
+    pd_obj = om.findObjectByName("merged polydata")
+    if pd_obj is not None:
+        om.removeFromObjectModel(pd_obj)
+
+def onSave():
+    pd = om.findObjectByName("merged polydata").polyData
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    ioUtils.writePolyData(pd, timestr + "_merged_polydata.vtp")
+    ioUtils.writePolyData(pd, timestr + "_merged_polydata.ply")
+
 
 def setupToolBar():
     toolBar = applogic.findToolBar('Main Toolbar')
@@ -186,6 +221,10 @@ def setupToolBar():
     app.addToolBarAction(toolBar, 'Gripper Close', icon='', callback=gripperClose)
     app.addToolBarAction(toolBar, 'Task Panel', icon='', callback=onOpenTaskPanel)
     app.addToolBarAction(toolBar, 'Fit Camera', icon='', callback=onFitCamera)
+    
+    app.addToolBarAction(toolBar, 'Merge in PD', icon='', callback=onMerge)
+    app.addToolBarAction(toolBar, 'Save Merged PD', icon='', callback=onSave)
+    app.addToolBarAction(toolBar, 'Clear Merged PD', icon='', callback=onClear)
 
 
 def addToolBarAction(name, callback):
