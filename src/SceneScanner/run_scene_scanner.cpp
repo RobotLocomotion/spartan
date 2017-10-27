@@ -211,10 +211,10 @@ void InitializeVertexDataSets(const vtkSmartPointer<vtkPolyData> meshPolyData,
         vtk_pt[2] > bounding_box[4] && vtk_pt[2] < bounding_box[5]) {
       // This vertex should be included, so initialize its entry:
       double normals[3];
-      normalsGeneric->GetTuple(0, normals);
+      normalsGeneric->GetTuple(i, normals);
       for (int k = 0; k < 3; k++) {
         vertexDataSets->at(k_good_vertices).v[k] = vtk_pt[k];
-        // vertexDataSets->at(k_good_vertices).n[k] = normals[k];
+        vertexDataSets->at(k_good_vertices).n[k] = normals[k];
       }
       vertexDataSets->at(k_good_vertices).color_observations.clear();
       vertIndToDatasetInd->insert(std::pair<int, int>(i, k_good_vertices));
@@ -260,35 +260,50 @@ void CollectVertexObservations(vector<VertexDataSet>* vertexDataSets,
     // For every vertex in the data set, project into the image
     int verts_touched = 0;
     int verts_depth_culled = 0;
-
+    int verts_normal_culled = 0;
+    
     for (auto& vertexDataSet : *vertexDataSets) {
       Vector3d uv = K * tf * vertexDataSet.v;
       // And then rescale so that the 3rd element is 1
       uv /= uv[2];
 
       if (uv[0] >= 0 && uv[0] < dims[0] && uv[1] >= 0 && uv[1] < dims[1]) {
-        // First check the value at the depth image, and compare against our
+        // Check the value at the depth image, and compare against our
         // depth.
         short int* pixel = static_cast<short int*>(
             depthImageData->GetScalarPointer(uv[0], uv[1], 0));
-
         double measured_depth = ((double)pixel[0]) / 1000.;
         double vertex_depth = (tf * vertexDataSet.v).norm();
+        bool depth_culled = false;
         if (fabs(vertex_depth - measured_depth) <
             FLAGS_depth_culling_threshold) {
+          depth_culled = true;
+          verts_depth_culled++;
+        }
+
+        // Also check if normal points towards camera
+        bool normal_culled = false;
+        //std::cout << "View: " << view_ray.transpose() << std::endl;
+        //std::cout << "Normal: " << vertexDataSet.n.transpose() << std::endl;
+        //std::cout << "Dot: " << view_ray.transpose() * vertexDataSet.n  << std::endl;
+        //Vector3d view_ray = tf * vertexDataSet.v;
+        if ((tf * vertexDataSet.v).transpose() * (tf.rotation()*vertexDataSet.n) >= 0.){
+          normal_culled = true;
+          verts_normal_culled++;
+        }
+
+        if (!depth_culled && !normal_culled){
           unsigned char* pixel = static_cast<unsigned char*>(
               rgbImageData->GetScalarPointer(uv[0], uv[1], 0));
           vertexDataSet.color_observations.push_back(
               {i, pixel[0], pixel[1], pixel[2]});
           verts_touched++;
-        } else {
-          verts_depth_culled++;
-        }
+        } 
       }
     }
 
-    console->info("Touched {0:d} verts and culled {1:d}", verts_touched,
-                  verts_depth_culled);
+    console->info("Touched {0:d} verts, depth culled {1:d}, normal culled {2:d}", verts_touched,
+                  verts_depth_culled, verts_normal_culled);
   }
 }
 
@@ -323,6 +338,8 @@ void PublishAverageColoredPointCloud(vector<VertexDataSet>* vertexDataSets,
   }
 
   rm.publishPointCloud(*verts, {"SceneScanner", "avgcoloredpoints"}, *colors);
+  auto console = spdlog::get("console");
+  console->info("Published {0:d} points and {1:d} colors", verts->cols(), colors->size());
 }
 
 static int DoMain(void) {
@@ -350,7 +367,7 @@ static int DoMain(void) {
 
   // Initialize the list of vertex sample info
   // Hack a bounding box for now, this should be a config parameter.
-  double bb[6] = {-0.3, 0.3, -0.4, 0.2, 0.6, 1.1};
+  double bb[6] = {-10, 10, -10, 10, -10, 10};
   vector<VertexDataSet> vertexDataSets;
   std::map<int, int> vertIndToDatasetInd;
   InitializeVertexDataSets(meshPolyData, bb, &vertexDataSets,
