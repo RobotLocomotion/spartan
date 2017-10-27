@@ -235,8 +235,18 @@ ExternalProject_Add(iiwa_rlg_sim_backend
   BUILD_ALWAYS 1
   CMAKE_CACHE_ARGS
     ${CMAKE_ARGS_FOR_EXTERNALS}
-  DEPENDS director RemoteTreeViewer
+  DEPENDS drake director RemoteTreeViewer
 )
+
+ExternalProject_Add(dishrack_simulation
+  SOURCE_DIR ${source_dir}/src/dishrack_simulation
+  BINARY_DIR ${build_dir}/dishrack_simulation
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+  DEPENDS drake director RemoteTreeViewer
+)
+
 
 if (OFF)
   ExternalProject_Add(ObjectDetection

@@ -1,0 +1,23 @@
+#
+# Wavefront material file
+# Converted by Meshlab Group
+#
+
+newmtl material_0
+Ka 0.200000 0.200000 0.200000
+Kd 0.784314 0.313726 0.176471
+Ks 1.000000 1.000000 1.000000
+Tr 1.000000
+illum 2
+Ns 0.000000
+map_Kd TILE 344.JPG
+
+newmtl material_1
+Ka 0.200000 0.200000 0.200000
+Kd 0.976471 0.949020 0.764706
+Ks 1.000000 1.000000 1.000000
+Tr 1.000000
+illum 2
+Ns 0.000000
+map_Kd DIRT_MAP.JPG
+
