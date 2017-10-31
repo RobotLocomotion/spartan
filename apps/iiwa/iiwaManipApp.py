@@ -342,7 +342,10 @@ if useKukaRLGDev:
 
     # broadcast the pose of the wrist mounted Xtion
     import spartan.utils.utils as spartanUtils
-    cameraConfigFilename = os.path.join(spartanUtils.getSpartanSourceDir(), 'config', 'RLG', 'iiwa_1', 'camera_config.yaml')
+    cameraConfigFilename = os.path.join(spartanUtils.getSpartanSourceDir(), 'config', 'RLG', 'iiwa_1', 'camera_config_hand_tuned.yaml')
+
+    cameraConfigFilename = os.path.join(spartanUtils.getSpartanSourceDir(), 'config', 'RLG', 'iiwa_1', 'camera_config_calibrated.yaml')
+
     import spartan.perception.cameratransform
     cameraTransform = spartan.perception.cameratransform.CameraTransform.fromConfigFilename(robotSystem, cameraConfigFilename)
 

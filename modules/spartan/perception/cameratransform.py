@@ -16,6 +16,8 @@ from director import fieldcontainer
 from director import framevisualization
 from director import drcargs
 from director import visualization as vis
+import director.objectmodel as om
+
 import bot_core as lcmbotcore
 
 
@@ -26,7 +28,7 @@ import spartan.utils.utils as spartanUtils
 
 class CameraTransform(object):
 
-    def __init__(self, robotSystem, referenceLinkName='palm', cameraToLinkTransform=None, channelName='OPENNI_FRAME_LEFT_TO_LOCAL'):
+    def __init__(self, robotSystem, referenceLinkName='palm', cameraToLinkTransform=None, channelName='OPENNI_FRAME_LEFT_TO_LOCAL', rgbCameraToLinkTransform=None):
 
         assert cameraToLinkTransform is not None
 
@@ -35,6 +37,7 @@ class CameraTransform(object):
         self.referenceLinkName = referenceLinkName
         self.cameraToLinkTransform = cameraToLinkTransform
         self.channelName = channelName
+        self.rgbCameraToLinkTransform = rgbCameraToLinkTransform
         self.setupSubscribers()
 
     def setupSubscribers(self):
@@ -64,12 +67,26 @@ class CameraTransform(object):
         cameraToWorldMsg = lcmframe.rigidTransformMessageFromFrame(self.cameraToWorld)
         lcmUtils.publish(self.channelName, cameraToWorldMsg)
 
+    def showCameraFrame(self):
+        p = om.getOrCreateContainer('Camera Transform')
+        cameraToWorld = self.getCameraToWorld()
+        vis.updateFrame(cameraToWorld, 'depth camera frame', scale=0.15, parent=p)
+
+    def showRGBCameraFrame(self):
+        p = om.getOrCreateContainer('Camera Transform')
+        linkFrame = self.robotStateModel.getLinkFrame(self.referenceLinkName) # this is a vtkTransform object
+        cameraToWorld = transformUtils.concatenateTransforms([self.rgbCameraToLinkTransform, linkFrame])
+        vis.updateFrame(cameraToWorld, 'rgb camera frame', scale=0.15, parent=p)
 
     @staticmethod
     def fromConfigFilename(robotSystem, configFilename):
         config = spartanUtils.getDictFromYamlFilename(configFilename)
 
-        transformDict = config['camera_pose']['transform_to_reference_link']
+        transformDict = config['depth']['extrinsics']['transform_to_reference_link']
         cameraToLinkTransform = spartanUtils.transformFromPose(transformDict)
 
-        return CameraTransform(robotSystem, referenceLinkName=config['camera_pose']['reference_link_name'], cameraToLinkTransform=cameraToLinkTransform, channelName=config['channel_name'])
+
+        rgbTransformDict = config['rgb']['extrinsics']['transform_to_reference_link']
+        rgbCameraToLinkTransform = spartanUtils.transformFromPose(rgbTransformDict)
+
+        return CameraTransform(robotSystem, referenceLinkName=config['depth']['extrinsics']['reference_link_name'], cameraToLinkTransform=cameraToLinkTransform, channelName=config['channel_name'], rgbCameraToLinkTransform=rgbCameraToLinkTransform)
