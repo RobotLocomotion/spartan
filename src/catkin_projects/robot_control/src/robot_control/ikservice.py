@@ -79,7 +79,7 @@ class IkService(object):
 
         constraintSet = ConstraintSet(ikPlanner, constraints, 'reach_end',
                                       startPoseName)
-        constraintSet.ikParameters = IkParameters()
+        constraintSet.ikParameters = IkParameters(maxDegreesPerSecond=maxDegreesPerSecond)
 
         constraintSet.seedPoseName = seedPoseName
 
