@@ -261,7 +261,7 @@ if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
 
   if (WITH_IIWA_DRIVER_TRI)
     set(IIWA_DRIVER_GIT_TAG
-    "3939e32"
+    "1b11832"
     )
   endif()
 
