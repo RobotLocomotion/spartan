@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+	
+	<arg name="pkg_name" default="camera_config" />
+	<arg name="camera_info_filename" default="$(find $(arg pkg_name)/data/" />
+	<arg name="camera_serial_number" default="1112170110" />
+
+	<node name="$(arg camera_serial_number)_camera_info_publisher" pkg="$(arg pkg_name)" type="camera_info_publisher.py" output="screen">
+		<param name="camera_info_filename" type="string" value="$(camera_info_filename)"/>
+		<param name="camera_serial_number" type="string" value="$(camera_serial_number)"/>
+	</node>
+</launch>
