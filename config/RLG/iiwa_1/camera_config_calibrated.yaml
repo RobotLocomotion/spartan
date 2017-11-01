@@ -1,0 +1,57 @@
+header:
+  camera_name: 'xtion_pro'
+  calibration_date: "Oct 31 14:09:29 2017"
+
+depth:
+  extrinsics:
+    reference_link_name: 'palm' # link which this transform is specified relative to
+    transform_to_reference_link:
+      translation:
+        x: -0.045362
+        y: -0.0539602
+        z: 0.0497005
+      quaternion:
+        w: 7.06220552e-01
+        x: 7.07984565e-01
+        y: 3.26610787e-03
+        z: 5.10074366e-05
+
+  intrinsics:
+    model: "Brown-Conrady"
+    camera_matrix:
+      rows: 3
+      cols: 3
+      dt: d
+      data: [579.8841178988965, 0, 321.4783752863867, 0, 580.3855301843198, 246.005051147932,
+ 0, 0, 1]
+ 
+    # in opencv convention
+    distortion_parameters: [-0.04857082958307014, 0.3144954677233067, 0.003203594856593854, -0.001713622714935763, -0.7198255591919602]
+
+rgb:
+  extrinsics:
+    reference_link_name: 'palm' # link which this transform is specified relative to
+    transform_to_reference_link:
+      translation:
+        x: -0.0195286
+        y: -0.0567543
+        z: 0.0493482
+      quaternion:
+        w: 0.70458058
+        x: 0.70959911
+        y: 0.00432401
+        z: -0.00411738
+
+  intrinsics:
+    model: "Brown-Conrady"
+    camera_matrix:
+      rows: 3
+      cols: 3
+      dt: d
+      data: [540.4210757219911, 0, 315.0605824572117, 0, 540.0288766837305, 240.1397512571999,
+ 0, 0, 1]
+ 
+    # in opencv convention
+    distortion_parameters: [0.06656135481886322, -0.1802725124668077, 0.0005514284666924256, -0.0005430747519516845, 0.005378119566562645]
+
+channel_name: 'OPENNI_FRAME_LEFT_TO_LOCAL'

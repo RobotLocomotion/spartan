@@ -1,0 +1,14 @@
+camera_pose:
+  reference_link_name: 'palm' # link which this transform is specified relative to
+  transform_to_reference_link:
+    translation:
+      x: 1.38777878e-17
+      y: -5.87267617e-02
+      z:  3.12766745e-02
+    quaternion:
+      w: 6.99802244e-01
+      x: 7.14336629e-01
+      y: 4.87254201e-17
+      z: 5.41479628e-17
+
+channel_name: 'OPENNI_FRAME_LEFT_TO_LOCAL'
