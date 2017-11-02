@@ -13,7 +13,7 @@ import director.transformUtils as transformUtils
 class CameraInfoPublisher:
 
 	def __init__(self):
-		self.cameraName = '/camera'
+		self.cameraName = rospy.get_param('~camera_name')
 		self.cameraInfoFilename = rospy.get_param('~camera_info_filename')
 		rospy.loginfo("camera_info_filename  = %s", self.cameraInfoFilename)
 
@@ -52,7 +52,7 @@ class CameraInfoPublisher:
 			
 			cameraToLinkStamped = geometry_msgs.msg.TransformStamped()
 			cameraToLinkStamped.transform = bodyToLink
-			cameraToLinkStamped.child_frame_id = "camera_" + cameraType + "_frame"
+			cameraToLinkStamped.child_frame_id = self.cameraName + '_' + cameraType + "_frame"
 			cameraToLinkStamped.header.frame_id = d['extrinsics']['reference_link_name']
 
 			data['camera_to_link_transform_stamped'] = cameraToLinkStamped
