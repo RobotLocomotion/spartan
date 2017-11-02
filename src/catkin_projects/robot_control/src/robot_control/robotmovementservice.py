@@ -13,24 +13,7 @@ import robot_msgs.srv
 import robot_control.control_utils as controlUtils
 
 
-
-class SimpleSubscriber(object):
-    def __init__(self, topic, messageType, externalCallback=None):
-        self.topic = topic
-        self.messageType = messageType
-        self.subscriber = rospy.Subscriber(topic, messageType, self.callback)
-        self.externalCallback = externalCallback
-
-    def callback(self, msg):
-        self.lastMsg = msg
-
-        if self.externalCallback is not None:
-            self.externalCallback(msg)
-
-    def waitForNextMessage(self):
-        rospy.wait_for_message(self.topic, self.messageType)
-        return self.lastMsg
-
+from spartan.utils.ros_utils import SimpleSubscriber
 
 
 class RobotMovementService(object):

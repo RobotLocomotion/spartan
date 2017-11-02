@@ -80,15 +80,30 @@ class CameraTransform(object):
         cameraToWorld = transformUtils.concatenateTransforms([self.rgbCameraToLinkTransform, linkFrame])
         vis.updateFrame(cameraToWorld, 'rgb camera frame', scale=0.15, parent=p)
 
+    def test(self):
+        self.showCameraFrame()
+        opticalFrame = self.getCameraToWorld()
+        bodyFrame = CameraTransform.transformOpticalFrameToBodyFrame(opticalFrame)
+
+        p = om.getOrCreateContainer('Camera Transform')
+        vis.updateFrame(bodyFrame, 'depth camera body frame', scale=0.15, parent=p)
+
+    @staticmethod
+    def transformOpticalFrameToBodyFrame(opticalFrame):
+        rpy = [-90,0,-90]
+        opticalToBody = transformUtils.frameFromPositionAndRPY([0,0,0], rpy)
+        bodyFrame = transformUtils.concatenateTransforms([opticalToBody.GetLinearInverse(), opticalFrame])
+        return bodyFrame
+
     @staticmethod
     def fromConfigFilename(robotSystem, configFilename):
         config = spartanUtils.getDictFromYamlFilename(configFilename)
 
         transformDict = config['depth']['extrinsics']['transform_to_reference_link']
-        cameraToLinkTransform = spartanUtils.transformFromPose(transformDict)
+        cameraToLinkTransform = spartanDirectorUtils.transformFromPose(transformDict)
 
 
         rgbTransformDict = config['rgb']['extrinsics']['transform_to_reference_link']
-        rgbCameraToLinkTransform = spartanUtils.transformFromPose(rgbTransformDict)
+        rgbCameraToLinkTransform = spartanDirectorUtils.transformFromPose(rgbTransformDict)
 
         return CameraTransform(robotSystem, referenceLinkName=config['depth']['extrinsics']['reference_link_name'], cameraToLinkTransform=cameraToLinkTransform, channelName=config['channel_name'], rgbCameraToLinkTransform=rgbCameraToLinkTransform)
