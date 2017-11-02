@@ -120,7 +120,7 @@ group "8.ROS" {
   }
 
   cmd "4.rviz" {
-    exec = "rosrun rviz rviz";
+    exec = "rosrun rviz rviz -d $SPARTAN_SOURCE_DIR/src/catkin_projects/station_config/RLG_iiwa_1/rviz.rviz";
     host = "localhost";
   }
 
@@ -135,7 +135,12 @@ group "8.ROS" {
   }
 
   cmd "7.ROS-OpenNI" {
-    exec = "roslaunch openni2_launch openni2.launch";
+    exec = "roslaunch camera_config openni2.launch";
+    host = "localhost";
+  }
+
+  cmd "8.camera_info_publisher" {
+    exec = "roslaunch camera_config camera_info_publisher.launch";
     host = "localhost";
   }
 

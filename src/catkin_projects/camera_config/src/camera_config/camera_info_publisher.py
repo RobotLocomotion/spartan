@@ -37,12 +37,6 @@ class CameraInfoPublisher:
 			data = dict()
 			data['raw_data'] = d
 			data['camera_info_msg'] = CameraInfoPublisher.parseSingleCameraInfo(d['camera_info'])
-
-			testVtk = spartanUtils.transformFromPose(d['extrinsics']['transform_to_reference_link'])
-			testVtkPoseDict = spartanUtils.poseFromTransform(testVtk)
-			test = rosUtils.ROSTransformMsgFromPose(testVtkPoseDict)
-
-			# test = rosUtils.ROSTransformMsgFromPose(d['extrinsics']['transform_to_reference_link'])
 			
 			# the optical frame is defined as here http://www.ros.org/reps/rep-0103.html#id21 and follows
 			# the opencv convention https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html
@@ -58,7 +52,6 @@ class CameraInfoPublisher:
 			
 			cameraToLinkStamped = geometry_msgs.msg.TransformStamped()
 			cameraToLinkStamped.transform = bodyToLink
-			# cameraToLinkStamped.transform = test
 			cameraToLinkStamped.child_frame_id = "camera_" + cameraType + "_frame"
 			cameraToLinkStamped.header.frame_id = d['extrinsics']['reference_link_name']
 
