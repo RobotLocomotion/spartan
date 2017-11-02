@@ -47,7 +47,6 @@ except:
 
 # spartan
 import spartan.utils.utils as spartanUtils
-import spartan.utils.director_utils as spartanDirectorUtils
 import spartan.utils.ros_utils as spartanROSUtils
 from spartan.utils.taskrunner import TaskRunner
 
@@ -238,7 +237,7 @@ class HandEyeCalibration(object):
         data['pose'] = self.robotService.getPose().tolist()
         data['hand_frame_name'] = self.handFrame
         handTransform = self.robotSystem.robotStateModel.getLinkFrame(self.handFrame)
-        data['hand_frame'] = spartanDirectorUtils.poseFromTransform(handTransform)
+        data['hand_frame'] = spartanUtils.poseFromTransform(handTransform)
         data['utime'] = self.robotSystem.robotStateJointController.lastRobotStateMessage.utime
         return data
 
