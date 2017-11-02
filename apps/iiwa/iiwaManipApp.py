@@ -342,12 +342,16 @@ if useKukaRLGDev:
 
     # broadcast the pose of the wrist mounted Xtion
     import spartan.utils.utils as spartanUtils
-    cameraConfigFilename = os.path.join(spartanUtils.getSpartanSourceDir(), 'config', 'RLG', 'iiwa_1', 'camera_config_hand_tuned.yaml')
 
-    cameraConfigFilename = os.path.join(spartanUtils.getSpartanSourceDir(), 'config', 'RLG', 'iiwa_1', 'camera_config_calibrated.yaml')
+    camera_serial_number = 1112170110
+    calibration_folder = 'master'
+
+    cameraConfigFilename = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'camera_config', 'data', str(camera_serial_number), calibration_folder, 'camera_info.yaml')
+
+    channelName = "OPENNI_FRAME_LEFT"
 
     import spartan.perception.cameratransform
-    cameraTransform = spartan.perception.cameratransform.CameraTransform.fromConfigFilename(robotSystem, cameraConfigFilename)
+    cameraTransform = spartan.perception.cameratransform.CameraTransform.fromConfigFilename(robotSystem, cameraConfigFilename, channelName)
 
     import spartan.perception.dev as devUtils
     # efusion = devUtils.ElasticFusionReconstruction()
