@@ -10,7 +10,7 @@ import spartan.utils.ros_utils as rosUtils
 import director.transformUtils as transformUtils
 
 
-class CameraInfoPublisher:
+class CameraTransformPublisher:
 
 	def __init__(self):
 		self.cameraName = rospy.get_param('~camera_name')
@@ -36,8 +36,7 @@ class CameraInfoPublisher:
 
 			data = dict()
 			data['raw_data'] = d
-			data['camera_info_msg'] = CameraInfoPublisher.parseSingleCameraInfo(d['camera_info'])
-			
+            			
 			# the optical frame is defined as here http://www.ros.org/reps/rep-0103.html#id21 and follows
 			# the opencv convention https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html
 			# z forward, x right, y down
@@ -45,7 +44,7 @@ class CameraInfoPublisher:
 
 			# body is the body frame of the camera as defined here http://www.ros.org/reps/rep-0103.html#id21
 			# x forward, y left, z up
-			bodyToLinkVtk = CameraInfoPublisher.transformOpticalFrameToBodyFrame(opticalToLinkVtk)
+			bodyToLinkVtk = CameraTransformPublisher.transformOpticalFrameToBodyFrame(opticalToLinkVtk)
 			bodyToLinkPoseDict = spartanUtils.poseFromTransform(bodyToLinkVtk)
 			bodyToLink = rosUtils.ROSTransformMsgFromPose(bodyToLinkPoseDict)
 
@@ -73,6 +72,7 @@ class CameraInfoPublisher:
 
 
 	"""
+    DEPRECATED
 	Takes in a dict and converts it to a sensor_msgs.msgs.CameraInfo message
 	"""
 	@staticmethod

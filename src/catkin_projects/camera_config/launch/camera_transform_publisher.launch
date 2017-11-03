@@ -9,7 +9,7 @@
 	<arg name="camera_info_filename" default="$(arg calibration_folder_full_path)/camera_info.yaml" />
 	
 
-	<node name="camera_info_publisher_$(arg camera_serial_number)" pkg="$(arg pkg_name)" type="camera_info_publisher_node.py" output="screen">
+	<node name="camera_info_publisher_$(arg camera_serial_number)" pkg="$(arg pkg_name)" type="camera_transform_publisher_node.py" output="screen">
 		<param name="camera_info_filename" type="string" value="$(arg camera_info_filename)"/>
 		<param name="camera_serial_number" type="string" value="$(arg camera_serial_number)"/>
 		<param name="camera_name" type="string" value="$(arg camera_name)" />

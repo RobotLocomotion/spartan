@@ -9,9 +9,11 @@ import math
 # ROS
 import rospy
 import geometry_msgs.msg
+import sensor_msgs.msg
 
 # spartan
 import spartan.utils.utils as spartanUtils
+import robot_msgs.srv
 
 
 
