@@ -23,7 +23,6 @@ import bot_core as lcmbotcore
 
 # spartan
 import spartan.utils.utils as spartanUtils
-import spartan.utils.director_utils as spartanDirectorUtils
 
 
 
@@ -96,14 +95,14 @@ class CameraTransform(object):
         return bodyFrame
 
     @staticmethod
-    def fromConfigFilename(robotSystem, configFilename):
+    def fromConfigFilename(robotSystem, configFilename, channelName):
         config = spartanUtils.getDictFromYamlFilename(configFilename)
 
         transformDict = config['depth']['extrinsics']['transform_to_reference_link']
-        cameraToLinkTransform = spartanDirectorUtils.transformFromPose(transformDict)
+        cameraToLinkTransform = spartanUtils.transformFromPose(transformDict)
 
 
         rgbTransformDict = config['rgb']['extrinsics']['transform_to_reference_link']
-        rgbCameraToLinkTransform = spartanDirectorUtils.transformFromPose(rgbTransformDict)
+        rgbCameraToLinkTransform = spartanUtils.transformFromPose(rgbTransformDict)
 
-        return CameraTransform(robotSystem, referenceLinkName=config['depth']['extrinsics']['reference_link_name'], cameraToLinkTransform=cameraToLinkTransform, channelName=config['channel_name'], rgbCameraToLinkTransform=rgbCameraToLinkTransform)
+        return CameraTransform(robotSystem, referenceLinkName=config['depth']['extrinsics']['reference_link_name'], cameraToLinkTransform=cameraToLinkTransform, channelName=channelName, rgbCameraToLinkTransform=rgbCameraToLinkTransform)
