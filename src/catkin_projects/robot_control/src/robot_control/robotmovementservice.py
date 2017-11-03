@@ -37,7 +37,11 @@ class RobotMovementService(object):
 
     def setupSubscribers(self):
         self.subscribers = dict()
-        self.subscribers['joint_states'] = SimpleSubscriber(self.config['joint_states_topic'], sensor_msgs.msg.JointState)
+
+
+        s = SimpleSubscriber(self.config['joint_states_topic'], sensor_msgs.msg.JointState)
+        s.start()
+        self.subscribers['joint_states'] = s
 
     def setupRobot(self):
         self.jointNames = controlUtils.getIiwaJointNames()
@@ -49,11 +53,10 @@ class RobotMovementService(object):
     @:param req: MoveToJointPosition.srv
     """
     def moveToJointPosition(self, req):
-
-
+    
         jointStateFinal = req.joint_state
         jointStateStart = self.getRobotState()
-
+    
         rospy.loginfo("moving robot to joint position %s", str(jointStateFinal.position))
 
         # figure out the duration based on max joint degrees per second
