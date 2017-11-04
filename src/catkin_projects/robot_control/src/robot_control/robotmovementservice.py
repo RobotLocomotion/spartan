@@ -13,24 +13,7 @@ import robot_msgs.srv
 import robot_control.control_utils as controlUtils
 
 
-
-class SimpleSubscriber(object):
-    def __init__(self, topic, messageType, externalCallback=None):
-        self.topic = topic
-        self.messageType = messageType
-        self.subscriber = rospy.Subscriber(topic, messageType, self.callback)
-        self.externalCallback = externalCallback
-
-    def callback(self, msg):
-        self.lastMsg = msg
-
-        if self.externalCallback is not None:
-            self.externalCallback(msg)
-
-    def waitForNextMessage(self):
-        rospy.wait_for_message(self.topic, self.messageType)
-        return self.lastMsg
-
+from spartan.utils.ros_utils import SimpleSubscriber
 
 
 class RobotMovementService(object):
@@ -54,7 +37,11 @@ class RobotMovementService(object):
 
     def setupSubscribers(self):
         self.subscribers = dict()
-        self.subscribers['joint_states'] = SimpleSubscriber(self.config['joint_states_topic'], sensor_msgs.msg.JointState)
+
+
+        s = SimpleSubscriber(self.config['joint_states_topic'], sensor_msgs.msg.JointState)
+        s.start()
+        self.subscribers['joint_states'] = s
 
     def setupRobot(self):
         self.jointNames = controlUtils.getIiwaJointNames()
@@ -66,11 +53,10 @@ class RobotMovementService(object):
     @:param req: MoveToJointPosition.srv
     """
     def moveToJointPosition(self, req):
-
-
+    
         jointStateFinal = req.joint_state
         jointStateStart = self.getRobotState()
-
+    
         rospy.loginfo("moving robot to joint position %s", str(jointStateFinal.position))
 
         # figure out the duration based on max joint degrees per second

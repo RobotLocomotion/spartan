@@ -4,14 +4,9 @@ import collections
 import yaml
 import os
 
-from collections import namedtuple
-
-from director.timercallback import TimerCallback
-from director import robotstate
-import drake as lcmdrake
-from director import lcmUtils
-from director import utime as utimeUtil
+# director
 from director import transformUtils
+
 
 def getSpartanSourceDir():
     return os.getenv("SPARTAN_SOURCE_DIR")
@@ -48,29 +43,24 @@ def transformFromPose(d):
     pos[1] = d['translation']['y']
     pos[2] = d['translation']['z']
 
-    quat = [0] * 4
-    quat[0] = d['quaternion']['w']
-    quat[1] = d['quaternion']['x']
-    quat[2] = d['quaternion']['y']
-    quat[3] = d['quaternion']['z']
+    quatDict = getQuaternionFromDict(d)
+    quat = [0]*4
+    quat[0] = quatDict['w']
+    quat[1] = quatDict['x']
+    quat[2] = quatDict['y']
+    quat[3] = quatDict['z']
 
     return transformUtils.transformFromPose(pos, quat)
 
-class EstRobotStatePublisher(object):
+def getQuaternionFromDict(d):
+    quat = None
+    quatNames = ['orientation', 'rotation', 'quaternion']
+    for name in quatNames:
+        if name in d:
+            quat = d[name]
 
-    def __init__(self, robotSystem):
-        self.robotSystem = robotSystem
-        self.timer = TimerCallback(targetFps=25)
-        self.timer.callback = self.publishEstRobotState
 
-    def publishEstRobotState(self):
-        q = self.robotSystem.robotStateJointController.q
-        stateMsg = robotstate.drakePoseToRobotState(q)
-        stateMsg.utime = utimeUtil.getUtime()
-        lcmUtils.publish("EST_ROBOT_STATE", stateMsg)
+    if quat is None:
+        raise ValueError("Error when trying to extract quaternion from dict, your dict doesn't contain a key in ['orientation', 'rotation', 'quaternion']")
 
-    def start(self):
-        self.timer.start()
-
-    def stop(self):
-        self.timer.stop()
+    return quat

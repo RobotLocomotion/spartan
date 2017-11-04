@@ -156,13 +156,13 @@ class RobotService(object):
 
 class HandEyeCalibration(object):
 
-    def __init__(self, robotSystem, handFrame='palm'):
+    def __init__(self, robotSystem, handFrame='palm', cameraSerialNumber=1112170110):
         self.robotSystem = robotSystem
         self.robotService = RobotService(robotSystem)
         self.handFrame = handFrame
+        self.cameraSerialNumber = cameraSerialNumber
         self.setup()
         self.calibrationData = None
-
         self.setupConfig()
         
 
@@ -173,8 +173,8 @@ class HandEyeCalibration(object):
 
     def setupConfig(self):
         self.config = dict()
-        self.config['rgb_raw_topic'] = '/camera/rgb/image_raw'
-        self.config['ir_raw_topic'] = '/camera/ir/image'
+        self.config['rgb_raw_topic'] = '/camera_' + str(self.cameraSerialNumber) + '/rgb/image_raw'
+        self.config['ir_raw_topic'] = '/camera_' + str(self.cameraSerialNumber) + '/ir/image'
 
         config = dict()
         config['yaw'] = dict()
@@ -197,17 +197,19 @@ class HandEyeCalibration(object):
 
         self.calibrationPosesConfig = config
 
-    # This function inits a simple subscriber node to passively listen to the recorded image topics
-    # This ensures that saving .jpg images is not corrupted
-    def initSimpleSubscriber(self):
-        rosSimpleSubscriberExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
-                                                'utils','simple_subscriber.py')
-        cmd  = "%s --topic-package-type " % (rosSimpleSubscriberExecutable)
-        cmd += " ['%s','%s','%s'] " % (self.config['rgb_raw_topic'], 'sensor_msgs.msg', 'Image')
-        cmd += " ['%s','%s','%s'] " % (self.config['ir_raw_topic'], 'sensor_msgs.msg', 'Image')
-        cmd += " &"    # this node needs to be backgrounded
-        print "CMD IS", cmd
-        os.system(cmd)
+
+    # DEPRECATED
+    # # This function inits a simple subscriber node to passively listen to the recorded image topics
+    # # This ensures that saving .jpg images is not corrupted
+    # def initSimpleSubscriber(self):
+    #     rosSimpleSubscriberExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
+    #                                             'utils','simple_subscriber.py')
+    #     cmd  = "%s --topic-package-type " % (rosSimpleSubscriberExecutable)
+    #     cmd += " ['%s','%s','%s'] " % (self.config['rgb_raw_topic'], 'sensor_msgs.msg', 'Image')
+    #     cmd += " ['%s','%s','%s'] " % (self.config['ir_raw_topic'], 'sensor_msgs.msg', 'Image')
+    #     cmd += " &"    # this node needs to be backgrounded
+    #     print "CMD IS", cmd
+    #     os.system(cmd)
 
     def setup(self):
         self.nominalPose = 'center'
@@ -385,21 +387,24 @@ class HandEyeCalibration(object):
         self.robotService.movePose(pose)
 
 
-    def runCalibration(self):
-        self.calibrationData = []
-        unique_name = time.strftime("%Y%m%d-%H%M%S")
-        self.calibrationFolderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'calibration_data',unique_name)
-        os.system("mkdir -p " + self.calibrationFolderName)
-        os.chdir(self.calibrationFolderName)
-        cmd = "lcm-logger calibration.lcmlog"
-        self.loggerProcess = subprocess.Popen("exec " + cmd, shell = True)
+    # DEPRECATED
+    # def runCalibration(self):
+    #     self.calibrationData = []
+    #     unique_name = time.strftime("%Y%m%d-%H%M%S") + "_" + self.calibrationType
+    #     unique_name = str(unique_name) + "_" + self.calibrationType
+    #     self.calibrationFolderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'calibration_data',unique_name)
+    #     print "calibration folder name ", self.calibrationFolderName
+    #     os.system("mkdir -p " + self.calibrationFolderName)
+    #     os.chdir(self.calibrationFolderName)
+    #     cmd = "lcm-logger calibration.lcmlog"
+    #     self.loggerProcess = subprocess.Popen("exec " + cmd, shell = True)
 
-        # waiting for logger to start
-        print "waiting for logger to start . . . "
-        time.sleep(2.0) # give the logger process time to start
+    #     # waiting for logger to start
+    #     print "waiting for logger to start . . . "
+    #     time.sleep(2.0) # give the logger process time to start
 
-        self.makePoseOrder()
-        self.timer.start()
+    #     self.makePoseOrder()
+    #     self.timer.start()
 
     def test(self):
         self.taskRunner.callOnThread(self.getImages, True, False)
@@ -436,7 +441,7 @@ class HandEyeCalibration(object):
             self.passiveSubscriber = spartanROSUtils.SimpleSubscriber(topicName, sensor_msgs.msg.Image)
             self.passiveSubscriber.start()
 
-        unique_name = time.strftime("%Y%m%d-%H%M%S")
+        unique_name = time.strftime("%Y%m%d-%H%M%S") + "_" + self.calibrationType
         self.calibrationFolderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'calibration_data', unique_name)
         os.system("mkdir -p " + self.calibrationFolderName)
         os.chdir(self.calibrationFolderName)
@@ -486,6 +491,17 @@ class HandEyeCalibration(object):
 
         self.captureRGB = captureRGB
         self.captureIR = captureIR
+
+        self.calibrationType = None
+        
+        if self.captureRGB:
+            self.calibrationType = 'rgb'
+        elif self.captureIR:
+            self.calibrationType = 'ir'
+        else:
+            self.calibrationType = "no_images"
+
+
         
         # setup header information for storing along with the log
         calibrationHeaderData = dict()

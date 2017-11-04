@@ -1,6 +1,6 @@
 [submodule "director"]
 	path = director
-	url = https://github.com/RobotLocomotion/director.git
+	url = https://github.com/manuelli/director.git
 [submodule "drake"]
 	path = drake
 	url = https://github.com/RobotLocomotion/drake.git
