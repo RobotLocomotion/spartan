@@ -139,7 +139,7 @@ group "8.ROS" {
     host = "localhost";
   }
 
-  cmd "8.camera_info_publisher" {
+  cmd "8.camera_transform_publisher" {
     exec = "roslaunch camera_config camera_transform_publisher.launch";
     host = "localhost";
   }
