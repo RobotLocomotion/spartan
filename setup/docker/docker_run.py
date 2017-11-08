@@ -17,6 +17,8 @@ if __name__=="__main__":
 
 	parser.add_argument("-e", "--entrypoint", type=str, default="", help="(optional) thing to run in container")
 
+	parser.add_argument("-p", "--passthrough", type=str, default="", help="(optional) extra string that will be tacked onto the docker run command, allows you to pass extra options. Make sure to put this in quotes and leave a space before the first character")
+
 	args = parser.parse_args()
 	print "running docker container derived from image %s" %args.image
 	source_dir=os.getcwd()
@@ -49,6 +51,8 @@ if __name__=="__main__":
 	cmd += " -p 30201:30201/udp " # expose udp ports for kuka
 	cmd += " -p 1500:1500/udp " # expose udp ports for schunk
 	cmd += " -p 1501:1501/udp " # expose udp ports for schunk
+
+	cmd += " " + args.passthrough + " "
 
 	cmd += " --privileged -v /dev/bus/usb:/dev/bus/usb " # allow usb access
 
