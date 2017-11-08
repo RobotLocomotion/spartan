@@ -14,4 +14,5 @@ apt install --no-install-recommends \
   htop \
   libopenni-dev \
   apt-utils \
+  usbutils \
   dialog
