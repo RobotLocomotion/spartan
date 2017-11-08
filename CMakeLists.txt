@@ -180,6 +180,7 @@ ExternalProject_Add(common_utils
   BUILD_ALWAYS 1
   CMAKE_CACHE_ARGS
     ${CMAKE_ARGS_FOR_EXTERNALS}
+  DEPENDS drake
 )
 
 ExternalProject_Add(signal-scope
@@ -286,6 +287,19 @@ if (OFF)
   )
 
 endif()
+
+if (WITH_PERCEPTION)
+  ExternalProject_Add(SuperpixelSegmentation
+    SOURCE_DIR ${source_dir}/src/SuperpixelSegmentation
+    BINARY_DIR ${build_dir}/SuperpixelSegmentation
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      ${CMAKE_ARGS_FOR_EXTERNALS}
+    DEPENDS drake common_utils
+  )
+
+endif()
+
 
 if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
   set(IIWA_DRIVER_GIT_REPOSITORY
