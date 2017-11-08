@@ -19,7 +19,7 @@ from director.ikparameters import IkParameters
 
 
 # spartan
-from spartan.taskrunner import TaskRunner
+from spartan.utils.taskrunner import TaskRunner
 
 #ROS
 import rospy
