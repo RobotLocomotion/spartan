@@ -359,6 +359,9 @@ if useKukaRLGDev:
     import spartan.calibration.handeyecalibration
     cal = spartan.calibration.handeyecalibration.HandEyeCalibration(robotSystem)
 
+    import spartan.director.iiwamanipdev
+    spartan.director.iiwamanipdev.setupRLGDirector(globals())
+
     # setup the director node
 
 useROS = True
