@@ -75,7 +75,7 @@ class Grabber {
 
     data_update_lock_.unlock();
 
-    printf("Saved data to file %s_[rgb,depth,pc].[png,pcd]\n", filename_prefix.c_str());
+    printf("Saved data to file %s[rgb,depth,pc].[png,pcd]\n", filename_prefix.c_str());
   }
 
   void Update(char key_input) {
