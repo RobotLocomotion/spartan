@@ -138,6 +138,7 @@ class IkService(object):
     # run this in a thread
     def runRosNode(self):
         self.advertiseServices()
+        rospy.loginfo("Planning frame = %s", self.endEffectorLinkName)
         rospy.loginfo("IkService ready!")
         while not rospy.is_shutdown():
             rospy.spin()

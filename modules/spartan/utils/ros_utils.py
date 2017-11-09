@@ -16,6 +16,20 @@ import spartan.utils.utils as spartanUtils
 import robot_msgs.srv
 
 
+def ROSPoseMsgFromPose(d):
+    msg = geometry_msgs.msg.Pose()
+    msg.position.x = d['translation']['x']
+    msg.position.y = d['translation']['y']
+    msg.position.z = d['translation']['z']
+
+    quatDict = spartanUtils.getQuaternionFromDict(d)
+
+    msg.orientation.w = quatDict['w']
+    msg.orientation.x = quatDict['x']
+    msg.orientation.y = quatDict['y']
+    msg.orientation.z = quatDict['z']
+
+    return msg
 
 def ROSTransformMsgFromPose(d):
     msg = geometry_msgs.msg.Transform()
@@ -85,3 +99,22 @@ class RobotService(object):
         response = s(jointState, maxJointDegreesPerSecond)
         
         return response
+
+    def moveToCartesianPosition(self, poseStamped, maxJointDegreesPerSecond=30):
+        ikServiceName = 'robot_control/IkService'
+        rospy.wait_for_service(ikServiceName)
+        s = rospy.ServiceProxy(ikServiceName, robot_msgs.srv.RunIK)
+        response = s(poseStamped)
+
+        joint_state = response.joint_state
+
+        rospy.loginfo("ik was successful = %s", response.success)
+
+        if not response.success:
+            rospy.loginfo("ik was not successful, returning without moving robot")
+            return response.success
+
+        rospy.loginfo("ik was successful, moving to joint position")
+        return self.moveToJointPosition(joint_state.position, maxJointDegreesPerSecond=maxJointDegreesPerSecond)
+
+

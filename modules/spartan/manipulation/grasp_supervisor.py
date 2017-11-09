@@ -4,15 +4,21 @@ import os
 # ROS
 import rospy
 import sensor_msgs.msg
+import geometry_msgs.msg
 import tf2_ros
 import rosbag
 
 # spartan ROS
 import spartan_grasp_msgs.msg
+import spartan_grasp_msgs.srv
 
 # spartan
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
+
+# director
+from director import transformUtils
+from director import visualization as vis
 
 
 USING_DIRECTOR = True
@@ -48,7 +54,28 @@ class GraspSupervisor(object):
         self.config = dict()
         self.config['scan'] = dict()
         self.config['scan']['pose_list'] = ['scan_left', 'scan_right']
-        self.config['scan']['joint_speed'] = 30
+        self.config['scan']['joint_speed'] = 60
+        self.config['grasp_speed'] = 20
+        self.config['home_pose_name'] = 'above_table_pre_grasp'
+        self.config['grasp_to_ee'] = dict()
+
+        self.config['grasp_to_ee']['translation'] = dict()
+        self.config['grasp_to_ee']['translation']['x'] = 9.32362425e-02
+        self.config['grasp_to_ee']['translation']['y'] = 0
+        self.config['grasp_to_ee']['translation']['z'] = 0
+
+        self.config['grasp_to_ee']['orientation'] = dict()
+        self.config['grasp_to_ee']['orientation']['w'] = 0.97921432
+        self.config['grasp_to_ee']['orientation']['x'] = -0.20277454
+        self.config['grasp_to_ee']['orientation']['y'] = 0.00454233
+        self.config['grasp_to_ee']['orientation']['z'] = -0.00107904
+
+        self.graspToIiiwaLinkEE = spartanUtils.transformFromPose(self.config['grasp_to_ee'])
+        self.iiwaLinkEEToGraspFrame = self.graspToIiiwaLinkEE.GetLinearInverse()
+
+        pos = [-0.15, 0, 0]
+        quat = [1,0,0,0]
+        self.preGraspToGraspTransform = transformUtils.transformFromPose(pos, quat)
 
     def setupSubscribers(self):
         self.pointCloudSubscriber = rosUtils.SimpleSubscriber(self.pointCloudTopic, sensor_msgs.msg.PointCloud2)
@@ -71,6 +98,8 @@ class GraspSupervisor(object):
     Captures the current PointCloud2 from the sensor. Also records the pose of camera frame.
     """
     def capturePointCloudAndCameraTransform(self, cameraOrigin = [0,0,0]):
+    	# sleep to transforms can update
+    	rospy.sleep(0.5)
         msg = spartan_grasp_msgs.msg.PointCloudWithTransform()
         msg.header.stamp = rospy.Time.now()
 
@@ -85,8 +114,14 @@ class GraspSupervisor(object):
         self.testData = msg # for debugging
         return msg
 
+    def moveHome(self):
+    	rospy.loginfo("moving home")
+    	self.robotService.moveToJointPosition(self.storedPoses[self.config['home_pose_name']], maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
+
     # scans to several positions
     def collectSensorData(self, saveToBagFile=False):
+
+    	rospy.loginfo("collecting sensor data")
 
         pointCloudListMsg = spartan_grasp_msgs.msg.PointCloudList()
         pointCloudListMsg.header.stamp = rospy.Time.now()
@@ -102,11 +137,15 @@ class GraspSupervisor(object):
             pointCloudListMsg.point_cloud_list.append(pointCloudWithTransformMsg)
             data[poseName] = pointCloudWithTransformMsg
 
+
+        self.moveHome()
         self.sensorData = data
         self.pointCloudListMsg = pointCloudListMsg
         return pointCloudListMsg
 
     def requestGrasp(self, pointCloudListMsg):
+
+    	rospy.loginfo("requesting grasp from spartan_grasp")
 
         serviceName = 'spartan_grasp/GenerateGraspsFromPointCloudList'
         rospy.wait_for_service(serviceName)
@@ -114,9 +153,57 @@ class GraspSupervisor(object):
         response = s(pointCloudListMsg)
 
         print "num scored_grasps = ", len(response.scored_grasps)
+        self.topGrasp = response.scored_grasps[0]
+        rospy.loginfo("-------- top grasp score = %.3f", self.topGrasp.score)
+
+        self.graspFrame = spartanUtils.transformFromROSPoseMsg(self.topGrasp.pose.pose)
+
+    def getIiwaLinkEEFrameFromGraspFrame(self, graspFrame):
+    	return transformUtils.concatenateTransforms([self.iiwaLinkEEToGraspFrame, graspFrame])
+
+        # print "response ", response
+
+    def moveToFrame(self, graspFrame):
+    	iiwaLinkEEFrame = self.getIiwaLinkEEFrameFromGraspFrame(graspFrame)
+    	poseDict = spartanUtils.poseFromTransform(iiwaLinkEEFrame)
+    	poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
+    	poseStamped = geometry_msgs.msg.PoseStamped()
+    	poseStamped.pose = poseMsg
+    	poseStamped.header.frame_id = "base"
+
+    	self.poseStamped = poseStamped
+    	self.robotService.moveToCartesianPosition(poseStamped, self.config['grasp_speed'])
+
+    def moveToGraspFrame(self, graspFrame):
+    	preGraspFrame = transformUtils.concatenateTransforms([self.preGraspToGraspTransform, self.graspFrame])
+    	vis.updateFrame(preGraspFrame, 'pre grasp frame', scale=0.15)
+    	vis.updateFrame(graspFrame, 'grasp frame', scale=0.15)
 
 
-        print "response ", response
+    	self.moveToFrame(preGraspFrame)
+    	# rospy.sleep(1.0)
+    	self.moveToFrame(graspFrame)
+
+
+    def testMoveToFrame(self):
+    	pos = [ 0.51148583,  0.0152224 ,  0.50182436]
+    	quat = [ 0.68751512,  0.15384615,  0.69882778, -0.12366916]
+    	targetFrame = transformUtils.transformFromPose(pos, quat)
+    	poseDict = spartanUtils.poseFromTransform(targetFrame)
+    	poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
+
+
+    	poseStamped = geometry_msgs.msg.PoseStamped()
+    	poseStamped.pose = poseMsg
+    	poseStamped.header.frame_id = "base"
+    	self.poseStamped = poseStamped
+
+    	self.robotService.moveToCartesianPosition(poseStamped, 30)
+
+
+    def showGraspFrame(self):
+    	vis.updateFrame(self.graspFrame, 'grasp frame', scale=0.15)
+    	vis.updateFrame(self.getIiwaLinkEEFrameFromGraspFrame(self.graspFrame), 'iiwa_link_ee_grasp_frame', scale=0.15)
 
 
     def saveSensorDataToBagFile(self, pointCloudListMsg=None, filename=None, overwrite=True):
@@ -135,11 +222,20 @@ class GraspSupervisor(object):
 
     def testInThread(self):
         self.collectSensorData()
-        self.requestGrasp(self.sensorData)
+        self.requestGrasp(self.pointCloudListMsg)
         print "test finished"
+
+    def testMoveHome(self):
+   		self.taskRunner.callOnThread(self.moveHome)
 
     def test(self):
         self.taskRunner.callOnThread(self.testInThread)
+
+    def testMoveToGrasp(self):
+    	self.taskRunner.callOnThread(self.moveToGraspFrame, self.graspFrame)
+
+   	
+
 
     @staticmethod
     def makeDefault():
