@@ -8,6 +8,9 @@ include_directories(${Eigen3_INCLUDE_DIR})
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
+find_package(PCL REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+
 find_library(CVUTILS_LIBRARY cv-utils DOC "The cv-utils library")
 find_path(CVUTILS_INCLUDE_DIR image_utils/jpeg.h PATH_SUFFIXES cv-utils DOC "Path to the cv-utils include directory")
 set(CVUTILS_INCLUDE_DIRS ${CVUTILS_INCLUDE_DIR})
@@ -17,8 +20,10 @@ include_directories(${CVUTILS_INCLUDE_DIRS})
 find_package(drake REQUIRED)
 
 set(HEADERS
+	cv_utils.h
 	math_utils.h
 	system_utils.h
+	pcl_utils.h
 	vtk_utils.h
 	rgbd_camera_driver.h)
 
@@ -29,5 +34,6 @@ add_library(rgbd_camera_driver rgbd_camera_driver.cc rgbd_camera_driver.h)
 target_link_libraries(rgbd_camera_driver
     ${drake_LIBRARIES}
 	${OpenCV_LIBS}
+	${PCL_LIBRARIES}
     ${CVUTILS_LIBRARIES})
 install(TARGETS rgbd_camera_driver DESTINATION lib)
