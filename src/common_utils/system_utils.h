@@ -18,7 +18,7 @@ static std::string getTimestampString(void) {
   auto t = std::time(nullptr);
   auto tm = *std::localtime(&t);
   std::stringstream out;
-  out << std::put_time(&tm, "%Y-%m-%d-%H-%M-%S") << std::endl;
+  out << std::put_time(&tm, "%Y-%m-%d-%H-%M-%S");
   return out.str();
 }
 
