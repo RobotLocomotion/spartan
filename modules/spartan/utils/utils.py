@@ -52,6 +52,15 @@ def transformFromPose(d):
 
     return transformUtils.transformFromPose(pos, quat)
 
+"""
+msg: geometry_msgs/Pose
+"""
+def transformFromROSPoseMsg(msg):
+    pos = [msg.position.x, msg.position.y, msg.position.z]
+    quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]
+
+    return transformUtils.transformFromPose(pos,quat)
+
 def getQuaternionFromDict(d):
     quat = None
     quatNames = ['orientation', 'rotation', 'quaternion']
@@ -64,3 +73,5 @@ def getQuaternionFromDict(d):
         raise ValueError("Error when trying to extract quaternion from dict, your dict doesn't contain a key in ['orientation', 'rotation', 'quaternion']")
 
     return quat
+
+

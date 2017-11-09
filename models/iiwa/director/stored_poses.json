@@ -365,6 +365,21 @@
       },
       "name": "scan_top",
       "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.04486168920993805,
+        "iiwa_joint_2": 0.32566070556640625,
+        "iiwa_joint_3": -0.033501721918582916,
+        "iiwa_joint_4": -1.5769091844558716,
+        "iiwa_joint_5": 0.05899268388748169,
+        "iiwa_joint_6": 1.2463806867599487,
+        "iiwa_joint_7": 0.3891299366950989
+      },
+      "name": "above_table_pre_grasp",
+      "nominal_handedness": "left"
     }
   ]
 }

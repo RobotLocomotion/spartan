@@ -13,3 +13,6 @@
 [submodule "src/LabelFusion"]
 	path = src/LabelFusion
 	url = https://github.com/RobotLocomotion/LabelFusion.git
+[submodule "src/catkin_projects/spartan_grasp_msgs"]
+	path = src/catkin_projects/spartan_grasp_msgs
+	url = git@github.com:manuelli/spartan_grasp_msgs.git
