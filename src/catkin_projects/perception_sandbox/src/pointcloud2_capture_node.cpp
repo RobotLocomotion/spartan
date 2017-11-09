@@ -6,6 +6,7 @@
 #include "Eigen/Dense"
 
 // PCL specific includes
+#include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -19,6 +20,7 @@
 
 #include "common_utils/cv_utils.h"
 #include "common_utils/pcl_utils.h"
+#include "common_utils/system_utils.h"
 
 /**
    This node subscribes to a published PointCloud2 channel
@@ -43,9 +45,10 @@ class Grabber {
   pcl::PointCloud<pcl::PointXYZRGB> latest_cloud_;
   cv::Mat latest_rgb_image_;
   cv::Mat latest_depth_image_;
+  double z_cutoff_plane_;
 
  public:
-  Grabber() : cloud_valid_(false) {
+  Grabber() : cloud_valid_(false), z_cutoff_plane_(3.0) {
     // Subscrive to input video feed and publish output video feed
     string sub_channel = "/camera_1112170110/depth_registered/points";
     printf("Subbing to %s\n", sub_channel.c_str());
@@ -56,17 +59,61 @@ class Grabber {
 
   ~Grabber() { cv::destroyWindow(OPENCV_WINDOW_NAME); }
 
-  void Update() {
+  void PrintCutoff() { printf("Cutoff: %f\n", z_cutoff_plane_); }
+
+  void SaveLatestData() {
+    string filename_prefix = getTimestampString() + "_";
+    string rgb_filename = filename_prefix + "rgb.png";
+    string depth_filename = filename_prefix + "depth.png";
+    string pcd_filename = filename_prefix + "pc.pcd";
+
+    data_update_lock_.lock();
+
+    cv::imwrite(rgb_filename, latest_rgb_image_);
+    cv::imwrite(depth_filename, latest_depth_image_);
+    pcl::io::savePCDFileBinary(pcd_filename, latest_cloud_);
+
+    data_update_lock_.unlock();
+
+    printf("Saved data to file %s\n", filename_prefix.c_str());
+  }
+
+  void Update(char key_input) {
     if (cloud_valid_) {
+      // Do visualization
       data_update_lock_.lock();
       auto image_grid = makeGridOfImages(
-          {latest_rgb_image_, convertToColorMap(latest_depth_image_, 0.0, 10.0)}, 2, 10);
+          {latest_rgb_image_,
+           convertToColorMap(latest_depth_image_, z_cutoff_plane_, 0.0)},
+          2, 10);
       data_update_lock_.unlock();
-      printf("RGB: (%d, %d). Depth: (%d, %d). Grid: (%d, %d)\n",
-             latest_rgb_image_.cols, latest_rgb_image_.rows,
-             latest_depth_image_.cols, latest_depth_image_.rows,
-             image_grid.cols, image_grid.cols);
       cv::imshow(OPENCV_WINDOW_NAME, image_grid);
+
+      // Handle keystrokes
+      switch (key_input) {
+        case 's':
+          // save things
+          SaveLatestData();
+          break;
+        case '[':
+          // Bring cutoff plane closer
+          z_cutoff_plane_ -= 0.1;
+          PrintCutoff();
+          break;
+        case '{':
+          z_cutoff_plane_ -= 1.0;
+          PrintCutoff();
+          break;
+        case ']':
+          // Bring cutoff plane farther
+          z_cutoff_plane_ += 0.1;
+          PrintCutoff();
+          break;
+        case '}':
+          z_cutoff_plane_ += 1.0;
+          PrintCutoff();
+          break;
+      }
     }
   }
 
@@ -79,7 +126,6 @@ class Grabber {
     // before grabbing the lock.
     int width = pcl_pc2.width;
     int height = pcl_pc2.height;
-    printf("Cloud of size %d, %d\n", height, width);
     if (latest_rgb_image_.rows != height || latest_rgb_image_.cols != width) {
       latest_rgb_image_ = cv::Mat::zeros(height, width, CV_8UC3);
     }
@@ -110,9 +156,10 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "pointcloud2_capture_node");
   Grabber gr;
   while (1) {
-    gr.Update();
+    // Wait 33 ms (~30hz update rate) and watch for keystrokes
+    char k = cv::waitKey(33);
+    gr.Update(k);
     ros::spinOnce();
-    cv::waitKey(33);
   }
   cv::destroyAllWindows();
   return 0;
