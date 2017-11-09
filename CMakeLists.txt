@@ -316,7 +316,7 @@ if (WITH_ROS)
       ${CMAKE_ARGS_FOR_EXTERNALS}
       # Combine environment prefix path (with ROS) with our own
       "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};${CMAKE_PREFIX_PATH_ENV}"
-    DEPENDS drake
+    DEPENDS drake common_utils
   )
 endif()
 
