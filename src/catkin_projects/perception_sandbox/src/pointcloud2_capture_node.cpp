@@ -5,6 +5,9 @@
 
 #include "Eigen/Dense"
 
+// For argument parsing
+#include <gflags/gflags.h>
+
 // PCL specific includes
 #include <pcl/features/integral_image_normal.h>
 #include <pcl/io/pcd_io.h>
@@ -34,6 +37,9 @@
    image.)
 **/
 
+DEFINE_string(pointcloud_topic, "/camera_1112170110/depth_registered/points",
+              "Point cloud ROS topic to subscribe to.");
+
 using namespace std;
 
 static const string OPENCV_WINDOW_NAME = "Point Cloud Viz Window";
@@ -53,7 +59,7 @@ class Grabber {
  public:
   Grabber() : cloud_valid_(false), z_cutoff_plane_(3.0) {
     // Subscrive to input video feed and publish output video feed
-    string sub_channel = "/camera_1112170110/depth_registered/points";
+    string sub_channel = FLAGS_pointcloud_topic;
     printf("Subbing to %s\n", sub_channel.c_str());
     pc2_sub_ = nh_.subscribe(sub_channel, 1, &Grabber::Pc2Cb, this);
 
@@ -187,6 +193,7 @@ class Grabber {
 };
 
 int main(int argc, char** argv) {
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
   ros::init(argc, argv, "pointcloud2_capture_node");
   Grabber gr;
   while (1) {

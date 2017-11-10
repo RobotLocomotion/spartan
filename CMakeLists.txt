@@ -241,9 +241,19 @@ if (OFF)
 
 endif()
 
+if (WITH_PERCEPTION)
+  ExternalProject_Add(SuperpixelSegmentation
+    SOURCE_DIR ${source_dir}/src/SuperpixelSegmentation
+    BINARY_DIR ${build_dir}/SuperpixelSegmentation
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      ${CMAKE_ARGS_FOR_EXTERNALS}
+    DEPENDS drake director RemoteTreeViewer common_utils
+  )
+  
+endif()
+
 if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
-
-
   set(IIWA_DRIVER_GIT_REPOSITORY
 	"git@github.com:RobotLocomotion/drake-iiwa-driver.git"
 	CACHE STRING
@@ -316,7 +326,7 @@ if (WITH_ROS)
       ${CMAKE_ARGS_FOR_EXTERNALS}
       # Combine environment prefix path (with ROS) with our own
       "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};${CMAKE_PREFIX_PATH_ENV}"
-    DEPENDS drake common_utils
+    DEPENDS drake director common_utils RemoteTreeViewer
   )
 endif()
 
