@@ -6,6 +6,7 @@
 #include "Eigen/Dense"
 
 // PCL specific includes
+#include <pcl/features/integral_image_normal.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -29,7 +30,8 @@
    It displays the (reconstructed from the structured point cloud)
    RGB and depth images, and allows key input for changing the
    depth near and far planes (to reject really far returns) and
-   allow saving as a PCD with XYZ RGB.
+   allow saving as a PCD with XYZ, RGB, and normals (via integral
+   image.)
 **/
 
 using namespace std;
@@ -42,9 +44,10 @@ class Grabber {
 
   mutex data_update_lock_;
   bool cloud_valid_;
-  pcl::PointCloud<pcl::PointXYZRGB> latest_cloud_;
+  pcl::PointCloud<pcl::PointXYZRGBNormal> latest_cloud_;
   cv::Mat latest_rgb_image_;
   cv::Mat latest_depth_image_;
+  cv::Mat latest_normal_image_;
   double z_cutoff_plane_;
 
  public:
@@ -65,17 +68,20 @@ class Grabber {
     string filename_prefix = getTimestampString() + "_";
     string rgb_filename = filename_prefix + "rgb.png";
     string depth_filename = filename_prefix + "depth.png";
+    string normal_filename = filename_prefix + "normal.png";
     string pcd_filename = filename_prefix + "pc.pcd";
 
     data_update_lock_.lock();
 
     cv::imwrite(rgb_filename, latest_rgb_image_);
     cv::imwrite(depth_filename, latest_depth_image_);
+    cv::imwrite(normal_filename, latest_normal_image_);
     pcl::io::savePCDFileBinary(pcd_filename, latest_cloud_);
 
     data_update_lock_.unlock();
 
-    printf("Saved data to file %s[rgb,depth,pc].[png,pcd]\n", filename_prefix.c_str());
+    printf("Saved data to file %s[rgb,depth,normal,pc].[png,pcd]\n",
+           filename_prefix.c_str());
   }
 
   void Update(char key_input) {
@@ -84,8 +90,9 @@ class Grabber {
       data_update_lock_.lock();
       auto image_grid = makeGridOfImages(
           {latest_rgb_image_,
-           convertToColorMap(latest_depth_image_, z_cutoff_plane_, 0.0)},
-          2, 10);
+           convertToColorMap(latest_depth_image_, z_cutoff_plane_, 0.0),
+           latest_normal_image_},
+          3, 10);
       data_update_lock_.unlock();
       cv::imshow(OPENCV_WINDOW_NAME, image_grid);
 
@@ -133,9 +140,27 @@ class Grabber {
         latest_depth_image_.cols != width) {
       latest_depth_image_ = cv::Mat::zeros(height, width, CV_32FC1);
     }
+    if (latest_normal_image_.rows != height ||
+        latest_normal_image_.cols != width) {
+      latest_normal_image_ = cv::Mat::zeros(height, width, CV_8UC3);
+    }
 
     data_update_lock_.lock();
-    pcl::fromPCLPointCloud2(pcl_pc2, latest_cloud_);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_without_normals(
+        new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::fromPCLPointCloud2(pcl_pc2, *cloud_without_normals);
+
+    // Do integral-image normal estimation, which should be pretty quick
+    // as the input point cloud is structured in a grid.
+    pcl::PointCloud<pcl::Normal> normals;
+    pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
+    ne.setNormalEstimationMethod(ne.AVERAGE_3D_GRADIENT);
+    ne.setMaxDepthChangeFactor(0.02f);
+    ne.setNormalSmoothingSize(10.0f);
+    ne.setInputCloud(cloud_without_normals);
+    ne.compute(normals);
+
+    pcl::concatenateFields(*cloud_without_normals, normals, latest_cloud_);
 
     for (int u = 0; u < height; u++) {
       for (int v = 0; v < width; v++) {
@@ -143,6 +168,15 @@ class Grabber {
         latest_rgb_image_.at<cv::Vec3b>(u, v)[2] = latest_cloud_(v, u).r;
         latest_rgb_image_.at<cv::Vec3b>(u, v)[1] = latest_cloud_(v, u).g;
         latest_rgb_image_.at<cv::Vec3b>(u, v)[0] = latest_cloud_(v, u).b;
+
+        // RGB-encoding of normal vector: Map [-1,1] -> [0, 255]
+        latest_normal_image_.at<cv::Vec3b>(u, v)[2] =
+            (unsigned char)(255 * ((latest_cloud_(v, u).normal_x + 1.) / 2.));
+        latest_normal_image_.at<cv::Vec3b>(u, v)[1] =
+            (unsigned char)(255 * ((latest_cloud_(v, u).normal_y + 1.) / 2.));
+        latest_normal_image_.at<cv::Vec3b>(u, v)[0] =
+            (unsigned char)(255 * ((latest_cloud_(v, u).normal_z + 1.) / 2.));
+
         latest_depth_image_.at<float>(u, v) =
             Vector3dFromPclPoint(latest_cloud_(v, u)).norm();
       }
