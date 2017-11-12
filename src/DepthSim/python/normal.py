@@ -14,6 +14,7 @@ import Image
 from vtk.util.misc import vtkRegressionTestImage
 import common as common
 
+#TODO:one shading lib for both depth and normal
 def set_shader_input(mapper):
   '''
   // Modify the shader to color based on model normal
