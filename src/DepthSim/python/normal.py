@@ -111,7 +111,7 @@ if __name__ == '__main__':
   common.set_up_camera_params(camera)
 
   #shading
-  set_material_prop(actor)
+  #set_material_prop(actor)
   set_shader_input(mapper)
 
   poses = common.CameraPoses(data_dir+"/posegraph.posegraph")
