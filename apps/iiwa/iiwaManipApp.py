@@ -352,6 +352,9 @@ if useKukaRLGDev:
     import spartan.calibration.handeyecalibration
     cal = spartan.calibration.handeyecalibration.HandEyeCalibration(robotSystem)
 
+    import spartan.datacollection.interactivedatacollector
+    dc = spartan.datacollection.interactivedatacollector.InteractiveDataCollector(robotSystem, pointCloud=openniDepthPointCloud, cameraTransform=cameraTransform)
+
     # setup the director node
 
 useROS = True
