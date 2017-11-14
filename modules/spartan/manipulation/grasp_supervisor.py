@@ -57,6 +57,7 @@ class GraspSupervisor(object):
         self.config['scan']['joint_speed'] = 60
         self.config['grasp_speed'] = 20
         self.config['home_pose_name'] = 'above_table_pre_grasp'
+        self.config['grasp_nominal_direction'] = np.array([1,0,0]) # x forwards
         self.config['grasp_to_ee'] = dict()
 
         self.config['grasp_to_ee']['translation'] = dict()
@@ -153,10 +154,14 @@ class GraspSupervisor(object):
         response = s(pointCloudListMsg)
 
         print "num scored_grasps = ", len(response.scored_grasps)
+        if len(response.scored_grasps) == 0:
+        	rospy.loginfo("no valid grasps found")
+        	return False
+
         self.topGrasp = response.scored_grasps[0]
         rospy.loginfo("-------- top grasp score = %.3f", self.topGrasp.score)
-
         self.graspFrame = spartanUtils.transformFromROSPoseMsg(self.topGrasp.pose.pose)
+        self.rotateGraspFrameToAlignWithNominal(self.graspFrame)
 
     def getIiwaLinkEEFrameFromGraspFrame(self, graspFrame):
     	return transformUtils.concatenateTransforms([self.iiwaLinkEEToGraspFrame, graspFrame])
@@ -204,6 +209,17 @@ class GraspSupervisor(object):
     def showGraspFrame(self):
     	vis.updateFrame(self.graspFrame, 'grasp frame', scale=0.15)
     	vis.updateFrame(self.getIiwaLinkEEFrameFromGraspFrame(self.graspFrame), 'iiwa_link_ee_grasp_frame', scale=0.15)
+
+    """
+	Rotate the grasp frame to align with the nominal direction. In this case we want the ZAxis of the 
+	grasp to be aligned with (1,0,0) in world frame. If it's not aligned rotate it by 180 degrees about
+	the x-Axis of the grasp
+    """
+    def rotateGraspFrameToAlignWithNominal(self, graspFrame):
+    	graspFrameZAxis = graspFrame.TransformVector(0,1,0)
+    	if (np.dot(graspFrameZAxis, self.config['grasp_nominal_direction']) < 0):
+    		graspFrame.PreMultiply()
+    		graspFrame.RotateX(180)
 
 
     def saveSensorDataToBagFile(self, pointCloudListMsg=None, filename=None, overwrite=True):

@@ -353,7 +353,7 @@ if useKukaRLGDev:
     import spartan.perception.cameratransform
     cameraTransform = spartan.perception.cameratransform.CameraTransform.fromConfigFilename(robotSystem, cameraConfigFilename, channelName)
 
-    import spartan.perception.dev as devUtils
+    # import spartan.perception.dev as devUtils
     # efusion = devUtils.ElasticFusionReconstruction()
 
     import spartan.calibration.handeyecalibration
