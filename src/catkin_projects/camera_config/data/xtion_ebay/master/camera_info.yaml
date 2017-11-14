@@ -1,0 +1,36 @@
+# externally mounted xtion on tripod
+header:
+  camera_name: 'xtion_pro'
+  calibration_date: "Nov 14 16:00:00 2017"
+  serial_number: 1112170110
+
+depth:
+  extrinsics:
+    reference_link_name: 'base' # link which this transform is specified relative to
+    transform_to_reference_link:
+      translation:
+        x: 1.36331233e+00
+        y: -2.15321456e-02
+        z: 5.23678347e-01
+      rotation:
+        x: 5.77520385e-01
+        y: 5.21189340e-01
+        z: -3.97735140e-01
+        w: -4.86455173e-01
+
+    # we don't specify anything for RegionOfInterest, just leave it at default values
+
+rgb:
+  extrinsics:
+    reference_link_name: 'base' # link which this transform is specified relative to
+    transform_to_reference_link:
+      translation:
+        x: 1.36331233e+00
+        y: -2.15321456e-02
+        z: 5.23678347e-01
+      rotation:
+        x: 5.77520385e-01
+        y: 5.21189340e-01
+        z: -3.97735140e-01
+        w: -4.86455173e-01
+  
