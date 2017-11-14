@@ -39,11 +39,11 @@ import bot_core as lcmbotcore
 from director.ikparameters import IkParameters
 
 
-try:
-    from labelfusion.cameraposes import CameraPoses
-except:
-    print "Have you sourced setup_environment_labelfusion.sh in spartan/config?"
-    quit()
+# try:
+#     from labelfusion.cameraposes import CameraPoses
+# except:
+#     print "Have you sourced setup_environment_labelfusion.sh in spartan/config?"
+#     quit()
 
 # spartan
 import spartan.utils.utils as spartanUtils
