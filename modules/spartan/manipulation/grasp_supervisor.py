@@ -153,9 +153,12 @@ class GraspSupervisor(object):
         response = s(pointCloudListMsg)
 
         print "num scored_grasps = ", len(response.scored_grasps)
+        if len(response.scored_grasps) == 0:
+        	rospy.loginfo("no valid grasps found")
+        	return False
+
         self.topGrasp = response.scored_grasps[0]
         rospy.loginfo("-------- top grasp score = %.3f", self.topGrasp.score)
-
         self.graspFrame = spartanUtils.transformFromROSPoseMsg(self.topGrasp.pose.pose)
 
     def getIiwaLinkEEFrameFromGraspFrame(self, graspFrame):
