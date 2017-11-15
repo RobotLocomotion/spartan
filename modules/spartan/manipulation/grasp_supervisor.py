@@ -1,5 +1,6 @@
 # system
 import os
+import numpy as np
 
 # ROS
 import rospy
