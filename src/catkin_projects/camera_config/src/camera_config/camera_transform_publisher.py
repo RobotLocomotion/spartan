@@ -66,8 +66,8 @@ class CameraTransformPublisher:
 			t = val['camera_to_link_transform_stamped']
 			t.header.stamp = rospy.Time.now()
 			self.broadcaster.sendTransform(t)
-			print t
-			rospy.loginfo("broadcasting frame for camera %s", key)
+			# print t
+			# rospy.loginfo("broadcasting frame for camera %s", key)
 			# self.staticTransformBroadcaster.sendTransform(t)
 
 

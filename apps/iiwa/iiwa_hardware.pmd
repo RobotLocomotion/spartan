@@ -135,12 +135,7 @@ group "8.ROS" {
   }
 
   cmd "7.ROS-OpenNI" {
-    exec = "roslaunch camera_config openni2.launch";
-    host = "localhost";
-  }
-
-  cmd "8.camera_transform_publisher" {
-    exec = "roslaunch camera_config camera_transform_publisher.launch";
+    exec = "roslaunch camera_config openni2.launch camera_serial_number:=1112170110";
     host = "localhost";
   }
 
