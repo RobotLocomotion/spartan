@@ -13,5 +13,9 @@
 		<arg name="camera" value="camera_$(arg camera_serial_number)"/>
 	</include>
 
+	<include file="$(eval find(arg('pkg_name')) + '/launch/camera_transform_publisher.launch' )"  >
+		<arg name="camera_serial_number" value="$(arg camera_serial_number)" />
+	</include>
+
 
 </launch>

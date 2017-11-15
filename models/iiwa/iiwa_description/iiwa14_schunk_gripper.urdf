@@ -305,6 +305,14 @@
   </joint>
   <link name="iiwa_link_ee">
     </link>
+
+  <joint name="tool1_joint" type="fixed">
+    <parent link="iiwa_link_ee"/>
+    <child link="iiwa_link_ee_gripper_aligned"/>
+    <origin rpy="0.0  0.39259999999999995 1.5699999999999998" xyz="0 0 0.0"/>
+  </joint>
+  <link name="iiwa_link_ee_gripper_aligned">
+    </link>
   <!--Extensions -->
   <!-- Load Gazebo lib and set the robot namespace -->
   <gazebo>
