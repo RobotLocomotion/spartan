@@ -25,7 +25,7 @@ static cv::Mat convertToColorMap(const cv::Mat& oneCHimg, double minVal = 0.0,
   else {
     cv::Mat J1_gray_img;
     if (minVal == 0.0 && maxVal == 0.0) {
-      cv::minMaxLoc(J1_gray_img, &minVal, &maxVal);
+      cv::minMaxLoc(oneCHimg, &minVal, &maxVal);
     }
     oneCHimg.convertTo(J1_gray_img, CV_8U, 255.0 / (maxVal - minVal),
                        -minVal * 255.0 / (maxVal - minVal));
