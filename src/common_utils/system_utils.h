@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ctime>
+#include <iostream>
 #include <regex>
 #include <string>
 #include <vector>
@@ -10,6 +12,14 @@ static double getUnixTime(void) {
   if (clock_gettime(CLOCK_REALTIME, &tv) != 0) return 0;
 
   return (tv.tv_sec + (tv.tv_nsec / 1000000000.0));
+}
+
+static std::string getTimestampString(void) {
+  auto t = std::time(nullptr);
+  auto tm = *std::localtime(&t);
+  std::stringstream out;
+  out << std::put_time(&tm, "%Y-%m-%d-%H-%M-%S");
+  return out.str();
 }
 
 // Update the input string.

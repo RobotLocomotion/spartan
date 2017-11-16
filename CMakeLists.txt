@@ -242,8 +242,6 @@ if (OFF)
 endif()
 
 if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
-
-
   set(IIWA_DRIVER_GIT_REPOSITORY
 	"git@github.com:RobotLocomotion/drake-iiwa-driver.git"
 	CACHE STRING
@@ -316,7 +314,7 @@ if (WITH_ROS)
       ${CMAKE_ARGS_FOR_EXTERNALS}
       # Combine environment prefix path (with ROS) with our own
       "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};${CMAKE_PREFIX_PATH_ENV}"
-    DEPENDS drake
+    DEPENDS drake director common_utils RemoteTreeViewer
   )
 endif()
 
