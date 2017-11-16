@@ -72,7 +72,8 @@ static cv::Mat resizeKeepAspectRatio(const cv::Mat& input,
 }
 
 // Tile the specified list of images into a large image, for
-// visualization. static cv::Mat makeGridOfImages(const std::vector<cv::Mat>& images, int cols,
+// visualization
+static cv::Mat makeGridOfImages(const std::vector<cv::Mat>& images, int cols,
                                 int min_gap_size, int width = 0,
                                 int height = 0) {
   // let's first find out the maximum dimensions
