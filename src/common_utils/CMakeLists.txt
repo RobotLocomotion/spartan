@@ -17,23 +17,12 @@ set(CVUTILS_INCLUDE_DIRS ${CVUTILS_INCLUDE_DIR})
 set(CVUTILS_LIBRARIES ${CVUTILS_LIBRARY})
 include_directories(${CVUTILS_INCLUDE_DIRS})
 
-find_package(drake REQUIRED)
-
 set(HEADERS
 	cv_utils.h
 	math_utils.h
 	system_utils.h
 	pcl_utils.h
-	vtk_utils.h
-	rgbd_camera_driver.h)
+	vtk_utils.h)
 
 install(FILES ${HEADERS}
 	DESTINATION include/common_utils)
-
-add_library(rgbd_camera_driver rgbd_camera_driver.cc rgbd_camera_driver.h)
-target_link_libraries(rgbd_camera_driver
-    ${drake_LIBRARIES}
-	${OpenCV_LIBS}
-	${PCL_LIBRARIES}
-    ${CVUTILS_LIBRARIES})
-install(TARGETS rgbd_camera_driver DESTINATION lib)
