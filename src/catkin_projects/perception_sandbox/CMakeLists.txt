@@ -52,25 +52,6 @@ target_link_libraries(pointcloud2_capture_node
    ${gflags_LIBRARIES}
 )
 
-add_executable(object_fitting_node src/object_fitting_node.cpp)
-# This is nasty: Drake wants to provide Eigen 3.3.3, while ROS prefers the system-installed
-# (and older) version. Drake will fail to compile if it sees the system-installed
-# version. However, some part of the CMake configuration winds up specifying the Eigen
-# include path as a SYSTEM include path, so we need to preemptively specify
-# OUR Eigen as a SYSTEM include path as well, and then declare the catkin include paths
-# as ALSO SYSTEM include paths. (-isystem vs -I, where I think -I takes precedence over
-# -isystem where both are present and valid).
-target_include_directories(object_fitting_node SYSTEM PUBLIC ${EIGEN_INCLUDE_DIRS})
-target_include_directories(object_fitting_node SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
-target_link_libraries(object_fitting_node
-   drake::drake
-   ${Eigen3_LIBRARIES}
-   RemoteTreeViewerWrapper
-   ${catkin_LIBRARIES}
-   ${OpenCV_LIBRARIES}
-   ${gflags_LIBRARIES}
-)
-
 
 #############
 ## Install ##
@@ -88,7 +69,7 @@ install(TARGETS opencv_view_node pointcloud2_capture_node object_fitting_node
 )
 
 # Mark other files for installation (e.g. launch and bag files, etc.)
-install(FILES
-   launch/realsense_camera_view.launch
-   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+#install(FILES
+#   launch/realsense_camera_view.launch
+#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+#)
