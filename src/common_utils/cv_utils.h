@@ -9,6 +9,8 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/opencv.hpp"
 
+// Convert a single-channel CV mat to a 3-channel RGB image for
+// easier visualization.
 // From GraphCannySegmentation
 // https://github.com/morpheus1820/graph-canny-segm/
 static cv::Mat convertToColorMap(const cv::Mat& oneCHimg, double minVal = 0.0,
@@ -42,7 +44,8 @@ static cv::Mat matFromMatrixXd(const Eigen::MatrixXd matrix) {
   return out;
 }
 
-// from
+// Resizes a cvMat to the specified size while maintaining its aspect ratio,
+// padding background with the specified gray value (on [0, 1]).
 // https://stackoverflow.com/questions/28562401/resize-an-image-to-a-square-but-keep-aspect-ratio-c-opencv
 static cv::Mat resizeKeepAspectRatio(const cv::Mat& input,
                                      const cv::Size& dstSize,
@@ -68,7 +71,8 @@ static cv::Mat resizeKeepAspectRatio(const cv::Mat& input,
   return output;
 }
 
-static cv::Mat makeGridOfImages(const std::vector<cv::Mat>& images, int cols,
+// Tile the specified list of images into a large image, for
+// visualization. static cv::Mat makeGridOfImages(const std::vector<cv::Mat>& images, int cols,
                                 int min_gap_size, int width = 0,
                                 int height = 0) {
   // let's first find out the maximum dimensions

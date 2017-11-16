@@ -51,6 +51,11 @@ def resizeAndPad(img, size, padColor=0):
   return scaled_img
 
 def generateColorMap(img, minVal=None, maxVal=None, colorMapType = cv2.COLORMAP_HOT):
+  ''' 
+  Takes a single-channel opencv input image and some optional ranges
+  and returns an RGB image that visualizes it with a more easily
+  visually readable color map.
+  '''
   if len(img.shape) > 2 and img.shape[2] != 1:
     print("Not sure how to generate color maps for more than 1 channel images...")
 
@@ -68,6 +73,13 @@ def generateColorMap(img, minVal=None, maxVal=None, colorMapType = cv2.COLORMAP_
   return cv2.applyColorMap(img_rescaled.astype(np.uint8), colorMapType)
 
 def generateGridOfImages(image_list, cols, min_gap_size, width=None, height=None):
+  ''' 
+  Given a list of opencv images, returns a larger single opencv
+  image that includes all of the input images arranged in
+  a grid of the specified # of columns, separated by a minimum gap.
+
+  Images might be scaled down to fit the regular grid.
+  '''
   max_width = 0
   max_height = 0
   for image in image_list:
