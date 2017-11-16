@@ -2,11 +2,6 @@ cmake_minimum_required(VERSION 2.8.3)
 project(perception_sandbox)
 set(CMAKE_CXX_STANDARD 11)
 
-find_package(drake CONFIG REQUIRED)
-find_package(Eigen3 3.3.3 REQUIRED)
-find_package(PCL CONFIG REQUIRED)
-
-find_package(OpenCV REQUIRED)
 find_package(gflags REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -44,11 +39,17 @@ target_link_libraries(opencv_view_node
 include_directories(${CMAKE_INSTALL_PREFIX}/include)
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
+# While this library relies on PCL and OpenCV, they are brought in
+# by catkin_LIBRARIES. I think this finds the ROS-supplied (system installed)
+# OpenCV and PCL. In the current configuration, these are close enough that
+# this doesn't pose an issue. If you want to involve Drake in a node
+# like this down the road, see
+# https://github.com/RobotLocomotion/drake-shambhala/issues/38
+# for some ideas of how to resolve the Eigen compatibility issues you'll have.
 add_executable(pointcloud2_capture_node src/pointcloud2_capture_node.cpp)
 target_include_directories(pointcloud2_capture_node SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
 target_link_libraries(pointcloud2_capture_node
    ${catkin_LIBRARIES}
-   ${OpenCV_LIBRARIES}
    ${gflags_LIBRARIES}
 )
 
@@ -62,7 +63,7 @@ target_link_libraries(pointcloud2_capture_node
 #  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 ## Mark executables and/or libraries for installation
-install(TARGETS opencv_view_node pointcloud2_capture_node object_fitting_node
+install(TARGETS opencv_view_node pointcloud2_capture_node
    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

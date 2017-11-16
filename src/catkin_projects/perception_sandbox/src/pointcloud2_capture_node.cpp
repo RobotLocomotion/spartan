@@ -14,13 +14,14 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <sensor_msgs/PointCloud2.h>
 
 // OpenCV utilities for viz
 #include <opencv2/core/eigen.hpp>
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/opencv.hpp"
+
+#include <sensor_msgs/PointCloud2.h>
 
 #include "common_utils/cv_utils.h"
 #include "common_utils/pcl_utils.h"
@@ -196,12 +197,11 @@ int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   ros::init(argc, argv, "pointcloud2_capture_node");
   Grabber gr;
-  while (1) {
+  while (ros::ok()) {
     // Wait 33 ms (~30hz update rate) and watch for keystrokes
     char k = cv::waitKey(33);
     gr.Update(k);
     ros::spinOnce();
   }
-  cv::destroyAllWindows();
   return 0;
 }
