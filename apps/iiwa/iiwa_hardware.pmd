@@ -51,13 +51,6 @@ group "2.iiwa-drivers" {
   }
 }
 
-group "3.schunk-driver" {
-  cmd "0.schunk-driver" {
-    exec = "schunk_driver -gripper_addr 192.170.10.20";
-    host = "localhost";
-  }
-}
-
 cmd "4.director" {
   exec = "kuka_iiwa_app";
   host = "localhost";
