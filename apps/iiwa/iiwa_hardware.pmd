@@ -139,6 +139,11 @@ group "8.ROS" {
     host = "localhost";
   }
 
+  cmd "8.schunk_driver" {
+    exec = "roslaunch ros-schunk-driver wsg50_driver.launch gripper_address:=192.170.10.20";
+    host = "localhost";
+  }
+
 }
 
 script "1.robot_startup" {
