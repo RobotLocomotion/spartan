@@ -51,13 +51,6 @@ group "2.iiwa-drivers" {
   }
 }
 
-group "3.schunk-driver" {
-  cmd "0.schunk-driver" {
-    exec = "schunk_driver -gripper_addr 192.170.10.20";
-    host = "localhost";
-  }
-}
-
 cmd "4.director" {
   exec = "kuka_iiwa_app";
   host = "localhost";
@@ -136,6 +129,11 @@ group "8.ROS" {
 
   cmd "7.ROS-OpenNI" {
     exec = "roslaunch camera_config openni2.launch camera_serial_number:=1112170110";
+    host = "localhost";
+  }
+
+  cmd "8.schunk_driver" {
+    exec = "roslaunch ros-schunk-driver wsg50_driver.launch gripper_address:=192.170.10.20";
     host = "localhost";
   }
 

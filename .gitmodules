@@ -16,3 +16,6 @@
 [submodule "src/catkin_projects/spartan_grasp_msgs"]
 	path = src/catkin_projects/spartan_grasp_msgs
 	url = git@github.com:manuelli/spartan_grasp_msgs.git
+[submodule "src/catkin_projects/drake-schunk-driver"]
+	path = src/catkin_projects/drake-schunk-driver
+	url = https://github.com/RobotLocomotion/drake-schunk-driver.git

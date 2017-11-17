@@ -1,0 +1,59 @@
+# ROS
+import rospy
+
+# ROS custom
+import wsg50_msgs.msg
+
+# spartan
+import spartan.utils.ros_utils as rosUtils
+
+
+
+
+class SchunkDriver(object):
+
+	def __init__(self, commandTopic="/schunk_driver/schunk_wsg_command", statusTopic="/schunk_driver/schunk_wsg_status"):
+		self.commandTopic = commandTopic
+		self.statusTopic = statusTopic
+		self.initialize()
+
+	def initialize(self):
+		self.setupDefaultMessages()
+		self.setupSubscribers()
+		self.setupPublishers()
+
+	def setupSubscribers(self):
+		self.statusSubscriber = rosUtils.SimpleSubscriber(self.statusTopic, wsg50_msgs.msg.WSG_50_state)
+		self.statusSubscriber.start()
+
+	def setupPublishers(self):
+		self.commandPublisher = rospy.Publisher(self.commandTopic, wsg50_msgs.msg.WSG_50_command, queue_size=1)
+
+
+	def setupDefaultMessages(self):
+		self.openGripperMsg = wsg50_msgs.msg.WSG_50_command()
+		self.openGripperMsg.position_mm = 100
+		self.openGripperMsg.force = 40
+
+		self.closeGripperMsg = wsg50_msgs.msg.WSG_50_command()
+		self.closeGripperMsg.position_mm = 0
+		self.closeGripperMsg.force = 40
+
+	def sendOpenGripperCommand(self):
+		self.openGripperMsg.header.stamp = rospy.Time.now()
+		self.commandPublisher.publish(self.openGripperMsg)
+
+
+	def sendCloseGripperCommand(self):
+		self.closeGripperMsg.header.stamp = rospy.Time.now()
+		self.commandPublisher.publish(self.closeGripperMsg)
+
+
+	def sendGripperCommand(self, position, force):
+		msg = wsg50_msgs.msg.WSG_50_command()
+		msg.header.stamp = rospy.Time.now()
+		msg.position_mm = position
+		msg.force = force
+		self.commandPublisher.publish(msg)
+
+
