@@ -35,6 +35,8 @@ from PythonQt import QtCore, QtGui
 import drake as lcmdrake
 import bot_core as lcmbotcore
 
+from spartan.manipulation.director_schunk_driver import DirectorSchunkDriver
+
 
 def setTagToWorld(pos, rpy):
     global tagToWorld
@@ -168,6 +170,10 @@ def gripperClose():
     sendGripperCommand(0, 40)
 
 
+
+schunkDriver = DirectorSchunkDriver()
+
+
 def onOpenTaskPanel():
     taskPanel.widget.show()
     taskPanel.widget.raise_()
@@ -182,8 +188,8 @@ def onFitCamera():
 
 def setupToolBar():
     toolBar = applogic.findToolBar('Main Toolbar')
-    app.addToolBarAction(toolBar, 'Gripper Open', icon='', callback=gripperOpen)
-    app.addToolBarAction(toolBar, 'Gripper Close', icon='', callback=gripperClose)
+    app.addToolBarAction(toolBar, 'Gripper Open', icon='', callback=schunkDriver.sendOpenGripperCommand)
+    app.addToolBarAction(toolBar, 'Gripper Close', icon='', callback=schunkDriver.sendCloseGripperCommand)
     app.addToolBarAction(toolBar, 'Task Panel', icon='', callback=onOpenTaskPanel)
     app.addToolBarAction(toolBar, 'Fit Camera', icon='', callback=onFitCamera)
 
