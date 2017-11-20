@@ -15,4 +15,8 @@ apt install --no-install-recommends \
   libopenni-dev \
   apt-utils \
   usbutils \
-  dialog
+  dialog \
+  python-pip
+
+# Dependencies of trimesh
+pip install numpy scipy pyassimp
