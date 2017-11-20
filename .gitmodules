@@ -18,4 +18,4 @@
 	url = git@github.com:manuelli/spartan_grasp_msgs.git
 [submodule "src/catkin_projects/drake-schunk-driver"]
 	path = src/catkin_projects/drake-schunk-driver
-	url = https://github.com/RobotLocomotion/drake-schunk-driver.git
+	url = git@github.com:RobotLocomotion/drake-schunk-driver.git
