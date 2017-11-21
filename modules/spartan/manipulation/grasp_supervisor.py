@@ -53,6 +53,7 @@ class GraspSupervisor(object):
     def setup(self):
         self.setupSubscribers()
         self.setupTF()
+        self.setupROSActions()
         self.gripperDriver = SchunkDriver()
 
 
@@ -91,6 +92,22 @@ class GraspSupervisor(object):
         self.pointCloudSubscriber = rosUtils.SimpleSubscriber(self.pointCloudTopic, sensor_msgs.msg.PointCloud2)
 
         self.pointCloudSubscriber.start()
+
+    def setupROSActions(self):
+
+        actionName = 'spartan_grasp/GenerateGraspsFromPointCloudList'
+        self.generate_grasps_client = actionlib.SimpleActionClient(actionName, spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListAction)
+        self.generate_grasps_client.wait_for_server()
+
+        # goal = spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListGoal(pointCloudListMsg)
+        # client.send_goal(goal)
+        # client.wait_for_result()
+
+        # result = client.get_result()
+        # print "num scored_grasps = ", len(result.scored_grasps)
+
+        # print "result ", result
+
 
     def setupTF(self):
         self.tfBuffer = tf2_ros.Buffer()
@@ -147,30 +164,39 @@ class GraspSupervisor(object):
             pointCloudListMsg.point_cloud_list.append(pointCloudWithTransformMsg)
             data[poseName] = pointCloudWithTransformMsg
 
-
-        self.moveHome()
         self.sensorData = data
         self.pointCloudListMsg = pointCloudListMsg
         return pointCloudListMsg
 
-    def requestGrasp(self, pointCloudListMsg):
-
-    	rospy.loginfo("requesting grasp from spartan_grasp")
-
-        serviceName = 'spartan_grasp/GenerateGraspsFromPointCloudList'
-        rospy.wait_for_service(serviceName)
-        s = rospy.ServiceProxy(serviceName, spartan_grasp_msgs.srv.GenerateGraspsFromPointCloudList)
-        response = s(pointCloudListMsg)
-
-        print "num scored_grasps = ", len(response.scored_grasps)
-        if len(response.scored_grasps) == 0:
-        	rospy.loginfo("no valid grasps found")
-        	return False
+    def processGenerateGraspsResult(self, result):
+        print "num scored_grasps = ", len(result.scored_grasps)
+        if len(result.scored_grasps) == 0:
+            rospy.loginfo("no valid grasps found")
+            return False
 
         self.topGrasp = response.scored_grasps[0]
         rospy.loginfo("-------- top grasp score = %.3f", self.topGrasp.score)
         self.graspFrame = spartanUtils.transformFromROSPoseMsg(self.topGrasp.pose.pose)
         self.rotateGraspFrameToAlignWithNominal(self.graspFrame)
+
+    # def requestGrasp(self, pointCloudListMsg):
+
+    # 	rospy.loginfo("requesting grasp from spartan_grasp")
+
+    #     serviceName = 'spartan_grasp/GenerateGraspsFromPointCloudList'
+    #     rospy.wait_for_service(serviceName)
+    #     s = rospy.ServiceProxy(serviceName, spartan_grasp_msgs.srv.GenerateGraspsFromPointCloudList)
+    #     response = s(pointCloudListMsg)
+
+    #     print "num scored_grasps = ", len(response.scored_grasps)
+    #     if len(response.scored_grasps) == 0:
+    #     	rospy.loginfo("no valid grasps found")
+    #     	return False
+
+    #     self.topGrasp = response.scored_grasps[0]
+    #     rospy.loginfo("-------- top grasp score = %.3f", self.topGrasp.score)
+    #     self.graspFrame = spartanUtils.transformFromROSPoseMsg(self.topGrasp.pose.pose)
+    #     self.rotateGraspFrameToAlignWithNominal(self.graspFrame)
 
     def getIiwaLinkEEFrameFromGraspFrame(self, graspFrame):
     	return transformUtils.concatenateTransforms([self.iiwaLinkEEToGraspFrame, graspFrame])
@@ -291,8 +317,20 @@ class GraspSupervisor(object):
 
     def testInThread(self):
         self.collectSensorData()
-        self.requestGrasp(self.pointCloudListMsg)
-        print "test finished"
+
+        # request the grasp via a ROS Action
+        goal = spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListGoal(pointCloudListMsg)
+        self.generate_grasps_client.send_goal(goal)
+
+        # while the grasp is processing moveHome
+        self.moveHome()
+
+        self.generate_grasps_client.wait_for_result()
+        result = self.generate_grasps_client.get_result()
+
+        self.processGenerateGraspsResult(result)
+        
+        print "testInThread returning"
 
     def testMoveHome(self):
    		self.taskRunner.callOnThread(self.moveHome)
