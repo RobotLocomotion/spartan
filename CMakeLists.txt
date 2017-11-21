@@ -263,8 +263,8 @@ if (WITH_TRIMESH)
     ExternalProject_Add(trimesh
       SOURCE_DIR ${build_dir}/externals/trimesh
       CONFIGURE_COMMAND ""
-      #GIT_REPOSITORY "${TRIMESH_GIT_REPOSITORY}"
-      #GIT_TAG "${TRIMESH_GIT_TAG}"
+      GIT_REPOSITORY "${TRIMESH_GIT_REPOSITORY}"
+      GIT_TAG "${TRIMESH_GIT_TAG}"
       BUILD_ALWAYS 1
       BUILD_COMMAND python setup.py build
       INSTALL_COMMAND cp -r ${build_dir}/externals/trimesh/build/lib.linux-x86_64-2.7/trimesh ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/

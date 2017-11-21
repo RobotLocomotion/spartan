@@ -18,5 +18,7 @@ apt install --no-install-recommends \
   dialog \
   python-pip
 
+pip install -U pip setuptools
+
 # Dependencies of trimesh
 pip install numpy scipy pyassimp pyglet
