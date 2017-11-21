@@ -24,7 +24,7 @@ import sys
 import trimesh
 from trimesh.io.urdf import *
 
-def do_convex_decomposition_to_urdf(obj_filename, obj_mass, output_directory, do_visualization=False, scale=1.0, **kwargs):
+def do_convex_decomposition_to_urdf(obj_filename, obj_mass, output_directory, do_visualization=False, scale=1.0, color=[0.75, 0.75, 0.75], **kwargs):
   mesh = trimesh.load(obj_filename)
   mesh.apply_scale(scale) # applies physical property scaling
   
@@ -33,8 +33,7 @@ def do_convex_decomposition_to_urdf(obj_filename, obj_mass, output_directory, do
     mesh.show()
 
   mesh.density = obj_mass / mesh.volume
-  decomposed_mesh = export_urdf(mesh, output_directory, **kwargs)
-  
+  decomposed_mesh = export_urdf(mesh, output_directory, color=color, **kwargs)
 
   print("Input mesh had ", len(mesh.faces), " faces and ", len(mesh.vertices), " verts")
   print("Output mesh has ", len(decomposed_mesh.faces), " faces and ", len(decomposed_mesh.vertices), " verts")
