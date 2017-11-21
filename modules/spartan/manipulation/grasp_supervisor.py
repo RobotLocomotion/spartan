@@ -16,6 +16,7 @@ import spartan_grasp_msgs.srv
 # spartan
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
+from spartan.manipulation.schunk_driver import SchunkDriver
 
 # director
 from director import transformUtils
@@ -45,14 +46,21 @@ class GraspSupervisor(object):
 
         if USING_DIRECTOR:
             self.taskRunner = TaskRunner()
-            self.taskRunner.callOnThread(self.setupSubscribers)
-            self.taskRunner.callOnThread(self.setupTF)
+            self.taskRunner.callOnThread(self.setup)
         else:
-            self.setupSubscribers()
-            self.setupTF()
+            self.setup()
+
+    def setup(self):
+        self.setupSubscribers()
+        self.setupTF()
+        self.gripperDriver = SchunkDriver()
+
 
     def setupConfig(self):
         self.config = dict()
+        self.config['base_frame_id'] = "base"
+        self.config['end_effector_frame_id'] = "iiwa_link_ee"
+        self.config['pick_up_distance'] = 0.15 # distance to move above the table after grabbing the object
         self.config['scan'] = dict()
         self.config['scan']['pose_list'] = ['scan_left', 'scan_right']
         self.config['scan']['joint_speed'] = 60
@@ -90,10 +98,10 @@ class GraspSupervisor(object):
 
 
     def getDepthOpticalFrameToGraspFrameTransform(self):
-        depthOpticalFrameToBase = self.tfBuffer.lookup_transform(self.graspFrameName, self.depthOpticalFrameName, rospy.Time(0))
+        depthOpticalFrameToGraspFrame = self.tfBuffer.lookup_transform(self.graspFrameName, self.depthOpticalFrameName, rospy.Time(0))
 
-        print depthOpticalFrameToBase
-        return depthOpticalFrameToBase
+        print depthOpticalFrameToGraspFrame
+        return depthOpticalFrameToGraspFrame
 
 
     """
@@ -170,25 +178,69 @@ class GraspSupervisor(object):
         # print "response ", response
 
     def moveToFrame(self, graspFrame):
-    	iiwaLinkEEFrame = self.getIiwaLinkEEFrameFromGraspFrame(graspFrame)
-    	poseDict = spartanUtils.poseFromTransform(iiwaLinkEEFrame)
-    	poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
-    	poseStamped = geometry_msgs.msg.PoseStamped()
-    	poseStamped.pose = poseMsg
-    	poseStamped.header.frame_id = "base"
+    	self.poseStamped = self.makePoseStampedFromGraspFrame(graspFrame)
+    	return self.robotService.moveToCartesianPosition(poseStamped, self.config['grasp_speed'])
 
-    	self.poseStamped = poseStamped
-    	self.robotService.moveToCartesianPosition(poseStamped, self.config['grasp_speed'])
+    """
+    Make PoseStamped message from a given grasp frame
+    """
+    def makePoseStampedFromGraspFrame(self, graspFrame):
+        iiwaLinkEEFrame = self.getIiwaLinkEEFrameFromGraspFrame(graspFrame)
+        poseDict = spartanUtils.poseFromTransform(iiwaLinkEEFrame)
+        poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
+        poseStamped = geometry_msgs.msg.PoseStamped()
+        poseStamped.pose = poseMsg
+        poseStamped.header.frame_id = "base"
 
-    def moveToGraspFrame(self, graspFrame):
+        return poseStamped
+
+
+    """
+    Attempt a grasp
+    return: boolean if it was successful or not
+    """
+    def attemptGrasp(self, graspFrame):
+
     	preGraspFrame = transformUtils.concatenateTransforms([self.preGraspToGraspTransform, self.graspFrame])
-    	vis.updateFrame(preGraspFrame, 'pre grasp frame', scale=0.15)
-    	vis.updateFrame(graspFrame, 'grasp frame', scale=0.15)
+
+        preGrasp_ik_response = self.robotService.runIK(self.makePoseStampedFromGraspFrame(preGraspFrame))
+        grasp_ik_response = self.robotService.runIK(self.makePoseStampedFromGraspFrame(graspFrame))
+
+        if not (preGrasp_ik_response.success and grasp_ik_response.success):
+            rospy.loginfo("grasp pose not reachable, returning")
+            return
 
 
     	self.moveToFrame(preGraspFrame)
-    	# rospy.sleep(1.0)
     	self.moveToFrame(graspFrame)
+        objectInGripper = self.gripperDriver.closeGripper()
+
+        return objectInGripper
+
+
+    def vtkFrameToPoseMsg(self, vtkFrame):
+        poseDict = spartanUtils.poseFromTransform(vtkFrame)
+        poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
+        poseStamped = geometry_msgs.msg.PoseStamped()
+        poseStamped.pose = poseMsg
+        poseStamped.header.frame_id = "base"
+
+        return poseStamped
+
+    """
+    Moves the gripper up 15cm then moves home
+    """
+    def pickupObject(self):
+        endEffectorFrame = self.tfBuffer.lookup_transform(self.config['base_frame_id'], self.config['end_effector_frame_id'], rospy.Time(0))
+
+        eeFrameVtk = rosUtils.transformFromROSPoseMsg(endEffectorFrame)
+        eeFrameVtk.TranslateZ(self.config['pick_up_distance'])
+
+        
+        poseStamped = self.vtkFrameToPoseMsg(eeFrameVtk)
+        self.robotService.moveToFrame(poseStamped)
+        self.moveHome()
+        
 
 
     def testMoveToFrame(self):
@@ -251,8 +303,7 @@ class GraspSupervisor(object):
     def testMoveToGrasp(self):
     	self.taskRunner.callOnThread(self.moveToGraspFrame, self.graspFrame)
 
-   	
-
+   
 
     @staticmethod
     def makeDefault():
