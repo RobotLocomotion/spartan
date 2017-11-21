@@ -26,9 +26,20 @@ from trimesh.io.urdf import *
 
 def do_convex_decomposition_to_urdf(obj_filename, obj_mass, output_directory, do_visualization=False, **kwargs):
   mesh = trimesh.load(obj_filename)
+  
+  if (do_visualization):
+    print("\n\nShowing input mesh...")
+    mesh.show()
+
   mesh.density = obj_mass / mesh.volume
   decomposed_mesh = export_urdf(mesh, output_directory, **kwargs)
+  
+
+  print("Input mesh had ", len(mesh.faces), " faces and ", len(mesh.vertices), " verts")
+  print("Output mesh has ", len(decomposed_mesh.faces), " faces and ", len(decomposed_mesh.vertices), " verts")
+
   if (do_visualization):
+    print("\n\nShowing output mesh...")
     decomposed_mesh.show()
 
 if __name__ == "__main__":
