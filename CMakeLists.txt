@@ -256,7 +256,7 @@ if (WITH_TRIMESH)
     endif()
 
     SET(TRIMESH_GIT_REPOSITORY git@github.com:gizatt/trimesh.git)
-    SET(TRIMESH_GIT_TAG aa5e411a9a8a371b67bba7dc93ab0af206d31b77)
+    SET(TRIMESH_GIT_TAG cd2763b2d404f731106f784adb0b056f4d7ef16f)
     # Installs our customized version of trimesh
     # to the project's site-packages build folder.
     # I use the setup.py to run the build step,
@@ -269,7 +269,7 @@ if (WITH_TRIMESH)
       GIT_TAG "${TRIMESH_GIT_TAG}"
       BUILD_ALWAYS 1
       BUILD_COMMAND python setup.py build
-      INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages && ${CP} -r ${build_dir}/externals/trimesh/build/lib.linux-x86_64-2.7/trimesh ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/trimesh
+      INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages && ${CP} -r ${build_dir}/externals/trimesh/build/lib.linux-x86_64-2.7/trimesh ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/
       BUILD_IN_SOURCE 1
       DEPENDS v-hacd
     )

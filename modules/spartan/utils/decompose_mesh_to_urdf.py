@@ -15,7 +15,7 @@ python -m spartan.utils.decompose_mesh_to_urdf \
 Optional vhacd arguments are currently:
   --maxhulls
   --maxNumVerticesPerCH
-
+  --resolution
 '''
 
 import argparse
@@ -24,11 +24,12 @@ import sys
 import trimesh
 from trimesh.io.urdf import *
 
-def do_convex_decomposition_to_urdf(obj_filename, obj_mass, output_directory, do_visualization=False, **kwargs):
+def do_convex_decomposition_to_urdf(obj_filename, obj_mass, output_directory, do_visualization=False, scale=1.0, **kwargs):
   mesh = trimesh.load(obj_filename)
+  mesh.apply_scale(scale) # applies physical property scaling
   
   if (do_visualization):
-    print("\n\nShowing input mesh...")
+    print("Showing input mesh...")
     mesh.show()
 
   mesh.density = obj_mass / mesh.volume
@@ -39,7 +40,7 @@ def do_convex_decomposition_to_urdf(obj_filename, obj_mass, output_directory, do
   print("Output mesh has ", len(decomposed_mesh.faces), " faces and ", len(decomposed_mesh.vertices), " verts")
 
   if (do_visualization):
-    print("\n\nShowing output mesh...")
+    print("Showing output mesh...")
     decomposed_mesh.show()
 
 if __name__ == "__main__":
@@ -51,16 +52,19 @@ if __name__ == "__main__":
   parser.add_argument('output_directory', help="Output directory for files and urdf.", default="output")
   parser.add_argument('visualize', help="Whether to visualize", default=False, type=bool)
   
+  parser.add_argument('--scale', help="Scale modification for mesh", default=1.0, type=float)
+  
   # VHACD forwarded argumnets
-  vhacd_forwared_args = ["maxhulls", "maxNumVerticesPerCH"]
+  forwarded_args = ["maxhulls", "maxNumVerticesPerCH", "resolution"]
   parser.add_argument('--maxhulls', help="Maximum convex hulls to produce (default is no limit)", default=None, type=int)
   parser.add_argument('--maxNumVerticesPerCH', help="Maximum vertices per convex hull (default 64, range 4-1024)", default=None, type=int)
+  parser.add_argument('--resolution', help="Max # voxels generated during voxelization stage (default 100,000, range 10,000-16,000,000)", default=None, type=int)
 
   args = parser.parse_args()
 
-  vhacd_forwarded_arg_vals = {}
-  for arg in vhacd_forwared_args:
+  forwarded_args_vals = {}
+  for arg in forwarded_args:
     if getattr(args, arg) is not None:
-      vhacd_forwarded_arg_vals[arg] = getattr(args, arg)
+      forwarded_args_vals[arg] = getattr(args, arg)
 
-  do_convex_decomposition_to_urdf(args.filename, args.mass, args.output_directory, args.visualize, **vhacd_forwarded_arg_vals)
+  do_convex_decomposition_to_urdf(args.filename, args.mass, args.output_directory, do_visualization=args.visualize, scale=args.scale, **forwarded_args_vals)
