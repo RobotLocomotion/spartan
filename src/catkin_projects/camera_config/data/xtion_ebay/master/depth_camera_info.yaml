@@ -1,21 +1,7 @@
-image_width: 640
-image_height: 480
-camera_name: xtion_depth
-camera_matrix:
-  rows: 3
-  cols: 3
-  data: [579.8841178988965, 0, 321.4783752863867, 0, 580.3855301843198, 246.005051147932,
- 0, 0, 1]
-distortion_model: plumb_bob
-distortion_coefficients:
-  rows: 1
-  cols: 5
-  data: [-0.04857082958307014, 0.3144954677233067, 0.003203594856593854, -0.001713622714935763, -0.7198255591919602]
-rectification_matrix:
-  rows: 3
-  cols: 3
-  data: [1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000]
-projection_matrix:
-  rows: 3
-  cols: 4
-  data: [579.8841178988965, 0, 321.4783752863867, 0, 0, 580.3855301843198, 246.005051147932, 0, 0, 0, 1, 0]
+{camera_matrix: {cols: 3, data: [575.316007005019, 0.0, 326.77691546540444, 0.0, 602.0902619738325,
+      224.41595407716383, 0.0, 0.0, 1.0], rows: 3}, camera_name: xtion_rgb, distortion_coefficients: {
+    cols: 5, data: [0, 0, 0, 0, 0], rows: 1}, distortion_model: plumb_bob, image_height: 480,
+  image_width: 640, projection_matrix: {cols: 4, data: [575.316007005019, 0.0, 326.77691546540444,
+      0.0, 0.0, 602.0902619738325, 224.41595407716383, 0.0, 0.0, 0.0, 1.0, 0.0], rows: 3},
+  rectification_matrix: {cols: 3, data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+    rows: 3}}

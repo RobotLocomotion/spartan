@@ -6,31 +6,31 @@ header:
 
 depth:
   extrinsics:
-    reference_link_name: 'base' # link which this transform is specified relative to
+    reference_link_name: base
     transform_to_reference_link:
-      translation:
-        x: 1.36331233e+00
-        y: -2.15321456e-02
-        z: 5.23678347e-01
       rotation:
-        x: 5.77520385e-01
-        y: 5.21189340e-01
-        z: -3.97735140e-01
-        w: -4.86455173e-01
+        w: -0.39919203345377724
+        x: 0.6033004118384376
+        y: 0.5860901286191782
+        z: -0.3649283417847469
+      translation:
+        x: 1.687256466287316
+        y: -0.09094102278142373
+        z: 0.7347078178758198
+
 
     # we don't specify anything for RegionOfInterest, just leave it at default values
 
 rgb:
   extrinsics:
-    reference_link_name: 'base' # link which this transform is specified relative to
+    reference_link_name: base
     transform_to_reference_link:
-      translation:
-        x: 1.36331233e+00
-        y: -2.15321456e-02
-        z: 5.23678347e-01
       rotation:
-        x: 5.77520385e-01
-        y: 5.21189340e-01
-        z: -3.97735140e-01
-        w: -4.86455173e-01
-  
+        w: -0.4410907809141786
+        x: 0.581352830560122
+        y: 0.5589545368315936
+        z: -0.39374818748488616
+      translation:
+        x: 1.6047099956559965
+        y: -0.025030869365005006
+        z: 0.5788953092504118
