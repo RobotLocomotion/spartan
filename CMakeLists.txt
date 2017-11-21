@@ -31,6 +31,7 @@ option(WITH_ROS "Build the catkin-workspace projects." OFF)
 option(WITH_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 option(WITH_TRIMESH "Build trimesh, a python utility for working with triangle meshes" OFF)
 
+
 # Setup external projects
 include(ExternalProject)
 set_property(DIRECTORY PROPERTY EP_PREFIX ${CMAKE_BINARY_DIR})
@@ -60,6 +61,7 @@ set(CMAKE_ARGS_FOR_EXTERNALS
   -DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}
 )
 
+find_program(CP cp)
 find_program(BAZEL bazel)
 if(NOT BAZEL)
   message(FATAL_ERROR "Could NOT find bazel executable")
@@ -247,7 +249,7 @@ if (WITH_TRIMESH)
         BUILD_ALWAYS 1
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""
-        INSTALL_COMMAND cp ${build_dir}/externals/v-hacd/bin/linux/testVHACD ${CMAKE_INSTALL_PREFIX}/bin
+        INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/bin/ && ${CP} ${build_dir}/externals/v-hacd/bin/linux/testVHACD ${CMAKE_INSTALL_PREFIX}/bin/testVHACD
       )
     else()
       message(FATAL_ERROR "Not using linux, don't know how to install v-hacd.")
@@ -267,7 +269,7 @@ if (WITH_TRIMESH)
       GIT_TAG "${TRIMESH_GIT_TAG}"
       BUILD_ALWAYS 1
       BUILD_COMMAND python setup.py build
-      INSTALL_COMMAND cp -r ${build_dir}/externals/trimesh/build/lib.linux-x86_64-2.7/trimesh ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/
+      INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages && ${CP} -r ${build_dir}/externals/trimesh/build/lib.linux-x86_64-2.7/trimesh ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/trimesh
       BUILD_IN_SOURCE 1
       DEPENDS v-hacd
     )
@@ -325,7 +327,6 @@ endif()
 
 if (WITH_SCHUNK_DRIVER)
 
-  find_program(CP cp)
   ExternalProject_Add(drake-schunk-driver
     SOURCE_DIR ${build_dir}/externals/drake-schunk-driver
     GIT_REPOSITORY git@github.com:RobotLocomotion/drake-schunk-driver.git
@@ -336,8 +337,8 @@ if (WITH_SCHUNK_DRIVER)
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" build //...
     INSTALL_COMMAND
-      "${CP}" ${build_dir}/externals/drake-schunk-driver/bazel-bin/src/schunk_driver ${build_dir}/install/bin/ &&
-      chmod ug+w ${build_dir}/install/bin/schunk_driver
+      mkdir -p ${build_dir}/install/bin/ && "${CP}" ${build_dir}/externals/drake-schunk-driver/bazel-bin/src/schunk_driver ${CMAKE_INSTALL_PREFIX}/bin/schunk_driver &&
+      chmod ug+w ${CMAKE_INSTALL_PREFIX}/bin/schunk_driver
     DEPENDS drake
   )
 
