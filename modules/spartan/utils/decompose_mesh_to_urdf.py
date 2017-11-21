@@ -1,3 +1,22 @@
+'''
+
+Uses v-hacd (https://github.com/kmammou/v-hacd)
+wrapped by trimesh (https://github.com/mikedh/trimesh)
+to perform convex decomposition of a supplied mesh, and
+write the results to a set of .obj meshes, plus a URDF
+binding them all together into a single rigid body.
+
+Invocation:
+
+python -m spartan.utils.decompose_mesh_to_urdf \
+  <input mesh> <input mesh mass> <output directory name>
+  <whether to visualize?> <optional vhacd arguments>
+
+Optional vhacd arguments are currently:
+  --maxhulls
+  --maxNumVerticesPerCH
+
+'''
 
 import argparse
 import sys
