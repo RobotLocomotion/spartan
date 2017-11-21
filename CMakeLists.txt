@@ -254,7 +254,7 @@ if (WITH_TRIMESH)
     endif()
 
     SET(TRIMESH_GIT_REPOSITORY git@github.com:gizatt/trimesh.git)
-    SET(TRIMESH_GIT_TAG b991f6ec29252272d38cfb33af927adf7681a66e)
+    SET(TRIMESH_GIT_TAG aa5e411a9a8a371b67bba7dc93ab0af206d31b77)
     # Installs our customized version of trimesh
     # to the project's site-packages build folder.
     # I use the setup.py to run the build step,
@@ -263,8 +263,8 @@ if (WITH_TRIMESH)
     ExternalProject_Add(trimesh
       SOURCE_DIR ${build_dir}/externals/trimesh
       CONFIGURE_COMMAND ""
-      GIT_REPOSITORY "${TRIMESH_GIT_REPOSITORY}"
-      GIT_TAG "${TRIMESH_GIT_TAG}"
+      #GIT_REPOSITORY "${TRIMESH_GIT_REPOSITORY}"
+      #GIT_TAG "${TRIMESH_GIT_TAG}"
       BUILD_ALWAYS 1
       BUILD_COMMAND python setup.py build
       INSTALL_COMMAND cp -r ${build_dir}/externals/trimesh/build/lib.linux-x86_64-2.7/trimesh ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/
