@@ -117,7 +117,7 @@ class RobotService(object):
         rospy.loginfo("ik was successful, moving to joint position")
         return self.moveToJointPosition(joint_state.position, maxJointDegreesPerSecond=maxJointDegreesPerSecond)
 
-    def runIK(poseStamped):
+    def runIK(self, poseStamped):
         ikServiceName = 'robot_control/IkService'
         rospy.wait_for_service(ikServiceName)
         s = rospy.ServiceProxy(ikServiceName, robot_msgs.srv.RunIK)
