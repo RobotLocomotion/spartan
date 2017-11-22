@@ -19,3 +19,9 @@
 [submodule "src/catkin_projects/drake-schunk-driver"]
 	path = src/catkin_projects/drake-schunk-driver
 	url = https://github.com/RobotLocomotion/drake-schunk-driver.git
+[submodule "modules/spartan/--force"]
+	path = modules/spartan/--force
+	url = git@github.com:manuelli/mcubeUROP.git
+[submodule "modules/spartan/mcubeUROP"]
+	path = modules/spartan/mcubeUROP
+	url = git@github.com:manuelli/mcubeUROP.git
