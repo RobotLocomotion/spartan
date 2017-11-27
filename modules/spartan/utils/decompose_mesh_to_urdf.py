@@ -21,8 +21,15 @@ Optional vhacd arguments are currently:
 import argparse
 import sys
 
-import trimesh
-from trimesh.io.urdf import *
+try:
+  import trimesh
+  from trimesh.io.urdf import *
+except Exception as e:
+  print("Exception: ", e)
+  print("ERROR: This script is not supported without WITH_TRIMESH enabled")
+  print("\tin the top-level CMake build, or without trimesh otherwise")
+  print("\tavailable system-wide.")
+  exit(-1)
 
 def do_convex_decomposition_to_urdf(obj_filename, obj_mass, output_directory, do_visualization=False, scale=1.0, color=[0.75, 0.75, 0.75], **kwargs):
   mesh = trimesh.load(obj_filename)
