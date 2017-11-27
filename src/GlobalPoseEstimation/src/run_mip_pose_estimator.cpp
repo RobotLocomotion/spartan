@@ -13,8 +13,10 @@
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 
-#include "common/common.hpp"
-#include "common/common_vtk.hpp"
+#include "common_utils/math_utils.h"
+#include "common_utils/pcl_utils.h"
+#include "common_utils/system_utils.h"
+#include "common_utils/vtk_utils.h"
 #include "yaml-cpp/yaml.h"
 
 #include <pcl/io/pcd_io.h>

@@ -14,12 +14,11 @@ comparing them to the template model's ppf.
 #include <string>
 #include <typeinfo>
 
-#include "common/common.hpp"
-#include "common/common_pcl.hpp"
-#include "common/common_pcl_vtk.hpp"
-#include "common/common_rtv.hpp"
-#include "common/common_vtk.hpp"
-#include "eigen_histogram.hpp"
+#include "common_utils/math_utils.h"
+#include "common_utils/pcl_utils.h"
+#include "common_utils/pcl_vtk_utils.h"
+#include "common_utils/vtk_utils.h"
+#include "common_utils/eigen_histogram.h"
 #include "point_pair_features.hpp"
 #include "yaml-cpp/yaml.h"
 

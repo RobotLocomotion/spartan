@@ -1,7 +1,7 @@
 /*
  */
 
-#include "common/common.hpp"
+#include "common_utils/system_utils.h"
 
 #include "drake/common/eigen_types.h"
 #include "drake/multibody/parsers/urdf_parser.h"

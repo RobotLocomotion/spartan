@@ -15,4 +15,5 @@ apt install --no-install-recommends \
   libopenni-dev \
   apt-utils \
   usbutils \
-  dialog
+  dialog \
+  libcfitsio-dev

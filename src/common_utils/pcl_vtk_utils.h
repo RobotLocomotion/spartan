@@ -25,12 +25,12 @@
 #include <vtkSmartPointer.h>
 #include <vtksys/SystemTools.hxx>
 
-#include "common_pcl.hpp"
-#include "common_vtk.hpp"
+#include "pcl_utils.h"
+#include "vtk_utils.h"
 
 //----------------------------------------------------------------------------
-static vtkSmartPointer<vtkPolyData>
-PolyDataFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr cloud) {
+static vtkSmartPointer<vtkPolyData> PolyDataFromPointCloud(
+    pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr cloud) {
   vtkIdType nr_points = cloud->points.size();
 
   vtkNew<vtkPoints> points;
@@ -52,7 +52,7 @@ PolyDataFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr cloud) {
       rgbArray->SetTupleValue(i, color);
     }
   } else {
-    vtkIdType j = 0; // true point index
+    vtkIdType j = 0;  // true point index
     for (vtkIdType i = 0; i < nr_points; ++i) {
       // Check if the point is invalid
       if (!pcl_isfinite(cloud->points[i].x) ||
@@ -80,8 +80,8 @@ PolyDataFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr cloud) {
   return polyData;
 }
 
-static vtkSmartPointer<vtkPolyData>
-PolyDataFromPointCloud(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
+static vtkSmartPointer<vtkPolyData> PolyDataFromPointCloud(
+    pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
   vtkIdType nr_points = cloud->points.size();
 
   vtkNew<vtkPoints> points;
@@ -95,7 +95,7 @@ PolyDataFromPointCloud(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
       points->SetPoint(i, point);
     }
   } else {
-    vtkIdType j = 0; // true point index
+    vtkIdType j = 0;  // true point index
     for (vtkIdType i = 0; i < nr_points; ++i) {
       // Check if the point is invalid
       if (!pcl_isfinite(cloud->points[i].x) ||
@@ -119,8 +119,8 @@ PolyDataFromPointCloud(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
 }
 
 //----------------------------------------------------------------------------
-static pcl::PointCloud<pcl::PointXYZ>::Ptr
-PointCloudFromPolyData(vtkPolyData *polyData) {
+static pcl::PointCloud<pcl::PointXYZ>::Ptr PointCloudFromPolyData(
+    vtkPolyData *polyData) {
   const vtkIdType numberOfPoints = polyData->GetNumberOfPoints();
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -159,8 +159,8 @@ PointCloudFromPolyData(vtkPolyData *polyData) {
 }
 
 //----------------------------------------------------------------------------
-static pcl::PointCloud<pcl::PointNormal>::Ptr
-PointCloudFromPolyDataWithNormals(vtkPolyData *polyData) {
+static pcl::PointCloud<pcl::PointNormal>::Ptr PointCloudFromPolyDataWithNormals(
+    vtkPolyData *polyData) {
   const vtkIdType numberOfPoints = polyData->GetNumberOfPoints();
 
   pcl::PointCloud<pcl::PointNormal>::Ptr cloud(
@@ -228,47 +228,53 @@ PointCloudFromPolyDataWithNormals(vtkPolyData *polyData) {
   return cloud;
 }
 
-static Eigen::Matrix<double, 6, -1>
-LoadMatrixWithVTKWithNormals(const std::string filename) {
-    // Load in the scene cloud
+static Eigen::Matrix<double, 6, -1> LoadMatrixWithVTKWithNormals(
+    const std::string filename) {
+  // Load in the scene cloud
   vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(filename.c_str());
-  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << filename << endl;
+  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from "
+       << filename << endl;
 
-  pcl::PointCloud<pcl::PointNormal>::Ptr sceneCloud(new pcl::PointCloud<pcl::PointNormal>());
+  pcl::PointCloud<pcl::PointNormal>::Ptr sceneCloud(
+      new pcl::PointCloud<pcl::PointNormal>());
   if (cloudPolyData->GetPointData()->GetNormals()) {
     sceneCloud = PointCloudFromPolyDataWithNormals(cloudPolyData);
   } else {
     printf("No normals available in input scene file... generating own.\n");
     printf("Note: it's possible that VTK just isn't loading your normals!\n");
-    printf("The STL reader is known not to read normals. Try using meshlab to convert to OBJ.\n");
+    printf(
+        "The STL reader is known not to read normals. Try using meshlab to "
+        "convert to OBJ.\n");
     printf("Regenerate your vertex normals while you're at it :)\n");
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr sceneCloudWithoutNormals =
         PointCloudFromPolyData(cloudPolyData);
 
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-    ne.setInputCloud (sceneCloudWithoutNormals);
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
-    ne.setSearchMethod (tree);
-    pcl::PointCloud<pcl::Normal>::Ptr sceneCloudNormals (new pcl::PointCloud<pcl::Normal>);
-    ne.setRadiusSearch (0.03);
-    ne.setViewPoint (0.0, 0.0, 0.0);
+    ne.setInputCloud(sceneCloudWithoutNormals);
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(
+        new pcl::search::KdTree<pcl::PointXYZ>());
+    ne.setSearchMethod(tree);
+    pcl::PointCloud<pcl::Normal>::Ptr sceneCloudNormals(
+        new pcl::PointCloud<pcl::Normal>);
+    ne.setRadiusSearch(0.03);
+    ne.setViewPoint(0.0, 0.0, 0.0);
     // Compute the features
-    ne.compute (*sceneCloudNormals);
+    ne.compute(*sceneCloudNormals);
 
     assert(sceneCloudWithoutNormals->size() == sceneCloudNormals->size());
     sceneCloud->points.resize(sceneCloudWithoutNormals->size());
     printf("Merging clouds...\n");
     for (size_t i = 0; i < sceneCloud->points.size(); i++) {
-        sceneCloud->points[i].x = sceneCloudWithoutNormals->points[i].x;
-        sceneCloud->points[i].y = sceneCloudWithoutNormals->points[i].y;
-        sceneCloud->points[i].z = sceneCloudWithoutNormals->points[i].z;
-        sceneCloud->points[i].normal_x = sceneCloudNormals->points[i].normal_x;
-        sceneCloud->points[i].normal_y = sceneCloudNormals->points[i].normal_y;
-        sceneCloud->points[i].normal_z = sceneCloudNormals->points[i].normal_z;
+      sceneCloud->points[i].x = sceneCloudWithoutNormals->points[i].x;
+      sceneCloud->points[i].y = sceneCloudWithoutNormals->points[i].y;
+      sceneCloud->points[i].z = sceneCloudWithoutNormals->points[i].z;
+      sceneCloud->points[i].normal_x = sceneCloudNormals->points[i].normal_x;
+      sceneCloud->points[i].normal_y = sceneCloudNormals->points[i].normal_y;
+      sceneCloud->points[i].normal_z = sceneCloudNormals->points[i].normal_z;
     }
   }
   printf("Done and loaded.\n");
 
-  return convertPCLPointNormalToMatrix6Xd(sceneCloud);
+  return convertPclPointXyzNormalEtcToMatrix6Xd<pcl::PointNormal>(sceneCloud);
 }

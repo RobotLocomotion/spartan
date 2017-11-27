@@ -27,10 +27,11 @@ set(HEADERS
 	math_utils.h
 	system_utils.h
 	pcl_utils.h
+	pcl_vtk_utils.h
 	vtk_utils.h)
 
 install(FILES ${HEADERS}
 	DESTINATION include/common_utils)
 
-install(TARGETS eigen_histogram DESTINATION lib)
+install(TARGETS eigen_nd_array eigen_histogram DESTINATION lib)
 install(TARGETS test_eigen_histogram DESTINATION bin)

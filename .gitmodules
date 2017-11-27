@@ -16,6 +16,6 @@
 [submodule "src/catkin_projects/drake-schunk-driver"]
 	path = src/catkin_projects/drake-schunk-driver
 	url = git@github.com:RobotLocomotion/drake-schunk-driver.git
-[submodule "Super4PCS"]
-        path = src/GlobalPoseEstimation/src/Super4PCS
-        url = https://github.com/gizatt/Super4PCS
+[submodule "src/GlobalPoseEstimation/src/Super4PCS"]
+	path = src/GlobalPoseEstimation/src/Super4PCS
+	url = git@github.com:gizatt/Super4PCS

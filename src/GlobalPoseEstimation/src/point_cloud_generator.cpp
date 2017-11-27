@@ -12,7 +12,7 @@
 #include "drake/multibody/rigid_body_tree.h"
 
 #include "yaml-cpp/yaml.h"
-#include "common/common.hpp"
+#include "common_utils/math_utils.h"
 
 #include "RemoteTreeViewerWrapper.hpp"
 

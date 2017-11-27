@@ -3,8 +3,9 @@
 #include <libgen.h>
 
 #include "yaml-cpp/yaml.h"
-#include "common/common.hpp"
-#include "common/common_vtk.hpp"
+#include "common_utils/math_utils.h"
+#include "common_utils/system_utils.h"
+#include "common_utils/vtk_utils.h"
 
 #include "point_cloud_generator.hpp"
 #include "RemoteTreeViewerWrapper.hpp"

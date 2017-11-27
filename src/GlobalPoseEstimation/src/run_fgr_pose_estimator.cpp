@@ -2,28 +2,28 @@
 /*
  */
 
-#include <string>
-#include <stdexcept>
+#include <unistd.h>
 #include <iostream>
 #include <random>
-#include <unistd.h>
+#include <stdexcept>
+#include <string>
 #include <typeinfo>
 
 #include "drake/math/rotation_matrix.h"
-#include "drake/multibody/rigid_body_tree.h"
 #include "drake/multibody/parsers/urdf_parser.h"
+#include "drake/multibody/rigid_body_tree.h"
 
-#include "common/common.hpp"
-#include "common/common_pcl.hpp"
-#include "common/common_rtv.hpp"
-#include "common/common_vtk.hpp"
+#include "common_utils/math_utils.h"
+#include "common_utils/pcl_utils.h"
+#include "common_utils/pcl_vtk_utils.h"
+#include "common_utils/system_utils.h"
+#include "common_utils/vtk_utils.h"
 #include "yaml-cpp/yaml.h"
 
-#include <pcl/point_types.h>
 #include <pcl/features/fpfh_omp.h>
 #include <pcl/features/normal_3d_omp.h>
+#include <pcl/point_types.h>
 
-#include <vtkSmartPointer.h>
 #include <vtkActor.h>
 #include <vtkDoubleArray.h>
 #include <vtkPointData.h>
@@ -33,10 +33,12 @@
 #include <vtkPolyDataPointSampler.h>
 #include <vtkProperty.h>
 #include <vtkSmartPointer.h>
+#include <vtkSmartPointer.h>
 #include <vtksys/SystemTools.hxx>
 
-#include "RemoteTreeViewerWrapper.hpp"
 #include "FastGlobalRegistration/app.h"
+#include "RemoteTreeViewerWrapper.hpp"
+#include "common/common_rtv.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -45,8 +47,10 @@ using namespace drake::parsers::urdf;
 int main(int argc, char** argv) {
   srand(0);
 
-  if (argc < 3){
-    printf("Use: run_fgr_pose_estimator <scene cloud, vtp> <model cloud, vtp> <config file> <optional output_file>\n");
+  if (argc < 3) {
+    printf(
+        "Use: run_fgr_pose_estimator <scene cloud, vtp> <model cloud, vtp> "
+        "<config file> <optional output_file>\n");
     exit(-1);
   }
 
@@ -55,22 +59,21 @@ int main(int argc, char** argv) {
   string configFile = string(argv[3]);
   string outputFile = argc > 3 ? string(argv[4]) : "";
 
-  time_t _tm =time(NULL );
-  struct tm * curtime = localtime ( &_tm );
+  time_t _tm = time(NULL);
+  struct tm* curtime = localtime(&_tm);
   cout << "***************************" << endl;
   cout << "***************************" << endl;
   cout << "Fast Global Registration Object Pose Estimator" << asctime(curtime);
   cout << "Scene file " << sceneFile << endl;
   cout << "Model file " << modelFile << endl;
   cout << "Config file " << configFile << endl;
-  if (argc > 3)
-    cout << "Output file " << outputFile << endl;
+  if (argc > 3) cout << "Output file " << outputFile << endl;
   cout << "***************************" << endl << endl;
 
   // Bring in config file
   YAML::Node config = YAML::LoadFile(configFile);
 
-  if (config["detector_options"] == NULL){
+  if (config["detector_options"] == NULL) {
     runtime_error("Need detector options.");
   }
 
@@ -78,9 +81,10 @@ int main(int argc, char** argv) {
 
   // Read in the model.
   vtkSmartPointer<vtkPolyData> modelPolyData = ReadPolyData(modelFile.c_str());
-  cout << "Loaded " << modelPolyData->GetNumberOfPoints() << " points from " << modelFile << endl;
+  cout << "Loaded " << modelPolyData->GetNumberOfPoints() << " points from "
+       << modelFile << endl;
   Matrix3Xd model_pts(3, modelPolyData->GetNumberOfPoints());
-  for (int i=0; i<modelPolyData->GetNumberOfPoints(); i++){
+  for (int i = 0; i < modelPolyData->GetNumberOfPoints(); i++) {
     model_pts(0, i) = modelPolyData->GetPoint(i)[0];
     model_pts(1, i) = modelPolyData->GetPoint(i)[1];
     model_pts(2, i) = modelPolyData->GetPoint(i)[2];
@@ -88,9 +92,10 @@ int main(int argc, char** argv) {
 
   // Load in the scene cloud
   vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(sceneFile.c_str());
-  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from " << sceneFile << endl;
+  cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from "
+       << sceneFile << endl;
   Matrix3Xd scene_pts(3, cloudPolyData->GetNumberOfPoints());
-  for (int i=0; i<cloudPolyData->GetNumberOfPoints(); i++){
+  for (int i = 0; i < cloudPolyData->GetNumberOfPoints(); i++) {
     scene_pts(0, i) = cloudPolyData->GetPoint(i)[0];
     scene_pts(1, i) = cloudPolyData->GetPoint(i)[1];
     scene_pts(2, i) = cloudPolyData->GetPoint(i)[2];
@@ -99,12 +104,15 @@ int main(int argc, char** argv) {
   // Visualize the scene points and GT, to start with.
   RemoteTreeViewerWrapper rm;
   // Publish the scene cloud
-  //rm.publishPointCloud(scene_pts_in, {"scene_pts_loaded"}, {{0.1, 1.0, 0.1}});
-  rm.publishPointCloud(scene_pts, {"fgr", "scene_pts_downsampled"}, {{0.1, 1.0, 1.0}});
-  //rm.publishPointCloud(model_pts_in, {"model_pts"}, {{0.1, 1.0, 1.0}});
-  rm.publishPointCloud(model_pts, {"fgr", "model_pts_downsampled"}, {{0.1, 1.0, 1.0}});
-  //rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.0, 0.2), {"robot_gt"});
-
+  // rm.publishPointCloud(scene_pts_in, {"scene_pts_loaded"}, {{0.1, 1.0,
+  // 0.1}});
+  rm.publishPointCloud(scene_pts, {"fgr", "scene_pts_downsampled"},
+                       {{0.1, 1.0, 1.0}});
+  // rm.publishPointCloud(model_pts_in, {"model_pts"}, {{0.1, 1.0, 1.0}});
+  rm.publishPointCloud(model_pts, {"fgr", "model_pts_downsampled"},
+                       {{0.1, 1.0, 1.0}});
+  // rm.publishRigidBodyTree(robot, q_robot, Vector4d(1.0, 0.6, 0.0, 0.2),
+  // {"robot_gt"});
 
   // Load in the FGR estimator and its options.
   CApp fgr_app;
@@ -126,33 +134,40 @@ int main(int argc, char** argv) {
     interpoint_scale = fgr_config["interpoint_scale"].as<double>();
   double feature_radius_multiplier = 10.0;
   if (fgr_config["feature_radius_multiplier"])
-    feature_radius_multiplier = fgr_config["feature_radius_multiplier"].as<double>();
+    feature_radius_multiplier =
+        fgr_config["feature_radius_multiplier"].as<double>();
 
   cout << "Generating features and matching..." << endl;
   clock_t clockBegin = clock();
-  
-  auto model_info = generatePointsAndFPFHFeaturesFromPoints(model_pts, {"fgr", "model"}, true, true, interpoint_scale, feature_radius_multiplier);
-  auto scene_info = generatePointsAndFPFHFeaturesFromPoints(scene_pts, {"fgr", "scene"}, false, true, interpoint_scale, feature_radius_multiplier);
 
+  auto model_info = generatePointsAndFPFHFeaturesFromPoints(
+      model_pts, {"fgr", "model"}, true, true, interpoint_scale,
+      feature_radius_multiplier);
+  auto scene_info = generatePointsAndFPFHFeaturesFromPoints(
+      scene_pts, {"fgr", "scene"}, false, true, interpoint_scale,
+      feature_radius_multiplier);
 
-  printf("Adding %lu model points and %lu model features\n", model_info.first.size(), model_info.second.size());
-  fgr_app.LoadFeature(model_info.first, model_info.second); 
+  printf("Adding %lu model points and %lu model features\n",
+         model_info.first.size(), model_info.second.size());
+  fgr_app.LoadFeature(model_info.first, model_info.second);
 
-  printf("Adding %lu scene points and %lu scene features\n", scene_info.first.size(), scene_info.second.size());
+  printf("Adding %lu scene points and %lu scene features\n",
+         scene_info.first.size(), scene_info.second.size());
   fgr_app.LoadFeature(scene_info.first, scene_info.second);
 
   fgr_app.NormalizePoints();
   fgr_app.AdvancedMatching();
   fgr_app.OptimizePairwise(true, fgr_app.iteration_number_);
-  
+
   clock_t clockEnd = clock();
-  double time = (double)(clockEnd - clockBegin)/CLOCKS_PER_SEC;
+  double time = (double)(clockEnd - clockBegin) / CLOCKS_PER_SEC;
   cout << "Finished in " << time << endl;
   Affine3d est_tf;
   est_tf.matrix() = fgr_app.GetTrans().cast<double>();
- // est_tf = est_tf.inverse();
+  // est_tf = est_tf.inverse();
 
-  // Publish the transformed scene point cloud (I'm transforming the scene because
+  // Publish the transformed scene point cloud (I'm transforming the scene
+  // because
   // the model is usually better centered )
   cout << "Est tf " << est_tf.matrix() << endl;
   cout << "Est tf inv" << est_tf.inverse().matrix() << endl;
@@ -161,11 +176,13 @@ int main(int argc, char** argv) {
 
   VectorXd q_out(7);
   q_out.block<3, 1>(0, 0) = est_tf.inverse().translation();
-  q_out.block<4, 1>(3, 0) = drake::math::rotmat2quat(est_tf.inverse().rotation());
-  
-  if (argc > 3){
+  q_out.block<4, 1>(3, 0) =
+      drake::math::rotmat2quat(est_tf.inverse().rotation());
+
+  if (argc > 3) {
     YAML::Emitter out;
-    out << YAML::BeginMap; {
+    out << YAML::BeginMap;
+    {
       out << YAML::Key << "scene";
       out << YAML::Value << sceneFile;
 
@@ -173,27 +190,38 @@ int main(int argc, char** argv) {
       out << YAML::Value << config;
 
       out << YAML::Key << "solutions";
-      out << YAML::BeginSeq; {
-        out << YAML::BeginMap; {
+      out << YAML::BeginSeq;
+      {
+        out << YAML::BeginMap;
+        {
           out << YAML::Key << "models";
-          out << YAML::Value << YAML::BeginSeq; {
-              out << YAML::BeginMap; {
-                out << YAML::Key << "model";
-                out << YAML::Value << modelFile;
-                out << YAML::Key << "q";
-                out << YAML::Value << YAML::Flow << vector<double>(q_out.data(), q_out.data() + q_out.rows());
-              } out << YAML::EndMap;
-          } out << YAML::EndSeq;
+          out << YAML::Value << YAML::BeginSeq;
+          {
+            out << YAML::BeginMap;
+            {
+              out << YAML::Key << "model";
+              out << YAML::Value << modelFile;
+              out << YAML::Key << "q";
+              out << YAML::Value << YAML::Flow
+                  << vector<double>(q_out.data(), q_out.data() + q_out.rows());
+            }
+            out << YAML::EndMap;
+          }
+          out << YAML::EndSeq;
 
           out << YAML::Key << "history";
-          out << YAML::Value << YAML::BeginMap; {
+          out << YAML::Value << YAML::BeginMap;
+          {
             out << YAML::Key << "wall_time";
             out << YAML::Value << YAML::Flow << time;
-          } out << YAML::EndMap;
-
-        } out << YAML::EndMap;
-      } out << YAML::EndSeq;
-    } out << YAML::EndMap;
+          }
+          out << YAML::EndMap;
+        }
+        out << YAML::EndMap;
+      }
+      out << YAML::EndSeq;
+    }
+    out << YAML::EndMap;
 
     ofstream fout(outputFile);
     fout << out.c_str();
