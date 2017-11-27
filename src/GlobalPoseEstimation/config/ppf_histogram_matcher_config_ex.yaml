@@ -1,0 +1,13 @@
+# PPF generation parameters
+max_distance: 0.3
+n_bins_d_n1: 10
+n_bins_d_n2: 10
+n_bins_distance: 10
+n_bins_n1_n2: 10
+n_features_model: 10000
+n_features_scene_cell: 10000
+
+# Stepsize in each dimension
+step_size: 0.1
+minimum_pts_in_cell: 100
+

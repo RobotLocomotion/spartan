@@ -10,12 +10,12 @@
 [submodule "src/ObjectDetection/data"]
 	path = src/ObjectDetection/data
 	url = https://github.com/gizatt/object_detection_test_data
-[submodule "src/LabelFusion"]
-	path = src/LabelFusion
-	url = https://github.com/RobotLocomotion/LabelFusion.git
 [submodule "src/catkin_projects/spartan_grasp_msgs"]
 	path = src/catkin_projects/spartan_grasp_msgs
 	url = git@github.com:manuelli/spartan_grasp_msgs.git
 [submodule "src/catkin_projects/drake-schunk-driver"]
 	path = src/catkin_projects/drake-schunk-driver
 	url = git@github.com:RobotLocomotion/drake-schunk-driver.git
+[submodule "Super4PCS"]
+        path = src/GlobalPoseEstimation/src/Super4PCS
+        url = https://github.com/gizatt/Super4PCS

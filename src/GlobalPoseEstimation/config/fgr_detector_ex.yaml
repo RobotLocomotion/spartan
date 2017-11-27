@@ -1,0 +1,17 @@
+detector_options:
+    # Division factor used for graduated non-convexity
+    div_factor: 1.4  
+    # Measure distance in absolute scale (1) or in scale relative to the diameter of the model (0)
+    use_absolute_scale: false
+    # Maximum correspondence distance (also see comment of USE_ABSOLUTE_SCALE)
+    max_corr_dist: 0.002
+    # Maximum number of iteration
+    iteration_number: 10000
+    # Similarity measure used for tuples of feature points.
+    tuple_scale: 0.9                     
+    # Maximum tuple numbers.
+    tuple_max_cnt: 1000        
+    # guess of interpoint scale in the input cloud
+    interpoint_scale: 0.008    
+    # width multiplier for feature extraction
+    feature_radius_multiplier: 2

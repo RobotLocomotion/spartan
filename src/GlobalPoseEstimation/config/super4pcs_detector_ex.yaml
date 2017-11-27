@@ -1,0 +1,25 @@
+detector_options:
+  # The delta for the LCP (see the paper).
+  delta: 0.001
+  # Estimated overlap between P and Q. This is the fraction of points in P that
+  # may have corresponding point in Q. It's being used to estimate the number
+  # of RANSAC iterations needed to guarantee small failure probability.
+  overlap_estimation: 0.3
+  # Maximum normal difference.
+  max_normal_difference: .inf
+  # Maximum translation distance.
+  max_translation_distance: .inf
+  # Maximum rotation angle.
+  max_angle: .inf
+  # Maximum color RGB distance between corresponding vertices.
+  max_color_distance: .inf
+  # Threshold on the value of the target function (LCP, see the paper).
+  # It is used to terminate the process once we reached this value.
+  terminate_threshold: 1.0
+  # The number of points in the sample. We sample this number of points
+  # uniformly from P and Q.
+  sample_size: 500
+  # Maximum time we allow the computation to take. This makes the algorithm
+  # an ANY TIME algorithm that can be stopped at any time, producing the best
+  # solution so far.
+  max_time_seconds: 300

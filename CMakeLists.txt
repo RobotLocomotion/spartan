@@ -30,6 +30,10 @@ option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
 option(WITH_ROS "Build the catkin-workspace projects." OFF)
 option(WITH_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 
+option(BUILD_GYGES "Build the GYGES external project" OFF)
+option(WITH_GLOBAL_POSE_ESTIMATION "Build the global pose estimation stack." OFF)
+option(USE_SYSTEM_VTK "Use system VTK for drake and director." OFF)
+
 # Setup external projects
 include(ExternalProject)
 set_property(DIRECTORY PROPERTY EP_PREFIX ${CMAKE_BINARY_DIR})
@@ -229,16 +233,18 @@ if (WITH_REACHABILITY_ANALYZER)
   )
 endif()
 
-if (OFF)
-  ExternalProject_Add(ObjectDetection
-    SOURCE_DIR ${source_dir}/src/ObjectDetection
-    BINARY_DIR ${build_dir}/ObjectDetection
+if (WITH_GLOBAL_POSE_ESTIMATION)
+  ExternalProject_Add(GlobalPoseEstimation
+    SOURCE_DIR ${source_dir}/src/GlobalPoseEstimation
+    BINARY_DIR ${build_dir}/GlobalPoseEstimation
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       ${CMAKE_ARGS_FOR_EXTERNALS}
-    DEPENDS director RemoteTreeViewer
+    DEPENDS drake director RemoteTreeViewer
   )
 
+  add_test(test_pose_estimation_methods 
+    directorPython ${CMAKE_SOURCE_DIR}/src/GlobalPoseEstimation/scripts/demoPoseEstimationMethods.py)
 endif()
 
 if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
