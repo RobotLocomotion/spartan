@@ -4,7 +4,7 @@ rm -rf build
 mkdir build
 cd build
 
-cmake -DWITH_PERCEPTION:BOOL=ON ..
+cmake -DWITH_PERCEPTION:BOOL=ON -DWITH_TRIMESH:BOOL=ON ..
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code in CMake: " $exit_status

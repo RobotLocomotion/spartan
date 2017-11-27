@@ -29,6 +29,8 @@ option(WITH_IIWA_DRIVER_TRI "Build drake-iiwa-driver, TRI version." OFF)
 option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
 option(WITH_ROS "Build the catkin-workspace projects." OFF)
 option(WITH_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
+option(WITH_TRIMESH "Build trimesh, a python utility for working with triangle meshes" OFF)
+
 
 # Setup external projects
 include(ExternalProject)
@@ -59,6 +61,7 @@ set(CMAKE_ARGS_FOR_EXTERNALS
   -DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}
 )
 
+find_program(CP cp)
 find_program(BAZEL bazel)
 if(NOT BAZEL)
   message(FATAL_ERROR "Could NOT find bazel executable")
@@ -229,6 +232,49 @@ if (WITH_REACHABILITY_ANALYZER)
   )
 endif()
 
+if (WITH_TRIMESH)
+    find_package(PythonInterp REQUIRED)
+
+    # Grab and copy in the v-hacd executable
+    # (which is precompiled for ubuntu 16.04
+    # on this branch)
+    if (UNIX AND NOT APPLE)
+      SET(VHACD_GIT_REPOSITORY git@github.com:mikedh/v-hacd-1.git)
+      SET(VHACD_GIT_TAG e3acd8637397fab37423c734c6a980d7031d772f)
+      ExternalProject_Add(v-hacd
+        SOURCE_DIR ${build_dir}/externals/v-hacd
+        BINARY_DIR ${build_dir}/v-hacd
+        GIT_REPOSITORY "${VHACD_GIT_REPOSITORY}"
+        GIT_TAG "${VHACD_GIT_TAG}"
+        BUILD_ALWAYS 1
+        CONFIGURE_COMMAND ""
+        BUILD_COMMAND ""
+        INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/bin/ && ${CP} ${build_dir}/externals/v-hacd/bin/linux/testVHACD ${CMAKE_INSTALL_PREFIX}/bin/testVHACD
+      )
+    else()
+      message(FATAL_ERROR "Not using linux, don't know how to install v-hacd.")
+    endif()
+
+    SET(TRIMESH_GIT_REPOSITORY git@github.com:gizatt/trimesh.git)
+    SET(TRIMESH_GIT_TAG 1f6d10850d5a1f667385f3776d0b9d71df92fac3)
+    # Installs our customized version of trimesh
+    # to the project's site-packages build folder.
+    # I use the setup.py to run the build step,
+    # but do the module installation manually,
+    # as it was giving me trouble...
+    ExternalProject_Add(trimesh
+      SOURCE_DIR ${build_dir}/externals/trimesh
+      CONFIGURE_COMMAND ""
+      GIT_REPOSITORY "${TRIMESH_GIT_REPOSITORY}"
+      GIT_TAG "${TRIMESH_GIT_TAG}"
+      BUILD_ALWAYS 1
+      BUILD_COMMAND python setup.py build
+      INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages && ${CP} -r ${build_dir}/externals/trimesh/build/lib.linux-x86_64-2.7/trimesh ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/
+      BUILD_IN_SOURCE 1
+      DEPENDS v-hacd
+    )
+endif()
+
 if (OFF)
   ExternalProject_Add(ObjectDetection
     SOURCE_DIR ${source_dir}/src/ObjectDetection
@@ -281,7 +327,6 @@ endif()
 
 if (WITH_SCHUNK_DRIVER)
 
-  find_program(CP cp)
   ExternalProject_Add(drake-schunk-driver
     SOURCE_DIR ${build_dir}/externals/drake-schunk-driver
     GIT_REPOSITORY git@github.com:RobotLocomotion/drake-schunk-driver.git
@@ -292,8 +337,8 @@ if (WITH_SCHUNK_DRIVER)
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" build //...
     INSTALL_COMMAND
-      "${CP}" ${build_dir}/externals/drake-schunk-driver/bazel-bin/src/schunk_driver ${build_dir}/install/bin/ &&
-      chmod ug+w ${build_dir}/install/bin/schunk_driver
+      mkdir -p ${build_dir}/install/bin/ && "${CP}" ${build_dir}/externals/drake-schunk-driver/bazel-bin/src/schunk_driver ${CMAKE_INSTALL_PREFIX}/bin/schunk_driver &&
+      chmod ug+w ${CMAKE_INSTALL_PREFIX}/bin/schunk_driver
     DEPENDS drake
   )
 

@@ -15,4 +15,10 @@ apt install --no-install-recommends \
   libopenni-dev \
   apt-utils \
   usbutils \
-  dialog
+  dialog \
+  python-pip
+
+pip install -U pip setuptools
+
+# Dependencies of trimesh
+pip install numpy scipy pyassimp pyglet
