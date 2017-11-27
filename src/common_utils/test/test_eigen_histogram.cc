@@ -1,5 +1,5 @@
-#include "eigen_histogram.hpp"
 #include <iostream>
+#include "../eigen_histogram.h"
 
 using namespace std;
 using namespace Eigen;
@@ -32,8 +32,7 @@ int main() {
   test_histogram_1d.AddData(test_matrix_1d);
 
   cout << "1d: ";
-  for (auto const &c : test_histogram_1d.Serialize())
-    cout << c << ' ';
+  for (auto const &c : test_histogram_1d.Serialize()) cout << c << ' ';
   cout << endl;
 
   Matrix<double, 2, 4> test_matrix_2d;
@@ -50,7 +49,6 @@ int main() {
   test_histogram_2d.AddData(test_matrix_2d);
 
   cout << "2d: ";
-  for (auto const &c : test_histogram_2d.Serialize())
-    cout << c << ' ';
+  for (auto const &c : test_histogram_2d.Serialize()) cout << c << ' ';
   cout << endl;
 }
