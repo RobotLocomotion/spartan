@@ -54,7 +54,8 @@ class IiwaWsgTaskPanel(TaskUserPanel):
     rigid_body_target_name = 'Target rigid body'
     rigid_body_base_name = 'Base rigid body'
     rigid_body_base_none = '(none)'
-    place_target_name = 'Place target'
+    place_target_name = 'Start location'
+    place_offset_name = 'Place offset'
 
     def __init__(self, robotSystem, optitrack_vis):
         TaskUserPanel.__init__(self, windowTitle='Task Panel')
@@ -90,16 +91,26 @@ class IiwaWsgTaskPanel(TaskUserPanel):
         self.optitrack_vis = optitrack_vis
 
         self.params.addProperty(
-            'Frame 1', [0.8, 0.36, 0.27, 0., 0., 0.],
+            'Frame 1', [0.6, 0.0, 0.27, 0., 90., 0.],
             attributes=propertyset.PropertyAttributes(singleStep=0.01))
         self.params.addProperty(
-            'Frame 2', [0.8, -0.36, 0.27, 0., 0., 0.],
+            'Frame 2', [0.6, -0.36, 0.27, 0., 90., 0.],
             attributes=propertyset.PropertyAttributes(singleStep=0.01))
 
         self.params.addProperty(
             self.place_target_name, 0,
             attributes=propertyset.PropertyAttributes(
                 enumNames=['Frame 1', 'Frame 2']))
+
+        self.place_offsets = {
+            "Target Offset 1": (0, -0.36, 0.0),
+            "Target Offset 2": (0, 0.36, 0.0),
+            }
+        self.params.addProperty(
+            self.place_offset_name, 0,
+            attributes=propertyset.PropertyAttributes(
+                enumNames=list(self.place_offsets.keys())))
+
         self.addTasks()
 
     def rigidBodyListChanged(self, body_list):
@@ -208,9 +219,13 @@ class IiwaWsgTaskPanel(TaskUserPanel):
                 raise Exception('Infeasible task')
 
     def addGraspFrameFromProperty(self, name=None, use_grasped=False,
-                                  offset=(0, 0, 0)):
+                                  offset=None):
         if name is None:
             name = self.params.getPropertyEnumValue(self.place_target_name)
+
+        if offset is None:
+            offset_name = self.params.getPropertyEnumValue(self.place_offset_name)
+            offset = self.place_offsets[offset_name]
 
         position = self.params.getProperty(name)
         xyz = [position[i] + offset[i] for i in xrange(0, 3)]
@@ -235,7 +250,8 @@ class IiwaWsgTaskPanel(TaskUserPanel):
         (x_offset, _, _) = getOffsets(dims)
         print "dimensions", dims, "x_offset", x_offset
         self.planner.addBoxGraspFrames(
-            graspOffset=([-x_offset, 0., dims[2]/2.], [0,0,0]))
+            #graspOffset=([-x_offset, 0., dims[2]/2.], [0,0,0]))
+            graspOffset=([-x_offset, 0., 0.], [0,0,0]))
 
     def addPostGrasp(self):
         obj = om.findObjectByName(self.planner.getAffordanceName())
@@ -281,41 +297,43 @@ class IiwaWsgTaskPanel(TaskUserPanel):
             self.folder = old_folder
 
 
-        addFolder('pick and place mocap->frame')
-        addFunc('Target Rigid Body', self.addGraspFrameFromList)
-        # TODO(sam.creasey) Figure out how best to back off here.
-        addFunc('Target Backoff', self.addPostGrasp)
-        addFunc('open gripper', self.planner.openGripper)
-        addPlanAndExecute('plan pregrasp', self.planner.planPreGrasp)
-        addPlanAndExecute('plan grasp', self.planner.planGrasp)
-        addFunc('close gripper', self.planner.closeGripper)
-        addTask(robottasks.DelayTask(name='wait', delayTime=1.0))
-        addPlanAndExecute('plan backoff',
-                          functools.partial(iiwaplanning.planReachGoal,
-                                            goalFrameName='postgrasp to world',
-                                            seedFromStart=True))
-        addFunc('Target Frame',
-                functools.partial(self.addGraspFrameFromProperty, name=None,
-                                  use_grasped=True))
-        addFunc('Target Backoff', self.addPostGrasp)
-        addPlanAndExecute('plan prerelease', self.planner.planPreGrasp)
-        addPlanAndExecute('plan release', self.planner.planGrasp)
-        addFunc('open gripper', self.planner.openGripper)
-        addPlanAndExecute('plan backoff',
-                          functools.partial(iiwaplanning.planReachGoal,
-                                            goalFrameName='postgrasp to world',
-                                            seedFromStart=True))
-
-        # addFolder('pick and place 2->1')
-        # addFunc('Target Frame 2',
-        #         functools.partial(self.addGraspFrameFromProperty, 'Frame 2'))
+        # addFolder('pick and place mocap->frame')
+        # addFunc('Target Rigid Body', self.addGraspFrameFromList)
+        # # TODO(sam.creasey) Figure out how best to back off here.
+        # addFunc('Target Backoff', self.addPostGrasp)
+        # addFunc('open gripper', self.planner.openGripper)
         # addPlanAndExecute('plan pregrasp', self.planner.planPreGrasp)
         # addPlanAndExecute('plan grasp', self.planner.planGrasp)
         # addFunc('close gripper', self.planner.closeGripper)
         # addTask(robottasks.DelayTask(name='wait', delayTime=1.0))
-        # addPlanAndExecute('plan prerelease', self.planner.planPreGrasp)
-        # addFunc('Target Frame 1',
-        #         functools.partial(self.addGraspFrameFromProperty, 'Frame 1'))
+        # addPlanAndExecute('plan backoff',
+        #                   functools.partial(iiwaplanning.planReachGoal,
+        #                                     goalFrameName='postgrasp to world',
+        #                                     seedFromStart=True))
+        # addFunc('Target Frame',
+        #         functools.partial(self.addGraspFrameFromProperty, name=None,
+        #                           use_grasped=True))
+        # addFunc('Target Backoff', self.addPostGrasp)
         # addPlanAndExecute('plan prerelease', self.planner.planPreGrasp)
         # addPlanAndExecute('plan release', self.planner.planGrasp)
         # addFunc('open gripper', self.planner.openGripper)
+        # addPlanAndExecute('plan backoff',
+        #                   functools.partial(iiwaplanning.planReachGoal,
+        #                                     goalFrameName='postgrasp to world',
+        #                                     seedFromStart=True))
+
+        addFolder('pick and place 2->1')
+        addFunc('Push down from start location',
+                functools.partial(self.addGraspFrameFromProperty, use_grasped=False,
+                                  offset=(0,0,0)))
+        addPlanAndExecute('plan pregrasp', self.planner.planPreGrasp)
+        addPlanAndExecute('plan grasp', self.planner.planGrasp)
+        #addFunc('close gripper', self.planner.closeGripper)
+        addTask(robottasks.DelayTask(name='wait', delayTime=1.0))
+        #addPlanAndExecute('plan prerelease', self.planner.planPreGrasp)
+        addFunc('Slide to Target Frame',
+                functools.partial(self.addGraspFrameFromProperty))
+        #addPlanAndExecute('plan prerelease', self.planner.planPreGrasp)
+        addPlanAndExecute('plan release', self.planner.planGrasp)
+        addPlanAndExecute('plan backoff', self.planner.planPreGrasp)
+        #addFunc('open gripper', self.planner.openGripper)

@@ -93,12 +93,13 @@ def planReachGoal(goalFrameName='reach goal', startPose=None, planTraj=True, int
 
     _, _, axisConstraint = ikPlanner.createMoveOnLineConstraints(startPose, goalFrame, graspOffsetFrame)
 
-    axisConstraint.tspan = np.linspace(0,1,10)
+    #axisConstraint.tspan = np.linspace(0,1,10)
 
     isPregrasp = goalFrameName.startswith('pregrasp to world')
     isGrasp = goalFrameName.startswith('grasp to world')
     if isGrasp:
         seedFromStart = True
+        q.tspan = [0.0, 1.0]
 
     # adjust bounds of move on line constraint
     axisConstraintTubeRadius = 0.3 if isPregrasp else 0.001
@@ -483,8 +484,9 @@ def addBoxGraspFrames(graspOffset=None):
     obj = om.findObjectByName('box')
     if graspOffset is None:
         dims = obj.getProperty('Dimensions')
-        graspOffset = ([0.0, 0.0, dims[2]/2.0 - 0.025], [0,0,0])
-    makeGraspFrames(obj, graspOffset, pregraspOffset=(0.0, 0.0, 0.08))
+        graspOffset = ([0.0, 0.0, dims[2]/2.0], [0,0,0])
+        graspOffset = ([0.0, 0.0, 0.0], [0,0,0])
+    makeGraspFrames(obj, graspOffset, pregraspOffset=(-0.08, 0.0, 0.0))
 
 
 def init(robotSystem_):
