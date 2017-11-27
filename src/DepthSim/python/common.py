@@ -6,11 +6,14 @@ from director import transformUtils
 from director import mainwindowapp
 from director import depthscanner
 from director import ioUtils
+from director import filterUtils
 from director import visualization as vis
 import numpy as np
 from director import objectmodel as om
 from director import vtkAll as vtk
 import Image
+import yaml
+import os
 
 class CameraPoses(object):
 
@@ -88,6 +91,17 @@ def encode_normal_rgb(renderer, height, width, pickType='cells', tolerance=0.05)
         pickedNormal = np.array(normals.GetTuple3(pointId))
         return None
 
+def getFirstFrameToWorldTransform(transformsFile):
+    if os.path.isfile(transformsFile):
+        print("using user specified transform")
+        stream = file(transformsFile)
+        transformYaml = yaml.load(stream)
+        pose = transformYaml['firstFrameToWorld']
+        transform = transformUtils.transformFromPose(pose[0], pose[1])
+        return transform
+    else:
+        return vtk.vtkTransform()
+
 def set_up_camera_params(camera):
   #setup camera calibration
   setCameraInstrinsicsAsus(camera)
@@ -99,3 +113,30 @@ def set_up_camera_params(camera):
   camera.SetViewAngle(48.8879)
   kA = kClippingPlaneFar / (kClippingPlaneFar - kClippingPlaneNear)
   kB = -kA * kClippingPlaneNear
+
+class Objects():
+    def __init__(self, path=None, objects_file=None):
+        self.path= path
+        self.objects_file = objects_file
+        self.objects = {} # dict of Actors
+
+    def loadObjectMeshes(self,registrationResultFilename,renderer,mapper_gl=None):
+      stream = file(self.path+registrationResultFilename)
+      registrationResult = yaml.load(stream)
+      firstFrameToWorldTransform = getFirstFrameToWorldTransform(self.path+'/transforms.yaml')
+
+      for objName, data in registrationResult.iteritems():
+          objectMeshFilename = self.objects_file+"/"+data['filename'] 
+          objectToFirstFrame = transformUtils.transformFromPose(data['pose'][0], data['pose'][1])
+          poly = ioUtils.readPolyData(objectMeshFilename)
+          poly = filterUtils.transformPolyData(poly, objectToFirstFrame)
+          mapper = vtk.vtkPolyDataMapper()
+
+          if mapper_gl:#take user defined mapper with shaders
+            mapper = mapper_gl
+            
+          mapper.SetInputData(poly)
+          actor = vtk.vtkActor()
+          actor.SetMapper(mapper)
+          renderer.AddActor(actor)
+          self.objects[objectMeshFilename] = actor

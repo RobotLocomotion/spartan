@@ -16,49 +16,12 @@ import common as common
 
 #TODO:one shading lib for both depth and normal
 def set_shader_input(mapper):
-  '''
-  // Modify the shader to color based on model normal
-  // To do this we have to modify the vertex shader
-  // to pass the normal in model coordinates
-  // through to the fragment shader. By default the normal
-  // is converted to View coordinates and then passed on.
-  // We keep that, but add a varying for the original normal.
-  // Then we modify the fragment shader to set the diffuse color
-  // based on that normal. First lets modify the vertex
-  // shader
-  '''
-  mapper.AddShaderReplacement(
-    vtk.vtkShader.Vertex,
-    "//VTK::Normal::Dec", #// replace the normal block
-    True, #// before the standard replacements
-    "//VTK::Normal::Dec\n" #// we still want the default
-    "  varying vec3 myNormalMCVSOutput;\n", #//but we add this
-    False #// only do it once
-    );
-  mapper.AddShaderReplacement(
-    vtk.vtkShader.Vertex,
-    "//VTK::Normal::Impl", #// replace the normal block
-    True, #// before the standard replacements
-    "//VTK::Normal::Impl\n" #// we still want the default
-    "  myNormalMCVSOutput = normalMC;\n", #//but we add this
-    False #// only do it once
-    );
-  #// now modify the fragment shader
   mapper.AddShaderReplacement(
     vtk.vtkShader.Fragment,  #// in the fragment shader
-    "//VTK::Normal::Dec", #// replace the normal block
+    "//VTK::Light::Impl", #// replace the normal block
     True, #// before the standard replacements
-    "//VTK::Normal::Dec\n" #// we still want the default
-    "  varying vec3 myNormalMCVSOutput;\n", #//but we add this
-    False #// only do it once
-    );
-  mapper.AddShaderReplacement(
-    vtk.vtkShader.Fragment,  #// in the fragment shader
-    "//VTK::Normal::Impl", #// replace the normal block
-    True, #// before the standard replacements
-    "//VTK::Normal::Impl\n" #// we still want the default calc
-    "  diffuseColor = abs(myNormalMCVSOutput);\n", #//but we add this
-    False #// only do it once
+    "fragOutput0 = vec4((normalVCVSOutput.x+1)/2.0,(normalVCVSOutput.y+1)/2.0,(normalVCVSOutput.z+1)/2.0, 1);\n",
+    True #// only do it once
     );
 
 def set_material_prop(actor):
@@ -78,42 +41,53 @@ if __name__ == '__main__':
   data_dir = sys.argv[1]
   num_im = int(sys.argv[2])
   mesh = sys.argv[3]
+  use_mesh = False
 
-  actor = vtk.vtkActor();
-  renderer = vtk.vtkRenderer();
-  mapper = vtk.vtkOpenGLPolyDataMapper()
-  renderer.SetBackground(0.0, 0.0, 0.0);
-  renWin = vtk.vtkRenderWindow();
-  renWin.SetSize(view_height,view_width)
-  renWin.AddRenderer(renderer);
-  renderer.AddActor(actor);
-  iren = vtk.vtkRenderWindowInteractor()
-  iren.SetRenderWindow(renWin);
-  fileReader = vtk.vtkPLYReader()
+  #setup rendering enviornment
+  actor = vtk.vtkActor()
+  renderer = vtk.vtkRenderer()
+  renWin = vtk.vtkRenderWindow()
+  interactor = vtk.vtkRenderWindowInteractor()
+  filter1= vtk.vtkWindowToImageFilter()
   imageWriter = vtk.vtkPNGWriter()
-  fileReader.SetFileName(sys.argv[1]+"/"+sys.argv[3])
-  fileReader.Update();
+  scale =vtk.vtkImageShiftScale()
+  renWin.SetSize(view_height,view_width)
   camera = vtk.vtkCamera()
   renderer.SetActiveCamera(camera);
+  renWin.AddRenderer(renderer);
+  interactor.SetRenderWindow(renWin);
+  #setup camera calibration
+  common.set_up_camera_params(camera)
+  mapper = vtk.vtkPolyDataMapper()
+  #shading
+  #set_material_prop(actor)
+  set_shader_input(mapper)
 
-  norms =vtk.vtkPolyDataNormals()
-  norms.SetInputConnection(fileReader.GetOutputPort());
-  norms.Update();
-  mapper.SetInputConnection(norms.GetOutputPort());
-  actor.SetMapper(mapper);
+  if use_mesh: #use meshed version of scene
+    fileReader = vtk.vtkPLYReader()
+    fileReader.SetFileName(sys.argv[1]+"/"+sys.argv[3])
+    mapper.SetInputConnection(fileReader.GetOutputPort())
+    actor.SetMapper(mapper)
+    renderer.AddActor(actor)
+    norms =vtk.vtkPolyDataNormals()
+    norms.SetInputConnection(fileReader.GetOutputPort());
+    norms.Update();
+    mapper.SetInputConnection(norms.GetOutputPort());
+    actor.SetMapper(mapper);
+
+  else: #import just the objects
+    objects = common.Objects(data_dir,"/home/drc/spartan/Data_objects")
+    objects.loadObjectMeshes("/registration_result.yaml",renderer,mapper)
+
 
   #setup rendering enviornment
   windowToColorBuffer = vtk.vtkWindowToImageFilter()
   windowToColorBuffer.SetInput(renWin)
   windowToColorBuffer.SetInputBufferTypeToRGB()
 
-  
   #setup camera calibration
   common.set_up_camera_params(camera)
 
-  #shading
-  set_material_prop(actor)
-  set_shader_input(mapper)
 
   poses = common.CameraPoses(data_dir+"/posegraph.posegraph")
   for i in range(1,num_im+1):
@@ -130,10 +104,13 @@ if __name__ == '__main__':
       windowToColorBuffer.Modified()
       windowToColorBuffer.Update()
 
+      #update norms
+      mapper.Update()
+
       #write out depth image
       imageWriter.SetFileName(data_dir+"/images/"+str(i).zfill(10)+"normal_ground_truth.png");
       imageWriter.SetInputConnection(windowToColorBuffer.GetOutputPort());
       imageWriter.Write();
   
   renWin.Render();
-  iren.Start();
+  interactor.Start();

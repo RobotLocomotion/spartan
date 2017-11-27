@@ -4,6 +4,7 @@ from director import applogic as app
 from director import consoleapp
 from director import transformUtils
 from director import mainwindowapp
+from director import filterUtils
 from director import depthscanner
 from director import ioUtils
 from director import visualization as vis
@@ -21,28 +22,35 @@ if __name__ == '__main__':
   num_im = int(sys.argv[2])
   mesh = sys.argv[3]
 
+  use_mesh = False
+
   #setup rendering enviornment
-  mapper =vtk.vtkPolyDataMapper()
-  actor =vtk.vtkActor()
-  renderer =vtk.vtkRenderer()
-  renWin =vtk.vtkRenderWindow()
+  actor = vtk.vtkActor()
+  renderer = vtk.vtkRenderer()
+  renWin = vtk.vtkRenderWindow()
   interactor = vtk.vtkRenderWindowInteractor()
-  fileReader = vtk.vtkPLYReader()
   filter1= vtk.vtkWindowToImageFilter()
   imageWriter = vtk.vtkPNGWriter()
   scale =vtk.vtkImageShiftScale()
-  fileReader.SetFileName(sys.argv[1]+"/"+sys.argv[3])
   renWin.SetSize(view_height,view_width)
   camera = vtk.vtkCamera()
   renderer.SetActiveCamera(camera);
-  mapper.SetInputConnection(fileReader.GetOutputPort());
-  actor.SetMapper(mapper);
-  renderer.AddActor(actor);
   renWin.AddRenderer(renderer);
   interactor.SetRenderWindow(renWin);
-  
   #setup camera calibration
   common.set_up_camera_params(camera)
+
+  if use_mesh: #use meshed version of scene
+    mapper = vtk.vtkPolyDataMapper()
+    fileReader = vtk.vtkPLYReader()
+    fileReader.SetFileName(sys.argv[1]+"/"+sys.argv[3])
+    mapper.SetInputConnection(fileReader.GetOutputPort())
+    actor.SetMapper(mapper)
+    renderer.AddActor(actor)
+  else: #import just the objects
+    objects = common.Objects(data_dir,"/home/drc/spartan/Data_objects")
+    objects.loadObjectMeshes("/registration_result.yaml",renderer)
+
 
   #setup filters
   filter1.SetInput(renWin)
@@ -79,10 +87,6 @@ if __name__ == '__main__':
       vtk.vtkDepthImageUtils.DepthBufferToDepthImage(filter1.GetOutput(), windowToColorBuffer.GetOutput(), camera, depthImage, pts, ptColors)
       scale.SetInputData(depthImage)
       scale.Update()
-
-      #encode normals into file
-      #vtk_normal_image = encode_normal_rgb(view,view_height,view_width)
-      #print "rendered normal image at " + str(utime)
 
       #write out depth image
       imageWriter.SetFileName(data_dir+"/images/"+str(i).zfill(10)+"depth_ground_truth.png");
