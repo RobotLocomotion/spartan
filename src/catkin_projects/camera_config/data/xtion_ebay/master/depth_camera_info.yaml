@@ -1,7 +1,55 @@
-{camera_matrix: {cols: 3, data: [575.316007005019, 0.0, 326.77691546540444, 0.0, 602.0902619738325,
-      224.41595407716383, 0.0, 0.0, 1.0], rows: 3}, camera_name: xtion_rgb, distortion_coefficients: {
-    cols: 5, data: [0, 0, 0, 0, 0], rows: 1}, distortion_model: plumb_bob, image_height: 480,
-  image_width: 640, projection_matrix: {cols: 4, data: [575.316007005019, 0.0, 326.77691546540444,
-      0.0, 0.0, 602.0902619738325, 224.41595407716383, 0.0, 0.0, 0.0, 1.0, 0.0], rows: 3},
-  rectification_matrix: {cols: 3, data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-    rows: 3}}
+camera_matrix:
+  cols: 3
+  data:
+  - 568.5079107807052
+  - 0.0
+  - 327.04665730516336
+  - 0.0
+  - 599.7223108028502
+  - 221.34208934368445
+  - 0.0
+  - 0.0
+  - 1.0
+  rows: 3
+camera_name: xtion_rgb
+distortion_coefficients:
+  cols: 5
+  data:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  rows: 1
+distortion_model: plumb_bob
+image_height: 480
+image_width: 640
+projection_matrix:
+  cols: 4
+  data:
+  - 568.5079107807052
+  - 0.0
+  - 327.04665730516336
+  - 0.0
+  - 0.0
+  - 599.7223108028502
+  - 221.34208934368445
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  rows: 3
+rectification_matrix:
+  cols: 3
+  data:
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  rows: 3
