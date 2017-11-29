@@ -17,7 +17,7 @@
 #include "opencv2/opencv.hpp"
 
 #include "KMeansRexCoreInterface.h"
-#include "common_utils/rgbd_camera_driver.h"
+#include "rgbd_camera_driver.h"
 
 using namespace std;
 using namespace cv;

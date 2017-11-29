@@ -295,7 +295,7 @@ if (WITH_PERCEPTION)
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       ${CMAKE_ARGS_FOR_EXTERNALS}
-    DEPENDS drake common_utils
+    DEPENDS drake director RemoteTreeViewer common_utils
   )
 
 endif()

@@ -52,6 +52,14 @@ install(TARGETS gSLICr_lib DESTINATION lib)
 include_directories(${CMAKE_PREFIX_PATH}/include)
 link_directories(${CMAKE_PREFIX_PATH}/lib)
 
+add_library(rgbd_camera_driver rgbd_camera_driver.cc rgbd_camera_driver.h)
+target_link_libraries(rgbd_camera_driver
+    ${drake_LIBRARIES}
+	${OpenCV_LIBS}
+	${PCL_LIBRARIES}
+    ${CVUTILS_LIBRARIES})
+install(TARGETS rgbd_camera_driver DESTINATION lib)
+
 add_executable (superpixel_segmentation superpixel_segmentation.cc)
 target_link_libraries (superpixel_segmentation 
 	gSLICr_lib
