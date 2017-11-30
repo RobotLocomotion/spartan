@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
 import argparse
 import os
@@ -6,7 +7,7 @@ import getpass
 
 if __name__=="__main__":
 
-	print "building docker container . . . "
+	print("building docker container . . . ")
 	user_name = getpass.getuser()
 	default_image_name = user_name + "-spartan"
 
@@ -24,7 +25,7 @@ if __name__=="__main__":
 	parser.add_argument('-gid','--group_id', type=int, help="(optional) user gid for this user", default=os.getgid())
 
 	args = parser.parse_args()
-	print "building docker image named ", args.image
+	print("building docker image named ", args.image)
 	cmd = "docker build --build-arg USER_NAME=%(user_name)s \
 			--build-arg USER_PASSWORD=%(password)s \
 			--build-arg USER_ID=%(user_id)s \
@@ -33,12 +34,12 @@ if __name__=="__main__":
 	cmd += " -t %s -f setup/docker/spartan.dockerfile ." % args.image
 	
 
-	print "command = \n \n", cmd
-	print ""
+	print("command = \n \n", cmd)
+	print("")
 
 	# build the docker image
 	if not args.dry_run:
-		print "executing shell command"
+		print("executing shell command")
 		os.system(cmd)
 	else:
-		print "dry run, not executing command"
+		print("dry run, not executing command")

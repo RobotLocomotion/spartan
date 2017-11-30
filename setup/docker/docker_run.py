@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
 import argparse
 import os
@@ -20,7 +21,7 @@ if __name__=="__main__":
 	parser.add_argument("-p", "--passthrough", type=str, default="", help="(optional) extra string that will be tacked onto the docker run command, allows you to pass extra options. Make sure to put this in quotes and leave a space before the first character")
 
 	args = parser.parse_args()
-	print "running docker container derived from image %s" %args.image
+	print("running docker container derived from image %s" %args.image)
 	source_dir=os.getcwd()
 
 	image_name = args.image
@@ -39,7 +40,7 @@ if __name__=="__main__":
 	# Make Bazel artifact dir if it doesn't exist
 	bazel_artifact_dir = "~/.spartan-docker/%(image_name)s-build" % {'image_name': image_name}
 	mkdir_cmd = "mkdir -p %s" % bazel_artifact_dir
-	print "command = ", mkdir_cmd
+	print("command = ", mkdir_cmd)
 	os.system(mkdir_cmd)
 
 	cmd += " -v %(bazel_artifact_dir)s:%(home_directory)s/.spartan-build " \
@@ -65,12 +66,12 @@ if __name__=="__main__":
 	cmd += args.image
 	cmd_endxhost = "xhost -local:root"
 
-	print "command = \n \n", cmd, "\n", cmd_endxhost
-	print ""
+	print("command = \n \n", cmd, "\n", cmd_endxhost)
+	print("")
 
 	# build the docker image
 	if not args.dry_run:
-		print "executing shell command"
+		print("executing shell command")
 		code = os.system(cmd)
 		print("Executed with code ", code)
 		os.system(cmd_endxhost)
@@ -80,5 +81,5 @@ if __name__=="__main__":
 		# detection
 		exit(code != 0)
 	else:
-		print "dry run, not executing command"
+		print("dry run, not executing command")
 		exit(0)
