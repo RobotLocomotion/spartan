@@ -4,7 +4,7 @@ rm -rf build
 mkdir build
 cd build
 
-cmake -DWITH_PERCEPTION:BOOL=ON -DWITH_TRIMESH:BOOL=ON ..
+cmake -DWITH_PERCEPTION:BOOL=ON -DWITH_TRIMESH:BOOL=ON -DWITH_IIWA_DRIVER_RLG=ON -DWITH_SCHUNK_DRIVER=ON -DWITH_ROS=ON -DWITH_REACHABILITY_ANALYZER=ON ..
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code in CMake: " $exit_status
