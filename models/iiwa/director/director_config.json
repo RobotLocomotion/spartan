@@ -58,10 +58,10 @@
     { "side" : "left",
       "handType" : "left_schunk",
       "handLinkName" : "iiwa_link_ee",
-      "handUrdf" : "../../schunk_wsg50/schunk_description/urdf/wsg/wsg_50.urdf",
-      "handRootLink" : "palm",
-      "robotMountLink" : "palm",
-      "palmLink" : "palm"
+      "handUrdf" : "../../../drake/drake/manipulation/models/wsg_50_description/urdf/wsg_50_mesh_collision.urdf",
+      "handRootLink" : "wsg_50_base_link",
+      "robotMountLink" : "wsg_50_base_link",
+      "palmLink" : "wsg_50_base_link"
     }
   ],
 
