@@ -486,7 +486,7 @@ def addBoxGraspFrames(graspOffset=None):
         dims = obj.getProperty('Dimensions')
         graspOffset = ([0.0, 0.0, dims[2]/2.0], [0,0,0])
         graspOffset = ([0.0, 0.0, 0.0], [0,0,0])
-    makeGraspFrames(obj, graspOffset, pregraspOffset=(-0.08, 0.0, 0.0))
+    makeGraspFrames(obj, graspOffset, pregraspOffset=(-0.18, 0.0, 0.0))
 
 
 def init(robotSystem_):

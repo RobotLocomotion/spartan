@@ -3,11 +3,16 @@ import functools
 import director.objectmodel as om
 from director import propertyset
 from director import transformUtils
+from director import lcmUtils
 from director.tasks import robottasks
 from director.tasks.taskuserpanel import TaskUserPanel
 
 import iiwaplanning
 import myplanner
+
+import drake
+
+import operator
 
 class UpdateGraspTargetTask(robottasks.AsyncTask):
 
@@ -90,21 +95,36 @@ class IiwaWsgTaskPanel(TaskUserPanel):
         optitrack_vis.connectRigidBodyListChanged(self.rigidBodyListChanged)
         self.optitrack_vis = optitrack_vis
 
+# safe values
+#        self.params.addProperty(
+#            'Frame 1', [0.45, 0.0, 0.27, 0., 90., 0.],
+#            attributes=propertyset.PropertyAttributes(singleStep=0.01))
+#        self.params.addProperty(
+#            'Frame 2', [0.6, -0.36, 0.27, 0., 90., 0.],
+#            attributes=propertyset.PropertyAttributes(singleStep=0.01))
+
         self.params.addProperty(
-            'Frame 1', [0.6, 0.0, 0.27, 0., 90., 0.],
+            'Smush', [0.44, 0.0, 0.17, 0., 90., 0.],
             attributes=propertyset.PropertyAttributes(singleStep=0.01))
         self.params.addProperty(
-            'Frame 2', [0.6, -0.36, 0.27, 0., 90., 0.],
+            'Fist Bump', [0.44, 0.0, 0.27, 0., 0., 0.],
             attributes=propertyset.PropertyAttributes(singleStep=0.01))
 
         self.params.addProperty(
             self.place_target_name, 0,
             attributes=propertyset.PropertyAttributes(
-                enumNames=['Frame 1', 'Frame 2']))
-
+                enumNames=['Smush', 'Fist Bump']))
         self.place_offsets = {
-            "Target Offset 1": (0, -0.36, 0.0),
-            "Target Offset 2": (0, 0.36, 0.0),
+            "wood robot": (0.23, -0.08, 0),
+            "red bridge": (0.23, 0.08, 0),
+            "hemisphere": (0.12, 0.21, 0.0),
+            "prism": (-0.04, -0.233, 0.0),
+            "pyramid": (-0.04, 0.233, 0.0),
+            "cube": (0.12, -0.21, 0.0),
+            "fist": (-0.15, 0.0, 0.0),
+            "nothing": (0.0, 0.0, 0.1),
+            "table": (0.0, 0.0, 0.1),
+            "classifier provided": (-10.0, -10.0, -10.0)
             }
         self.params.addProperty(
             self.place_offset_name, 0,
@@ -112,6 +132,15 @@ class IiwaWsgTaskPanel(TaskUserPanel):
                 enumNames=list(self.place_offsets.keys())))
 
         self.addTasks()
+        self.initSubscriber()
+        self.selected_object_name="nothing"
+
+
+    def initSubscriber(self):
+        self.subscriber = lcmUtils.addSubscriber(
+            "BUBBLE_CLASS_PROBABILITIES", drake.lcmt_drake_signal, self.onClassifierMessage)
+        self.subscriber.setSpeedLimit(10) 
+        print 
 
     def rigidBodyListChanged(self, body_list):
         old_target_name = self.params.getPropertyEnumValue(
@@ -225,8 +254,15 @@ class IiwaWsgTaskPanel(TaskUserPanel):
 
         if offset is None:
             offset_name = self.params.getPropertyEnumValue(self.place_offset_name)
-            offset = self.place_offsets[offset_name]
+            print "offset_name", offset_name 
+            if offset_name == "classifier provided":
+              offset = self.place_offsets[self.selected_object_name] 
+              print "selected place offset from classifier" 
+            else: 
+              offset = self.place_offsets[offset_name] 
+              print "selected place offset from list"
 
+        print "name:", name
         position = self.params.getProperty(name)
         xyz = [position[i] + offset[i] for i in xrange(0, 3)]
         rpy = position[3:6]
@@ -336,4 +372,13 @@ class IiwaWsgTaskPanel(TaskUserPanel):
         #addPlanAndExecute('plan prerelease', self.planner.planPreGrasp)
         addPlanAndExecute('plan release', self.planner.planGrasp)
         addPlanAndExecute('plan backoff', self.planner.planPreGrasp)
+
         #addFunc('open gripper', self.planner.openGripper)
+    def onClassifierMessage(self, msg):
+        self.lastMessage = msg
+        max_index = max(enumerate(msg.val), key=operator.itemgetter(1)) 
+       # print max_index
+        self.selected_object_name = msg.coord[max_index[0]]
+       # print 'received message [%s]' % ', '.join(map(str, msg.coord))
+       # print 'received message [%s]' % ', '.join(map(str, msg.val)) 
+        print "classified name", self.selected_object_name
