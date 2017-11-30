@@ -211,7 +211,7 @@ def plotPlan():
 def setGripperJointPositions(robotModel, pos):
     robotModel.model.setJointPositions(
         [pos, pos],
-        ['wsg_50_finger_left_joint', 'wsg_50_finger_right_joint'])
+        ['wsg_50_base_joint_gripper_left', 'wsg_50_base_joint_gripper_right'])
 
 
 def reloadIiwaPlanning():
