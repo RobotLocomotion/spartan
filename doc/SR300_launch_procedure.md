@@ -1,0 +1,2 @@
+# SR300 Launch Procedure
+You cannot launch the SR300 driver from inside the docker. The current solution is to launch from outside the docker. Note that for messages to make it into the docker you must run with ` -p "--netorkk=host" ` option for `docker_run`.
