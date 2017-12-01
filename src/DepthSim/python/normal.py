@@ -41,7 +41,7 @@ if __name__ == '__main__':
   data_dir = sys.argv[1]
   num_im = int(sys.argv[2])
   mesh = sys.argv[3]
-  use_mesh = False
+  use_mesh = True
 
   #setup rendering enviornment
   actor = vtk.vtkActor()
@@ -58,12 +58,13 @@ if __name__ == '__main__':
   interactor.SetRenderWindow(renWin);
   #setup camera calibration
   common.set_up_camera_params(camera)
-  mapper = vtk.vtkPolyDataMapper()
-  #shading
-  #set_material_prop(actor)
-  set_shader_input(mapper)
+
 
   if use_mesh: #use meshed version of scene
+    mapper = vtk.vtkPolyDataMapper()
+    #shading
+    #set_material_prop(actor)
+    set_shader_input(mapper)
     fileReader = vtk.vtkPLYReader()
     fileReader.SetFileName(sys.argv[1]+"/"+sys.argv[3])
     mapper.SetInputConnection(fileReader.GetOutputPort())
@@ -77,7 +78,7 @@ if __name__ == '__main__':
 
   else: #import just the objects
     objects = common.Objects(data_dir,"/home/drc/spartan/Data_objects")
-    objects.loadObjectMeshes("/registration_result.yaml",renderer,mapper)
+    objects.loadObjectMeshes("/registration_result.yaml",renderer,set_shader_input)
 
 
   #setup rendering enviornment
@@ -105,12 +106,12 @@ if __name__ == '__main__':
       windowToColorBuffer.Update()
 
       #update norms
-      mapper.Update()
+      #mapper.Update()
 
       #write out depth image
-      imageWriter.SetFileName(data_dir+"/images/"+str(i).zfill(10)+"normal_ground_truth.png");
+      imageWriter.SetFileName(data_dir+"/images/"+str(i).zfill(10)+"normal_ground_truth1.png");
       imageWriter.SetInputConnection(windowToColorBuffer.GetOutputPort());
-      imageWriter.Write();
+      #imageWriter.Write();
   
   renWin.Render();
   interactor.Start();
