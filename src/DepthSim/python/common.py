@@ -120,7 +120,7 @@ class Objects():
         self.objects_file = objects_file
         self.objects = {} # dict of Actors
 
-    def loadObjectMeshes(self,registrationResultFilename,renderer,mapper_gl=None):
+    def loadObjectMeshes(self,registrationResultFilename,renderer,shader=None):
       stream = file(self.path+registrationResultFilename)
       registrationResult = yaml.load(stream)
       firstFrameToWorldTransform = getFirstFrameToWorldTransform(self.path+'/transforms.yaml')
@@ -131,10 +131,7 @@ class Objects():
           poly = ioUtils.readPolyData(objectMeshFilename)
           poly = filterUtils.transformPolyData(poly, objectToFirstFrame)
           mapper = vtk.vtkPolyDataMapper()
-
-          if mapper_gl:#take user defined mapper with shaders
-            mapper = mapper_gl
-            
+          if shader: shader(mapper)
           mapper.SetInputData(poly)
           actor = vtk.vtkActor()
           actor.SetMapper(mapper)
