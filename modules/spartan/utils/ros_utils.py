@@ -46,6 +46,20 @@ def ROSTransformMsgFromPose(d):
 
     return msg
 
+"""
+Saves a single image to a filename using an external executable
+"""
+
+def saveSingleImage(topic, filename, encoding=None):
+        rosImageLoggerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
+                                                'calibration','ros_image_logger.py')
+        cmd = "%s -t %s -f %s" % (rosImageLoggerExecutable, topic, filename)
+        if encoding is not None:
+            cmd += " -e " + encoding
+
+        os.system(cmd)
+
+
 class SimpleSubscriber(object):
     def __init__(self, topic, messageType, externalCallback=None):
         self.topic = topic
