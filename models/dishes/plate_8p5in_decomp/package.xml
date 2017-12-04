@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<package>
+  <name>plate_8p5in_decomp</name>
+  <version>1.0.0</version>
+  <description>
+    This package contains some dish meshes and wrapper URDFs.
+  </description>
+  <author email="gizatt@mit.edu">Greg Izatt</author>
+  <maintainer email="gizatt@mit.edu">Greg Izatt</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>catkin</buildtool_depend>
+</package>

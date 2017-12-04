@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<robot name="plate_11in">
+  <link name="plate_11in">
+    <inertial>
+      <mass value="0.282"/>
+      <!-- Inertia values are approximate, assuming constant density
+           cylinder. -->
+      <inertia ixx="0.005" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.011"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <!-- Saved in mm -->
+        <mesh filename="meshes/visual/plate_11in.obj" scale="0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="meshes/collision/plate_11in.obj" scale="0.001"/>
+      </geometry>
+    </collision>
+  </link>
+</robot>
