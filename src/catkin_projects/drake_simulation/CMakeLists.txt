@@ -136,6 +136,11 @@ target_link_libraries(iiwa_rlg_simulation
 ## Install ##
 #############
 
+install(PROGRAMS
+    scripts/pybullet_passive_simulation_from_config.py
+    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 install(TARGETS drake_passive_simulation_from_config
    iiwa_rlg_simulation
    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
