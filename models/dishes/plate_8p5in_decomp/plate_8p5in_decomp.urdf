@@ -1,0 +1,213 @@
+<robot name="root">
+  <link name="link_plate_8p5in_decomp_convex_piece_0">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="7.41E-03"/>
+      <inertia ixx="2.01E-05" ixy="2.05E-06" ixz="7.99E-06" iyy="2.42E-05" iyz="4.82E-06" izz="5.98E-06"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_0.obj" scale="1.0000E+00"/>
+      </geometry>
+      <material name="">
+        <color rgba="9.00E-01 5.00E-01 5.00E-01 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_0.obj" scale="1.0000E+00"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="link_plate_8p5in_decomp_convex_piece_1">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="2.59E-02"/>
+      <inertia ixx="1.58E-05" ixy="1.26E-05" ixz="-3.67E-08" iyy="4.72E-05" iyz="4.52E-08" izz="4.04E-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_1.obj" scale="1.0000E+00"/>
+      </geometry>
+      <material name="">
+        <color rgba="9.00E-01 5.00E-01 5.00E-01 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_1.obj" scale="1.0000E+00"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="link_plate_8p5in_decomp_convex_piece_1_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="link_plate_8p5in_decomp_convex_piece_0"/>
+    <child link="link_plate_8p5in_decomp_convex_piece_1"/>
+  </joint>
+  <link name="link_plate_8p5in_decomp_convex_piece_2">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="2.32E-02"/>
+      <inertia ixx="8.16E-05" ixy="-3.57E-06" ixz="4.96E-05" iyy="1.64E-04" iyz="-3.78E-06" izz="7.93E-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_2.obj" scale="1.0000E+00"/>
+      </geometry>
+      <material name="">
+        <color rgba="9.00E-01 5.00E-01 5.00E-01 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_2.obj" scale="1.0000E+00"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="link_plate_8p5in_decomp_convex_piece_2_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="link_plate_8p5in_decomp_convex_piece_1"/>
+    <child link="link_plate_8p5in_decomp_convex_piece_2"/>
+  </joint>
+  <link name="link_plate_8p5in_decomp_convex_piece_3">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="1.46E-02"/>
+      <inertia ixx="3.66E-05" ixy="7.96E-08" ixz="-3.48E-07" iyy="4.36E-05" iyz="-9.43E-06" izz="1.07E-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_3.obj" scale="1.0000E+00"/>
+      </geometry>
+      <material name="">
+        <color rgba="9.00E-01 5.00E-01 5.00E-01 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_3.obj" scale="1.0000E+00"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="link_plate_8p5in_decomp_convex_piece_3_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="link_plate_8p5in_decomp_convex_piece_2"/>
+    <child link="link_plate_8p5in_decomp_convex_piece_3"/>
+  </joint>
+  <link name="link_plate_8p5in_decomp_convex_piece_4">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="3.71E-02"/>
+      <inertia ixx="3.39E-05" ixy="-1.49E-05" ixz="-6.48E-06" iyy="6.86E-05" iyz="4.76E-06" izz="4.63E-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_4.obj" scale="1.0000E+00"/>
+      </geometry>
+      <material name="">
+        <color rgba="9.00E-01 5.00E-01 5.00E-01 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_4.obj" scale="1.0000E+00"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="link_plate_8p5in_decomp_convex_piece_4_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="link_plate_8p5in_decomp_convex_piece_3"/>
+    <child link="link_plate_8p5in_decomp_convex_piece_4"/>
+  </joint>
+  <link name="link_plate_8p5in_decomp_convex_piece_5">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="2.55E-02"/>
+      <inertia ixx="8.18E-05" ixy="4.14E-06" ixz="5.06E-05" iyy="1.70E-04" iyz="3.87E-06" izz="8.51E-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_5.obj" scale="1.0000E+00"/>
+      </geometry>
+      <material name="">
+        <color rgba="9.00E-01 5.00E-01 5.00E-01 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_5.obj" scale="1.0000E+00"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="link_plate_8p5in_decomp_convex_piece_5_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="link_plate_8p5in_decomp_convex_piece_4"/>
+    <child link="link_plate_8p5in_decomp_convex_piece_5"/>
+  </joint>
+  <link name="link_plate_8p5in_decomp_convex_piece_6">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="2.43E-02"/>
+      <inertia ixx="7.49E-05" ixy="-4.16E-06" ixz="-5.04E-05" iyy="1.64E-04" iyz="3.67E-06" izz="8.65E-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_6.obj" scale="1.0000E+00"/>
+      </geometry>
+      <material name="">
+        <color rgba="9.00E-01 5.00E-01 5.00E-01 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_6.obj" scale="1.0000E+00"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="link_plate_8p5in_decomp_convex_piece_6_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="link_plate_8p5in_decomp_convex_piece_5"/>
+    <child link="link_plate_8p5in_decomp_convex_piece_6"/>
+  </joint>
+  <link name="link_plate_8p5in_decomp_convex_piece_7">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="2.19E-02"/>
+      <inertia ixx="7.26E-05" ixy="3.57E-06" ixz="-4.95E-05" iyy="1.54E-04" iyz="-3.60E-06" izz="7.86E-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_7.obj" scale="1.0000E+00"/>
+      </geometry>
+      <material name="">
+        <color rgba="9.00E-01 5.00E-01 5.00E-01 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="plate_8p5in_decomp_convex_piece_7.obj" scale="1.0000E+00"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="link_plate_8p5in_decomp_convex_piece_7_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="link_plate_8p5in_decomp_convex_piece_6"/>
+    <child link="link_plate_8p5in_decomp_convex_piece_7"/>
+  </joint>
+</robot>
