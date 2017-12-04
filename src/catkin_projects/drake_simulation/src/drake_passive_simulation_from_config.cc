@@ -33,6 +33,8 @@ DEFINE_double(target_realtime_rate, 1.0,
 DEFINE_bool(
     fixed_step_mode, false,
     "Whether to use fixed step mode (of maximum_step_size) for simulation.");
+DEFINE_double(rbt_timestep, 0.0,
+              "RBT timestep (0.0 = continuous sim, positive = timestepping mode).");
 DEFINE_string(config, "", "Sim config filename (required).");
 
 DEFINE_double(us, 0.9, "The coefficient of static friction");
@@ -89,7 +91,7 @@ std::unique_ptr<RigidBodyPlant<T>> BuildCombinedPlant(YAML::Node config) {
                                              xyz, rpy);
   }
 
-  auto plant = std::make_unique<RigidBodyPlant<T>>(tree_builder->Build());
+  auto plant = std::make_unique<RigidBodyPlant<T>>(tree_builder->Build(), FLAGS_rbt_timestep);
 
   return plant;
 };
@@ -107,6 +109,7 @@ int DoMain() {
   model->set_name("plant");
 
   // Command-line specified contact parameters.
+  /*
   std::cout << "Contact properties:\n";
   std::cout << "\tStiffness:                " << FLAGS_stiffness << "\n";
   std::cout << "\tstatic friction:          " << FLAGS_us << "\n";
@@ -114,10 +117,10 @@ int DoMain() {
   std::cout << "\tAllowed stiction speed:   " << FLAGS_v_stiction_tolerance
             << "\n";
   std::cout << "\tDissipation:              " << FLAGS_dissipation << "\n";
-  model->set_normal_contact_parameters(FLAGS_stiffness, FLAGS_dissipation);
+  model->set_contact_model_parameters(FLAGS_stiffness, FLAGS_dissipation);
   model->set_friction_contact_parameters(FLAGS_us, FLAGS_ud,
                                          FLAGS_v_stiction_tolerance);
-
+*/
   const RigidBodyTree<double>& tree = model->get_rigid_body_tree();
 
   drake::lcm::DrakeLcm lcm;

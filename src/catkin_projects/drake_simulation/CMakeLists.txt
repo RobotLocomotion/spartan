@@ -45,6 +45,14 @@ include_directories(${drake_ros_systems_SOURCE_DIR}/include)
 include_directories(${CMAKE_INSTALL_PREFIX}/include)
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
+
+#add_library(time_stepping_rigid_body_plant
+#    src/time_stepping_rigid_body_plant/time_stepping_rigid_body_plant.cc
+#    src/time_stepping_rigid_body_plant/time_stepping_rigid_body_plant.h)
+#target_link_libraries(time_stepping_rigid_body_plant
+#    ${drake_LIBRARIES})
+
+
 add_executable(drake_passive_simulation_from_config src/drake_passive_simulation_from_config.cc)
 target_link_libraries(drake_passive_simulation_from_config
     ${catkin_LIBRARIES}
@@ -123,12 +131,13 @@ target_link_libraries(iiwa_rlg_simulation
     ${drake_LIBRARIES}
     RemoteTreeViewerWrapper)
 
+
 #############
 ## Install ##
 #############
 
 install(TARGETS drake_passive_simulation_from_config
-    iiwa_rlg_simulation
+   iiwa_rlg_simulation
    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

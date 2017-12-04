@@ -43,7 +43,7 @@ void SchunkWsgRosTrajectoryGenerator::OutputTarget(
     const Context<double>& context, BasicVector<double>* output) const {
   const SchunkWsgTrajectoryGeneratorStateVector<double>* traj_state =
       dynamic_cast<const SchunkWsgTrajectoryGeneratorStateVector<double>*>(
-          context.get_discrete_state(0));
+          &context.get_discrete_state(0));
 
   if (trajectory_) {
     output->get_mutable_value() = trajectory_->value(
@@ -58,7 +58,7 @@ void SchunkWsgRosTrajectoryGenerator::OutputForce(
     const Context<double>& context, BasicVector<double>* output) const {
   const SchunkWsgTrajectoryGeneratorStateVector<double>* traj_state =
       dynamic_cast<const SchunkWsgTrajectoryGeneratorStateVector<double>*>(
-          context.get_discrete_state(0));
+          &context.get_discrete_state(0));
   output->get_mutable_value() = Vector1d(traj_state->max_force());
 }
 
@@ -84,10 +84,10 @@ void SchunkWsgRosTrajectoryGenerator::DoCalcDiscreteVariableUpdates(
 
   const SchunkWsgTrajectoryGeneratorStateVector<double>* last_traj_state =
       dynamic_cast<const SchunkWsgTrajectoryGeneratorStateVector<double>*>(
-          context.get_discrete_state(0));
+          &context.get_discrete_state(0));
   SchunkWsgTrajectoryGeneratorStateVector<double>* new_traj_state =
       dynamic_cast<SchunkWsgTrajectoryGeneratorStateVector<double>*>(
-          discrete_state->get_mutable_vector(0));
+          &discrete_state->get_mutable_vector(0));
   new_traj_state->set_last_position(cur_position);
 
   double max_force = command.force;

@@ -11,41 +11,33 @@ models:
 with_ground: true
 
 instances:
-  - model: "plate_11in"
-    q0: [0.0, 0.0, 0.1, 1.6, 0.0, .0]
-    fixed: false
-  - model: "plate_11in"
-    q0: [0.0, 0.0, 0.15, 1.6, -0.1, .0]
-    fixed: false
-  - model: "plate_11in"
-    q0: [0.0, 0.0, 0.20,  1.6, 0.1, .0]
-    fixed: false
-  - model: "plate_11in"
-    q0: [0.0, 0.0, 0.25,  1.6, 0.0, .0]
-    fixed: false
-
-  - model: "plate_8p5in"
-    q0: [0.0, 0.0, 0.30,  1.6, 0.2, .3]
-    fixed: false
-  - model: "plate_8p5in"
-    q0: [0.0, 0.0, 0.35,  1.6, 0.2, .3]
-    fixed: false
-  - model: "plate_8p5in"
-    q0: [0.0, 0.0, 0.40,  1.6, 0.2, .3]
-    fixed: false
-  - model: "plate_8p5in"
-    q0: [0.0, 0.0, 0.45,  1.6, 0.2, .3]
-    fixed: false
-
   - model: "bowl_6p25in"
-    q0: [0.0, 0.0, 0.50,  1.6, 0.2, .3]
+    q0: [0.0, 0.0, 0.2,  1.6, 0.0, .0]
     fixed: false
   - model: "bowl_6p25in"
-    q0: [0.0, 0.0, 0.55,  1.6, 0.0, 0.0]
+    q0: [0.0, 0.0, 0.25,  1.6, 0.0, 0.0]
     fixed: false
   - model: "bowl_6p25in"
-    q0: [0.0, 0.0, 0.60,  1.6, 0.1, .0]
+    q0: [0.0, 0.0, 0.3,  1.6, 0.0, .0]
     fixed: false
   - model: "bowl_6p25in"
-    q0: [0.0, 0.0, 0.65,  1.6, 0.1, .0]
+    q0: [0.0, 0.0, 0.35,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.40,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.45,  1.6, 0.0, 0.0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.50,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.55,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.60,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.65,  1.6, 0.0, .0]
     fixed: false
