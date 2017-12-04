@@ -38,14 +38,15 @@ if __name__ == "__main__":
 
     # Add each model as requested
     drake_resource_root = os.environ["DRAKE_RESOURCE_ROOT"]
+    ids = []
     for instance in config["instances"]:
         urdf = drake_resource_root + "/" + model_dict[instance["model"]]
         q0 = instance["q0"]
         position = q0[0:3]
         quaternion = p.getQuaternionFromEuler(q0[3:8])
-        fixed = instance["fixed"]
-        p.loadURDF(urdf, position, quaternion, useFixedBase=fixed)
-
+        print "URDF ", urdf, " q0", q0
+        ids.append(p.loadURDF(urdf, position, quaternion))
+        
     # Run simulation with time control
     start_time = time.time()
     sim_time = 0.0
@@ -72,10 +73,8 @@ if __name__ == "__main__":
         elapsed = end_step_time - start_time
         target_sim_time = elapsed * args.rate
         if sim_time > target_sim_time:
-            # This helps track a good time, but doesn't seem accurate enough
-            # empirically...
             time.sleep(sim_time - target_sim_time)
 
         if time.time() - last_print_time > 1.0:
             last_print_time = time.time()
-            print "Sim rate: ", avg_sim_rate, " at timestep ", args.timestep
+            print "Overall sim rate: ", sim_time / target_sim_time, ", current sim rate: ", avg_sim_rate, " at timestep ", args.timestep
