@@ -55,12 +55,19 @@ Next, create a new build directory and configure with cmake. For example::
 There is no requirement on the location of the build directory, you don't
 have to place it inside the source directory as shown in the above example.
 
-Finally, run the build::
+Finally, source the required configuration (which sets some properties necessary
+for the build to work) and run the build::
 
+    . build/setup_environment.sh
     make
 
 By default, cmake generates a Makefile, but it's possible to use other
-build tools like ninja.
+build tools like ninja. We (including in the docker container) typically
+alias `use_spartan` to `. <spartan>/build/setup_environment.sh`. Once
+the build is complete, source the environment again (as new things may
+have been added, e.g. ROS environment configuration information)::
+
+    . build/setup_environment.sh
 
 Building With Drivers
 ---------------------

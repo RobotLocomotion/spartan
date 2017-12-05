@@ -12,6 +12,11 @@ if [ ! $exit_status -eq 0 ]; then
   exit $exit_status
 fi
 
+# That CMake build defines everything needed for
+# use_spartan to work. Need to invoke use_spartan
+# before doing a build.
+use_spartan
+
 make -j8
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
@@ -27,3 +32,7 @@ if [ ! $exit_status -eq 0 ]; then
   echo "Error code in make: " $exit_status
   exit $exit_status
 fi
+
+# Try use_spartan again to see if we can source everything
+# OK.
+use_spartan

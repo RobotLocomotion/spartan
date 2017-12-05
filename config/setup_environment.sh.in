@@ -25,7 +25,9 @@ alias cdbuild='cd $SPARTAN_BUILD_DIR'
 # sourcing our ROS catkin_ws build
 # make sure you do this BEFORE adding to ROS_PACKAGE_PATH as below since
 # this command resets the ROS_PACKAGE_PATH and removes the previous modifications
-source $SPARTAN_INSTALL_DIR/setup.sh --extend
+if [ -f $SPARTAN_INSTALL_DIR/setup.sh ]; then
+	source $SPARTAN_INSTALL_DIR/setup.sh --extend
+fi
 
 # Director uses ROS_PACKAGE_PATH to find robot urdf packages
 # Some of these that we use live in drake's manipulation folder:
