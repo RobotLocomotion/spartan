@@ -12,10 +12,10 @@ if [ ! $exit_status -eq 0 ]; then
   exit $exit_status
 fi
 
-# That CMake build defines everything needed for
-# use_spartan to work. Need to invoke use_spartan
-# before doing a build.
-use_spartan
+# That CMake build generates this environment configuration
+# script, which includes some definitions the compilation requires
+# to work.
+. setup_environment.sh
 
 make -j8
 exit_status=$?
@@ -33,6 +33,5 @@ if [ ! $exit_status -eq 0 ]; then
   exit $exit_status
 fi
 
-# Try use_spartan again to see if we can source everything
-# OK.
-use_spartan
+# See if we can source everything OK.
+. setup_environment.sh
