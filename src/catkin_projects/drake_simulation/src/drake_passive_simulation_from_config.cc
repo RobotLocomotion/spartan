@@ -26,15 +26,18 @@ DEFINE_double(minimum_step_size, 0.0001,
               "Minimum simulation step size, in seconds.");
 DEFINE_double(maximum_step_size, 0.01,
               "Maximum simulation step size, in seconds.");
-DEFINE_double(visualization_period, 0.01,
+DEFINE_double(visualization_period, 0.001,
               "Step time, in seconds, that visualization is published at.");
 DEFINE_double(target_realtime_rate, 1.0,
               "Target sim rate (as a fraction of real time).");
+DEFINE_double(simulation_meta_step_size, 0.01,
+              "Meta step size used in computing simulation real-time rate.");
 DEFINE_bool(
     fixed_step_mode, false,
     "Whether to use fixed step mode (of maximum_step_size) for simulation.");
-DEFINE_double(rbt_timestep, 0.0,
-              "RBT timestep (0.0 = continuous sim, positive = timestepping mode).");
+DEFINE_double(
+    rbt_timestep, 0.0,
+    "RBT timestep (0.0 = continuous sim, positive = timestepping mode).");
 DEFINE_string(config, "", "Sim config filename (required).");
 
 DEFINE_double(us, 0.9, "The coefficient of static friction");
@@ -43,7 +46,6 @@ DEFINE_double(stiffness, 10000, "The contact material stiffness");
 DEFINE_double(dissipation, 2.0, "The contact material dissipation");
 DEFINE_double(v_stiction_tolerance, 0.01,
               "The maximum slipping speed allowed during stiction");
-
 
 using drake::manipulation::util::WorldSimTreeBuilder;
 using drake::manipulation::util::ModelInstanceInfo;
@@ -91,7 +93,8 @@ std::unique_ptr<RigidBodyPlant<T>> BuildCombinedPlant(YAML::Node config) {
                                              xyz, rpy);
   }
 
-  auto plant = std::make_unique<RigidBodyPlant<T>>(tree_builder->Build(), FLAGS_rbt_timestep);
+  auto plant = std::make_unique<RigidBodyPlant<T>>(tree_builder->Build(),
+                                                   FLAGS_rbt_timestep);
 
   return plant;
 };
@@ -142,7 +145,44 @@ int DoMain() {
   integrator->set_throw_on_minimum_step_size_violation(false);
   integrator->set_requested_minimum_step_size(FLAGS_minimum_step_size);
   simulator.set_publish_every_time_step(false);
-  simulator.StepTo(FLAGS_simulation_sec);
+
+  // Step a few times, then stop and give us a chance to print
+  double current_sim_time = 0.0;
+  double start_time = getUnixTime();
+  // RC constant of 3*meta_steps_size seconds for estimating sim rate
+  double sim_rate_alpha =
+      FLAGS_simulation_meta_step_size /
+      (FLAGS_simulation_meta_step_size * 3 + FLAGS_simulation_meta_step_size);
+  double avg_sim_rate = -1.0;
+  double last_print_time = getUnixTime() - 100.0;
+
+  while (current_sim_time < FLAGS_simulation_sec) {
+    // Do a sim step and time it
+    double before_step_time = getUnixTime();
+    simulator.StepTo(current_sim_time + FLAGS_simulation_meta_step_size);
+    double end_step_time = getUnixTime();
+    current_sim_time += FLAGS_simulation_meta_step_size;
+
+    // Estimate recent sim rate
+    double this_sim_step_rate =
+        FLAGS_simulation_meta_step_size / (end_step_time - before_step_time);
+    if (avg_sim_rate < 0.0) {
+      // Initialization case
+      avg_sim_rate = this_sim_step_rate;
+    } else {
+      avg_sim_rate = this_sim_step_rate * sim_rate_alpha +
+                     (1. - sim_rate_alpha) * avg_sim_rate;
+    }
+
+    if (getUnixTime() - last_print_time > 1.0) {
+      last_print_time = getUnixTime();
+      double target_sim_time =
+          FLAGS_target_realtime_rate * (end_step_time - start_time);
+      printf("Overall sim rate: %f, current sim rate: %f at sim time %f\n",
+             current_sim_time / (FLAGS_target_realtime_rate * target_sim_time),
+             avg_sim_rate, current_sim_time);
+    }
+  }
 
   return 0;
 }
