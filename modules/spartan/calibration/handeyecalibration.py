@@ -156,8 +156,9 @@ class RobotService(object):
 
 class HandEyeCalibration(object):
 
-    def __init__(self, robotSystem, handFrame='palm', cameraSerialNumber=1112170110):
+    def __init__(self, robotSystem, handFrame='palm', cameraSerialNumber="", configFilename=None):
         self.robotSystem = robotSystem
+        self.configFilename = configFilename
         self.robotService = RobotService(robotSystem)
         self.handFrame = handFrame
         self.cameraSerialNumber = cameraSerialNumber
@@ -173,8 +174,8 @@ class HandEyeCalibration(object):
 
     def setupConfig(self):
         self.config = dict()
-        self.config['rgb_raw_topic'] = '/camera_' + str(self.cameraSerialNumber) + '/rgb/image_raw'
-        self.config['ir_raw_topic'] = '/camera_' + str(self.cameraSerialNumber) + '/ir/image'
+        self.config['rgb_raw_topic'] = '/camera' + str(self.cameraSerialNumber) + '/rgb/image_raw'
+        self.config['ir_raw_topic'] = '/camera' + str(self.cameraSerialNumber) + '/ir/image'
 
         config = dict()
         config['yaw'] = dict()
@@ -193,10 +194,19 @@ class HandEyeCalibration(object):
         config['distance']['step_size'] = 0.2
 
         config['direction_to_target'] = [1, 0, 0] # this should be in the x,y plane
-        config['target_location'] = [0.75, 0, 0]
+        config['target_location'] = [0.6, 0, 0]
+
+        self.config['poses'] = config
 
         self.calibrationPosesConfig = config
 
+
+    def loadConfigFromFile(self, filename=None):
+        if filename is None:
+            filename = self.configFilename
+
+        self.config = spartanUtils.getDictFromYamlFilename(filename)
+        self.calibrationPosesConfig = self.config['poses']
 
     # DEPRECATED
     # # This function inits a simple subscriber node to passively listen to the recorded image topics
@@ -305,16 +315,17 @@ class HandEyeCalibration(object):
         
         for key, topic in imgTopics.iteritems():
 
-            imageFilename =str(data['ros_timestamp']) + "_" + key + ".jpeg"
+            imageFilename =str(data['ros_timestamp']) + "_" + key + "." + self.config['filename_extension']
             fullImageFilename = os.path.join(self.calibrationFolderName, imageFilename)
 
             encoding = None
             if key == "rgb":
-                encoding = 'bgr8'
+                encoding = self.config['encoding'][key]
             elif key == "ir":
-                encoding = 'mono16'
+                encoding = self.config['encoding'][key]
             else:
                 raise ValueError("I only know how to handle ir and rgb")
+
 
 
             self.saveSingleImage(topic, fullImageFilename, encoding)
@@ -482,10 +493,10 @@ class HandEyeCalibration(object):
 
         return calibrationRunData
 
-    def run(self, captureRGB=True, captureIR=False, cameraName="xtion pro", targetWidth=4,
+    def run(self, captureRGB=True, captureIR=False, cameraName="sr300", targetWidth=4,
         targetHeight=5, targetSquareSize=0.05):
 
-        if captureRGB and captureIR:
+        if cameraName=="xtion pro" and captureRGB and captureIR:
             print "you can't capture IR and RGB at the same time, returning"
             return
 

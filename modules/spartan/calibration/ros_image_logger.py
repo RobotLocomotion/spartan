@@ -17,17 +17,19 @@ def getSingleImage(topic, encoding=None):
     msg = rospy.wait_for_message(topic, msgType)
     rospy.loginfo("received message on topic %s", topic)
     print "type(msg) ", type(msg)
+    print "encoding ", msg.encoding
 
     if encoding is None:
-        encoding = msg.encoding
+        print "using passthrough encoding"
+        cv2_img = bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+    else:
+        print "encoding = ", encoding
 
-    print "encoding = ", encoding
-
-    try:
-        # Convert your ROS Image message to OpenCV2
-        cv2_img = bridge.imgmsg_to_cv2(msg, encoding)
-    except CvBridgeError, e:
-        print(e)
+        try:
+            # Convert your ROS Image message to OpenCV2
+            cv2_img = bridge.imgmsg_to_cv2(msg, encoding)
+        except CvBridgeError, e:
+            print(e)
 
     d['msg'] = msg
     d['cv2_img'] = cv2_img
