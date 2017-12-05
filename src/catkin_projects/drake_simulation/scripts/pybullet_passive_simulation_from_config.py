@@ -34,7 +34,7 @@ if __name__ == "__main__":
         # Read in configuration file
         config = yaml.load(open(args.config))
 
-        print config
+        print(config)
 
         if config["with_ground"] == True:
             p.loadURDF(os.environ["SPARTAN_SOURCE_DIR"] + "/build/bullet3/data/plane.urdf")
@@ -50,8 +50,9 @@ if __name__ == "__main__":
             q0 = instance["q0"]
             position = q0[0:3]
             quaternion = p.getQuaternionFromEuler(q0[3:8])
-            print "URDF ", urdf, " q0", q0
-            ids.append(p.loadURDF(urdf, position, quaternion))
+            fixed = instance["fixed"]
+            print("URDF ", urdf, " q0", q0)
+            ids.append(p.loadURDF(urdf, position, quaternion, fixed))
             
         # Run simulation with time control
         start_time = time.time()
@@ -85,17 +86,17 @@ if __name__ == "__main__":
 
             if time.time() - last_print_time > 0.1:
                 last_print_time = time.time()
-                print "Overall sim rate: ", sim_time / target_sim_time, ", current sim rate: ", avg_sim_rate, " at time ", sim_time
+                print("Overall sim rate: ", sim_time / target_sim_time, ", current sim rate: ", avg_sim_rate, " at time ", sim_time)
 
             events = p.getKeyboardEvents()
             for key in events.keys():
                 if events[key] & p.KEY_WAS_TRIGGERED:
                     if key == ord('q'):
-                        print "Quitting"
+                        print("Quitting")
                         keep_going = False
                         keep_simulating = False
                     elif key == ord('r'):
-                        print "Restarting"
+                        print("Restarting")
                         keep_going = False
                         break
 
