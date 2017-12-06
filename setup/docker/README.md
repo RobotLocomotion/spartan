@@ -6,7 +6,14 @@ The following is all of the steps to build spartan with docker from a fresh Ubun
 
 1) Install [Docker for Ubuntu](https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/)
   - Make sure to `sudo usermod -aG docker your-user` and then not run below docker scripts as `sudo`
-2) Install [`nvidia-docker`](https://github.com/NVIDIA/nvidia-docker). Make sure to use `nvidia-docker1` not `nvidia-docker2` as it has a known issue with OpenGL. See [this](https://github.com/RobotLocomotion/spartan/issues/201) issue
+2) Install [`nvidia-docker`](https://github.com/NVIDIA/nvidia-docker). Make sure to use `nvidia-docker1` not `nvidia-docker2` as it has a known issue with OpenGL. See [this](https://github.com/RobotLocomotion/spartan/issues/201) issue. Follow the instructions on their webpage but replace
+```
+sudo apt-get install -y nvidia-docker2
+```
+with
+```
+sudo apt-get install -y nvidia-docker1
+```
 3) Clone, setup, and build Spartan:
 ```
 git clone git@github.com:RobotLocomotion/spartan.git
