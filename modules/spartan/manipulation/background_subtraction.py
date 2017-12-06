@@ -71,6 +71,11 @@ class BackgroundSubtractionDataCapture(object):
 
     def startImageSubscribers(self):
         self.imageSubscribers = dict()
+        msgType = sensor_msgs.msg.Image
+        for key, topic in self.imageTopics.iteritems():
+            sub = rosUtils.SimpleSubscriber(topic, msgType)
+            sub.start()
+            self.imageSubscribers[key] = sub
 
 
     def stopImageSubscribers(self):
@@ -79,23 +84,23 @@ class BackgroundSubtractionDataCapture(object):
 
 
     def setupDataCapture(self, objectName):
+        unique_name = time.strftime("%Y%m%d-%H%M%S")
+        self.folderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox','background_subtraction_data', unique_name)
+        os.system("mkdir -p " + self.folderName)
+        os.chdir(self.folderName)
+
+
         self.startImageSubscribers()
         self.data = dict()
         self.data['header'] = dict()
         self.data['header']['object_name'] = objectName
         self.data['images'] = dict()
 
-        for poseName in self.poseData:
+        for poseName in self.poseData['pose_scan_order']:
             self.data['images'][poseName] = dict()
 
 
     def runDataCapture(self, filenameExtension='background'):
-
-        unique_name = time.strftime("%Y%m%d-%H%M%S")
-        self.folderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox','background_subtraction_data', unique_name)
-        os.system("mkdir -p " + self.folderName)
-        os.chdir(self.folderName)
-
         for poseName in self.poseData['pose_scan_order']:
             pose = self.poseData['poses'][poseName]
             self.robotService.moveToJointPosition(pose, maxJointDegreesPerSecond=self.config['maxJointDegreesPerSecond'])
@@ -131,6 +136,7 @@ class BackgroundSubtractionDataCapture(object):
 
     def test(self):
         self.taskRunner.callOnThread(self.setupDataCapture, 'oil_bottle')
+        time.sleep(3)
         self.taskRunner.callOnThread(self.runDataCapture, 'background')
 
     def testForeground(self):
