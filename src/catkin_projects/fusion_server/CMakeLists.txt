@@ -61,6 +61,11 @@ add_service_files(
   AddTwoInts.srv
 )
 
+add_service_files(
+  FILES
+  CaptureFusionData.srv
+)
+
 ## Generate actions in the 'action' folder
 # add_action_files(
 #   FILES
