@@ -14,6 +14,10 @@ with
 ```
 sudo apt-get install -y nvidia-docker1
 ```
+You can test that your nvidia-docker installation is working by running
+```
+docker run --runtime=nvidia --rm nvidia/cuda nvidia-smi
+```
 3) Clone, setup, and build Spartan:
 ```
 git clone git@github.com:RobotLocomotion/spartan.git
