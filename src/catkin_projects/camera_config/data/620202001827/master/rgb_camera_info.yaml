@@ -1,0 +1,55 @@
+image_height: 480
+image_width: 640
+distortion_model: plumb_bob
+projection_matrix:
+  rows: 3
+  cols: 4
+  data:
+    - 606.5067584989531
+    - 0
+    - 327.2068359350669
+    - 0
+    - 0
+    - 607.5666731288035
+    - 231.1464503228751
+    - 0
+    - 0
+    - 0
+    - 1
+    - 0
+distortion_coefficients:
+  rows: 1
+  data:
+    - 0.06118289760376172
+    - 0.1491565512539151
+    - -0.005389759268752499
+    - 0.002792487297495244
+    - 0.539868029645842
+  cols: 5
+camera_matrix:
+  cols: 3
+  rows: 3
+  data:
+    - 606.5067584989531
+    - 0
+    - 327.2068359350669
+    - 0
+    - 607.5666731288035
+    - 231.1464503228751
+    - 0
+    - 0
+    - 1
+camera_name: xtion_pro
+rectification_matrix:
+  cols: 3
+  rows: 3
+  data:
+    - 1
+    - 0
+    - 0
+    - 0
+    - 1
+    - 0
+    - 0
+    - 0
+    - 1

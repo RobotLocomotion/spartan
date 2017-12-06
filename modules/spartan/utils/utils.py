@@ -61,6 +61,12 @@ def transformFromROSPoseMsg(msg):
 
     return transformUtils.transformFromPose(pos,quat)
 
+def transformFromROSTransformMsg(msg):
+    pos = [msg.translation.x, msg.translation.y, msg.translation.z]
+    quat = [msg.rotation.w, msg.rotation.x, msg.rotation.y, msg.rotation.z]
+
+    return transformUtils.transformFromPose(pos,quat)
+
 def getQuaternionFromDict(d):
     quat = None
     quatNames = ['orientation', 'rotation', 'quaternion']

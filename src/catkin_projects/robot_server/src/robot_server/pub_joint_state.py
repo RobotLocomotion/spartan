@@ -25,7 +25,7 @@ class JointStatePublisher:
         self.rate = rospy.Rate(125)
 
         self.robot_state = JointState()
-        self.pub_joint_state = rospy.Publisher('/joint_states', JointState, queue_size=10)
+        self.pub_joint_state = rospy.Publisher('/joint_states', JointState, queue_size=1)
         self.joint_names = []
         self.joint_positions = []
         self.joint_velocities = []

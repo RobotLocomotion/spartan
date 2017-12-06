@@ -1,0 +1,55 @@
+camera_name: xtion_pro
+image_width: 640
+camera_matrix:
+  rows: 3
+  cols: 3
+  data:
+    - 475.8670946800334
+    - 0
+    - 317.2385638227031
+    - 0
+    - 476.1625195619321
+    - 240.9850975529786
+    - 0
+    - 0
+    - 1
+projection_matrix:
+  rows: 3
+  cols: 4
+  data:
+    - 475.8670946800334
+    - 0
+    - 317.2385638227031
+    - 0
+    - 0
+    - 476.1625195619321
+    - 240.9850975529786
+    - 0
+    - 0
+    - 0
+    - 1
+    - 0
+image_height: 480
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data:
+    - -0.01753903206542436
+    - -1.894221125461981
+    - 0.001284805038567154
+    - 0.0007898864198943475
+    - 8.965529603142228
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data:
+    - 1
+    - 0
+    - 0
+    - 0
+    - 1
+    - 0
+    - 0
+    - 0
+    - 1

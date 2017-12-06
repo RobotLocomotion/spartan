@@ -1,0 +1,30 @@
+depth:
+  extrinsics:
+    reference_link_name: palm
+    transform_to_reference_link:
+      rotation:
+        w: 0.01940480820479911
+        x: -0.005335856220120716
+        y: -0.6910891623276977
+        z: 0.7224892745017981
+      translation:
+        x: 0.02253343809783512
+        y: -0.06025086864656366
+        z: -0.04149701298441198
+header:
+  calibration_date: 20171205-183016
+  camera_name: sr300
+  serial_number: 620202001827
+rgb:
+  extrinsics:
+    reference_link_name: palm
+    transform_to_reference_link:
+      rotation:
+        w: 0.01886895948990616
+        x: -0.006672309426395341
+        y: -0.6889415759199746
+        z: 0.7245405079245663
+      translation:
+        x: 0.04817572922771734
+        y: -0.0590512750626089
+        z: -0.04422412494171656

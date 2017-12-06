@@ -1,0 +1,30 @@
+ir_raw_topic: /camera/ir/image_raw
+camera_serial_number: 620202001827
+camera_type: 'sr300'
+poses:
+  direction_to_target:
+  - 1
+  - 0
+  - 0
+  distance:
+    max: 1.0
+    min: 0.6
+    step_size: 0.15
+  pitch:
+    max: 60
+    min: 10
+    step_size: 10
+  target_location:
+  - 0.6
+  - 0
+  - 0
+  yaw:
+    max: 180
+    min: -180
+    step_size: 15
+rgb_raw_topic: /camera/rgb/image_raw
+encoding:
+  ir: "16UC1"
+  rgb: "bgr8"
+
+filename_extension: "png"

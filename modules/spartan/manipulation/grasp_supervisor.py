@@ -8,6 +8,8 @@ import sensor_msgs.msg
 import geometry_msgs.msg
 import tf2_ros
 import rosbag
+import actionlib
+
 
 # spartan ROS
 import spartan_grasp_msgs.msg
@@ -16,6 +18,7 @@ import spartan_grasp_msgs.srv
 # spartan
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
+from spartan.manipulation.schunk_driver import SchunkDriver
 
 # director
 from director import transformUtils
@@ -45,14 +48,25 @@ class GraspSupervisor(object):
 
         if USING_DIRECTOR:
             self.taskRunner = TaskRunner()
-            self.taskRunner.callOnThread(self.setupSubscribers)
-            self.taskRunner.callOnThread(self.setupTF)
+            self.taskRunner.callOnThread(self.setup)
         else:
-            self.setupSubscribers()
-            self.setupTF()
+            self.setup()
+
+    def setup(self):
+        self.setupSubscribers()
+        self.setupTF()
+        self.setupROSActions()
+        self.gripperDriver = SchunkDriver()
+
+    def setupDirector(self):
+        self.taskRunner.callOnThread(self.setup)
+
 
     def setupConfig(self):
         self.config = dict()
+        self.config['base_frame_id'] = "base"
+        self.config['end_effector_frame_id'] = "iiwa_link_ee"
+        self.config['pick_up_distance'] = 0.15 # distance to move above the table after grabbing the object
         self.config['scan'] = dict()
         self.config['scan']['pose_list'] = ['scan_left', 'scan_right']
         self.config['scan']['joint_speed'] = 60
@@ -72,8 +86,8 @@ class GraspSupervisor(object):
         self.config['grasp_to_ee']['orientation']['y'] = 0.00454233
         self.config['grasp_to_ee']['orientation']['z'] = -0.00107904
 
-        self.graspToIiiwaLinkEE = spartanUtils.transformFromPose(self.config['grasp_to_ee'])
-        self.iiwaLinkEEToGraspFrame = self.graspToIiiwaLinkEE.GetLinearInverse()
+        self.graspToIiwaLinkEE = spartanUtils.transformFromPose(self.config['grasp_to_ee'])
+        self.iiwaLinkEEToGraspFrame = self.graspToIiwaLinkEE.GetLinearInverse()
 
         pos = [-0.15, 0, 0]
         quat = [1,0,0,0]
@@ -84,16 +98,32 @@ class GraspSupervisor(object):
 
         self.pointCloudSubscriber.start()
 
+    def setupROSActions(self):
+
+        actionName = '/spartan_grasp/GenerateGraspsFromPointCloudList'
+        self.generate_grasps_client = actionlib.SimpleActionClient(actionName, spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListAction)
+        # self.generate_grasps_client.wait_for_server()
+
+        # goal = spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListGoal(pointCloudListMsg)
+        # client.send_goal(goal)
+        # client.wait_for_result()
+
+        # result = client.get_result()
+        # print "num scored_grasps = ", len(result.scored_grasps)
+
+        # print "result ", result
+
+
     def setupTF(self):
         self.tfBuffer = tf2_ros.Buffer()
         self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
 
 
     def getDepthOpticalFrameToGraspFrameTransform(self):
-        depthOpticalFrameToBase = self.tfBuffer.lookup_transform(self.graspFrameName, self.depthOpticalFrameName, rospy.Time(0))
+        depthOpticalFrameToGraspFrame = self.tfBuffer.lookup_transform(self.graspFrameName, self.depthOpticalFrameName, rospy.Time(0))
 
-        print depthOpticalFrameToBase
-        return depthOpticalFrameToBase
+        print depthOpticalFrameToGraspFrame
+        return depthOpticalFrameToGraspFrame
 
 
     """
@@ -139,56 +169,119 @@ class GraspSupervisor(object):
             pointCloudListMsg.point_cloud_list.append(pointCloudWithTransformMsg)
             data[poseName] = pointCloudWithTransformMsg
 
-
-        self.moveHome()
         self.sensorData = data
         self.pointCloudListMsg = pointCloudListMsg
         return pointCloudListMsg
 
-    def requestGrasp(self, pointCloudListMsg):
+    def processGenerateGraspsResult(self, result):
+        print "num scored_grasps = ", len(result.scored_grasps)
+        if len(result.scored_grasps) == 0:
+            rospy.loginfo("no valid grasps found")
+            return False
 
-    	rospy.loginfo("requesting grasp from spartan_grasp")
-
-        serviceName = 'spartan_grasp/GenerateGraspsFromPointCloudList'
-        rospy.wait_for_service(serviceName)
-        s = rospy.ServiceProxy(serviceName, spartan_grasp_msgs.srv.GenerateGraspsFromPointCloudList)
-        response = s(pointCloudListMsg)
-
-        print "num scored_grasps = ", len(response.scored_grasps)
-        if len(response.scored_grasps) == 0:
-        	rospy.loginfo("no valid grasps found")
-        	return False
-
-        self.topGrasp = response.scored_grasps[0]
+        self.topGrasp = result.scored_grasps[0]
         rospy.loginfo("-------- top grasp score = %.3f", self.topGrasp.score)
         self.graspFrame = spartanUtils.transformFromROSPoseMsg(self.topGrasp.pose.pose)
         self.rotateGraspFrameToAlignWithNominal(self.graspFrame)
+
+    # def requestGrasp(self, pointCloudListMsg):
+
+    # 	rospy.loginfo("requesting grasp from spartan_grasp")
+
+    #     serviceName = 'spartan_grasp/GenerateGraspsFromPointCloudList'
+    #     rospy.wait_for_service(serviceName)
+    #     s = rospy.ServiceProxy(serviceName, spartan_grasp_msgs.srv.GenerateGraspsFromPointCloudList)
+    #     response = s(pointCloudListMsg)
+
+    #     print "num scored_grasps = ", len(response.scored_grasps)
+    #     if len(response.scored_grasps) == 0:
+    #     	rospy.loginfo("no valid grasps found")
+    #     	return False
+
+    #     self.topGrasp = response.scored_grasps[0]
+    #     rospy.loginfo("-------- top grasp score = %.3f", self.topGrasp.score)
+    #     self.graspFrame = spartanUtils.transformFromROSPoseMsg(self.topGrasp.pose.pose)
+    #     self.rotateGraspFrameToAlignWithNominal(self.graspFrame)
 
     def getIiwaLinkEEFrameFromGraspFrame(self, graspFrame):
     	return transformUtils.concatenateTransforms([self.iiwaLinkEEToGraspFrame, graspFrame])
 
         # print "response ", response
 
-    def moveToFrame(self, graspFrame):
-    	iiwaLinkEEFrame = self.getIiwaLinkEEFrameFromGraspFrame(graspFrame)
-    	poseDict = spartanUtils.poseFromTransform(iiwaLinkEEFrame)
-    	poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
-    	poseStamped = geometry_msgs.msg.PoseStamped()
-    	poseStamped.pose = poseMsg
-    	poseStamped.header.frame_id = "base"
+    def moveToFrame(self, graspFrame, speed=None):
+        if speed is None:
+            speed = self.config['grasp_speed']
+    	poseStamped = self.makePoseStampedFromGraspFrame(graspFrame)
+    	return self.robotService.moveToCartesianPosition(poseStamped, speed)
 
-    	self.poseStamped = poseStamped
-    	self.robotService.moveToCartesianPosition(poseStamped, self.config['grasp_speed'])
+    """
+    Make PoseStamped message from a given grasp frame
+    """
+    def makePoseStampedFromGraspFrame(self, graspFrame):
+        iiwaLinkEEFrame = self.getIiwaLinkEEFrameFromGraspFrame(graspFrame)
+        poseDict = spartanUtils.poseFromTransform(iiwaLinkEEFrame)
+        poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
+        poseStamped = geometry_msgs.msg.PoseStamped()
+        poseStamped.pose = poseMsg
+        poseStamped.header.frame_id = "base"
 
-    def moveToGraspFrame(self, graspFrame):
+        return poseStamped
+
+
+    """
+    Attempt a grasp
+    return: boolean if it was successful or not
+    """
+    def attemptGrasp(self, graspFrame):
+
     	preGraspFrame = transformUtils.concatenateTransforms([self.preGraspToGraspTransform, self.graspFrame])
-    	vis.updateFrame(preGraspFrame, 'pre grasp frame', scale=0.15)
-    	vis.updateFrame(graspFrame, 'grasp frame', scale=0.15)
+
+        preGrasp_ik_response = self.robotService.runIK(self.makePoseStampedFromGraspFrame(preGraspFrame))
+        grasp_ik_response = self.robotService.runIK(self.makePoseStampedFromGraspFrame(graspFrame))
+
+        if not (preGrasp_ik_response.success and grasp_ik_response.success):
+            rospy.loginfo("grasp pose not reachable, returning")
+            return
+
+        # store for future use
+        self.preGraspFrame = preGraspFrame
+        self.graspFrame = graspFrame
 
 
     	self.moveToFrame(preGraspFrame)
-    	# rospy.sleep(1.0)
     	self.moveToFrame(graspFrame)
+        objectInGripper = self.gripperDriver.closeGripper()
+
+        return objectInGripper
+
+
+    def vtkFrameToPoseMsg(self, vtkFrame):
+        poseDict = spartanUtils.poseFromTransform(vtkFrame)
+        poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
+        poseStamped = geometry_msgs.msg.PoseStamped()
+        poseStamped.pose = poseMsg
+        poseStamped.header.frame_id = "base"
+
+        return poseStamped
+
+    """
+    Moves the gripper up 15cm then moves home
+    """
+    def pickupObject(self):
+        endEffectorFrame = self.tfBuffer.lookup_transform(self.config['base_frame_id'], self.config['end_effector_frame_id'], rospy.Time(0))
+
+        eeFrameVtk = spartanUtils.transformFromROSTransformMsg(endEffectorFrame.transform)
+        eeFrameVtk.PostMultiply()
+        eeFrameVtk.Translate(0,0,self.config['pick_up_distance'])
+
+        vis.updateFrame( eeFrameVtk, 'pickup frame')
+
+        
+        poseStamped = self.vtkFrameToPoseMsg(eeFrameVtk)
+        speed = 10 # joint degrees per second
+        self.robotService.moveToCartesianPosition(poseStamped, speed)
+        self.moveHome()
+        
 
 
     def testMoveToFrame(self):
@@ -217,7 +310,7 @@ class GraspSupervisor(object):
 	the x-Axis of the grasp
     """
     def rotateGraspFrameToAlignWithNominal(self, graspFrame):
-    	graspFrameZAxis = graspFrame.TransformVector(0,1,0)
+    	graspFrameZAxis = graspFrame.TransformVector(0,0,1)
     	if (np.dot(graspFrameZAxis, self.config['grasp_nominal_direction']) < 0):
     		graspFrame.PreMultiply()
     		graspFrame.RotateX(180)
@@ -239,8 +332,26 @@ class GraspSupervisor(object):
 
     def testInThread(self):
         self.collectSensorData()
-        self.requestGrasp(self.pointCloudListMsg)
-        print "test finished"
+
+        # request the grasp via a ROS Action
+        rospy.loginfo("waiting for spartan grasp server")
+        self.generate_grasps_client.wait_for_server()
+        rospy.loginfo("requsting grasps spartan grasp server")
+        goal = spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListGoal(self.pointCloudListMsg)
+        self.generate_grasps_client.send_goal(goal)
+
+        # while the grasp is processing moveHome
+
+        self.moveHome()
+
+        rospy.loginfo("waiting for result")
+        self.generate_grasps_client.wait_for_result()
+        result = self.generate_grasps_client.get_result()
+        rospy.loginfo("received result")
+
+        self.processGenerateGraspsResult(result)
+        
+        print "testInThread returning"
 
     def testMoveHome(self):
    		self.taskRunner.callOnThread(self.moveHome)
@@ -248,11 +359,12 @@ class GraspSupervisor(object):
     def test(self):
         self.taskRunner.callOnThread(self.testInThread)
 
-    def testMoveToGrasp(self):
-    	self.taskRunner.callOnThread(self.moveToGraspFrame, self.graspFrame)
+    def testAttemptGrasp(self):
+    	self.taskRunner.callOnThread(self.attemptGrasp, self.graspFrame)
 
-   	
-
+    def testPickupObject(self):
+        self.taskRunner.callOnThread(self.pickupObject)
+   
 
     @staticmethod
     def makeDefault():

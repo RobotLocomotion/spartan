@@ -46,6 +46,20 @@ def ROSTransformMsgFromPose(d):
 
     return msg
 
+"""
+Saves a single image to a filename using an external executable
+"""
+
+def saveSingleImage(topic, filename, encoding=None):
+        rosImageLoggerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
+                                                'calibration','ros_image_logger.py')
+        cmd = "%s -t %s -f %s" % (rosImageLoggerExecutable, topic, filename)
+        if encoding is not None:
+            cmd += " -e " + encoding
+
+        os.system(cmd)
+
+
 class SimpleSubscriber(object):
     def __init__(self, topic, messageType, externalCallback=None):
         self.topic = topic
@@ -116,5 +130,17 @@ class RobotService(object):
 
         rospy.loginfo("ik was successful, moving to joint position")
         return self.moveToJointPosition(joint_state.position, maxJointDegreesPerSecond=maxJointDegreesPerSecond)
+
+    def runIK(self, poseStamped):
+        ikServiceName = 'robot_control/IkService'
+        rospy.wait_for_service(ikServiceName)
+        s = rospy.ServiceProxy(ikServiceName, robot_msgs.srv.RunIK)
+        response = s(poseStamped)
+
+        joint_state = response.joint_state
+
+        rospy.loginfo("ik was successful = %s", response.success)
+        return response
+
 
 
