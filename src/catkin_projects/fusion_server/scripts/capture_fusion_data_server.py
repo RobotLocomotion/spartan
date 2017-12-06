@@ -8,7 +8,7 @@ import time
 import subprocess
 
 def start_bagging():
-	bagfile_directory = "/home/peteflo/bagfiles/fusion/"
+	bagfile_directory = os.path.expanduser("~")+"/bagfiles/fusion/"
 
 	# make sure bagfile_directory exists
 	os.system("mkdir -p " + bagfile_directory)
