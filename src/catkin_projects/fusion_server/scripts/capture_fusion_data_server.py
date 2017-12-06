@@ -5,9 +5,10 @@ import rospy
 import os
 import sys
 import time
+import subprocess
 
 def start_bagging():
-	bagfile_directory = "~/bagfiles/fusion/"
+	bagfile_directory = "/home/peteflo/bagfiles/fusion/"
 
 	# make sure bagfile_directory exists
 	os.system("mkdir -p " + bagfile_directory)
@@ -36,15 +37,34 @@ def start_bagging():
 
 	# start bagging
 	# for now, timeout the bag
-	os.system("cd " + bagfile_directory + " && timeout 2s " + rosbag_cmd + " &")
-	return os.path.join(bagfile_directory, bagfile_name)
+	#os.system("cd " + bagfile_directory + " && timeout 2s " + rosbag_cmd + " &")
+	rosbag_proc = subprocess.Popen(rosbag_cmd, stdin=subprocess.PIPE, shell=True, cwd=bagfile_directory)
+	return os.path.join(bagfile_directory, bagfile_name), rosbag_proc
+
+# this function taken from here:
+# https://answers.ros.org/question/10714/start-and-stop-rosbag-within-a-python-script/
+def terminate_ros_node(s):
+    list_cmd = subprocess.Popen("rosnode list", shell=True, stdout=subprocess.PIPE)
+    list_output = list_cmd.stdout.read()
+    retcode = list_cmd.wait()
+    assert retcode == 0, "List command returned %d" % retcode
+    for str in list_output.split("\n"):
+        if (str.startswith(s)):
+            os.system("rosnode kill " + str)
 
 def handle_capture_fusion_data(req):
 
 	## start bagging
-	filepath = start_bagging()
+	filepath, rosbag_proc = start_bagging()
 
 	## move to good positions for capturing fusion data
+	time.sleep(2)
+
+	## stop bagging -- this is heavier weight but will not create a .active
+	terminate_ros_node("/record")
+
+	## stop bagging -- this is a more direct way of stopping the rosbag, but will terminate it with a .active
+	# rosbag_proc.send_signal(subprocess.signal.SIGINT)
 
 	## return the full path string to the data
 	print "Returning filepath"
