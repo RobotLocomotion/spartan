@@ -83,10 +83,28 @@ class FusionServer(object):
 		return StopBaggingFusionDataResponse("success")
 
 	def handle_capture_scene_for_fusion(self, req):
+		# Start bagging with own srv call
+		try:
+			start_bagging_fusion_data = rospy.ServiceProxy('start_bagging_fusion_data', StartBaggingFusionData)
+			resp1 = start_bagging_fusion_data()
+			bag_filepath = resp1.data_filepath
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
+
 		print "moving into position to capture scene..."
 		time.sleep(1)
 		print "done"
-		return CaptureSceneForFusionResponse("filepath_placeholder")
+
+
+		# Stop bagging with own srv call
+		try:
+			stop_bagging_fusion_data = rospy.ServiceProxy('stop_bagging_fusion_data', StopBaggingFusionData)
+			resp1 = stop_bagging_fusion_data()
+			print resp1.status
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
+
+		return CaptureSceneForFusionResponse(bag_filepath)
 
 	def capture_fusion_data_server(self):
 		rospy.init_node('capture_fusion_data_server')
