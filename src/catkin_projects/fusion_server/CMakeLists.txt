@@ -58,12 +58,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  AddTwoInts.srv
-)
-
-add_service_files(
-  FILES
   StartBaggingFusionData.srv
+  StopBaggingFusionData.srv
 )
 
 ## Generate actions in the 'action' folder
