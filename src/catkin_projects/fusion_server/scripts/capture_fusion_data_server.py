@@ -54,7 +54,7 @@ class FusionServer(object):
 
 		# start bagging
 		rosbag_proc = subprocess.Popen(rosbag_cmd, stdin=subprocess.PIPE, shell=True, cwd=bagfile_directory)
-		return os.path.join(bagfile_directory, bagfile_name), rosbag_proc
+		return os.path.join(bagfile_directory, bagfile_name+".bag"), rosbag_proc
 
 	def handle_start_bagging_fusion_data(self, req):
 		## check if bagging already
