@@ -23,6 +23,7 @@ class FusionServer(object):
 
 	def __init__(self):
 		self.bagging = False
+		self.rosbag_proc = None
 
 	def start_bagging(self):
 		bagfile_directory = os.path.expanduser("~")+"/bagfiles/fusion/"
@@ -62,22 +63,29 @@ class FusionServer(object):
 			return StartBaggingFusionDataResponse("ERROR: Already bagging!")
 
 		## start bagging
-		filepath, rosbag_proc = self.start_bagging()
-
-		## move to good positions for capturing fusion data
-		time.sleep(2)
-
-		## stop bagging 
-		terminate_ros_node("/record")                       # this is heavier weight but will not create a .active
-		# rosbag_proc.send_signal(subprocess.signal.SIGINT) # this is a more direct way of stopping the rosbag, but will terminate it with a .active
+		filepath, self.rosbag_proc = self.start_bagging()
+		self.bagging = True
 
 		## return the full path string to the data
 		print "Returning filepath"
 		return StartBaggingFusionDataResponse(filepath)
 
+	def handle_stop_bagging_fusion_data(self, req):
+		## check if bagging already
+		if not self.bagging:
+			return StopBaggingFusionDataResponse("ERROR: Not currently bagging! Nothing to stop...")
+
+		## stop bagging 
+		terminate_ros_node("/record")                       # this is heavier weight but will not create a .active
+		# self.rosbag_proc.send_signal(subprocess.signal.SIGINT) # this is a more direct way of stopping the rosbag, but will terminate it with a .active
+		self.bagging = False
+
+		return StopBaggingFusionDataResponse("success")
+
 	def capture_fusion_data_server(self):
 		rospy.init_node('capture_fusion_data_server')
 		s = rospy.Service('start_bagging_fusion_data', StartBaggingFusionData, self.handle_start_bagging_fusion_data)
+		s = rospy.Service('stop_bagging_fusion_data', StopBaggingFusionData, self.handle_stop_bagging_fusion_data)
 		print "Ready to capture fusion data."
 		rospy.spin()
 
