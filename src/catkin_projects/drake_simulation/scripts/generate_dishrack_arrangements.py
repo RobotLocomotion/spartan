@@ -2,10 +2,18 @@ import argparse
 import math
 import numpy as np
 import os
-import pydrake
-from pydrake.solvers import ik
 import time
 import yaml
+
+# For projection into nonpenetration
+# (pre-processing for simulation)
+import pydrake
+from pydrake.solvers import ik
+
+# Eventually, for visualization,
+# though not used yet.
+from director import viewerclient
+
 
 models = {
     "plate_11in": "drake/../../../../../models/dishes/plate_11in_decomp/plate_11in_decomp.urdf",
@@ -24,7 +32,7 @@ class ObjectInstance:
         return {"model": str(self.model), 
                 "q0": [float(x) for x in self.q0], "fixed": self.fixed}
 
-def load_urdf_from_drake_root(model_name, rbt, weld_frame = None):
+def load_rbt_from_urdf_rel_drake_root(model_name, rbt, weld_frame = None):
     urdf_filename = models[model_name]
     drake_root = os.getenv("DRAKE_RESOURCE_ROOT")
     urdf_string = open(drake_root + "/" + urdf_filename).read()
@@ -53,11 +61,11 @@ class DishrackArrangement:
         world_frame = pydrake.rbtree.RigidBodyFrame("world_frame", r.world(), [0, 0, 0], [0, 0, 0])
         for instance in self.instances:
             if instance.fixed:
-                load_urdf_from_drake_root(instance.model, r, world_frame)
+                load_rbt_from_urdf_rel_drake_root(instance.model, r, world_frame)
                 [q0.append(x) for x in instance.q0]
 
             else:
-                load_urdf_from_drake_root(instance.model, r)
+                load_rbt_from_urdf_rel_drake_root(instance.model, r)
                 [q0.append(x) for x in instance.q0]
 
         constraints = [
@@ -89,9 +97,8 @@ class DishrackArrangement:
         with open(filename, 'w') as outfile:
             yaml.dump(data, outfile, default_flow_style=False)
 
-# Place plates vertically, but with random yaw, within the bounds
-# of the rack
-# (Yes this is likely to be bad)
+# Place plates vertically, but with random yaw from [0, pi/2, pi, 3pi/2], 
+# within the bounds of the rack
 plate_11in_params = {
     "lower_bound_x": 0.017,
     "upper_bound_x": 0.47,
@@ -102,7 +109,7 @@ plate_11in_params = {
 def place_plate_11in():
     center_location_x = np.random.uniform(plate_11in_params["lower_bound_x"], plate_11in_params["upper_bound_x"])
     center_location_y = np.random.uniform(plate_11in_params["lower_bound_y"], plate_11in_params["upper_bound_y"])
-    yaw = np.random.uniform(0, 2*math.pi)
+    yaw = float(np.random.randint(0, 4))*math.pi/2.
     return (center_location_x, center_location_y, plate_11in_params["height"],
             0, 0, yaw)
 
