@@ -82,10 +82,17 @@ class FusionServer(object):
 
 		return StopBaggingFusionDataResponse("success")
 
+	def handle_capture_scene_for_fusion(self, req):
+		print "moving into position to capture scene..."
+		time.sleep(1)
+		print "done"
+		return CaptureSceneForFusionResponse("filepath_placeholder")
+
 	def capture_fusion_data_server(self):
 		rospy.init_node('capture_fusion_data_server')
 		s = rospy.Service('start_bagging_fusion_data', StartBaggingFusionData, self.handle_start_bagging_fusion_data)
 		s = rospy.Service('stop_bagging_fusion_data', StopBaggingFusionData, self.handle_stop_bagging_fusion_data)
+		s = rospy.Service('capture_scene_for_fusion', CaptureSceneForFusion, self.handle_capture_scene_for_fusion)
 		print "Ready to capture fusion data."
 		rospy.spin()
 
