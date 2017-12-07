@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 
+# system
 import argparse
+import numpy as np
 
 # ROS
 import rospy
 import sensor_msgs.msg
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
+
+# spartan
+import spartan.utils.ros_utils as rosUtils
 
 
 def getSingleImage(topic, encoding=None):
@@ -33,6 +38,21 @@ def getSingleImage(topic, encoding=None):
 
     d['msg'] = msg
     d['cv2_img'] = cv2_img
+
+    print "type(cv2_img) = ", type(cv2_img)
+    print "cv2_img.dtype = ", cv2_img.dtype 
+
+    # do some conversion if it's a depth image
+    cv2_img_copy = None
+    if ((cv2_img.dtype == np.float32) or (cv2_img.dtype == np.float64)):
+        print "got a pointcloudm, doing conversion"
+        print "flags = ", cv2_img.flags
+        # cv2_img.setflags(write=1)
+        cv2_img = rosUtils.convert32FCto16UC(cv2_img)
+        print cv2_img[200:210, 200:210]
+        # print cv2_img_copy[200:210, 200:210]
+
+    
 
     rospy.loginfo("converted msg to cv2 img on topic %s", topic)
 

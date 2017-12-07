@@ -4,6 +4,7 @@ import time
 import random
 import os
 import math
+import numpy as np
 
 
 # ROS
@@ -45,6 +46,25 @@ def ROSTransformMsgFromPose(d):
     msg.rotation.z = quatDict['z']
 
     return msg
+
+
+"""
+Convert pointcloud from 32FC to 16UC format
+The integer will encode de
+"""
+def convert32FCto16UC(img_in, maxRange=5):
+    
+    # first set the nan's to zero
+    img = np.copy(img_in)
+    img[np.isnan(img)] = 0
+    np.clip(img, 0, maxRange)
+
+    # convert to decimillimeters 10^-4 of a meter
+    img_scaled = img*10**4
+    img_int = img_scaled.astype(int)
+    return img_int
+
+
 
 """
 Saves a single image to a filename using an external executable
