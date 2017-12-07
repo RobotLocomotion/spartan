@@ -36,8 +36,7 @@ def getSingleImage(topic, encoding=None):
         except CvBridgeError, e:
             print(e)
 
-    d['msg'] = msg
-    d['cv2_img'] = cv2_img
+    
 
     print "type(cv2_img) = ", type(cv2_img)
     print "cv2_img.dtype = ", cv2_img.dtype 
@@ -45,17 +44,20 @@ def getSingleImage(topic, encoding=None):
     # do some conversion if it's a depth image
     cv2_img_copy = None
     if ((cv2_img.dtype == np.float32) or (cv2_img.dtype == np.float64)):
-        print "got a pointcloudm, doing conversion"
+        print "got a pointcloud, doing conversion from float to int"
         print "flags = ", cv2_img.flags
         # cv2_img.setflags(write=1)
         cv2_img = rosUtils.convert32FCto16UC(cv2_img)
-        print cv2_img[200:210, 200:210]
-        # print cv2_img_copy[200:210, 200:210]
+        print "cv2_img.dtype = ", cv2_img.dtype
+        # print cv2_img[200:210, 200:210]
+        # print cv2_img
 
     
 
     rospy.loginfo("converted msg to cv2 img on topic %s", topic)
 
+    d['msg'] = msg
+    d['cv2_img'] = cv2_img
     return d
 
 
