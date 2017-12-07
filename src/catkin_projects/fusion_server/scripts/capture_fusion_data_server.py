@@ -40,7 +40,7 @@ class FusionServer(object):
 	def setupConfig(self):
 		self.config = dict()
 		self.config['scan'] = dict()
-		self.config['scan']['pose_list'] = ['above_table_pre_grasp', 'scan_left', 'above_table_pre_grasp', 'scan_right', 'above_table_pre_grasp']
+		self.config['scan']['pose_list'] = ['scan_back', 'scan_left', 'scan_top', 'scan_right', 'scan_back']
 		self.config['scan']['joint_speed'] = 60
 		self.config['home_pose_name'] = 'above_table_pre_grasp'
 
@@ -95,7 +95,7 @@ class FusionServer(object):
 			return StopBaggingFusionDataResponse("ERROR: Not currently bagging! Nothing to stop...")
 
 		## stop bagging 
-		terminate_ros_node("/record")                       # this is heavier weight but will not create a .active
+		terminate_ros_node("/record")                            # this is heavier weight but will not create a .active
 		# self.rosbag_proc.send_signal(subprocess.signal.SIGINT) # this is a more direct way of stopping the rosbag, but will terminate it with a .active
 		self.bagging = False
 
@@ -110,15 +110,9 @@ class FusionServer(object):
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
-		print "moving into position to capture scene..."
-		time.sleep(1)
-		print "done"
-		print "I have these poses!!", self.storedPoses
-
+		# Move robot around
 		for poseName in self.config['scan']['pose_list']:
 			joint_positions = self.storedPoses[poseName]
-			print poseName
-			print joint_positions
 			self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
 
 
