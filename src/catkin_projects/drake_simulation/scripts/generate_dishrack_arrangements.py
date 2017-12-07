@@ -5,6 +5,9 @@ import os
 import time
 import yaml
 
+# For physical simulation
+import pybullet as p
+
 # For projection into nonpenetration
 # (pre-processing for simulation)
 import pydrake
@@ -87,6 +90,29 @@ class DishrackArrangement:
             instance.q0 = q0[ind:(ind+num_states)]
             ind += num_states
 
+    def simulate_instance(self, n_secs, timestep=0.01):
+        # Assumes physics client already set up
+        p.resetSimulation()
+        p.setGravity(0,0,-9.81)
+        p.setTimeStep(timestep)
+
+        # Load in a ground
+        p.loadURDF(os.environ["SPARTAN_SOURCE_DIR"] + "/build/bullet3/data/plane.urdf")
+
+        # Add each model as requested
+        drake_resource_root = os.environ["DRAKE_RESOURCE_ROOT"]
+        ids = []
+        for instance in self.instances:
+            urdf = drake_resource_root + "/" + models[instance.model]
+            q0 = instance.q0
+            position = q0[0:3]
+            quaternion = p.getQuaternionFromEuler(q0[3:8])
+            fixed = instance.fixed
+            ids.append(p.loadURDF(urdf, position, quaternion, fixed))
+
+        for i in range(n_secs / timestep):
+            p.stepSimulation()
+
     def save_to_file(self, filename):
         data = {}
         data["models"] = models
@@ -146,10 +172,15 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--seed", help="Random seed", type=int)
     args = parser.parse_args()
 
+    # Set up a simulation with a ground plane and desired timestep
+    physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
+
     arrangement = generate_dishrack_arrangement(args.max_num_dishes, ["plate_11in",], args.seed)
     arrangement.save_to_file(args.file_prefix + "1_pre_projection.yaml")
     arrangement.project_instance_to_nonpenetration()
     arrangement.save_to_file(args.file_prefix + "1_post_projection.yaml")
+
+    arrangement.simulate_instance(2.)
 
 
 
