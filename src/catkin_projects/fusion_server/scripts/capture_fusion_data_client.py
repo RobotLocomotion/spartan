@@ -5,10 +5,10 @@ import rospy
 from fusion_server.srv import *
 
 def capture_fusion_data_client(x):
-    rospy.wait_for_service('capture_fusion_data')
+    rospy.wait_for_service('start_bagging_fusion_data')
     try:
-        capture_fusion_data = rospy.ServiceProxy('capture_fusion_data', CaptureFusionData)
-        resp1 = capture_fusion_data(x)
+        start_bagging_fusion_data = rospy.ServiceProxy('start_bagging_fusion_data', CaptureFusionData)
+        resp1 = start_bagging_fusion_data(x)
         return resp1.data_filepath
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e

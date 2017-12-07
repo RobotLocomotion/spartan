@@ -53,12 +53,13 @@ class FusionServer(object):
 		print rosbag_cmd
 
 		# start bagging
-		# for now, timeout the bag
-		#os.system("cd " + bagfile_directory + " && timeout 2s " + rosbag_cmd + " &")
 		rosbag_proc = subprocess.Popen(rosbag_cmd, stdin=subprocess.PIPE, shell=True, cwd=bagfile_directory)
 		return os.path.join(bagfile_directory, bagfile_name), rosbag_proc
 
-	def handle_capture_fusion_data(self, req):
+	def handle_start_bagging_fusion_data(self, req):
+		## check if bagging already
+		if self.bagging:
+			return CaptureFusionDataResponse("ERROR: Already bagging!")
 
 		## start bagging
 		filepath, rosbag_proc = self.start_bagging()
@@ -66,11 +67,9 @@ class FusionServer(object):
 		## move to good positions for capturing fusion data
 		time.sleep(2)
 
-		## stop bagging -- this is heavier weight but will not create a .active
-		terminate_ros_node("/record")
-
-		## stop bagging -- this is a more direct way of stopping the rosbag, but will terminate it with a .active
-		# rosbag_proc.send_signal(subprocess.signal.SIGINT)
+		## stop bagging 
+		terminate_ros_node("/record")                       # this is heavier weight but will not create a .active
+		# rosbag_proc.send_signal(subprocess.signal.SIGINT) # this is a more direct way of stopping the rosbag, but will terminate it with a .active
 
 		## return the full path string to the data
 		print "Returning filepath"
@@ -78,7 +77,7 @@ class FusionServer(object):
 
 	def capture_fusion_data_server(self):
 		rospy.init_node('capture_fusion_data_server')
-		s = rospy.Service('capture_fusion_data', CaptureFusionData, self.handle_capture_fusion_data)
+		s = rospy.Service('start_bagging_fusion_data', CaptureFusionData, self.handle_start_bagging_fusion_data)
 		print "Ready to capture fusion data."
 		rospy.spin()
 
