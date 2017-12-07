@@ -1,22 +1,30 @@
 #!/usr/bin/env python
 
-from fusion_server.srv import *
+#system
 import rospy
 import os
 import sys
 import time
 import subprocess
 
+# spartan
+import spartan.utils.utils as spartanUtils
+import spartan.utils.ros_utils as rosUtils
+
+# ros srv
+from fusion_server.srv import *
+
+
 # this function taken from here:
 # https://answers.ros.org/question/10714/start-and-stop-rosbag-within-a-python-script/
 def terminate_ros_node(s):
-    list_cmd = subprocess.Popen("rosnode list", shell=True, stdout=subprocess.PIPE)
-    list_output = list_cmd.stdout.read()
-    retcode = list_cmd.wait()
-    assert retcode == 0, "List command returned %d" % retcode
-    for str in list_output.split("\n"):
-        if (str.startswith(s)):
-            os.system("rosnode kill " + str)
+	list_cmd = subprocess.Popen("rosnode list", shell=True, stdout=subprocess.PIPE)
+	list_output = list_cmd.stdout.read()
+	retcode = list_cmd.wait()
+	assert retcode == 0, "List command returned %d" % retcode
+	for str in list_output.split("\n"):
+		if (str.startswith(s)):
+			os.system("rosnode kill " + str)
 
 
 class FusionServer(object): 
@@ -24,6 +32,17 @@ class FusionServer(object):
 	def __init__(self):
 		self.bagging = False
 		self.rosbag_proc = None
+		storedPosesFile = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'station_config','RLG_iiwa_1','stored_poses.yaml')
+		self.storedPoses = spartanUtils.getDictFromYamlFilename(storedPosesFile)
+		self.robotService = rosUtils.RobotService(self.storedPoses['header']['joint_names'])
+		self.setupConfig()
+
+	def setupConfig(self):
+		self.config = dict()
+		self.config['scan'] = dict()
+		self.config['scan']['pose_list'] = ['above_table_pre_grasp', 'scan_left', 'above_table_pre_grasp', 'scan_right', 'above_table_pre_grasp']
+		self.config['scan']['joint_speed'] = 60
+		self.config['home_pose_name'] = 'above_table_pre_grasp'
 
 	def start_bagging(self):
 		bagfile_directory = os.path.expanduser("~")+"/bagfiles/fusion/"
@@ -94,6 +113,13 @@ class FusionServer(object):
 		print "moving into position to capture scene..."
 		time.sleep(1)
 		print "done"
+		print "I have these poses!!", self.storedPoses
+
+		for poseName in self.config['scan']['pose_list']:
+			joint_positions = self.storedPoses[poseName]
+			print poseName
+			print joint_positions
+			self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
 
 
 		# Stop bagging with own srv call
