@@ -67,11 +67,20 @@ if __name__=="__main__":
     parser.add_argument("-f", "--filename", type=str, required=True, help="filename to which to save the image")
     parser.add_argument("-e", "--encoding", type=str, required=False, help="encoding type for CvBridge.imgmsg_to_cv2")
 
+    parser.add_argument("-fs", "--filestorage", type=bool, required=False, help="use the opencv FileStorage class for saving the file, filename must be of type yaml or xml")
+
     args = parser.parse_args()
     rospy.init_node("image_capture")
 
     data = getSingleImage(args.topic, encoding=args.encoding)
     rospy.loginfo("writing image to file %s", args.filename)
-    cv2.imwrite(args.filename, data['cv2_img'])
+
+    if not args.filestorage:
+        cv2.imwrite(args.filename, data['cv2_img'])
+    else:
+        fs_write = cv2.FileStorage(filename, cv2.FILE_STORAGE_WRITE)
+        fs_write.write("data", d['cv2_img'])
+
+
     rospy.loginfo("finished writing image to file")
 

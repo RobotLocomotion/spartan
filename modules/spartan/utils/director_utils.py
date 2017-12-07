@@ -38,13 +38,42 @@ def transformFromPose(d):
     pos[1] = d['translation']['y']
     pos[2] = d['translation']['z']
 
-    quat = [0] * 4
-    quat[0] = d['quaternion']['w']
-    quat[1] = d['quaternion']['x']
-    quat[2] = d['quaternion']['y']
-    quat[3] = d['quaternion']['z']
+    quatDict = getQuaternionFromDict(d)
+    quat = [0]*4
+    quat[0] = quatDict['w']
+    quat[1] = quatDict['x']
+    quat[2] = quatDict['y']
+    quat[3] = quatDict['z']
 
     return transformUtils.transformFromPose(pos, quat)
+
+"""
+msg: geometry_msgs/Pose
+"""
+def transformFromROSPoseMsg(msg):
+    pos = [msg.position.x, msg.position.y, msg.position.z]
+    quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]
+
+    return transformUtils.transformFromPose(pos,quat)
+
+def transformFromROSTransformMsg(msg):
+    pos = [msg.translation.x, msg.translation.y, msg.translation.z]
+    quat = [msg.rotation.w, msg.rotation.x, msg.rotation.y, msg.rotation.z]
+
+    return transformUtils.transformFromPose(pos,quat)
+
+def getQuaternionFromDict(d):
+    quat = None
+    quatNames = ['orientation', 'rotation', 'quaternion']
+    for name in quatNames:
+        if name in d:
+            quat = d[name]
+
+
+    if quat is None:
+        raise ValueError("Error when trying to extract quaternion from dict, your dict doesn't contain a key in ['orientation', 'rotation', 'quaternion']")
+
+    return quat
 
 
 class EstRobotStatePublisher(object):

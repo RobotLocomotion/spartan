@@ -19,6 +19,7 @@ import spartan_grasp_msgs.srv
 # spartan
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
+import spartan.utils.director_utils as directorUtils
 from spartan.manipulation.schunk_driver import SchunkDriver
 
 # director
@@ -47,6 +48,9 @@ class BackgroundSubtractionDataCapture(object):
 
         if USING_DIRECTOR:
             self.taskRunner = TaskRunner()
+            self.taskRunner.callOnThread(self.setupTF)
+        else:
+            self.setupTF()
 
     def setupConfig(self):
         self.config = dict()
@@ -67,6 +71,10 @@ class BackgroundSubtractionDataCapture(object):
         self.imageTopics = dict()
         self.imageTopics['rgb'] = self.cameraTopicBase + '/rgb/image_rect_color'
         self.imageTopics['depth'] = self.cameraTopicBase + '/depth_registered/sw_registered/image_rect'
+
+    def setupTF(self):
+        self.tfBuffer = tf2_ros.Buffer()
+        self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
 
 
     def startImageSubscribers(self):
@@ -106,22 +114,42 @@ class BackgroundSubtractionDataCapture(object):
             self.robotService.moveToJointPosition(pose, maxJointDegreesPerSecond=self.config['maxJointDegreesPerSecond'])
 
             self.captureImages(poseName, filenameExtension=filenameExtension)
+            self.captureCameraPose(poseName)
+
+    def captureCameraPose(self, poseName):
+        # tf stuff
+        cameraOpticalFrameToBase = self.tfBuffer.lookup_transform("base", self.cameraInfoDict['rgb_optical_frame'], rospy.Time(0))
+
+        # convert it to yaml
+        cameraOpticalFrameToBaseVTK = directorUtils.transformFromROSPoseMsg(msg):
+        cameraPoseDict = directorUtils.poseFromTransform(cameraOpticalFrameToBaseVTK)
+
+        self.data['images'][poseName]['camera_pose'] = cameraPoseDict
+        return cameraPoseDict
 
 
     def captureImages(self, poseName, filenameExtension='background'):
         d = dict()
+
         
         for imageType, topic in self.imageTopics.iteritems():
 
-            filename = str(poseName) + "_" + imageType + "_" + filenameExtension + '.' + self.config['image_file_type']
+            # use custom file type if warranted
+
+            filetype = self.cameraInfoDict['filename_type']['default']
+
+            if imageType in self.cameraInfoDict['filename_type']:
+                filetype = self.cameraInfoDict['filename_type'][imageType]
+
+            filename = str(poseName) + "_" + imageType + "_" + filenameExtension + '.' + filetype
             fullFilename =  os.path.join(self.folderName, filename)
 
-            # use the specified encoding if it is given
-            encoding = None
-            if imageType in self.cameraInfoDict['encoding']:
-                encoding = self.cameraInfoDict['encoding'][imageType]
-
-            rosUtils.saveSingleImage(topic, fullFilename, encoding)
+            
+            # depth images need special treatment
+            if imageType == "depth":
+                rosUtils.saveSingleDepthImage(topic, fullFilename, encoding)
+            else:
+                rosUtils.saveSingleImage(topic, fullFilename, encoding)
 
             d[imageType] = dict()
             d[imageType]['filename'] = filename

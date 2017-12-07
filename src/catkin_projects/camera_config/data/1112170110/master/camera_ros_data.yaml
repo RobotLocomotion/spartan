@@ -3,6 +3,10 @@ camera_serial_number: 1112170110
 camera_type: 'xtion_pro'
 rgb_raw_topic: /camera_1112170110/rgb/image_raw
 encoding:
-  ir: "16UC1"
-  rgb: "bgr8"
-filename_extension: "png"
+  # let it store the images in the default format
+  # ir: "16UC1"
+  # rgb: "bgr8"
+filename_type:
+  default: "png"
+  depth: "yaml"
+
