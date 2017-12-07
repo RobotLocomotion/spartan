@@ -59,7 +59,7 @@ class FusionServer(object):
 	def handle_start_bagging_fusion_data(self, req):
 		## check if bagging already
 		if self.bagging:
-			return CaptureFusionDataResponse("ERROR: Already bagging!")
+			return StartBaggingFusionDataResponse("ERROR: Already bagging!")
 
 		## start bagging
 		filepath, rosbag_proc = self.start_bagging()
@@ -73,11 +73,11 @@ class FusionServer(object):
 
 		## return the full path string to the data
 		print "Returning filepath"
-		return CaptureFusionDataResponse(filepath)
+		return StartBaggingFusionDataResponse(filepath)
 
 	def capture_fusion_data_server(self):
 		rospy.init_node('capture_fusion_data_server')
-		s = rospy.Service('start_bagging_fusion_data', CaptureFusionData, self.handle_start_bagging_fusion_data)
+		s = rospy.Service('start_bagging_fusion_data', StartBaggingFusionData, self.handle_start_bagging_fusion_data)
 		print "Ready to capture fusion data."
 		rospy.spin()
 

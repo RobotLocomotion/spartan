@@ -4,10 +4,10 @@ import sys
 import rospy
 from fusion_server.srv import *
 
-def capture_fusion_data_client(x):
+def start_bagging_fusion_data_client(x):
     rospy.wait_for_service('start_bagging_fusion_data')
     try:
-        start_bagging_fusion_data = rospy.ServiceProxy('start_bagging_fusion_data', CaptureFusionData)
+        start_bagging_fusion_data = rospy.ServiceProxy('start_bagging_fusion_data', StartBaggingFusionData)
         resp1 = start_bagging_fusion_data(x)
         return resp1.data_filepath
     except rospy.ServiceException, e:
@@ -23,4 +23,4 @@ if __name__ == "__main__":
         print usage()
         sys.exit(1)
     print "Requesting %s"%(x)
-    print "%s = %s"%(x, capture_fusion_data_client(x))
+    print "%s = %s"%(x, start_bagging_fusion_data_client(x))
