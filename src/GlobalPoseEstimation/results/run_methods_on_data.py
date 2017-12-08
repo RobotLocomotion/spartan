@@ -131,6 +131,9 @@ def run_method(method, config_file, input_dir, output_dir):
     command = "run_super4pcs_pose_estimator %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
       input_dir, input_dir, config_file, output_file
     )
+  elif method == "icp":
+    command = "run_iterative_closest_point_estimator %s/scene_cloud.vtp %s/model_cloud.vtp %s %s" % (
+      input_dir, input_dir, config_file, output_file)
   else:
     print "Detector type \"", method, "\" not recognized."
     exit(0)
@@ -233,7 +236,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Update pose estimation results.')
   parser.add_argument("-B", help="Rebuild all.", action='store_true')
 
-  methods = ["fgr", "goicp", "mip", "super4pcs"]
+  methods = ["fgr", "goicp", "mip", "super4pcs", "icp"]
 
   for method in methods:
     parser.add_argument("--" + method, help="Config to update, or \"all\"")

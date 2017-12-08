@@ -1,0 +1,4 @@
+detector_options:
+    downsample_spacing: 0.01 # for model and scene, where appropriate
+    num_samples: 100
+    visualize_icp: False
