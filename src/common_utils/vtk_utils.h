@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Eigen/Dense>
+
 #include <vtkActor.h>
 #include <vtkCellArray.h>
 #include <vtkCleanPolyData.h>
@@ -66,18 +68,16 @@ static void WritePolyData(const vtkSmartPointer<vtkPolyData> polyData,
 }
 
 static vtkSmartPointer<vtkPolyData> DownsampleAndCleanPolyData(
-    const vtkSmartPointer<vtkPolyData> polyData,
-    double downsample_spacing = -1.0) {
+    const vtkSmartPointer<vtkPolyData> polyData, double downsample_spacing) {
   vtkSmartPointer<vtkPolyData> cloudPolyDataDownsampled = polyData;
 
-  if (downsample_spacing > 0.0) {
-    vtkSmartPointer<vtkPolyDataPointSampler> pointSampler =
-        vtkSmartPointer<vtkPolyDataPointSampler>::New();
-    pointSampler->SetDistance(downsample_spacing);
-    pointSampler->SetInputData(polyData);
-    pointSampler->Update();
-    cloudPolyDataDownsampled = pointSampler->GetOutput();
-  }
+  vtkSmartPointer<vtkPolyDataPointSampler> pointSampler =
+      vtkSmartPointer<vtkPolyDataPointSampler>::New();
+  pointSampler->SetDistance(downsample_spacing);
+  pointSampler->SetInputData(polyData);
+  pointSampler->Update();
+  cloudPolyDataDownsampled = pointSampler->GetOutput();
+
   vtkSmartPointer<vtkCleanPolyData> pointCleaner =
       vtkSmartPointer<vtkCleanPolyData>::New();
   pointCleaner->SetToleranceIsAbsolute(true);
@@ -93,7 +93,12 @@ static Eigen::Matrix3Xd LoadAndDownsamplePolyData(
   cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from "
        << fileName << endl;
 
-  DownsampleAndCleanPolyData(cloudPolyData);
+  if (downsample_spacing > 0.0) {
+    cloudPolyData =
+        DownsampleAndCleanPolyData(cloudPolyData, downsample_spacing);
+    cout << "Downsampled to " << cloudPolyData->GetNumberOfPoints() << " points"
+         << endl;
+  }
 
   Eigen::Matrix3Xd out_pts(3, cloudPolyData->GetNumberOfPoints());
   for (int i = 0; i < cloudPolyData->GetNumberOfPoints(); i++) {
@@ -140,9 +145,8 @@ static vtkSmartPointer<vtkPolyData> PolyDataFromMatrix3Xd(
   return polyData;
 }
 
-static void AddColorToPolyData(
-    const vtkSmartPointer<vtkPolyData> polyData,
-    std::vector<std::vector<double>> colors) {
+static void AddColorToPolyData(const vtkSmartPointer<vtkPolyData> polyData,
+                               std::vector<std::vector<double>> colors) {
   vtkSmartPointer<vtkUnsignedCharArray> colors_vtk =
       vtkSmartPointer<vtkUnsignedCharArray>::New();
   colors_vtk->SetNumberOfComponents(3);

@@ -39,14 +39,14 @@ if __name__ == '__main__':
 
     sampler = vtk.vtkPolyDataPointSampler()
     sampler.SetDistance(gridsize)
-    sampler.SetInput(polyData)
+    sampler.SetInputData(polyData)
     sampler.Update()
     sampled_data = sampler.GetOutput()
 
     cleaner = vtk.vtkCleanPolyData()
     cleaner.SetToleranceIsAbsolute(1)
     cleaner.SetAbsoluteTolerance(gridsize)
-    cleaner.SetInput(sampled_data)
+    cleaner.SetInputData(sampled_data)
     cleaner.Update()
     output_data = cleaner.GetOutput()
 

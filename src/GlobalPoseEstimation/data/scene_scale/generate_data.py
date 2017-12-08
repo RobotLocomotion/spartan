@@ -15,9 +15,9 @@ if __name__ == '__main__':
     os.system("mkdir cube_resampled")
 
     # To generate the model cloud, resample a cube mesh
-    base_mesh = "object-meshes/cube.obj"
+    base_mesh = "cube.obj"
 
-    os.system("directorPython ../../scripts/resampleVtp.py ../%s cube_resampled/model_cloud.vtp 0.02" % base_mesh)
+    os.system("directorPython ../../scripts/resampleVtp.py %s cube_resampled/model_cloud.vtp 0.05" % base_mesh)
 
     # Pick a transformation...
     ground_truth_config = dict(filename = base_mesh,
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     
     tf = transformUtils.transformFromPose(ground_truth_config["pose"][0], ground_truth_config["pose"][1])
     tf_filter = vtk.vtkTransformPolyDataFilter()
-    tf_filter.SetInput(polyData)
+    tf_filter.SetInputData(polyData)
     tf_filter.SetTransform(tf)
     tf_filter.Update()
     tfd_data = tf_filter.GetOutput() 
