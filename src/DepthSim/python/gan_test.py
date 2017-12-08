@@ -13,7 +13,7 @@ batch_size = 4
 learning_rate = 0.001
 
 # Network Params
-image_dim =  28*28# 28*28 pixels
+image_dim =  50*50# 28*28 pixels
 gen_hidden_dim = 256
 disc_hidden_dim = 256
 noise_dim = 200 # Noise data points
@@ -22,7 +22,7 @@ noise_dim = 200 # Noise data points
 def glorot_init(shape):
     return tf.random_normal(shape=shape, stddev=1. / tf.sqrt(shape[0] / 2.))
 
-# Import MNIST data
+#Import MNIST data
 #from tensorflow.examples.tutorials.mnist import input_data
 #mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
@@ -48,7 +48,8 @@ def create_batches(batch_size):
     while (True):
         images = []
         for i in range(0,batch_size):
-            im = misc.imread(list_of_images[(i+count)%len(list_of_images)])[100:128,100:128].flatten()
+            im = misc.imread(list_of_images[(i+count)%len(list_of_images)])[50:450,50:550]
+            im = misc.imresize(im,(50,50)).flatten()
             images.append(im/float(np.max(im)))
         yield(np.asarray(images))
         count+=batch_size
@@ -122,6 +123,8 @@ with tf.Session() as sess:
         # Prepare Data
         # Get the next batch of MNIST data (only images are needed, not labels)
         batch_x = rgbd.next()
+        #batch_x = mnist.train.next_batch(batch_size)[0]
+
         # Generate noise to feed to the generator
         z = np.random.uniform(-1., 1., size=[batch_size, noise_dim])
 
@@ -138,13 +141,13 @@ with tf.Session() as sess:
         # Noise input.
         z = np.random.uniform(-1., 1., size=[4, noise_dim])
         g = sess.run([gen_sample], feed_dict={gen_input: z})
-        g = np.reshape(g, newshape=(4, 28, 28, 1))
+        g = np.reshape(g, newshape=(4, 50, 50, 1))
         # Reverse colours for better display
         g = -1 * (g - 1)
         for j in range(4):
             # Generate image from noise. Extend to 3 channels for matplot figure.
             img = np.reshape(np.repeat(g[j][:, :, np.newaxis], 3, axis=2),
-                             newshape=(28, 28, 3))
+                             newshape=(50, 50, 3))
             a[j][i].imshow(img)
 
     f.show()
