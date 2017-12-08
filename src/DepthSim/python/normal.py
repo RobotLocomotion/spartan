@@ -111,7 +111,7 @@ if __name__ == '__main__':
       #write out depth image
       imageWriter.SetFileName(data_dir+"/images/"+str(i).zfill(10)+"normal_ground_truth1.png");
       imageWriter.SetInputConnection(windowToColorBuffer.GetOutputPort());
-      #imageWriter.Write();
+      imageWriter.Write();
   
   renWin.Render();
   interactor.Start();
