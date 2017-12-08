@@ -205,9 +205,9 @@ int main(int argc, char** argv) {
           Affine3d est_tf = est_tf_pair.second;
 
           VectorXd q_out(7);
-          q_out.block<3, 1>(0, 0) = est_tf.inverse().translation();
+          q_out.block<3, 1>(0, 0) = est_tf.translation();
           q_out.block<4, 1>(3, 0) =
-              drake::math::rotmat2quat(est_tf.inverse().rotation());
+              drake::math::rotmat2quat(est_tf.rotation());
           out << YAML::BeginMap;
           {
             out << YAML::Key << "models";
