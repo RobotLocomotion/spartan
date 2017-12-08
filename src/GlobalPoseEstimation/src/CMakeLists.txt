@@ -23,7 +23,25 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
-find_package(OpenCV 2 REQUIRED)
+find_package(OpenCV 3 REQUIRED)
+
+add_library(iterative_closest_point iterative_closest_point.cpp iterative_closest_point.hpp)
+target_link_libraries(iterative_closest_point
+	lcm
+	RemoteTreeViewerWrapper
+	${drake_LIBRARIES}
+	${gflags_LIBRARIES})
+install(TARGETS iterative_closest_point DESTINATION lib)
+
+add_executable(run_iterative_closest_point_estimator run_iterative_closest_point_estimator.cpp)
+target_link_libraries(run_iterative_closest_point_estimator
+	iterative_closest_point
+	lcm
+	RemoteTreeViewerWrapper
+	${drake_LIBRARIES}
+	${PCL_LIBRARIES}
+	yaml-cpp)
+install(TARGETS run_iterative_closest_point_estimator DESTINATION bin)
 
 add_library(point_cloud_generator point_cloud_generator.cpp point_cloud_generator.hpp)
 target_link_libraries(point_cloud_generator
