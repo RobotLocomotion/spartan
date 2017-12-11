@@ -109,7 +109,7 @@ def saveSingleDepthImage(topic, filename, encoding=None):
         if encoding is not None:
             cmd += " -e " + encoding
 
-        cmd += " -fs "
+        cmd += " -fs"
 
         os.system(cmd)
 
@@ -195,6 +195,8 @@ class RobotService(object):
 
         rospy.loginfo("ik was successful = %s", response.success)
         return response
+
+
 
 
 

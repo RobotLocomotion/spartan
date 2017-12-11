@@ -41,16 +41,16 @@ def getSingleImage(topic, encoding=None):
     print "type(cv2_img) = ", type(cv2_img)
     print "cv2_img.dtype = ", cv2_img.dtype 
 
-    # do some conversion if it's a depth image
-    cv2_img_copy = None
-    if ((cv2_img.dtype == np.float32) or (cv2_img.dtype == np.float64)):
-        print "got a pointcloud, doing conversion from float to int"
-        print "flags = ", cv2_img.flags
-        # cv2_img.setflags(write=1)
-        cv2_img = rosUtils.convert32FCto16UC(cv2_img)
-        print "cv2_img.dtype = ", cv2_img.dtype
-        # print cv2_img[200:210, 200:210]
-        # print cv2_img
+    # # do some conversion if it's a depth image
+    # cv2_img_copy = None
+    # if ((cv2_img.dtype == np.float32) or (cv2_img.dtype == np.float64)):
+    #     print "got a pointcloud, doing conversion from float to int"
+    #     print "flags = ", cv2_img.flags
+    #     # cv2_img.setflags(write=1)
+    #     cv2_img = rosUtils.convert32FCto16UC(cv2_img)
+    #     print "cv2_img.dtype = ", cv2_img.dtype
+    #     # print cv2_img[200:210, 200:210]
+    #     # print cv2_img
 
     
 
@@ -67,7 +67,7 @@ if __name__=="__main__":
     parser.add_argument("-f", "--filename", type=str, required=True, help="filename to which to save the image")
     parser.add_argument("-e", "--encoding", type=str, required=False, help="encoding type for CvBridge.imgmsg_to_cv2")
 
-    parser.add_argument("-fs", "--filestorage", taction='store_true', required=False, help="use the opencv FileStorage class for saving the file, filename must be of type yaml or xml")
+    parser.add_argument("-fs", "--filestorage", action='store_true', required=False, help="use the opencv FileStorage class for saving the file, filename must be of type yaml or xml")
 
     args = parser.parse_args()
     rospy.init_node("image_capture")
@@ -78,8 +78,9 @@ if __name__=="__main__":
     if not args.filestorage:
         cv2.imwrite(args.filename, data['cv2_img'])
     else:
-        fs_write = cv2.FileStorage(filename, cv2.FILE_STORAGE_WRITE)
-        fs_write.write("data", d['cv2_img'])
+        fs_write = cv2.FileStorage(args.filename, cv2.FILE_STORAGE_WRITE)
+        fs_write.write("data", data['cv2_img'])
+        fs_write.release()
 
 
     rospy.loginfo("finished writing image to file")

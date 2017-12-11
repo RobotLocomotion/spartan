@@ -33,11 +33,12 @@ if USING_DIRECTOR:
 
 class BackgroundSubtractionDataCapture(object):
 
-    def __init__(self, jointNames, poseData, cameraInfoDict, cameraSerialNumber=1112170110, poseFilename=None, cameraInfoFilename=None):
+    def __init__(self, jointNames, poseData, cameraInfoDict, cameraSerialNumber=1112170110, poseFilename=None, cameraInfoFilename=None, tfBuffer=None):
         
         self.jointNames = jointNames
         self.poseData = poseData
         self.cameraInfoDict = cameraInfoDict
+        self.tfBuffer = tfBuffer
 
         self.poseFilename = poseFilename
         self.cameraInfoFilename = cameraInfoFilename
@@ -73,8 +74,9 @@ class BackgroundSubtractionDataCapture(object):
         self.imageTopics['depth'] = self.cameraTopicBase + '/depth_registered/sw_registered/image_rect'
 
     def setupTF(self):
-        self.tfBuffer = tf2_ros.Buffer()
-        self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
+        if self.tfBuffer is None:
+            self.tfBuffer = tf2_ros.Buffer()
+            self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
 
 
     def startImageSubscribers(self):
@@ -116,12 +118,14 @@ class BackgroundSubtractionDataCapture(object):
             self.captureImages(poseName, filenameExtension=filenameExtension)
             self.captureCameraPose(poseName)
 
+        rospy.loginfo("data capture finished for " + filenameExtension)
+
     def captureCameraPose(self, poseName):
         # tf stuff
         cameraOpticalFrameToBase = self.tfBuffer.lookup_transform("base", self.cameraInfoDict['rgb_optical_frame'], rospy.Time(0))
 
         # convert it to yaml
-        cameraOpticalFrameToBaseVTK = directorUtils.transformFromROSPoseMsg(msg):
+        cameraOpticalFrameToBaseVTK = directorUtils.transformFromROSTransformMsg(cameraOpticalFrameToBase.transform)
         cameraPoseDict = directorUtils.poseFromTransform(cameraOpticalFrameToBaseVTK)
 
         self.data['images'][poseName]['camera_pose'] = cameraPoseDict
@@ -134,6 +138,8 @@ class BackgroundSubtractionDataCapture(object):
         
         for imageType, topic in self.imageTopics.iteritems():
 
+            rospy.loginfo("capture image on topic " + topic)
+
             # use custom file type if warranted
 
             filetype = self.cameraInfoDict['filename_type']['default']
@@ -144,7 +150,13 @@ class BackgroundSubtractionDataCapture(object):
             filename = str(poseName) + "_" + imageType + "_" + filenameExtension + '.' + filetype
             fullFilename =  os.path.join(self.folderName, filename)
 
-            
+
+            encoding = None
+
+            if (self.cameraInfoDict['encoding'] is not None) and (imageType in self.cameraInfoDict['encoding']):
+                encoding = self.cameraInfoDict['encoding'][imageType]
+
+
             # depth images need special treatment
             if imageType == "depth":
                 rosUtils.saveSingleDepthImage(topic, fullFilename, encoding)
@@ -171,7 +183,7 @@ class BackgroundSubtractionDataCapture(object):
         self.taskRunner.callOnThread(self.runDataCapture, 'foreground')
 
     @staticmethod
-    def makeDefault():
+    def makeDefault(**kwargs):
         storedPosesFile = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'station_config','RLG_iiwa_1','background_subtraction', 'stored_poses.yaml')
 
         cameraInfoFilename =  os.path.join(spartanUtils.getSpartanSourceDir(), 'src/catkin_projects/camera_config/data/1112170110/master/camera_ros_data.yaml')
@@ -180,4 +192,4 @@ class BackgroundSubtractionDataCapture(object):
         cameraInfoDict = spartanUtils.getDictFromYamlFilename(cameraInfoFilename)
 
 
-        return BackgroundSubtractionDataCapture(poseData['header']['joint_names'], poseData, cameraInfoDict, poseFilename=storedPosesFile, cameraInfoFilename=cameraInfoFilename)
+        return BackgroundSubtractionDataCapture(poseData['header']['joint_names'], poseData, cameraInfoDict, poseFilename=storedPosesFile, cameraInfoFilename=cameraInfoFilename, **kwargs)

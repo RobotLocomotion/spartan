@@ -32,7 +32,7 @@ if USING_DIRECTOR:
 
 class GraspSupervisor(object):
 
-    def __init__(self, storedPosesFile=None, cameraSerialNumber=1112170110):
+    def __init__(self, storedPosesFile=None, cameraSerialNumber=1112170110, tfBuffer=None):
         self.storedPoses = spartanUtils.getDictFromYamlFilename(storedPosesFile)
         self.cameraSerialNumber = cameraSerialNumber
 
@@ -44,6 +44,7 @@ class GraspSupervisor(object):
         self.robotService = rosUtils.RobotService(self.storedPoses['header']['joint_names'])
 
         self.usingDirector = True
+        self.tfBuffer = tfBuffer # don't create a new one if it is passed in
         self.setupConfig()
 
         if USING_DIRECTOR:
@@ -115,8 +116,9 @@ class GraspSupervisor(object):
 
 
     def setupTF(self):
-        self.tfBuffer = tf2_ros.Buffer()
-        self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
+        if self.tfBuffer is None:
+            self.tfBuffer = tf2_ros.Buffer()
+            self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
 
 
     def getDepthOpticalFrameToGraspFrameTransform(self):
@@ -367,7 +369,7 @@ class GraspSupervisor(object):
    
 
     @staticmethod
-    def makeDefault():
+    def makeDefault(**kwargs):
         storedPosesFile = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'station_config','RLG_iiwa_1','stored_poses.yaml')
 
-        return GraspSupervisor(storedPosesFile=storedPosesFile)
+        return GraspSupervisor(storedPosesFile=storedPosesFile, **kwargs)
