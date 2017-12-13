@@ -12,6 +12,11 @@ if [ ! $exit_status -eq 0 ]; then
   exit $exit_status
 fi
 
+# That CMake build generates this environment configuration
+# script, which includes some definitions the compilation requires
+# to work.
+. setup_environment.sh
+
 make -j8
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
@@ -27,3 +32,6 @@ if [ ! $exit_status -eq 0 ]; then
   echo "Error code in make: " $exit_status
   exit $exit_status
 fi
+
+# See if we can source everything OK.
+. setup_environment.sh

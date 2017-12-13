@@ -12,12 +12,18 @@ sudo apt-get install -y nvidia-docker2
 ```
 with
 ```
-sudo apt-get install -y nvidia-docker1
+sudo apt-get install -y nvidia-docker
 ```
 You can test that your nvidia-docker installation is working by running
 ```
 docker run --runtime=nvidia --rm nvidia/cuda nvidia-smi
 ```
+If you get errors about nvidia-modprobe not being installed, install it by running
+```
+sudo apt-get install nvidia-modprobe
+```
+and then restart your machine.
+
 3) Clone, setup, and build Spartan:
 ```
 git clone git@github.com:RobotLocomotion/spartan.git
@@ -26,7 +32,7 @@ git submodule init
 git submodule update
 ./setup/docker/docker_build.py
 ./setup/docker/docker_run.py
-mkdir build && cd build && cmake .. && make -j8
+mkdir build && cd build && cmake .. && use_spartan && make -j8
 ```
 Below is explained additional options and details of the above.
 
@@ -58,6 +64,7 @@ See [here](https://docs.docker.com/engine/reference/commandline/start/) for more
 cd /root/spartan
 mkdir build && cd build
 cmake ..
+use_spartan
 make -j
 ```
 
