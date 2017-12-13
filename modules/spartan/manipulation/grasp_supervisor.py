@@ -72,12 +72,15 @@ class GraspSupervisor(object):
         self.config['scan']['pose_list'] = ['scan_left', 'scan_right']
         self.config['scan']['joint_speed'] = 60
         self.config['grasp_speed'] = 20
+        self.config['speed'] = dict()
+        self.config['speed']['stow'] = 30
         self.config['home_pose_name'] = 'above_table_pre_grasp'
         self.config['grasp_nominal_direction'] = np.array([1,0,0]) # x forwards
         self.config['grasp_to_ee'] = dict()
 
         self.config['grasp_to_ee']['translation'] = dict()
-        self.config['grasp_to_ee']['translation']['x'] = 9.32362425e-02
+        # self.config['grasp_to_ee']['translation']['x'] = 9.32362425e-02
+        self.config['grasp_to_ee']['translation']['x'] = 0.085
         self.config['grasp_to_ee']['translation']['y'] = 0
         self.config['grasp_to_ee']['translation']['z'] = 0
 
@@ -175,6 +178,9 @@ class GraspSupervisor(object):
         self.pointCloudListMsg = pointCloudListMsg
         return pointCloudListMsg
 
+    """
+    Returns true if a grasp was found
+    """
     def processGenerateGraspsResult(self, result):
         print "num scored_grasps = ", len(result.scored_grasps)
         if len(result.scored_grasps) == 0:
@@ -185,6 +191,7 @@ class GraspSupervisor(object):
         rospy.loginfo("-------- top grasp score = %.3f", self.topGrasp.score)
         self.graspFrame = spartanUtils.transformFromROSPoseMsg(self.topGrasp.pose.pose)
         self.rotateGraspFrameToAlignWithNominal(self.graspFrame)
+        return True
 
     # def requestGrasp(self, pointCloudListMsg):
 
@@ -243,13 +250,13 @@ class GraspSupervisor(object):
 
         if not (preGrasp_ik_response.success and grasp_ik_response.success):
             rospy.loginfo("grasp pose not reachable, returning")
-            return
+            return False
 
         # store for future use
         self.preGraspFrame = preGraspFrame
         self.graspFrame = graspFrame
 
-
+        self.gripperDriver.sendOpenGripperCommand()
     	self.moveToFrame(preGraspFrame)
     	self.moveToFrame(graspFrame)
         objectInGripper = self.gripperDriver.closeGripper()
@@ -283,8 +290,25 @@ class GraspSupervisor(object):
         speed = 10 # joint degrees per second
         self.robotService.moveToCartesianPosition(poseStamped, speed)
         self.moveHome()
+        self.robotService.moveToJointPosition(self.storedPoses['stow_in_bin'], maxJointDegreesPerSecond=self.config['speed']['stow'])
+        self.gripperDriver.sendOpenGripperCommand()
+        rospy.sleep(0.5)
+        self.moveHome()
         
 
+    def planGraspAndPickupObject(self):
+        graspFound = self.testInThread()
+        if not graspFound:
+            rospy.loginfo("no grasp found, returning")
+            return False
+
+        graspSuccessful = self.attemptGrasp(self.graspFrame)
+        if not graspSuccessful:
+            rospy.loginfo("grasp not successful returning")
+            return False
+
+
+        self.pickupObject()
 
     def testMoveToFrame(self):
     	pos = [ 0.51148583,  0.0152224 ,  0.50182436]
@@ -305,6 +329,11 @@ class GraspSupervisor(object):
     def showGraspFrame(self):
     	vis.updateFrame(self.graspFrame, 'grasp frame', scale=0.15)
     	vis.updateFrame(self.getIiwaLinkEEFrameFromGraspFrame(self.graspFrame), 'iiwa_link_ee_grasp_frame', scale=0.15)
+
+    def showGripperFrame(self):
+        iiwaLinkEE = self.robotSystem.robotStateModel.getLinkFrame('iiwa_link_ee')
+        gripperFrame = transformUtils.concatenateTransforms([self.graspToIiwaLinkEE, iiwaLinkEE])
+        vis.updateFrame(gripperFrame, 'Gripper Frame', scale=0.15)
 
     """
 	Rotate the grasp frame to align with the nominal direction. In this case we want the ZAxis of the 
@@ -349,11 +378,11 @@ class GraspSupervisor(object):
         rospy.loginfo("waiting for result")
         self.generate_grasps_client.wait_for_result()
         result = self.generate_grasps_client.get_result()
+        self.generate_grasps_result = result
         rospy.loginfo("received result")
 
-        self.processGenerateGraspsResult(result)
+        return self.processGenerateGraspsResult(result)
         
-        print "testInThread returning"
 
     def testMoveHome(self):
    		self.taskRunner.callOnThread(self.moveHome)
@@ -366,6 +395,9 @@ class GraspSupervisor(object):
 
     def testPickupObject(self):
         self.taskRunner.callOnThread(self.pickupObject)
+
+    def testPipeline(self):
+        self.taskRunner.callOnThread(self.planGraspAndPickupObject)
    
 
     @staticmethod
