@@ -22,12 +22,12 @@ endif()
 
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
-option(WITH_SNOPT "Build drake with support for the SNOPT solver." OFF)
+option(WITH_SNOPT "Build drake with support for the SNOPT solver." ON)
 
-option(WITH_IIWA_DRIVER_RLG "Build drake-iiwa-driver, RLG version." OFF)
+option(WITH_IIWA_DRIVER_RLG "Build drake-iiwa-driver, RLG version." ON)
 option(WITH_IIWA_DRIVER_TRI "Build drake-iiwa-driver, TRI version." OFF)
-option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." OFF)
-option(WITH_ROS "Build the catkin-workspace projects." OFF)
+option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." ON)
+option(WITH_ROS "Build the catkin-workspace projects." ON)
 option(WITH_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 option(WITH_TRIMESH "Build trimesh, a python utility for working with triangle meshes" OFF)
 

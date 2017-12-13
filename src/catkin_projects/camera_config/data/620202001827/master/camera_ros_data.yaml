@@ -1,0 +1,9 @@
+ir_raw_topic: /camera/ir/image_raw
+camera_serial_number: 620202001827
+camera_type: 'sr300'
+rgb_raw_topic: /camera/rgb/image_raw
+encoding:
+  ir: "16UC1"
+  rgb: "bgr8"
+  # depth: ""
+filename_extension: "png"

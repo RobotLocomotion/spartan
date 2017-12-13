@@ -16,23 +16,6 @@ depth:
         x: 7.07984565e-01
         y: 3.26610787e-03
         z: 5.10074366e-05
-
-  camera_info: # this is a ROS sensor_msgs/CameraInfo message
-    width: 640
-    height: 480
-    distortion_model: "plumb-bob"
-    D: [-0.04857082958307014, 0.3144954677233067, 0.003203594856593854, -0.001713622714935763, -0.7198255591919602]
-    K: [579.8841178988965, 0, 321.4783752863867, 0, 580.3855301843198, 246.005051147932,
- 0, 0, 1]
-    R: [1,0,0,0,1,0,0,1] # identity since this is monocular camera
-    # P is same as K matrix with Tx = Ty = 0
-    P: [579.8841178988965, 0, 321.4783752863867, 0, 0, 580.3855301843198, 246.005051147932, 0,
- 0, 0, 1, 0]
-
-    # default values for no binning of the image
-    binning_x: 0
-    binning_y: 0
-
     # we don't specify anything for RegionOfInterest, just leave it at default values
 
 rgb:
@@ -48,19 +31,3 @@ rgb:
         x: 0.70959911
         y: 0.00432401
         z: -0.00411738
-
-  camera_info: # this is a ROS sensor_msgs/CameraInfo message
-    width: 640
-    height: 480
-    distortion_model: "plumb-bob"
-    D: [0.06656135481886322, -0.1802725124668077, 0.0005514284666924256, -0.0005430747519516845, 0.005378119566562645]
-    K: [540.4210757219911, 0, 315.0605824572117, 0, 540.0288766837305, 240.1397512571999,
- 0, 0, 1]
-    R: [1,0,0,0,1,0,0,1] # identity since this is monocular camera
-    # P is same as K matrix with Tx = Ty = 0
-    P: [540.4210757219911, 0, 315.0605824572117, 0, 0, 540.0288766837305, 240.1397512571999, 0,
- 0, 0, 1, 0]
-
-    # default values for no binning of the image
-    binning_x: 0
-    binning_y: 0

@@ -4,6 +4,7 @@ import time
 import random
 import os
 import math
+import numpy as np
 
 
 # ROS
@@ -46,6 +47,44 @@ def ROSTransformMsgFromPose(d):
 
     return msg
 
+
+"""
+Convert pointcloud from 32FC to 16UC format
+See the discussions
+http://www.ros.org/reps/rep-0117.html and 
+http://www.ros.org/reps/rep-0118.html 
+for how pointclouds are encoded
+
+NaN: invalid measurement, could be coming from padding from registering depth to rgb
+-Inf: too close to measure, not missing
+Inf: max range
+
+any ranges above maxRange --> 10**16
+Nan --> 10**16 - 1
+"""
+def convert32FCto16UC(img_in, maxRange=5):
+    
+    # first set the nan's to zero
+    img = np.copy(img_in)
+    info = np.iinfo(np.uint16)
+
+    # pos_inf_idx = np.isposinf(img)
+    above_max_range_idx = img > maxRange
+    neg_inf_idx = np.isneginf(img)
+    nan_idx = np.isnan(img)
+
+    # scale to the maxRange
+    np.clip(img, 0, maxRange)
+
+    # convert to decimillimeters 10^-4 of a meter
+    img_scaled = img*10**4
+    img_int = img_scaled.astype(np.uint16)
+    img_int[above_max_range_idx] = iinfo.max
+    img_int[nan_idx] = iinfo.max - 1
+    return img_int
+
+
+
 """
 Saves a single image to a filename using an external executable
 """
@@ -56,6 +95,21 @@ def saveSingleImage(topic, filename, encoding=None):
         cmd = "%s -t %s -f %s" % (rosImageLoggerExecutable, topic, filename)
         if encoding is not None:
             cmd += " -e " + encoding
+
+        os.system(cmd)
+
+"""
+Saves a single image to a filename using an external executable
+"""
+
+def saveSingleDepthImage(topic, filename, encoding=None):
+        rosImageLoggerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
+                                                'calibration','ros_image_logger.py')
+        cmd = "%s -t %s -f %s" % (rosImageLoggerExecutable, topic, filename)
+        if encoding is not None:
+            cmd += " -e " + encoding
+
+        cmd += " -fs"
 
         os.system(cmd)
 
@@ -141,6 +195,8 @@ class RobotService(object):
 
         rospy.loginfo("ik was successful = %s", response.success)
         return response
+
+
 
 
 
