@@ -39,8 +39,10 @@ def setupRLGDirector(globalsDict=None):
     tfWrapper = TFWrapper()
     tfBuffer = tfWrapper.getBuffer()
 
-    # graspSupervisor = spartan.manipulation.grasp_supervisor.GraspSupervisor.makeDefault(tfBuffer=tfBuffer)
-    # globalsDict['graspSupervisor'] = graspSupervisor
+    graspSupervisor = spartan.manipulation.grasp_supervisor.GraspSupervisor.makeDefault(tfBuffer=tfBuffer)
+    graspSupervisor.robotSystem = globalsDict['robotSystem'] # for visualization
+    globalsDict['graspSupervisor'] = graspSupervisor
+
     
     backgroundSubtraction = spartan.manipulation.background_subtraction.BackgroundSubtractionDataCapture.makeDefault(tfBuffer=tfBuffer)
     globalsDict['backgroundSubtraction'] = backgroundSubtraction
