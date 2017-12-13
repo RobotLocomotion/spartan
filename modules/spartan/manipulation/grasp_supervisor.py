@@ -58,6 +58,7 @@ class GraspSupervisor(object):
         self.setupTF()
         self.setupROSActions()
         self.gripperDriver = SchunkDriver()
+        self.homePose = self.storedPoses[self.config['home_pose_name']]
 
     def setupDirector(self):
         self.taskRunner.callOnThread(self.setup)
@@ -72,8 +73,13 @@ class GraspSupervisor(object):
         self.config['scan']['pose_list'] = ['scan_left', 'scan_right']
         self.config['scan']['joint_speed'] = 60
         self.config['grasp_speed'] = 20
+
+        normal_speed = 30
         self.config['speed'] = dict()
-        self.config['speed']['stow'] = 30
+        self.config['speed']['stow'] = normal_speed
+        self.config['speed']['pre_grasp'] = normal_speed
+        self.config['speed']['grasp'] = 10
+        
         self.config['home_pose_name'] = 'above_table_pre_grasp'
         self.config['grasp_nominal_direction'] = np.array([1,0,0]) # x forwards
         self.config['grasp_to_ee'] = dict()
@@ -153,7 +159,7 @@ class GraspSupervisor(object):
 
     def moveHome(self):
     	rospy.loginfo("moving home")
-    	self.robotService.moveToJointPosition(self.storedPoses[self.config['home_pose_name']], maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
+    	self.robotService.moveToJointPosition(self.homePose, maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
 
     # scans to several positions
     def collectSensorData(self, saveToBagFile=False):
@@ -245,10 +251,19 @@ class GraspSupervisor(object):
 
     	preGraspFrame = transformUtils.concatenateTransforms([self.preGraspToGraspTransform, self.graspFrame])
 
-        preGrasp_ik_response = self.robotService.runIK(self.makePoseStampedFromGraspFrame(preGraspFrame))
-        grasp_ik_response = self.robotService.runIK(self.makePoseStampedFromGraspFrame(graspFrame))
 
-        if not (preGrasp_ik_response.success and grasp_ik_response.success):
+        preGraspFramePoseStamped = self.makePoseStampedFromGraspFrame(preGraspFrame)
+        preGrasp_ik_response = self.robotService.runIK(preGraspFramePoseStamped, seedPose=self.homePose, nominalPose=self.homePose)
+
+        if not preGrasp_ik_response.success:
+            rospy.loginfo("pre grasp pose ik failed, returning")
+            return False
+
+        graspFramePoseStamped = self.makePoseStampedFromGraspFrame(graspFrame)
+        preGraspPose = preGrasp_ik_response.joint_state.position
+        grasp_ik_response = self.robotService.runIK(graspFramePoseStamped, seedPose=preGraspPose, nominalPose=preGraspPose)
+
+        if not  grasp_ik_response.success:
             rospy.loginfo("grasp pose not reachable, returning")
             return False
 
@@ -257,10 +272,10 @@ class GraspSupervisor(object):
         self.graspFrame = graspFrame
 
         self.gripperDriver.sendOpenGripperCommand()
-    	self.moveToFrame(preGraspFrame)
-    	self.moveToFrame(graspFrame)
+        self.robotService.moveToJointPosition(preGraspPose, maxJointDegreesPerSecond=self.config['speed']['pre_grasp'])
+        self.robotService.moveToJointPosition(preGraspPose, maxJointDegreesPerSecond=self.config['speed']['grasp'])
+    	
         objectInGripper = self.gripperDriver.closeGripper()
-
         return objectInGripper
 
 
