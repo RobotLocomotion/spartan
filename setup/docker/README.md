@@ -32,7 +32,7 @@ git submodule init
 git submodule update
 ./setup/docker/docker_build.py
 ./setup/docker/docker_run.py
-mkdir build && cd build && cmake .. && use_spartan && make -j8
+mkdir build && cd build && cmake .. && use_ros && use_spartan && make -j8
 ```
 Below is explained additional options and details of the above.
 
