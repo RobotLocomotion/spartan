@@ -43,7 +43,7 @@ class IkService(object):
         self.config = dict()
         self.config['ikservice_name'] = "robot_control/IkService"
 
-    def runIK(self, targetFrame, startPose=None, graspToHandLinkFrame=None, positionTolerance=0.0, angleToleranceInDegrees=0.0, seedPoseName='q_nom'):
+    def runIK(self, targetFrame, startPose=None, graspToHandLinkFrame=None, positionTolerance=0.0, angleToleranceInDegrees=0.0, seedPoseName='q_nom', seedPose=None, nominalPose=None):
 
         if graspToHandLinkFrame is None:
             graspToHandLinkFrame = vtk.vtkTransform()
@@ -83,6 +83,16 @@ class IkService(object):
 
         constraintSet.seedPoseName = seedPoseName
 
+        if seedPose is not None:
+            seedPoseName = "q_seed_ros"
+            ikPlanner.addPose(seedPose, seedPoseName)
+            constraintSet.seedPoseName = seedPoseName
+
+        if nominalPose is not None:
+            nominalPoseName = "q_nom_ros"
+            ikPlanner.addPose(nominalPose, nominalPoseName)
+            constraintSet.nominalPoseName = nominalPoseName
+
         print "consraintSet ", constraintSet
         print "constraintSet.seedPoseName ", constraintSet.seedPoseName
         print "constraintSet.nominalPoseName ", constraintSet.nominalPoseName
@@ -113,12 +123,25 @@ class IkService(object):
 
         return jointState
 
+    def rosJointStateToDrakeJointPosition(self, joint_state):
+        q = self.getPlanningStartPose()
+        q[-self.numJoints:] = joint_state.position
+        return q
 
     def onIkServiceRequest(self, req):
         rospy.loginfo("received an IkService request")
         targetFrame = IkService.ROSPoseToVtkTransform(req.pose_stamped.pose)
 
-        ikResult = self.runIK(targetFrame)
+        seedPose = None
+        if len(req.seed_pose) > 0:
+            seedPose = self.rosJointStateToDrakeJointPosition(req.seed_pose[0])
+
+
+        nominalPose = None
+        if len(req.nominal_pose) > 0:
+            nominalPose = self.rosJointStateToDrakeJointPosition(req.nominal_pose[0])
+
+        ikResult = self.runIK(targetFrame, seedPose=seedPose, nominalPose=nominalPose)
 
         rospy.loginfo("IK info = %d", ikResult['info'])
 

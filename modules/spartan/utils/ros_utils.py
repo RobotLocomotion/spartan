@@ -153,14 +153,7 @@ class RobotService(object):
     def moveToJointPosition(self, q, maxJointDegreesPerSecond=30):
         assert len(q) == self.numJoints
 
-        jointState = sensor_msgs.msg.JointState()
-        jointState.header.stamp = rospy.Time.now()
-
-        jointState.position = q
-        jointState.name = self.jointNames
-
-        jointState.velocity = [0] * self.numJoints
-        jointState.effort = [0] * self.numJoints
+        jointState = RobotService.jointPositionToJointStateMsg(self.jointNames, q)
 
         rospy.wait_for_service('robot_control/MoveToJointPosition')
         s = rospy.ServiceProxy('robot_control/MoveToJointPosition', robot_msgs.srv.MoveToJointPosition)
@@ -185,17 +178,55 @@ class RobotService(object):
         rospy.loginfo("ik was successful, moving to joint position")
         return self.moveToJointPosition(joint_state.position, maxJointDegreesPerSecond=maxJointDegreesPerSecond)
 
-    def runIK(self, poseStamped):
+    def runIK(self, poseStamped, seedPose=None, nominalPose=None):
+
+        req = robot_msgs.srv.RunIKRequest()
+        req.pose_stamped = poseStamped
+
+        if seedPose:
+            req.seed_pose.append(RobotService.jointPositionToJointStateMsg(self.jointNames, seedPose))
+
+        if nominalPose:
+            req.nominal_pose.append(RobotService.jointPositionToJointStateMsg(self.jointNames, nominalPose))
+
+        print "request = ", req
+
         ikServiceName = 'robot_control/IkService'
         rospy.wait_for_service(ikServiceName)
         s = rospy.ServiceProxy(ikServiceName, robot_msgs.srv.RunIK)
-        response = s(poseStamped)
+        response = s(req)
 
         joint_state = response.joint_state
 
         rospy.loginfo("ik was successful = %s", response.success)
         return response
 
+    @staticmethod
+    def jointPositionToJointStateMsg(jointNames, jointPositions):
+        assert len(jointNames) == len(jointPositions)
+
+        numJoints = len(jointNames)
+
+        jointState = sensor_msgs.msg.JointState()
+        jointState.header.stamp = rospy.Time.now()
+
+        jointState.position = jointPositions
+        jointState.name = jointNames
+
+        jointState.velocity = [0] * numJoints
+        jointState.effort = [0] * numJoints
+
+        return jointState
+
+
+
+    @staticmethod
+    def makeKukaRobotService():
+        jointNames = ['iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3',
+     'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6',
+     'iiwa_joint_7']
+
+        return RobotService(jointNames)
 
 
 
