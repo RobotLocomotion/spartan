@@ -30,10 +30,19 @@ if USING_DIRECTOR:
     from spartan.utils.taskrunner import TaskRunner
 
 
+
+class GraspSupervisorState(object):
+
+    def __init__(self):
+        self.graspingLocation = "front"
+        self.stowLocation = "left"
+
+
 class GraspSupervisor(object):
 
-    def __init__(self, storedPosesFile=None, cameraSerialNumber=1112170110, tfBuffer=None):
-        self.storedPoses = spartanUtils.getDictFromYamlFilename(storedPosesFile)
+    def __init__(self, graspingParamsFile=None, cameraSerialNumber=1112170110, tfBuffer=None):
+        self.graspingParamsFile = graspingParamsFile
+        self.reloadParams()
         self.cameraSerialNumber = cameraSerialNumber
 
         self.cameraName = 'camera_' + str(cameraSerialNumber)
@@ -41,8 +50,9 @@ class GraspSupervisor(object):
         self.graspFrameName = 'base'
         self.depthOpticalFrameName = self.cameraName + "_depth_optical_frame"
 
-        self.robotService = rosUtils.RobotService(self.storedPoses['header']['joint_names'])
+        self.state = GraspSupervisorState()
 
+        self.robotService = rosUtils.RobotService.makeKukaRobotService()
         self.usingDirector = True
         self.tfBuffer = tfBuffer # don't create a new one if it is passed in
         self.setupConfig()
@@ -53,12 +63,17 @@ class GraspSupervisor(object):
         else:
             self.setup()
 
+        self.debugMode = True
+
+    def reloadParams(self):
+        self.graspingParams = spartanUtils.getDictFromYamlFilename(self.graspingParamsFile)
+
     def setup(self):
         self.setupSubscribers()
         self.setupTF()
         self.setupROSActions()
         self.gripperDriver = SchunkDriver()
-        self.homePose = self.storedPoses[self.config['home_pose_name']]
+        
 
     def setupDirector(self):
         self.taskRunner.callOnThread(self.setup)
@@ -159,24 +174,30 @@ class GraspSupervisor(object):
 
     def moveHome(self):
     	rospy.loginfo("moving home")
-    	self.robotService.moveToJointPosition(self.homePose, maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
+        homePose = self.graspingParams[self.state.graspingLocation]['poses']['above_table_pre_grasp']
+    	self.robotService.moveToJointPosition(homePose, maxJointDegreesPerSecond=self.graspingParams['speed']['nominal'])
 
     # scans to several positions
     def collectSensorData(self, saveToBagFile=False, **kwargs):
 
     	rospy.loginfo("collecting sensor data")
+        graspLocationData = self.graspingParams[self.state.graspingLocation]
 
         pointCloudListMsg = spartan_grasp_msgs.msg.PointCloudList()
         pointCloudListMsg.header.stamp = rospy.Time.now()
 
         data = dict()
 
-        for poseName in self.config['scan']['pose_list']:
-            joint_positions = self.storedPoses[poseName]
+        for poseName in graspLocationData['scan_pose_list']:
+            rospy.loginfo("moving to pose = " + poseName)
+            joint_positions = graspLocationData['poses'][poseName]
             self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
 
-            pointCloudWithTransformMsg = self.capturePointCloudAndCameraTransform()
+            if self.debugMode:
+                continue
 
+            
+            pointCloudWithTransformMsg = self.capturePointCloudAndCameraTransform()
             pointCloudListMsg.point_cloud_list.append(pointCloudWithTransformMsg)
             data[poseName] = pointCloudWithTransformMsg
 
@@ -185,7 +206,7 @@ class GraspSupervisor(object):
         
         if saveToBagFile:
             self.saveSensorDataToBagFile(**kwargs)
-            
+
         return pointCloudListMsg
 
     """
@@ -255,9 +276,10 @@ class GraspSupervisor(object):
 
     	preGraspFrame = transformUtils.concatenateTransforms([self.preGraspToGraspTransform, self.graspFrame])
 
-
+        graspLocationData = self.graspingParams[self.state.graspingLocation]
+        above_table_pre_grasp = graspLocationData['poses']['above_table_pre_grasp']
         preGraspFramePoseStamped = self.makePoseStampedFromGraspFrame(preGraspFrame)
-        preGrasp_ik_response = self.robotService.runIK(preGraspFramePoseStamped, seedPose=self.homePose, nominalPose=self.homePose)
+        preGrasp_ik_response = self.robotService.runIK(preGraspFramePoseStamped, seedPose=above_table_pre_grasp, nominalPose=above_table_pre_grasp)
 
         if not preGrasp_ik_response.success:
             rospy.loginfo("pre grasp pose ik failed, returning")
@@ -276,8 +298,8 @@ class GraspSupervisor(object):
         self.graspFrame = graspFrame
 
         self.gripperDriver.sendOpenGripperCommand()
-        self.robotService.moveToJointPosition(preGraspPose, maxJointDegreesPerSecond=self.config['speed']['pre_grasp'])
-        self.robotService.moveToJointPosition(preGraspPose, maxJointDegreesPerSecond=self.config['speed']['grasp'])
+        self.robotService.moveToJointPosition(preGraspPose, maxJointDegreesPerSecond=self.graspingParams['speed']['pre_grasp'])
+        self.robotService.moveToJointPosition(preGraspPose, maxJointDegreesPerSecond=self.graspingParams['speed']['grasp'])
     	
         objectInGripper = self.gripperDriver.closeGripper()
         return objectInGripper
@@ -308,15 +330,25 @@ class GraspSupervisor(object):
         poseStamped = self.vtkFrameToPoseMsg(eeFrameVtk)
         speed = 10 # joint degrees per second
         self.robotService.moveToCartesianPosition(poseStamped, speed)
-        self.moveHome()
-        self.robotService.moveToJointPosition(self.storedPoses['stow_in_bin'], maxJointDegreesPerSecond=self.config['speed']['stow'])
+
+        graspLocationData = self.graspingParams[self.state.graspingLocation]
+        above_table_pre_grasp = graspLocationData['poses']['above_table_pre_grasp']
+        stow_pose = graspLocationData['poses']['stow']
+
+        self.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=self.graspingParams['speed']['stow'])
+        self.robotService.moveToJointPosition(stow_pose, maxJointDegreesPerSecond=self.config['speed']['stow'])
         self.gripperDriver.sendOpenGripperCommand()
         rospy.sleep(0.5)
-        self.moveHome()
+
+        self.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=self.graspingParams['speed']['fast'])
         
 
     def planGraspAndPickupObject(self):
-        graspFound = self.testInThread()
+        self.collectSensorData()
+        self.requestGrasp()
+        self.moveHome()
+        graspFound = self.processGenerateGraspsResult(result)
+
         if not graspFound:
             rospy.loginfo("no grasp found, returning")
             return False
@@ -354,6 +386,10 @@ class GraspSupervisor(object):
         gripperFrame = transformUtils.concatenateTransforms([self.graspToIiwaLinkEE, iiwaLinkEE])
         vis.updateFrame(gripperFrame, 'Gripper Frame', scale=0.15)
 
+
+    def getParamsForCurrentLocation(self):
+        return self.graspingParams[self.state.graspingLocation]
+
     """
 	Rotate the grasp frame to align with the nominal direction. In this case we want the ZAxis of the 
 	grasp to be aligned with (1,0,0) in world frame. If it's not aligned rotate it by 180 degrees about
@@ -361,7 +397,8 @@ class GraspSupervisor(object):
     """
     def rotateGraspFrameToAlignWithNominal(self, graspFrame):
     	graspFrameZAxis = graspFrame.TransformVector(0,0,1)
-    	if (np.dot(graspFrameZAxis, self.config['grasp_nominal_direction']) < 0):
+        graspNominalDirection = getParamsForCurrentLocation()['grasp']['grasp_nominal_direction']
+    	if (np.dot(graspFrameZAxis, graspNominalDirection) < 0):
     		graspFrame.PreMultiply()
     		graspFrame.RotateX(180)
 
@@ -380,9 +417,7 @@ class GraspSupervisor(object):
         bag.write('data', pointCloudListMsg)
         bag.close()
 
-    def testInThread(self):
-        self.collectSensorData()
-
+    def requestGrasp(self):
         # request the grasp via a ROS Action
         rospy.loginfo("waiting for spartan grasp server")
         self.generate_grasps_client.wait_for_server()
@@ -392,16 +427,22 @@ class GraspSupervisor(object):
 
         # while the grasp is processing moveHome
 
-        self.moveHome()
 
+    def waitForGenerateGraspsResult(self):        
         rospy.loginfo("waiting for result")
         self.generate_grasps_client.wait_for_result()
         result = self.generate_grasps_client.get_result()
         self.generate_grasps_result = result
         rospy.loginfo("received result")
 
-        return self.processGenerateGraspsResult(result)
-        
+        return result
+
+    def testInThread(self):
+        self.collectSensorData()
+        self.requestGrasp()
+        self.moveHome()
+        graspFound = self.processGenerateGraspsResult(result)
+
 
     def testMoveHome(self):
    		self.taskRunner.callOnThread(self.moveHome)
@@ -417,10 +458,13 @@ class GraspSupervisor(object):
 
     def testPipeline(self):
         self.taskRunner.callOnThread(self.planGraspAndPickupObject)
+
+    def testCollectSensorData(self):
+        self.taskRunner.callOnThread(self.collectSensorData)
    
 
     @staticmethod
     def makeDefault(**kwargs):
-        storedPosesFile = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'station_config','RLG_iiwa_1','stored_poses.yaml')
+        graspingParamsFile = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'station_config','RLG_iiwa_1', 'manipulation', 'params.yaml')
 
-        return GraspSupervisor(storedPosesFile=storedPosesFile, **kwargs)
+        return GraspSupervisor(graspingParamsFile=graspingParamsFile, **kwargs)
