@@ -162,7 +162,7 @@ class GraspSupervisor(object):
     	self.robotService.moveToJointPosition(self.homePose, maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
 
     # scans to several positions
-    def collectSensorData(self, saveToBagFile=False):
+    def collectSensorData(self, saveToBagFile=False, **kwargs):
 
     	rospy.loginfo("collecting sensor data")
 
@@ -182,6 +182,10 @@ class GraspSupervisor(object):
 
         self.sensorData = data
         self.pointCloudListMsg = pointCloudListMsg
+        
+        if saveToBagFile:
+            self.saveSensorDataToBagFile(**kwargs)
+            
         return pointCloudListMsg
 
     """
@@ -367,7 +371,7 @@ class GraspSupervisor(object):
             pointCloudListMsg = self.pointCloudListMsg
 
         if filename is None:
-            filename = os.path.join(spartanUtils.getSpartanSourceDir(), 'logs', 'grasp_sensor_data.bag')
+            filename = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'grasp_sensor_data.bag')
 
         if overwrite and os.path.isfile(filename):
             os.remove(filename)
