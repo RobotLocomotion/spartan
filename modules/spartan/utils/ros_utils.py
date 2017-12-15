@@ -206,8 +206,6 @@ class RobotService(object):
         if nominalPose:
             req.nominal_pose.append(RobotService.jointPositionToJointStateMsg(self.jointNames, nominalPose))
 
-        print "request = ", req
-
         ikServiceName = 'robot_control/IkService'
         rospy.wait_for_service(ikServiceName)
         s = rospy.ServiceProxy(ikServiceName, robot_msgs.srv.RunIK)

@@ -28,7 +28,7 @@ front:
     grasp_nominal_direction: [1,0,0]
 
   grasp_volume:
-    min_pt: [0.44, -0.357198029757,-0.02]
+    min_pt: [0.38, -0.357198029757,-0.02]
     max_pt: [0.822621226311, 0.3723, 0.5]
     quaternion:
       w: 1
@@ -99,3 +99,5 @@ speed:
   grasp: 20
   nominal: 30
   fast: 30
+  slow: 20
+  stow: 20
