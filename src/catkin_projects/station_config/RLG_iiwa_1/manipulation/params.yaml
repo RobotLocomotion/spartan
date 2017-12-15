@@ -27,8 +27,45 @@ front:
   grasp:
     grasp_nominal_direction: [1,0,0]
 
-  workspace:
-    min_pt: [0.0,0]
+  grasp_volume:
+    min_pt: [0.44, -0.357198029757,-0.02]
+    max_pt: [0.822621226311, 0.3723, 0.5]
+    quaternion:
+      w: 1
+      x: 0
+      y: 0
+      z: 0
+    translation:
+      x: 0
+      y: 0
+      z: 0
+
+  collision_volume:
+    min_pt: [0.382815, -0.357198029757,-0.02]
+    max_pt: [0.822621226311, 0.3723, 0.5]
+    quaternion:
+      w: 1
+      x: 0
+      y: 0
+      z: 0
+    translation:
+      x: 0
+      y: 0
+      z: 0
+
+  collision_objects:
+    table:
+      min_pt: [0.382815,  -0.3571980, -0.04]
+      max_pt: [0.822621226311, 0.3723, -0.02]
+      quaternion:
+        w: 1
+        x: 0
+        y: 0
+        z: 0
+      translation:
+        x: 0
+        y: 0
+        z: 0
 
 
 # Data for grasps in bin on left

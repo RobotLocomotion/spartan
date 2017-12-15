@@ -64,6 +64,8 @@ class GraspSupervisor(object):
             self.setup()
 
         self.debugMode = True
+        # if self.debugMode:
+        #     self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
 
     def reloadParams(self):
         self.graspingParams = spartanUtils.getDictFromYamlFilename(self.graspingParamsFile)
@@ -422,10 +424,28 @@ class GraspSupervisor(object):
         rospy.loginfo("waiting for spartan grasp server")
         self.generate_grasps_client.wait_for_server()
         rospy.loginfo("requsting grasps spartan grasp server")
-        goal = spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListGoal(self.pointCloudListMsg)
-        self.generate_grasps_client.send_goal(goal)
 
-        # while the grasp is processing moveHome
+        params = self.getParamsForCurrentLocation()
+        goal = spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListGoal()
+        goal.point_clouds = self.pointCloudListMsg
+
+        if 'grasp_volume' in params:
+            node = params['grasp_volume']
+            rectangle = GraspSupervisor.rectangleMessageFromYamlNode(node)
+            goal.params.grasp_volume.append(rectangle)
+
+        if 'collision_volume' in params:
+            node = params['collision_volume']
+            rectangle = GraspSupervisor.rectangleMessageFromYamlNode(node)
+            goal.params.collision_volume.append(rectangle)
+
+        if 'collision_objects' in params:
+            for key, val in params['collision_objects'].iteritems():
+                rectangle = GraspSupervisor.rectangleMessageFromYamlNode(val)
+                goal.params.collision_objects.append(rectangle)
+
+
+        self.generate_grasps_client.send_goal(goal)
 
 
     def waitForGenerateGraspsResult(self):        
@@ -461,10 +481,45 @@ class GraspSupervisor(object):
 
     def testCollectSensorData(self):
         self.taskRunner.callOnThread(self.collectSensorData)
+
+    def testRequestGrasp(self):
+        self.taskRunner.callOnThread(self.requestGrasp)
+
+    def loadDefaultPointCloud(self):
+        self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
    
+    @staticmethod
+    def rectangleMessageFromYamlNode(node):
+        msg = spartan_grasp_msgs.msg.Rectangle()
+        msg.min_pt = rosUtils.listToPointMsg(node['min_pt'])
+        msg.max_pt = rosUtils.listToPointMsg(node['max_pt'])
+        msg.pose = rosUtils.ROSPoseMsgFromPose(node)
+        return msg
+
 
     @staticmethod
     def makeDefault(**kwargs):
         graspingParamsFile = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'station_config','RLG_iiwa_1', 'manipulation', 'params.yaml')
 
         return GraspSupervisor(graspingParamsFile=graspingParamsFile, **kwargs)
+
+    @staticmethod
+    def getPointCloudListMsg(rosBagFilename):
+        bag = rosbag.Bag(rosBagFilename)
+        pointCloudListMsg = None
+        for topic, msg, t in bag.read_messages(topics=['data']):
+            pointCloudListMsg = msg
+        bag.close()
+        return pointCloudListMsg
+
+    @staticmethod
+    def getDefaultPointCloudListMsg():
+        spartanSourceDir = spartanUtils.getSpartanSourceDir()
+
+        # filename = "grasp_sensor_data.bag"
+        filename = "sr300_box.bag"
+
+        rosBagFilename = os.path.join(spartanSourceDir, 'data','rosbag','iiwa', filename)
+
+        return GraspSupervisor.getPointCloudListMsg(rosBagFilename)
+        

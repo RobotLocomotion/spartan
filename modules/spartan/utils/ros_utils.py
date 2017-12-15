@@ -47,6 +47,23 @@ def ROSTransformMsgFromPose(d):
 
     return msg
 
+def dictToPointMsg(d):
+    msg = geometry_msgs.msg.Point()
+    msg.x = d['x']
+    msg.y = d['y']
+    msg.z = d['z']
+
+    return msg
+
+def listToPointMsg(l):
+    msg = geometry_msgs.msg.Point()
+    
+    msg.x = l[0]
+    msg.y = l[1]
+    msg.z = l[2]
+
+    return msg
+
 
 """
 Convert pointcloud from 32FC to 16UC format
