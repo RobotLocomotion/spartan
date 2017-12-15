@@ -34,8 +34,15 @@ if USING_DIRECTOR:
 class GraspSupervisorState(object):
 
     def __init__(self):
+        self.setPickFront()
+
+    def setPickFront(self):
         self.graspingLocation = "front"
         self.stowLocation = "left"
+
+    def setPickLeft(self):
+        self.graspingLocation = "left"
+        self.stowLocation = "front"
 
 
 class GraspSupervisor(object):
