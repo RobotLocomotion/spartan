@@ -29,7 +29,7 @@ import spartan.utils.utils as spartanUtils
 
 class CameraTransform(object):
 
-    def __init__(self, robotSystem, referenceLinkName='palm', cameraToLinkTransform=None, channelName='OPENNI_FRAME_LEFT_TO_LOCAL', rgbCameraToLinkTransform=None):
+    def __init__(self, robotSystem, referenceLinkName='wsg_50_base_link', cameraToLinkTransform=None, channelName='OPENNI_FRAME_LEFT_TO_LOCAL', rgbCameraToLinkTransform=None):
 
         assert cameraToLinkTransform is not None
 
