@@ -1,6 +1,6 @@
 depth:
   extrinsics:
-    reference_link_name: palm
+    reference_link_name: wsg_50_base_link
     transform_to_reference_link:
       rotation:
         w: 0.01940480820479911
@@ -17,7 +17,7 @@ header:
   serial_number: 620202001827
 rgb:
   extrinsics:
-    reference_link_name: palm
+    reference_link_name: wsg_50_base_link
     transform_to_reference_link:
       rotation:
         w: 0.01886895948990616
