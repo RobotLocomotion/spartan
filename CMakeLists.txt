@@ -201,14 +201,17 @@ if (WITH_BULLET3)
   "Location of bullet3 repo.")
 
   # Different than Drake's version -- see
-  # spartan/drake/WORKSPACE
-  set(BULLET3_GIT_TAG "2.87")
+  # spartan/drake/WORKSPACE for Drake's version (2.86.1,
+  # as of writing)
+  # We need something recent enough to have exact python
+  # version matching supported.
+  set(BULLET3_GIT_TAG "c0619ac92408788d7fa72fa787b3b47ab08b5d2d")
 
   # Extra arguments lifted from bullet install helper:
   # https://github.com/bulletphysics/bullet3/blob/master/build_cmake_pybullet_double.sh
   # I'm making this depend on Drake so it's guaranteed to
   # install after Drake. We're installing a different
-  # version than Drake (2.86.1 vs 2.87), which is risky
+  # version than Drake (2.86.1 vs post-2.87), which is risky
   # enough already.
   ExternalProject_Add(bullet3
     SOURCE_DIR ${build_dir}/externals/bullet3
@@ -220,6 +223,8 @@ if (WITH_BULLET3)
       ${CMAKE_ARGS_FOR_EXTERNALS}
       -DBUILD_PYBULLET:BOOL=ON
       -DBUILD_PYBULLET_NUMPY:BOOL=OFF
+      -DPYTHON_VERSION_PYBULLET:STRING=2.7
+      -DEXACT_PYTHON_VERSION:BOOL=ON
       -DUSE_DOUBLE_PRECISION:BOOL=ON
     INSTALL_COMMAND make install && mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/ && ${CP} ${build_dir}/bullet3/examples/pybullet/pybullet.so ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages
     DEPENDS drake
