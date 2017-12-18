@@ -22,7 +22,8 @@ models = {
     "plate_11in": "drake/../../../../../models/dishes/plate_11in_decomp/plate_11in_decomp.urdf",
     "plate_8p5in": "drake/../../../../../models/dishes/plate_8p5in_decomp/plate_8p5in_decomp.urdf",
     "bowl_6p25in": "drake/../../../../../models/dishes/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf", 
-    "dish_rack": "drake/../../../../../models/dishes/dish_rack_simple.urdf"
+    "dish_rack": "drake/../../../../../models/dishes/dish_rack_simple.urdf",
+    "floor": "drake/../../../../../build/bullet3/data/plane.urdf"
 }
 
 
@@ -61,7 +62,15 @@ class DishrackArrangement:
         # Set up a rigidbodytree
         r = pydrake.rbtree.RigidBodyTree()
         q0 = [] 
+        # create hacky ground frame just under world frame, but a little lower so no collision
+        # between world and ground (which causes IK infeasibility)
+        # could replace with careful collision groups)
+        ground_frame = pydrake.rbtree.RigidBodyFrame("ground_frame", r.world(), [0, 0, -1E-3], [0, 0, 0])
+        # Add floor
+        load_rbt_from_urdf_rel_drake_root("floor", r, ground_frame)
+
         world_frame = pydrake.rbtree.RigidBodyFrame("world_frame", r.world(), [0, 0, 0], [0, 0, 0])
+
         for instance in self.instances:
             if instance.fixed:
                 load_rbt_from_urdf_rel_drake_root(instance.model, r, world_frame)
@@ -73,12 +82,12 @@ class DishrackArrangement:
 
         constraints = [
             # Nonpenetration: no two bodies closer than 1e-3
-            ik.MinDistanceConstraint(r, 1e-3, list(), set())
+            ik.MinDistanceConstraint(r, 1e-6, list(), set())
         ]
         options = ik.IKoptions(r)
         q0_array = np.array(q0, dtype=np.float64, ndmin=2)[0]
         results = ik.InverseKin(r, q0_array, q0_array, constraints, options)
-        q0 = results.q_sol[0]
+        q0 = list(results.q_sol[0])
         info = results.info
         print("Results ", q0, " with info ", info)
 
@@ -110,8 +119,16 @@ class DishrackArrangement:
             fixed = instance.fixed
             ids.append(p.loadURDF(urdf, position, quaternion, fixed))
 
+        # Simulate it
         for i in range(int(n_secs / timestep)):
             p.stepSimulation()
+
+        # Extract model states
+        for i, instance in enumerate(self.instances):
+            pos, quat = p.getBasePositionAndOrientation(i)
+            instance.q0[0:3] = pos
+            instance.q0[3:7] = p.getEulerFromQuaternion(quat)
+
 
     def save_to_file(self, filename):
         data = {}
@@ -136,8 +153,8 @@ def place_plate_11in():
     center_location_x = np.random.uniform(plate_11in_params["lower_bound_x"], plate_11in_params["upper_bound_x"])
     center_location_y = np.random.uniform(plate_11in_params["lower_bound_y"], plate_11in_params["upper_bound_y"])
     yaw = float(np.random.randint(0, 4))*math.pi/2.
-    return (center_location_x, center_location_y, plate_11in_params["height"],
-            0, 0, yaw)
+    return [center_location_x, center_location_y, plate_11in_params["height"],
+            0, 0, yaw]
 
 
 placement_generators = {
@@ -176,11 +193,11 @@ if __name__ == "__main__":
     physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
 
     arrangement = generate_dishrack_arrangement(args.max_num_dishes, ["plate_11in",], args.seed)
-    arrangement.save_to_file(args.file_prefix + "1_pre_projection.yaml")
+    arrangement.save_to_file(args.file_prefix + "1_1_pre_projection.yaml")
     arrangement.project_instance_to_nonpenetration()
-    arrangement.save_to_file(args.file_prefix + "1_post_projection.yaml")
-
+    arrangement.save_to_file(args.file_prefix + "1_2_post_projection.yaml")
     arrangement.simulate_instance(2.)
+    arrangement.save_to_file(args.file_prefix + "1_3_post_simulation.yaml")
 
 
 
