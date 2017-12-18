@@ -110,7 +110,7 @@ class DishrackArrangement:
             fixed = instance.fixed
             ids.append(p.loadURDF(urdf, position, quaternion, fixed))
 
-        for i in range(n_secs / timestep):
+        for i in range(int(n_secs / timestep)):
             p.stepSimulation()
 
     def save_to_file(self, filename):
