@@ -439,9 +439,22 @@
     </actuator>
   </transmission>
 
+  <!-- For backwards compat with calibrations,
+       add a ghost link where the old
+       hand palm used to be. -->
+  <joint name="wsg_50_old_palm_joint" type="fixed">
+    <origin rpy="0.0 0.3926 1.57079632679" xyz="0.02 0 0"/>
+    <parent link="iiwa_link_ee"/>
+    <child link="wsg_50_old_palm"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <link name="wsg_50_old_palm">
+  </link>
+
+
   <!-- And add the gripper-->
   <joint name="wsg_50_mount_joint" type="fixed">
-    <origin rpy="1.57079632679 0 1.57079632679" xyz="0.005 0 0"/>
+    <origin rpy="1.57079632679 0.3926 1.57079632679" xyz="0.005 0 0"/>
     <parent link="iiwa_link_ee"/>
     <child link="wsg_50_base_link"/>
     <axis xyz="0 0 1"/>
