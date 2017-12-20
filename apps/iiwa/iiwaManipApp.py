@@ -37,7 +37,6 @@ import bot_core as lcmbotcore
 
 from spartan.manipulation.director_schunk_driver import DirectorSchunkDriver
 
-
 def setTagToWorld(pos, rpy):
     global tagToWorld
     tagToWorld = transformUtils.frameFromPositionAndRPY(pos, rpy)
@@ -163,7 +162,6 @@ def wsgStatusSubscriberCallback(msg):
             # from mm
             [-msg.position_mm*0.0005, msg.position_mm*0.0005],
             ['wsg_50_base_joint_gripper_left', 'wsg_50_base_joint_gripper_right'])
-
 schunkDriver = DirectorSchunkDriver(statusSubscriberCallback=wsgStatusSubscriberCallback)
 
 
@@ -350,8 +348,7 @@ if useKukaRLGDev:
     import spartan.director.iiwamanipdev
     spartan.director.iiwamanipdev.setupRLGDirector(globals())
 
-    # setup the director node
-
+# setup the director node
 useROS = True
 if useROS:
     import rospy
