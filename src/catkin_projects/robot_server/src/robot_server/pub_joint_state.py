@@ -82,7 +82,12 @@ class JointStatePublisher:
                 self.joint_velocities[idx] = msg.joint_velocity_estimated[data_idx] # TODO(gizatt) See which other fields are valid and add them here
                 self.joint_efforts[idx] = msg.joint_torque_measured[data_idx]
 
-        self.publishROSJointStateMessage(ros_time_converted_from_lcm)
+        # We *should* be using the sunrise cabinet time.
+        # But it's not always well synchronized with our time,
+        # (e.g. at time of writing, it was off by hours and was
+        # messing up the TF server), so for now I'm approximating with
+        # our local system time. -gizatt
+        self.publishROSJointStateMessage(ros_time_now)
 
 
     def run(self):
