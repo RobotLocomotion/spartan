@@ -20,12 +20,13 @@ class SchunkDriver(object):
 
 	def initialize(self, statusSubscriberCallback):
 		self.setupDefaultMessages()
-		self.setupSubscribers(statusSubscriberCallback)
+		if statusSubscriberCallback is not None:
+			self.setupSubscribers(statusSubscriberCallback)
 		self.setupPublishers()
 
 	def setupSubscribers(self, statusSubscriberCallback):
 		self.statusSubscriber = rosUtils.SimpleSubscriber(self.statusTopic, wsg50_msgs.msg.WSG_50_state, statusSubscriberCallback)
-		self.statusSubscriber.start()
+		self.statusSubscriber.start(queue_size=1)
 
 	def setupPublishers(self):
 		self.commandPublisher = rospy.Publisher(self.commandTopic, wsg50_msgs.msg.WSG_50_command, queue_size=1)
