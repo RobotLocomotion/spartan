@@ -516,7 +516,7 @@
         <mesh filename="package://wsg_50_description/meshes/GUIDE_WSG50_110.obj" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="black">
-        <color rgba="0 0 0 0"/>
+        <color rgba="0 0 0 1"/>
       </material>
     </visual>
     <collision>
@@ -552,7 +552,7 @@
         <mesh filename="package://wsg_50_description/meshes/WSG-FMF.obj" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="black">
-        <color rgba="0 0 0 0"/>
+        <color rgba="0 0 0 1"/>
       </material>
     </visual>
     <collision>
@@ -595,7 +595,7 @@
         <mesh filename="package://wsg_50_description/meshes/GUIDE_WSG50_110.obj" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="black">
-        <color rgba="0 0 0 0"/>
+        <color rgba="0 0 0 1"/>
       </material>
     </visual>
     <collision>
@@ -631,7 +631,7 @@
         <mesh filename="package://wsg_50_description/meshes/WSG-FMF.obj" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="black">
-        <color rgba="0 0 0 0"/>
+        <color rgba="0 0 0 1"/>
       </material>
     </visual>
     <collision>
