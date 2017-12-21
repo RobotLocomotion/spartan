@@ -16,7 +16,13 @@ apt install --no-install-recommends \
   apt-utils \
   usbutils \
   dialog \
-  python-pip
+  python-pip \
+
+# these following three are ElasticFusion dependencies
+apt install --no-install-recommends \
+  libglew-dev \
+  libsuitesparse-dev \
+  libeigen3-dev
 
 pip install -U pip setuptools
 
