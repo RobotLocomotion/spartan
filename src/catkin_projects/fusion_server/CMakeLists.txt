@@ -61,6 +61,7 @@ add_service_files(
   StartBaggingFusionData.srv
   StopBaggingFusionData.srv
   CaptureSceneAndFuse.srv
+  PerformElasticFusion.srv
 )
 
 ## Generate actions in the 'action' folder
