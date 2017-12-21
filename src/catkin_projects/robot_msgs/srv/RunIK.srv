@@ -1,4 +1,6 @@
 geometry_msgs/PoseStamped pose_stamped
+sensor_msgs/JointState[] seed_pose # optional seed pose
+sensor_msgs/JointState[] nominal_pose # optional nominal pose
 ---
 sensor_msgs/JointState joint_state
 bool success

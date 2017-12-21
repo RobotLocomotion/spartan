@@ -55,25 +55,7 @@ class JointStatePublisher:
             idx = idx + 1
 
     def onIiwaStatus(self, channel, data):
-        ros_time_now =  rospy.Time.now()
-        
         msg = lcmt_iiwa_status.decode(data)
-
-        print "##############################"
-        ros_time_converted_from_lcm = rospy.Time(0,msg.utime*1000)
-        print ros_time_converted_from_lcm, "is a rospy time created from the lcm timestamp"
-
-        # latency debug printing
-        lcm_time_stamp_utime = msg.utime
-        print lcm_time_stamp_utime, "is utime from lcm"
-        print ros_time_now, "is rospy time"
-        print ros_time_now.to_sec(), "is rospy time.to_sec()"
-        print ros_time_now.to_nsec()/1000, "is rospy time.to_nsec()/1000"
-        print type(ros_time_now.to_nsec()), type(lcm_time_stamp_utime)
-        ros_time_converted_from_lcm_utime = ros_time_converted_from_lcm.to_nsec()/1000
-        print ros_time_converted_from_lcm_utime - lcm_time_stamp_utime, "is offset"
-        print 
-
         for data_idx in xrange(0, len(self.iiwa_joint_names)):
             joint_name = self.iiwa_joint_names[data_idx]
             if joint_name in self.joint_idx:
@@ -82,17 +64,13 @@ class JointStatePublisher:
                 self.joint_velocities[idx] = msg.joint_velocity_estimated[data_idx] # TODO(gizatt) See which other fields are valid and add them here
                 self.joint_efforts[idx] = msg.joint_torque_measured[data_idx]
 
-        self.publishROSJointStateMessage(ros_time_converted_from_lcm)
-
-
     def run(self):
         self.lc.handle_timeout(0.005)
-        #print "LOOPING INSIDE pub_joint_state"
-        #print ""
+        self.publishROSJointStateMessage()
 
-    def publishROSJointStateMessage(self, ros_time_now_previously_grabbed):
+    def publishROSJointStateMessage(self):
         self.robot_state.header = Header()
-        self.robot_state.header.stamp = ros_time_now_previously_grabbed
+        self.robot_state.header.stamp = rospy.Time.now()
         self.robot_state.name = self.joint_names
         self.robot_state.position = self.joint_positions
         self.robot_state.velocity = self.joint_velocities
