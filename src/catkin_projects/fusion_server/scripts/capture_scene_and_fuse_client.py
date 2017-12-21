@@ -5,13 +5,13 @@ import rospy
 from fusion_server.srv import *
 import time
 
-def capture_scene_for_fusion_client():
-    print "Waiting for 'capture_scene_for_fusion' service..."
-    rospy.wait_for_service('capture_scene_for_fusion')
+def capture_scene_and_fuse_client():
+    print "Waiting for 'capture_scene_and_fuse' service..."
+    rospy.wait_for_service('capture_scene_and_fuse')
     print "Found it!, starting capture..."
     try:
-        capture_scene_for_fusion = rospy.ServiceProxy('capture_scene_for_fusion', CaptureSceneForFusion)
-        resp1 = capture_scene_for_fusion()
+        capture_scene_and_fuse = rospy.ServiceProxy('capture_scene_and_fuse', CaptureSceneAndFuse)
+        resp1 = capture_scene_and_fuse()
         return resp1.data_filepath
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
@@ -24,4 +24,4 @@ if __name__ == "__main__":
         print usage()
         sys.exit(1)
     
-    print "data_filepath = %s"%(capture_scene_for_fusion_client())
+    print "data_filepath = %s"%(capture_scene_and_fuse_client())
