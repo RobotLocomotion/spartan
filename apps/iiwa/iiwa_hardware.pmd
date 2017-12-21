@@ -1,10 +1,15 @@
 group "0.sim" {
-    cmd "0.kuka_simulation" {
+  cmd "0.LCM->ROS State Translator" {
+    exec = "rosrun robot_server pub_joint_state.py";
+    host = "localhost";
+  }
+
+  cmd "1.kuka_simulation" {
     exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/drake/examples/kuka_iiwa_arm/kuka_simulation";
     host = "localhost";
   }
 
-  cmd "1.kuka_simulation_w_schunk_gripper" {
+  cmd "2.kuka_simulation_w_schunk_gripper" {
     exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/drake/examples/kuka_iiwa_arm/iiwa_wsg_simulation";
     host = "localhost";
   }
@@ -97,42 +102,37 @@ group "8.ROS" {
     host = "localhost";
   }
 
-  cmd "1.LCM->ROS State Translator" {
-    exec = "rosrun robot_server pub_joint_state.py";
-    host = "localhost";
-  }
-
-  cmd "2.ROS Trajectory Server" {
+  cmd "1.ROS Trajectory Server" {
     exec = "roslaunch robot_control robot_control.launch";
     host = "localhost";
   }
 
-  cmd "3.ROS Model and TF Publisher" {
+  cmd "2.ROS Model and TF Publisher" {
     exec = "roslaunch robot_server robot_state_publisher.launch";
     host = "localhost";
   }
 
-  cmd "4.rviz" {
+  cmd "3.rviz" {
     exec = "rosrun rviz rviz -d $SPARTAN_SOURCE_DIR/src/catkin_projects/station_config/RLG_iiwa_1/rviz.rviz";
     host = "localhost";
   }
 
-  cmd "5.Robot Movement Service" {
+  cmd "4.Robot Movement Service" {
     exec = "rosrun robot_control robotmovementservice.py";
     host = "localhost";
   }
 
-  cmd "6.IK Service" {
+  cmd "5.IK Service" {
     exec = "directorPython $SPARTAN_SOURCE_DIR/src/catkin_projects/robot_control/src/robot_control/ikserviceapp.py --director-config $SPARTAN_SOURCE_DIR/models/iiwa/director/director_config.json";
     host = "localhost";
   }
 
-  cmd "7.ROS-OpenNI" {
+  cmd "6.ROS-OpenNI" {
     exec = "roslaunch camera_config openni2.launch camera_serial_number:=1112170110";
     host = "localhost";
   }
 
-  cmd "8.schunk_driver" {
+  cmd "7.schunk_driver" {
     exec = "roslaunch ros-schunk-driver wsg50_driver.launch gripper_address:=192.170.10.20";
     host = "localhost";
   }
@@ -178,7 +178,8 @@ script "2.restart_controller" {
 script "3.sim_startup" {
     start cmd "4.director";
     wait ms 4000;
-    start cmd "1.kuka_simulation_w_schunk_gripper";
+    start cmd "0.LCM->ROS State Translator";
+    start cmd "2.kuka_simulation_w_schunk_gripper";
     start cmd "0.kuka-driver";
 }
 
