@@ -43,8 +43,7 @@ COPY ./setup/docker/terminator_config .config/terminator/config
 RUN chown $USER_NAME:$USER_NAME -R .config
 
 # change ownership of everything to our user
-cd $WORKDIR
-RUN chown $USER_NAME:$USER_NAME -R .
+RUN cd $WORKDIR && chown $USER_NAME:$USER_NAME -R .
 
 ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh && /bin/bash"
 
