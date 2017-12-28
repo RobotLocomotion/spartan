@@ -112,7 +112,7 @@ ExternalProject_Add(drake
     BUILD_IN_SOURCE 1
     USES_TERMINAL_BUILD 1
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} build ${BAZEL_ARGS} //drake/examples/kuka_iiwa_arm/... //:install @optitrack_driver//src:optitrack_client
+    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} build ${BAZEL_ARGS} //examples/kuka_iiwa_arm/... //:install @optitrack_driver//src:optitrack_client
     INSTALL_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} run ${BAZEL_ARGS} //:install -- "${CMAKE_INSTALL_PREFIX}"
 )
 # This is based on drake's VTK/Qt dependency (see `tools/vtk.bzl` in drake).
