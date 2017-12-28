@@ -115,6 +115,8 @@ ExternalProject_Add(drake
     BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} build ${BAZEL_ARGS} //examples/kuka_iiwa_arm/... //:install @optitrack_driver//src:optitrack_client
     INSTALL_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} run ${BAZEL_ARGS} //:install -- "${CMAKE_INSTALL_PREFIX}"
 )
+
+
 # This is based on drake's VTK/Qt dependency (see `tools/vtk.bzl` in drake).
 # On MacOS, Drake uses homebrew VTK compiled with Qt5 and brew Python
 # On Linux, checks distribution
@@ -212,14 +214,14 @@ ExternalProject_Add(spartan_lcmtypes
   DEPENDS drake
 )
 
-ExternalProject_Add(RemoteTreeViewer
-  SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
-  BINARY_DIR ${build_dir}/RemoteTreeViewer
-  BUILD_ALWAYS 1
-  CMAKE_CACHE_ARGS
-    ${CMAKE_ARGS_FOR_EXTERNALS}
-  DEPENDS drake
-)
+# ExternalProject_Add(RemoteTreeViewer
+#   SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
+#   BINARY_DIR ${build_dir}/RemoteTreeViewer
+#   BUILD_ALWAYS 1
+#   CMAKE_CACHE_ARGS
+#     ${CMAKE_ARGS_FOR_EXTERNALS}
+#   DEPENDS drake
+# )
 
 if (WITH_REACHABILITY_ANALYZER)
   ExternalProject_Add(ReachabilityAnalyzer
@@ -359,7 +361,7 @@ if (WITH_ROS)
       ${CMAKE_ARGS_FOR_EXTERNALS}
       # Combine environment prefix path (with ROS) with our own
       "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};${CMAKE_PREFIX_PATH_ENV}"
-    DEPENDS drake director common_utils RemoteTreeViewer
+    DEPENDS drake director common_utils 
   )
 endif()
 
