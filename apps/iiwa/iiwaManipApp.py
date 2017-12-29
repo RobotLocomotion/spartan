@@ -20,7 +20,7 @@ from director import drcargs
 
 
 try:
-    from director.optitrackvisualizer import OptitrackVisualizer
+    from spartan.optitrack.optitrackvisualizer import OptitrackVisualizer
     useOptitrackVisualizer = True
 
 except ImportError:
