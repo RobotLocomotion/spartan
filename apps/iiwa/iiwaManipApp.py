@@ -20,7 +20,7 @@ from director import drcargs
 
 
 try:
-    from director.optitrackvisualizer import OptitrackVisualizer
+    from spartan.optitrack.optitrackvisualizer import OptitrackVisualizer
     useOptitrackVisualizer = True
 
 except ImportError:
@@ -342,6 +342,11 @@ app.restoreDefaultWindowState()
 app.initWindowSettings()
 applogic.resetCamera(viewDirection=[-1,1,-0.5], view=view)
 
+useROS = True
+if useROS:
+    import rospy
+    rospy.init_node('director')
+
 
 useKukaRLGDev = True
 if useKukaRLGDev:
@@ -370,7 +375,3 @@ if useKukaRLGDev:
 
     # setup the director node
 
-useROS = True
-if useROS:
-    import rospy
-    rospy.init_node('director')
