@@ -20,8 +20,8 @@ thresholds:
   addContactPointTimeout: 0.25
   removeContactPointTimeout: 0.25
   #add/remove thresholds should be the same
-  addContactPointSquaredError: 300.0
-  removeContactPointSquaredError: 300.0
+  addContactPointSquaredError: 200.0
+  removeContactPointSquaredError: 200.0
   squaredErrorBoundForMostLikelyParticleAveraging: 10.0
   timeAboveThresholdToAddParticleSet: 0.2
 
@@ -44,7 +44,7 @@ debug:
 
   # toggles whether to use residual publish on "RESIDUAL_OBSERVER_STATE" or
   # or "RESIDUAL_ACTUAL"
-  useTrueResidual: False
+  useTrueResidual: TRUE
   # placeholder for now, not in use
   residualChannel: "RESIDUAL_OBSERVER_STATE" # alternate channel is "RESIDUAL_ACTUAL"
   maxNumParticleSets: 1

@@ -66,6 +66,11 @@ cmd "5.drake-lcm-spy" {
   host = "localhost";
 }
 
+cmd "5.1.spartan-lcm-spy" {
+  exec = "spartan-lcm-spy";
+  host = "localhost";
+}
+
 cmd "6.signal-scope" {
   exec = "signal-scope $SPARTAN_SOURCE_DIR/config/iiwa/kuka_iiwa_signal_scope.py";
   host = "localhost";
@@ -79,7 +84,7 @@ group "7.ContactParticleFilter" {
   }
 
   cmd "1.contact-filter" {
-    exec = "directorPython $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/contact_filter_app.py --director_config $SPARTAN_SOURCE_DIR/drake/drake/examples/kuka_iiwa_arm/director_config.json";
+    exec = "directorPython $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/contact_filter_app.py --director_config $SPARTAN_SOURCE_DIR/drake/examples/kuka_iiwa_arm/director_config.json";
     host = "localhost";
   }
 

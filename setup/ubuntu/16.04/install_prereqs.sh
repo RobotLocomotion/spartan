@@ -33,7 +33,8 @@ apt install --no-install-recommends \
   qtmultimedia5-dev \
   qtscript5-dev \
   qttools5-dev \
-  libcgal-dev # needed for April Tag detection
+  libcgal-dev \
+  python-tk
 
 # Install ROS Kinetic
 apt install -y --no-install-recommends lsb-release
