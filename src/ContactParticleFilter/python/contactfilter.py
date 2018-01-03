@@ -3,7 +3,7 @@ __author__ = 'manuelli'
 # standard imports
 import numpy as np
 import PythonQt
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import os
 import os.path
 import csv
@@ -1896,8 +1896,12 @@ class ContactFilterPoint(object):
                  rotatedFrictionCone=None, J_alpha = None):
 
         optionalArgsList = [linkName, contactLocation, contactNormal, bodyId, forceMomentTransform, rotatedFrictionCone, J_alpha]
-        if None in optionalArgsList:
-            raise ValueError("must specify all the optional input arguments")
+
+        # print "type(optionalArgsList) = ", type(optionalArgsList)
+        # print "optionalArgsList = ", optionalArgsList
+        
+        # if (None in optionalArgsList).any():
+        #     raise ValueError("must specify all the optional input arguments")
 
         self.linkName = linkName
         self.contactLocation = np.array(contactLocation)

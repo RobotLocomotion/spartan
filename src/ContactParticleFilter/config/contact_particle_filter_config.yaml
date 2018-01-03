@@ -67,6 +67,7 @@ vis:
 
 solver:
   solverType: forcespro
+  # solverType: gurobi
   loadAllSolvers: False
 
 

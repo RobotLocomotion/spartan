@@ -14,8 +14,8 @@ def main():
         raise EnvironmentError('The $SPARTAN_SOURCE_DIR variable must be set to the spartan source directory')
         return
 
-    director_kuka_command = "directorPython $SPARTAN_SOURCE_DIR/drake/drake/examples/kuka_iiwa_arm/director_ik_app.py" \
-                            " --director_config $SPARTAN_SOURCE_DIR/drake/drake/examples/kuka_iiwa_arm/director_config.json"
+    director_kuka_command = "directorPython $SPARTAN_SOURCE_DIR/drake/examples/kuka_iiwa_arm/director_ik_app.py" \
+                            " --director_config $SPARTAN_SOURCE_DIR/drake/examples/kuka_iiwa_arm/director_config.json"
     startup_command = " --startup $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/runContactParticleFilterStartup.py"
 
 
