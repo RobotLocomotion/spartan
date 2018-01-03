@@ -32,7 +32,11 @@ if(CMAKE_VERSION VERSION_LESS 3.7)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 endif()
 
+message("finding package lcm")
 find_package(lcm REQUIRED)
+if(TARGET lcm::lcm-java)
+message("found lcm::lcm-java")
+endif()
 include(${LCM_USE_FILE})
 
 add_subdirectory(lcmtypes)

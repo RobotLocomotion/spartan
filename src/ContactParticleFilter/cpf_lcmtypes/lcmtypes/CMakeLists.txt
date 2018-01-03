@@ -7,7 +7,7 @@ endif()
 if(PYTHONINTERP_FOUND)
   set(python_args PYTHON_SOURCES python_install_sources)
 endif()
-if(JAVA_FOUND AND TARGET lcm-java)
+if(JAVA_FOUND AND TARGET lcm::lcm-java)
   set(java_args JAVA_SOURCES java_sources)
 endif()
 
@@ -62,12 +62,12 @@ if(PYTHONINTERP_FOUND)
 endif()
 
 if(JAVA_FOUND)
-  if(NOT TARGET lcm-java)
-    message(STATUS "lcm-java not found: not building Java LCM type bindings")
+  if(NOT TARGET lcm::lcm-java)
+    message(STATUS "lcm::lcm-java not found: not building Java LCM type bindings")
   else()
     add_jar(lcmtypes_cpf-lcm-jar
       OUTPUT_NAME lcmtypes_cpf-lcm
-      INCLUDE_JARS lcm-java
+      INCLUDE_JARS lcm::lcm-java
       SOURCES ${java_sources}
     )
 
