@@ -1,2 +1,5 @@
+mode: "simulation" # can be either simulation or hardware
 duration: 5 # how long one run lasts
 force_magnitude: 100
+noise_levels: [0]
+poses: ['q_nom'] # the different poses to try out

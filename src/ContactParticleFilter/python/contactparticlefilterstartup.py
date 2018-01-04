@@ -38,6 +38,7 @@ def startup(robotSystem, globalsDict=None):
         globalsDict['linkSelection'] = linkSelection
         globalsDict['estRobotStatePublisher'] = estRobotStatePublisher
         globalsDict['experimentManager'] = experimentManager
+        globalsDict['em'] = experimentManager
 
         # globalsDict['cf'] = contactFilter
         # globalsDict['ef'] = externalForce

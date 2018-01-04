@@ -1,10 +1,13 @@
 import os
 import time
+import tinydb
 
 from director import ioUtils
 
 import spartan.utils.utils as spartanUtils
 from spartan.utils.taskrunner import TaskRunner
+
+import utils as cpfUtils
 
 class ExperimentManager(object):
 
@@ -15,6 +18,7 @@ class ExperimentManager(object):
         self.externalForce = externalForce
         self.estRobotStatePublisher = estRobotStatePublisher
         self.spartanSourceDir = spartanUtils.getSpartanSourceDir()
+        self.cpfSourceDir = cpfUtils.getCPFSourceDir()
         self.loadConfig()
         self.loadForcesFromFile()
         self.experimentData = dict()
@@ -28,7 +32,7 @@ class ExperimentManager(object):
         if filename is None:
             filename = "force_locations.out"
 
-        fullFilename = os.path.join(self.spartanSourceDir,"src","ContactParticleFilter", "config", "experiments", filename)
+        fullFilename = os.path.join(self.cpfSourceDir, "config", "experiments", filename)
 
         spartan_source_dir = spartanUtils.getSpartanSourceDir()
         # fullFilename = spartan_source_dir + self.options['data']['initialParticleLocations']
@@ -48,12 +52,25 @@ class ExperimentManager(object):
                                     inWorldFrame=False)
 
 
-    def runSingleContactExperiment(self, forceName="iiwa_link_7_1"):
+    def runSingleContactExperiment(self, forceName="iiwa_link_7_1", poseName='q_nom', noise_level=0):
         self.taskRunner.callOnMain(self.externalForce.removeAllForces)
         self.taskRunner.callOnMain(self.addExternalForce, forceName)
 
         duration = self.config['duration']
         time.sleep(duration)
+
+        # insert into the database
+        d = dict()
+        d["force_name"] = forceName
+        d['pose_name'] = poseName
+        d['noise_level'] = noise_level
+        d['mode'] = self.config['mode']
+        d['stats'] = None # fill this in later
+        d['lcm_log_file'] = None
+
+
+        self.db.insert(d)
+
         self.taskRunner.callOnMain(self.externalForce.removeAllForces)
         # self.externalForce.removeAllForces()
 
@@ -66,6 +83,37 @@ class ExperimentManager(object):
         if filename is None:
             filename = "force_locations.out"
 
-        fullFilename = os.path.join(self.spartanSourceDir,"src","ContactParticleFilter", "config", "experiments", filename)
+        fullFilename = os.path.join(self.cpfSourceDir, "config", "experiments", filename)
 
         self.externalForce.saveForceLocationsToFile(fullFilename=fullFilename, **kwargs)
+
+
+    def setupExperimentDataFiles(self):
+        unique_name = time.strftime("%Y%m%d-%H%M%S") + "_" + self.config['mode']
+        folderName = os.path.join(self.cpfSourceDir, "data", "experiments", unique_name)
+        cmd = "mkdir -p " + folderName
+        print cmd
+        os.system(cmd)
+
+        time.sleep(0.5)
+
+
+        self.dataFolderName = folderName
+        self.db_json = os.path.join(folderName, 'db.json')
+        self.db = tinydb.TinyDB(self.db_json)
+        # create tinydb database
+
+
+    def saveExperimentData(self):
+        pass
+
+    ##### testing
+    def test(self):
+        self.setupExperimentDataFiles()
+        self.runSingleContactExperiment_taskrunner()
+        self.saveExperimentData()
+
+    def testLogger(self):
+        filename = os.path.join(self.spartanSourceDir, 'sandbox', "log_test.lcm")
+        self.logger = spartanUtils.LCMLogger(filename)
+        self.logger.start()

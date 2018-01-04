@@ -3,6 +3,8 @@ import numpy as np
 import collections
 import yaml
 import os
+import subprocess
+
 
 # director
 from director import transformUtils
@@ -86,5 +88,18 @@ def getIiwaLinkNames():
      'iiwa_link_7']
 
     return linkNames
+
+class LCMLogger(object):
+
+    def __init__(self, filename):
+        self.filename = filename
+        self.cmd = "lcm-logger " + filename
+        # self.cmd = "echo $SPARTAN_SOURCE_DIR"
+
+    def start(self):
+        self.logger = subprocess.Popen(self.cmd, shell=True) 
+        
+    def stop(self):
+        self.logger.terminate()
 
 
