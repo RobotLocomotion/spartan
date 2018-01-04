@@ -26,7 +26,9 @@ class KukaIiwaStateTranslator(object):
 
         self.armJointNames = ['iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3', 'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6', 'iiwa_joint_7']
 
-        self.jointNames = self.armJointNames + self.fingerJointNames
+        # self.jointNames = self.armJointNames + self.fingerJointNames
+
+        self.jointNames = self.armJointNames
 
         self.numJoints = len(self.jointNames)
 

@@ -33,6 +33,8 @@ from pythondrakemodel import PythonDrakeModel
 from twostepestimator import TwoStepEstimator
 import contactfilterutils as cfUtils
 
+import spartan.utils.utils as spartanUtils
+
 Wrench_Time = namedtuple('wrenchTime', ['wrench','time'])
 class ExternalForce(object):
 
@@ -50,7 +52,7 @@ class ExternalForce(object):
         self.externalForces = dict()
         self.publishChannel = 'EXTERNAL_FORCE_TORQUE'
         self.captureMode = False
-        self.captureModeCounter = 0
+        self.captureModeCounter = dict()
         self.showContactRay = True
         self.showContactFilterEstimate = True
         self.addSubscribers()
@@ -141,18 +143,22 @@ class ExternalForce(object):
         self.robotPoseTranslator = cfUtils.RobotPoseTranslator(self.robotSystem.robotStateModel.model, self.drakeModel.model)
 
     # linkName is a string, wrench is an np.array
-    def addForce(self, linkName, wrench=None, forceDirection=None, forceMagnitude=None, forceLocation=None, inWorldFrame=False):
+    def addForce(self, linkName, wrench=None, forceDirection=None, forceMagnitude=None, forceLocation=None, inWorldFrame=False, name=None):
 
         linkName = str(linkName) # getting a weird u in front otherwise
         d = dict()
         # need at least one of wrench, or forceDirection and forceMagnitude
         assert (wrench is not None) or ((forceDirection is not None) and (forceMagnitude is not None) and (forceLocation is not None))
 
-        if self.captureMode:
-            self.captureModeCounter += 1
-            key = linkName + "_" + str(self.captureModeCounter)
-        else:
-            key = linkName
+        # optionally allow for passing in 
+        key = name
+        if key is None:
+            if self.captureMode:
+                self.captureModeCounter[linkName] += 1
+                key = linkName + "_" + str(self.captureModeCounter[linkName])
+            else:
+                key = linkName
+
 
 
         # check to see if a force on this body already exists, if so then use that as the forceMagnitude
@@ -435,7 +441,11 @@ class ExternalForce(object):
         print "starting capture mode"
         self.removeAllForces()
         self.captureMode = True
-        self.captureModeCounter = 0
+
+        self.captureModeCounter = dict()
+        for linkName in spartanUtils.getIiwaLinkNames():
+            self.captureModeCounter[linkName] = 0
+        
 
     def onResidualObserverState(self, msg):
         msgJointNames = msg.joint_name
@@ -636,15 +646,18 @@ class ExternalForce(object):
         fileObject.close()
 
 
-    def saveForceLocationsToFile(self, filename=None, verbose=False, overwrite=False):
+    def saveForceLocationsToFile(self, filename=None, fullFilename=None, verbose=False, overwrite=False):
 
         spartan_source_dir = os.getenv('SPARTAN_SOURCE_DIR')
 
-        if filename is None:
-            fullFilename = spartan_source_dir + self.options['data']['contactCells']
-        else:
-            fullFilename = spartan_source_dir + \
-                           "/src/ContactParticleFilter/config/" + filename
+        if fullFilename is None:
+            if filename is None:
+                fullFilename = spartan_source_dir + self.options['data']['contactCells']
+            else:
+                fullFilename = spartan_source_dir + \
+                               "/src/ContactParticleFilter/config/" + filename
+
+
 
 
         print "saving initial particle locations to ", fullFilename

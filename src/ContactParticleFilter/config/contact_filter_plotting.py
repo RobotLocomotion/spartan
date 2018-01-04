@@ -35,8 +35,8 @@ jointIdx = range(7)
 timeWindow = 10
 addPlot(timeWindow=timeWindow, yLimits=[-10,10])
 
-addSignals('RESIDUAL_OBSERVER_STATE', msg.utime, msg.residual, jointNames, keyLookup=msg.joint_name)
-# addSignals('RESIDUAL_ACTUAL', msg.utime, msg.residual, jointNames, keyLookup=msg.joint_name)
+# addSignals('RESIDUAL_OBSERVER_STATE', msg.utime, msg.residual, jointNames, keyLookup=msg.joint_name)
+addSignals('RESIDUAL_ACTUAL', msg.utime, msg.residual, jointNames, keyLookup=msg.joint_name)
 
 addPlot(timeWindow=timeWindow, yLimits=[-10,10])
 

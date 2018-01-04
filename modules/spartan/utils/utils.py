@@ -80,4 +80,11 @@ def getQuaternionFromDict(d):
 
     return quat
 
+def getIiwaLinkNames():
+    linkNames = ['iiwa_link_1', 'iiwa_link_2', 'iiwa_link_3',
+     'iiwa_link_4', 'iiwa_link_5', 'iiwa_link_6',
+     'iiwa_link_7']
+
+    return linkNames
+
 

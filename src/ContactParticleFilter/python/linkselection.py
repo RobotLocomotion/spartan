@@ -32,6 +32,8 @@ class LinkWidget(object):
         self.externalForce = externalForce
         self.cellCaptureMode = False
 
+        self.contactPointName = None
+
     def start(self):
         self.installEventFilter()
         self.externalForce.startPublishing()
@@ -130,7 +132,11 @@ class LinkWidget(object):
             forceDirection = -np.array(normal)
             forceLocation = np.array(pickedPoint)
             forceMagnitude = self.externalForce.options['externalForce']['initialForceMagnitude']
-            self.externalForce.addForce(linkName, forceDirection=forceDirection, forceLocation=forceLocation, forceMagnitude=forceMagnitude, inWorldFrame=True)
+            self.externalForce.addForce(linkName, forceDirection=forceDirection, forceLocation=forceLocation, forceMagnitude=forceMagnitude, inWorldFrame=True, name=self.contactPointName)
+            self.contactPointName = None
+
+    def setContactPointName(self, name):
+        self.contactPointName = name
 
 
     def startCellCaptureMode(self):

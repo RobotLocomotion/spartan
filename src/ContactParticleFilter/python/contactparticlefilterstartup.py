@@ -6,6 +6,8 @@ from contactfilterutils import EstRobotStatePublisher
 import externalforce
 import linkselection
 import cpftester
+import experimentmanager
+
 import argparse
 import director.applogic as app
 
@@ -27,12 +29,15 @@ def startup(robotSystem, globalsDict=None):
 
     estRobotStatePublisher = EstRobotStatePublisher(robotSystem)
 
+    experimentManager = experimentmanager.ExperimentManager(rs, rs.robotStateJointController, linkSelection, externalForce, estRobotStatePublisher)
+
     if globalsDict is not None:
         globalsDict['externalForce'] = externalForce
         globalsDict['contactFilter'] = contactFilter
         globalsDict['contactFilterVisualizer'] = contactFilterVisualizer
         globalsDict['linkSelection'] = linkSelection
         globalsDict['estRobotStatePublisher'] = estRobotStatePublisher
+        globalsDict['experimentManager'] = experimentManager
 
         # globalsDict['cf'] = contactFilter
         # globalsDict['ef'] = externalForce

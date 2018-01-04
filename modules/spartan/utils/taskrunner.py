@@ -17,6 +17,7 @@ class TaskRunner(object):
     self.pendingTasks = []
     self.threads = []
     self.timer = TimerCallback(callback=self._onTimer, targetFps=1/self.interval)
+    self.timer.start()
 
   def _onTimer(self):
     # Give up control to another python thread in self.threads
@@ -46,11 +47,12 @@ class TaskRunner(object):
 
     # if no liveThreads then stop the timer
     if len(self.threads) == 0:
-      self.timer.stop()
+      pass
+      # self.timer.stop()
 
   def callOnMain(self, func, *args, **kwargs):
     self.pendingTasks.append(lambda: func(*args, **kwargs))
-    self.timer.start()
+    # self.timer.start()
 
   def callOnThread(self, func, *args, **kwargs):
     t = Thread(target=lambda: func(*args, **kwargs))
