@@ -23,7 +23,7 @@ def startup(robotSystem, globalsDict=None):
 
     externalForce = externalforce.ExternalForce(rs)
     contactFilter = contactfilter.ContactFilter(rs.robotStateModel, rs.robotStateJointController)
-    contactFilterVisualizer = contactfiltervisualizer.ContactFilterVisualizer(rs, rs.robotStateModel)
+    contactFilterVisualizer = contactfiltervisualizer.ContactFilterVisualizer(rs, rs.robotStateModel, refreshRate=5)
     linkSelection = linkselection.LinkWidget(rs.view, rs.robotStateModel, externalForce)
     linkSelection.start()
 

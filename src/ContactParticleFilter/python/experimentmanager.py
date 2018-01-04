@@ -3,30 +3,53 @@ import time
 import tinydb
 
 from director import ioUtils
+from director import lcmUtils
 
 import spartan.utils.utils as spartanUtils
 from spartan.utils.taskrunner import TaskRunner
 
 import utils as cpfUtils
+import cpf_lcmtypes
+
 
 class ExperimentManager(object):
 
-    def __init__(self, robotStateModel, robotStateJointController, linkSelection, externalForce, estRobotStatePublisher, configFilename=""):
-        self.robotStateModel = robotStateModel
+    def __init__(self, robotSystem, robotStateJointController, linkSelection, externalForce, estRobotStatePublisher, configFilename=""):
+        self.robotSystem = robotSystem
         self.robotStateJointController = robotStateJointController
         self.linkSelection = linkSelection
         self.externalForce = externalForce
         self.estRobotStatePublisher = estRobotStatePublisher
+
         self.spartanSourceDir = spartanUtils.getSpartanSourceDir()
         self.cpfSourceDir = cpfUtils.getCPFSourceDir()
         self.loadConfig()
-        self.loadForcesFromFile()
-        self.experimentData = dict()
-        self.taskRunner = TaskRunner()
+        self.initialize()
+
+
+        self.initialize()
+
 
     def loadConfig(self):
-        filename =  os.path.join(self.spartanSourceDir,"src","ContactParticleFilter", "config", "experiments", "cpf_experiment_config.yaml")
+        filename =  os.path.join(self.cpfSourceDir, "config", "experiments", "cpf_experiment_config.yaml")
         self.config = spartanUtils.getDictFromYamlFilename(filename)
+
+    def initialize(self):
+        # start estRobotStatePublisher if we are in sim mode
+        if self.config['mode'] == "simulation":
+            self.estRobotStatePublisher.start()
+
+        self.loadForcesFromFile()
+        self.experimentData = dict()
+
+        self.recordCPFEstimate = False
+        self.cpfData = []
+        self.taskRunner = TaskRunner()
+        self.setupSubscribers()
+
+    def isSimulation(self):
+        return self.config["mode"] == "simulation"
+
 
     def loadForcesFromFile(self, filename=None):
         if filename is None:
@@ -37,6 +60,19 @@ class ExperimentManager(object):
         spartan_source_dir = spartanUtils.getSpartanSourceDir()
         # fullFilename = spartan_source_dir + self.options['data']['initialParticleLocations']
         self.savedForceLocations = ioUtils.readDataFromFile(fullFilename)
+
+    def visualizeForcesFromFile(self):
+        self.externalForce.startCaptureMode()
+        for key in self.savedForceLocations:
+            self.addExternalForce(key)
+
+    def setupSubscribers(self):
+        self.subscribers = dict()
+        self.msgs = dict()
+
+
+        self.subscribers['cpf_estimate'] = lcmUtils.addSubscriber("CONTACT_FILTER_POINT_ESTIMATE", cpf_lcmtypes.contact_filter_estimate_t, self.onContactFilterEstimate)
+        self.msgs['cpf_estimate'] = []
 
     def addExternalForce(self, forceName='iiwa_link_7_1'):
         d = self.savedForceLocations[forceName]
@@ -53,22 +89,61 @@ class ExperimentManager(object):
 
 
     def runSingleContactExperiment(self, forceName="iiwa_link_7_1", poseName='q_nom', noise_level=0):
-        self.taskRunner.callOnMain(self.externalForce.removeAllForces)
-        self.taskRunner.callOnMain(self.addExternalForce, forceName)
 
+        # make sure we move to the pose
+
+        if self.isSimulation():
+            # self.taskRunner.callOnMain(self.estRobotStatePublisher.start)
+            print "moving to pose"
+            self.taskRunner.callOnMain(self.moveToPose_sim, poseName)
+            print "finished moving to pose"
+
+
+            self.taskRunner.callOnMain(self.externalForce.removeAllForces)
+            self.taskRunner.callOnMain(self.addExternalForce, forceName)
+
+        # give some time for CPF to reset itself
+        time.sleep(1.0)
+
+        # setup the lcm logger
+        lcm_log_file = ExperimentManager.makeUniqueName() + ".lcm"
+        lcm_log_full_filename = os.path.join(self.dataFolderName, lcm_log_file)
+        lcmLogger = spartanUtils.LCMLogger(lcm_log_full_filename)
+        lcmLogger.start()
+
+          
+
+        # also start recording the CPF messages internally
+        self.cpfData = [] # clear the previous cache of messages
+        self.recordCPFEstimate = True
+
+        # wait for the simulation to run
         duration = self.config['duration']
         time.sleep(duration)
+        lcmLogger.stop()
+        self.recordCPFEstimate = False
 
-        # insert into the database
+
+        # record the results and insert into the database
         d = dict()
         d["force_name"] = forceName
         d['pose_name'] = poseName
         d['noise_level'] = noise_level
         d['mode'] = self.config['mode']
-        d['stats'] = None # fill this in later
-        d['lcm_log_file'] = None
+        d['lcm_log_file'] = lcm_log_file
+        d['force_dict_in_world'] = None
+        d['mode'] = self.config['mode']
 
+        if self.isSimulation():
+            linkName = self.savedForceLocations[forceName]['linkName']
+            forceDict = self.externalForce.externalForces[linkName]
+            # convert everything to world frame
+            self.forceDictInWorld = self.externalForce.convertForceToWorldFrame(forceDict)
+            d['force_dict_in_world'] = self.forceDictInWorld
 
+        # d['stats'] = self.cpfData
+
+        # store the data in the database
         self.db.insert(d)
 
         self.taskRunner.callOnMain(self.externalForce.removeAllForces)
@@ -89,7 +164,7 @@ class ExperimentManager(object):
 
 
     def setupExperimentDataFiles(self):
-        unique_name = time.strftime("%Y%m%d-%H%M%S") + "_" + self.config['mode']
+        unique_name = ExperimentManager.makeUniqueName() + "_" + self.config['mode']
         folderName = os.path.join(self.cpfSourceDir, "data", "experiments", unique_name)
         cmd = "mkdir -p " + folderName
         print cmd
@@ -102,6 +177,109 @@ class ExperimentManager(object):
         self.db_json = os.path.join(folderName, 'db.json')
         self.db = tinydb.TinyDB(self.db_json)
         # create tinydb database
+
+    """
+    Save the CPF_ESTIMATE messages as soon as they are received`
+    """
+    def onContactFilterEstimate(self, msg):
+        if self.recordCPFEstimate:
+            d = dict()
+            # d['ground_truth'] = self.forceDictInWorld
+            d['cpf_estimate'] = msg
+            self.cpfData.append(d)
+
+            # do something different if we are in hardware mode
+            # record the location coming from the OptiTrack system
+
+    # # it's not pretty but it gets the job done
+    # def moveToPose_sim(self, poseName="q_nom"):
+    #     self.taskRunner.callOnMain(self.estRobotStatePublisher.stop)
+        
+    #     startPose = self.getPlanningStartPose()
+    #     # endPose = ikPlanner.getMergedPostureFromDatabase(endPose, 'CPF', 'q_nom')
+    #     endPose = self.robotSystem.ikPlanner.getMergedPostureFromDatabase(startPose, 'CPF', poseName) # this is for testing
+    #     # ikParameters = IkParameters(maxDegreesPerSecond=60)
+    #     plan =self.robotSystem.ikPlanner.computePostureGoal(startPose, endPose)
+    #     # self.taskRunner.callOnMain(self.robotSystem.ikPlanner.computePostureGoal, startPose, endPose)
+    #     time.sleep(0.5) # wait for the panel to receive the plan
+    #     self.taskRunner.callOnMain(self.robotSystem.playbackPanel.executePlan, visOnly=True)
+    #     time.sleep(2.0)
+    #     # get the plan
+    #     # execute the plan visOnly using the playbackPanel
+    #     # self.executePlan(visOnly=True)
+
+    #     self.taskRunner.callOnMain(self.estRobotStatePublisher.start)
+
+    
+    # this should only be called on mainThread
+    def moveToPose_sim(self, poseName="q_nom_down"):
+
+        startPose = self.getPlanningStartPose()
+        endPose = self.robotSystem.ikPlanner.getMergedPostureFromDatabase(startPose, 'CPF', poseName) 
+        plan = self.robotSystem.ikPlanner.computePostureGoal(startPose, endPose)
+        self.executePlanSim(plan)
+        
+    def executePlanSim(self, plan):
+        _, poses = self.robotSystem.playbackPanel.planPlayback.getPlanPoses(plan)
+        # self.onPlanCommitted(plan)
+        self.robotStateJointController.setPose('EST_ROBOT_STATE', poses[-1])
+
+    def moveTest(self):
+        self.taskRunner.callOnMain(self.moveToPose_sim)
+
+    def moveToPose_sim_taskrunner(self, **kwargs):
+        self.taskRunner.callOnThread(self.moveTest)
+
+
+    def runExperiments(self):
+        self.setupExperimentDataFiles()
+        force_names = self.config['force_names']
+        
+        if len(force_names) == 0:
+            force_names= self.savedForceLocations.keys()
+
+        poses = self.config['poses']
+
+        for poseName in poses:
+            for forceName in force_names:
+                print "\n running single contact experiment, forceName=%(forceName)s, poseName=%(poseName)s", {'forceName':forceName, 'poseName':poseName}
+                self.runSingleContactExperiment(forceName=forceName, poseName=poseName)
+                print "finished running single contact experiment \n"
+
+
+    def runExperiments_taskrunner(self):
+        self.taskRunner.callOnThread(self.runExperiments)
+
+
+
+    # def computeStatistics(self, linkName):
+    #     msgs = self.msgs['cpf_estimate']
+    #
+    #     # get contact force details
+    #     # note this is all in link frame
+    #     forceDict = self.externalForce.externalForces[linkName]
+    #
+    #     # convert everything to world frame
+    #     forceDict = self.externalForce.convertForceToWorldFrame(forceDict)
+    #
+    #     forceLocation = forceDict['forceLocation']
+    #     forceDirection = forceDict['forceDirection']
+    #
+    #     stats = dict()
+    #     stats
+    #
+    #     location_l2 = []
+    #     direction_l2 = []
+    #     magnitude_l2 = [] # as a fraction of actual force
+    #
+    #     # here I am assuming there is only a single contact point
+    #     for d in cpfData:
+    #
+
+
+
+    def getPlanningStartPose(self):
+        return self.robotSystem.robotStateJointController.q
 
 
     def saveExperimentData(self):
@@ -117,3 +295,7 @@ class ExperimentManager(object):
         filename = os.path.join(self.spartanSourceDir, 'sandbox', "log_test.lcm")
         self.logger = spartanUtils.LCMLogger(filename)
         self.logger.start()
+
+    @staticmethod
+    def makeUniqueName():
+        return time.strftime("%Y%m%d-%H%M%S")

@@ -2,6 +2,8 @@ import director
 import math
 import textwrap
 import time
+
+
 import drake as lcmdrake
 import bot_core as lcmbotcore
 import director.vtkAll as vtk
@@ -151,13 +153,22 @@ class ExternalForce(object):
         assert (wrench is not None) or ((forceDirection is not None) and (forceMagnitude is not None) and (forceLocation is not None))
 
         # optionally allow for passing in 
-        key = name
-        if key is None:
+        key = None
+        if name is None:
             if self.captureMode:
                 self.captureModeCounter[linkName] += 1
-                key = linkName + "_" + str(self.captureModeCounter[linkName])
+                while True:
+                    key = linkName + "_" + str(self.captureModeCounter[linkName])
+                    if key in self.externalForces:
+                        self.captureModeCounter[linkName] += 1
+                    else:
+                        break
+
             else:
                 key = linkName
+
+        else:
+            key = name
 
 
 
@@ -204,6 +215,15 @@ class ExternalForce(object):
         self.drawForces()
 
 
+    def convertForceToWorldFrame(self, forceDict):
+        linkToWorld = self.robotStateModel.getLinkFrame(forceDict['linkName'])
+        forceLocation = np.array(linkToWorld.TransformPoint(forceDict['forceLocation']))
+        forceDirection = np.array(linkToWorld.TransformDoubleVector(forceDict['forceDirection']))
+
+        d = copy.deepcopy(forceDict)
+        d['forceLocation'] = forceLocation
+        d['forceDirection'] = forceDirection
+        d['inWorldFrame'] = True
 
     def computeWrench(self, linkName, forceDirection, forceMagnitude, forceLocation):
         outputFrame = vtk.vtkTransform()

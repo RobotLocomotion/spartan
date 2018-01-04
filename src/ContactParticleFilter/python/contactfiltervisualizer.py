@@ -16,9 +16,10 @@ import cpf_lcmtypes
 
 class ContactFilterVisualizer(object):
 
-    def __init__(self, robotSystem, robotStateModel):
+    def __init__(self, robotSystem, robotStateModel, refreshRate=5):
         self.robotStateModel = robotStateModel
         self.robotSystem = robotSystem
+        self.refreshRate = refreshRate
         self.addSubscribers()
         self.visualize = True
         self.options = cfUtils.loadConfig()
@@ -31,7 +32,7 @@ class ContactFilterVisualizer(object):
 
     def addSubscribers(self):
         subscriber = lcmUtils.addSubscriber("CONTACT_PARTICLE_FILTER_DATA", cpf_lcmtypes.CPF_data_t, self.onContactFilterMsg)
-        subscriber.setSpeedLimit(10)
+        subscriber.setSpeedLimit(self.refreshRate)
 
     def getCurrentPose(self):
         return self.robotSystem.robotStateJointController.q

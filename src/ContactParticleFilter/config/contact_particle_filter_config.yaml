@@ -20,8 +20,8 @@ thresholds:
   addContactPointTimeout: 0.25
   removeContactPointTimeout: 0.25
   #add/remove thresholds should be the same
-  addContactPointSquaredError: 200.0
-  removeContactPointSquaredError: 200.0
+  addContactPointSquaredError: 20.0
+  removeContactPointSquaredError: 20.0
   squaredErrorBoundForMostLikelyParticleAveraging: 10.0
   timeAboveThresholdToAddParticleSet: 0.2
 
