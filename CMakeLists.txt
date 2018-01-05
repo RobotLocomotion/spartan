@@ -23,6 +23,8 @@ endif()
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
 option(WITH_SNOPT "Build drake with support for the SNOPT solver." ON)
+option(WITH_GUROBI "Build with support for Gurobi" OFF)
+option(WITH_MOSEK "Build with support for MOSEK" OFF)
 
 option(WITH_IIWA_DRIVER_RLG "Build drake-iiwa-driver, RLG version." ON)
 option(WITH_IIWA_DRIVER_TRI "Build drake-iiwa-driver, TRI version." OFF)
@@ -61,95 +63,43 @@ set(CMAKE_ARGS_FOR_EXTERNALS
   -DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}
 )
 
-find_program(CP cp)
-find_program(BAZEL bazel)
-if(NOT BAZEL)
-  message(FATAL_ERROR "Could NOT find bazel executable")
-endif()
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(BAZEL_COMPILATION_MODE dbg)
-else()
-  set(BAZEL_COMPILATION_MODE opt)
-endif()
-set(BAZEL_ENV CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
-set(BAZEL_DRAKE_STARTUP_ARGS "--output_base=/$ENV{HOME}/.spartan-build/drake-build")
-set(BAZEL_ARGS --compilation_mode=${BAZEL_COMPILATION_MODE} --config=unsupported_crosstool --cxxopt=-std=c++1y --host_cxxopt=-std=c++1y)
-if(CMAKE_VERBOSE_MAKEFILE)
-  set(BAZEL_ARGS --subcommands ${BAZEL_ARGS})
-endif()
-if(WITH_SNOPT)
-  set(BAZEL_ARGS --config=snopt ${BAZEL_ARGS})
-endif()
-
-# Check that compiler is NOT ccache. Ccache is not compatible with bazel.
-# "readlink -f" is not available on MacOS. We use a one-liner python script
-# to get the result that "readlink -f" would give on Linux.
-execute_process(
-  COMMAND python -c "import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))" "${CMAKE_CXX_COMPILER}"
-  RESULT_VARIABLE COMPILER_RESULT
-  OUTPUT_VARIABLE COMPILER_OUTPUT
-  )
-if(COMPILER_RESULT)
-  message(FATAL_ERROR "Error while running the compiler ${CMAKE_CXX_COMPILER}.")
-endif()
-get_filename_component(COMPILER_NAME ${COMPILER_OUTPUT} NAME)
-string(STRIP ${COMPILER_NAME} COMPILER_NAME)
-if("${COMPILER_NAME}" STREQUAL "ccache")
-  message(FATAL_ERROR
-"Compiler is `ccache`. `ccache` is not compatible with `bazel` which is used to compile `drake`.
-To use `ccache` to compile the rest of the project, use the CMake or environment variables \
-CMAKE_C_COMPILER_LAUNCHER and CMAKE_CXX_COMPILER_LAUNCHER to set the path to `ccache`."
-)
-endif()
-
-
-# Add external projects
-# NOTE: For bazel < 0.5.2, two external projects that use Bazel must not build simultaneously.
-# One can depend on another one, which will force the order in which they are built.
 ExternalProject_Add(drake
     SOURCE_DIR ${source_dir}/drake
+    BINARY_DIR ${build_dir}/drake
     BUILD_ALWAYS 1
-    BUILD_IN_SOURCE 1
-    USES_TERMINAL_BUILD 1
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} build ${BAZEL_ARGS} //examples/kuka_iiwa_arm/... //:install @optitrack_driver//src:optitrack_client
-    INSTALL_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} run ${BAZEL_ARGS} //:install -- "${CMAKE_INSTALL_PREFIX}"
+    CMAKE_CACHE_ARGS
+      -DWITH_SNOPT:BOOL=${WITH_SNOPT}
+      -DWITH_GUROBI:BOOL=${WITH_GUROBI}
+      -DWITH_MOSEK:BOOL=${WITH_MOSEK}
+      ${CMAKE_ARGS_FOR_EXTERNALS}
+    INSTALL_COMMAND ""
 )
 
+ExternalProject_Add(libbot
+    SOURCE_DIR ${build_dir}/externals/libbot
+    BINARY_DIR ${build_dir}/libbot
+    GIT_REPOSITORY "https://github.com/RobotLocomotion/libbot2.git"
+    GIT_TAG "f260260b7d04c1d85169f985e1a2b4447a6832ef"
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      ${CMAKE_ARGS_FOR_EXTERNALS}
+    DEPENDS drake
+)
 
-# This is based on drake's VTK/Qt dependency (see `tools/vtk.bzl` in drake).
-# On MacOS, Drake uses homebrew VTK compiled with Qt5 and brew Python
-# On Linux, checks distribution
-# Ubuntu 14.04: Drake downloads a precompiled version of VTK compiled with Qt4
-# Ubuntu 16.04: Drake downloads a precompiled version of VTK compiled with Qt5
-# Otherwise, assume Qt5
 set(USED_QTVERSION 5)
+# On MacOS, Drake uses homebrew VTK compiled with Qt5 and brew Python
 if(APPLE)
   # VTK version used by drake
   set(VTK_INSTALL_DIR /usr/local/opt/vtk@8.0)
+  # To configure `director`
   set(VTK_ARGS
     -DVTK_DIR:PATH=${VTK_INSTALL_DIR}/lib/cmake/vtk-8.0
     -DPYTHON_CONFIG_EXECUTABLE:FILEPATH=/usr/local/bin/python2.7-config
   )
-  set(QT_ARGS -DQt5_DIR:PATH=/usr/local/opt/qt/lib/cmake/Qt5)
+  # To configure `config/setup_environment.sh.in`
   set(VTK_PYTHON_DIR ${VTK_INSTALL_DIR}/lib/python2.7/site-packages)
-elseif(UNIX)
-  find_program(SED sed)
-  if(NOT SED)
-    message(FATAL_ERROR "Could NOT find sed executable")
-  endif()
-  execute_process(COMMAND "${SED}" -n "/^\\(NAME\\|VERSION_ID\\)=/{s/[^=]*=//;s/\"//g;p}" /etc/os-release
-    RESULT_VARIABLE SED_RESULT
-    OUTPUT_VARIABLE SED_OUTPUT
-  )
-  if(SED_RESULT)
-    message(FATAL_ERROR "Could NOT determine Linux distribution information")
-  endif()
- string(REGEX REPLACE "\n" " " LINUX_DISTRIBUTION "${SED_OUTPUT}")
- string(STRIP ${LINUX_DISTRIBUTION} LINUX_DISTRIBUTION)
- if(LINUX_DISTRIBUTION STREQUAL "Ubuntu 14.04")
-   set(USED_QTVERSION 4)
- endif()
+  # For signal-scope
+  set(QT_ARGS -DQt5_DIR:PATH=/usr/local/opt/qt/lib/cmake/Qt5)
 endif()
 
 ExternalProject_Add(director
@@ -173,7 +123,7 @@ ExternalProject_Add(director
     -DUSE_PERCEPTION:BOOL=${WITH_PERCEPTION}
     ${CMAKE_ARGS_FOR_EXTERNALS}
   INSTALL_COMMAND ""
-  DEPENDS drake
+  DEPENDS libbot drake
 )
 
 ExternalProject_Add(common_utils
