@@ -93,13 +93,16 @@ class LCMLogger(object):
 
     def __init__(self, filename):
         self.filename = filename
-        self.cmd = "lcm-logger " + filename
-        # self.cmd = "echo $SPARTAN_SOURCE_DIR"
+
+        # the exec is important so that kill() works
+        # see the answer here https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true
+        self.cmd = "exec lcm-logger " + filename 
+        
 
     def start(self):
         self.logger = subprocess.Popen(self.cmd, shell=True) 
         
     def stop(self):
-        self.logger.terminate()
+        return self.logger.kill()
 
 
