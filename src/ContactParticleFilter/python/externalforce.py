@@ -46,6 +46,9 @@ class ExternalForce(object):
         self.robotStateModel.connectModelChanged(self.onModelChanged)
         self.options = cfUtils.loadConfig(configFilename)
 
+        self.removeAllForcesFlag = False
+        self.addForcesThreadSafeList = []
+
         self.loadDrakeModelFromFilename()
         self.initializeRobotPoseTranslator()
         self.initializeJointNamesList()
@@ -144,8 +147,9 @@ class ExternalForce(object):
     def initializeRobotPoseTranslator(self):
         self.robotPoseTranslator = cfUtils.RobotPoseTranslator(self.robotSystem.robotStateModel.model, self.drakeModel.model)
 
+
     # linkName is a string, wrench is an np.array
-    def addForce(self, linkName, wrench=None, forceDirection=None, forceMagnitude=None, forceLocation=None, inWorldFrame=False, name=None):
+    def addForce(self, linkName, wrench=None, forceDirection=None, forceMagnitude=None, forceLocation=None, inWorldFrame=False, name=None, drawForce=True):
 
         linkName = str(linkName) # getting a weird u in front otherwise
         d = dict()
@@ -212,7 +216,22 @@ class ExternalForce(object):
         d['time'] = time.time()
         self.externalForces[key] = d
         self.updateContactWrench(key)
-        self.drawForces()
+
+        if drawForce:
+            self.drawForces()
+
+    def addForceThreadSafe(self,linkName, wrench=None, forceDirection=None, forceMagnitude=None, forceLocation=None, inWorldFrame=False, name=None):
+
+        d = dict()
+        d['linkName'] = linkName
+        d['wrench'] = wrench
+        d['forceDirection'] = forceDirection
+        d['forceMagnitude'] = forceMagnitude
+        d['forceLocation'] = forceLocation
+        d['inWorldFrame'] = inWorldFrame
+        d['name'] = name
+
+        self.addForcesThreadSafeList.append(d)
 
 
     def convertForceToWorldFrame(self, forceDict):
@@ -262,6 +281,8 @@ class ExternalForce(object):
         for key in keyList:
             self.removeForce(key)
 
+    def removeAllForcesThreadSafe(self):
+        self.removeAllForcesFlag = True
 
 
     # remove forces from dict that haven't been refreshed in at least self.timeout seconds
@@ -302,6 +323,16 @@ class ExternalForce(object):
 
         # if len(self.externalForces) == 0:
         #     return
+
+        if self.removeAllForcesFlag:
+            self.removeAllForces()
+            self.removeAllForcesFlag = False
+
+        if len(self.addForcesThreadSafeList) > 0:
+            for d in self.addForcesThreadSafeList:
+                self.addForce(d['linkName'], wrench=d['wrench'], forceDirection=d['forceDirection'], forceMagnitude=d['forceMagnitude'], forceLocation=d['forceLocation'], inWorldFrame=d['inWorldFrame'], name=d['name'])
+
+            self.addForcesThreadSafeList = []
 
         tol = 1e-3
         numExternalForces = 0

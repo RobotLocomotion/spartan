@@ -21,6 +21,10 @@ def startup(robotSystem, globalsDict=None):
     print "setting up the contact particle filter . . . "
     rs = robotSystem
 
+    # setup the ROS node
+    import rospy
+    rospy.init_node('director_cpf')
+
     externalForce = externalforce.ExternalForce(rs)
     contactFilter = contactfilter.ContactFilter(rs.robotStateModel, rs.robotStateJointController)
     contactFilterVisualizer = contactfiltervisualizer.ContactFilterVisualizer(rs, rs.robotStateModel, refreshRate=5)

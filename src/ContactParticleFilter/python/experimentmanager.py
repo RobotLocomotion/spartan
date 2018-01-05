@@ -7,6 +7,7 @@ from director import lcmUtils
 
 import spartan.utils.utils as spartanUtils
 from spartan.utils.taskrunner import TaskRunner
+import spartan.utils.ros_utils as rosUtils
 
 import utils as cpfUtils
 import cpf_lcmtypes
@@ -34,10 +35,13 @@ class ExperimentManager(object):
         filename =  os.path.join(self.cpfSourceDir, "config", "experiments", "cpf_experiment_config.yaml")
         self.config = spartanUtils.getDictFromYamlFilename(filename)
 
+        stored_poses_file = os.path.join(self.cpfSourceDir, "config", "experiments", self.config['stored_poses_file'])
+        self.storedPosesDict = spartanUtils.getDictFromYamlFilename(stored_poses_file)
+
     def initialize(self):
-        # start estRobotStatePublisher if we are in sim mode
-        if self.config['mode'] == "simulation":
-            self.estRobotStatePublisher.start()
+        # # start estRobotStatePublisher if we are in sim mode
+        # if self.config['mode'] == "simulation":
+        #     self.estRobotStatePublisher.start()
 
         self.loadForcesFromFile()
         self.experimentData = dict()
@@ -45,6 +49,7 @@ class ExperimentManager(object):
         self.recordCPFEstimate = False
         self.cpfData = []
         self.taskRunner = TaskRunner()
+        self.robotService = rosUtils.RobotService.makeKukaRobotService()
         self.setupSubscribers()
 
     def isSimulation(self):
@@ -81,7 +86,7 @@ class ExperimentManager(object):
         forceDirection = d['forceDirection']
         # forceMagnitude = d['forceMagnitude']
         forceMagnitude = self.config['force_magnitude']
-        self.externalForce.addForce(linkName,
+        self.externalForce.addForceThreadSafe(linkName,
                                     forceDirection=forceDirection,
                                     forceLocation=forceLocation,
                                     forceMagnitude=forceMagnitude,
@@ -95,12 +100,15 @@ class ExperimentManager(object):
         if self.isSimulation():
             # self.taskRunner.callOnMain(self.estRobotStatePublisher.start)
             print "moving to pose"
-            self.taskRunner.callOnMain(self.moveToPose_sim, poseName)
+            joint_position = self.storedPosesDict[poseName]
+            self.robotService.moveToJointPosition(joint_position)
             print "finished moving to pose"
 
 
-            self.taskRunner.callOnMain(self.externalForce.removeAllForces)
-            self.taskRunner.callOnMain(self.addExternalForce, forceName)
+            # self.taskRunner.callOnMain(self.externalForce.removeAllForces)
+            self.externalForce.removeAllForcesThreadSafe()
+            # self.addExternalForce(forceName)
+            self.addExternalForce(forceName)
 
         # give some time for CPF to reset itself
         time.sleep(1.0)
@@ -145,8 +153,9 @@ class ExperimentManager(object):
 
         # store the data in the database
         self.db.insert(d)
+        self.externalForce.removeAllForcesThreadSafe()
 
-        self.taskRunner.callOnMain(self.externalForce.removeAllForces)
+        # self.taskRunner.callOnMain(self.externalForce.removeAllForces)
         # self.externalForce.removeAllForces()
 
         print "finished running single experiment"
@@ -210,6 +219,12 @@ class ExperimentManager(object):
 
     #     self.taskRunner.callOnMain(self.estRobotStatePublisher.start)
 
+    def moveToPose(self, poseName='q_nom_down'):
+        startPose = self.getPlanningStartPose()
+        endPose = self.robotSystem.ikPlanner.getMergedPostureFromDatabase(startPose, 'CPF', poseName)
+        numJoints = 7
+        endPose = endPose[-numJoints:]
+        self.robotService.moveToJointPosition(endPose)
     
     # this should only be called on mainThread
     def moveToPose_sim(self, poseName="q_nom_down"):
@@ -225,9 +240,10 @@ class ExperimentManager(object):
         self.robotStateJointController.setPose('EST_ROBOT_STATE', poses[-1])
 
     def moveTest(self):
-        self.taskRunner.callOnMain(self.moveToPose_sim)
+        joint_position = self.storedPosesDict['above_table_pre_grasp']
+        self.robotService.moveToJointPosition(joint_position)
 
-    def moveToPose_sim_taskrunner(self, **kwargs):
+    def moveToPose_test(self, **kwargs):
         self.taskRunner.callOnThread(self.moveTest)
 
 
