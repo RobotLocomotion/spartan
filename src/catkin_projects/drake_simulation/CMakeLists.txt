@@ -57,6 +57,7 @@ add_executable(drake_passive_simulation_from_config src/drake_passive_simulation
 target_link_libraries(drake_passive_simulation_from_config
     ${catkin_LIBRARIES}
     ${drake_LIBRARIES}
+    ${gflags_LIBRARIES}
     ${EIGEN3_LIBRARIES}
 )
 
@@ -128,6 +129,7 @@ target_link_libraries(iiwa_rlg_simulation
     iiwa_oracular_state_estimator
     schunk_wsg_ros
     schunk_wsg_ros_controller
+    ${gflags_LIBRARIES}
     ${drake_LIBRARIES}
     RemoteTreeViewerWrapper)
 

@@ -165,9 +165,8 @@ std::unique_ptr<RigidBodyPlant<T>> BuildCombinedPlant(
   return plant;
 }
 
-void rosSpin()
-{
-  while (ros::ok()){
+void rosSpin() {
+  while (ros::ok()) {
     ros::spinOnce();
     usleep(10);
   }
@@ -315,7 +314,7 @@ int DoMain(ros::NodeHandle& node_handle) {
   box_state_pub->set_name("box_state_publisher");
   box_state_pub->set_publish_period(kIiwaLcmStatusPeriod);
 
-  builder.Connect(model->get_output_port_box_robot_state_msg(),
+  builder.Connect(model->get_output_port_object_robot_state_msg(),
                   box_state_pub->get_input_port(0));
   box_state_pub->set_publish_period(kIiwaLcmStatusPeriod);
 
@@ -331,7 +330,6 @@ int DoMain(ros::NodeHandle& node_handle) {
   integrator->set_throw_on_minimum_step_size_violation(false);
   integrator->set_requested_minimum_step_size(FLAGS_minimum_step_size);
   simulator.set_publish_every_time_step(false);
-
 
   std::thread spinner(rosSpin);
   simulator.StepTo(FLAGS_simulation_sec);
