@@ -21,6 +21,7 @@ if __name__ == '__main__':
   data_dir = sys.argv[1]
   num_im = int(sys.argv[2])
   mesh = sys.argv[3]
+  out_dir = sys.argv[1]+"/images/" if len(sys.argv)==3 else sys.argv[4]
 
   use_mesh = False
 
@@ -49,7 +50,7 @@ if __name__ == '__main__':
     renderer.AddActor(actor)
   else: #import just the objects
     objects = common.Objects(data_dir,"/home/drc/spartan/Data_objects")
-    objects.loadObjectMeshes("/registration_result.yaml",renderer)
+    objects.loadObjectMeshes("/registration_result.yaml",renderer,keyword="drill")
 
 
   #setup filters
@@ -89,7 +90,7 @@ if __name__ == '__main__':
       scale.Update()
 
       #write out depth image
-      imageWriter.SetFileName(data_dir+"/images/"+str(i).zfill(10)+"depth_ground_truth.png");
+      imageWriter.SetFileName(out_dir+str(i).zfill(10)+"depth_ground_truth.png");
       imageWriter.SetInputConnection(scale.GetOutputPort());
       imageWriter.Write();
   

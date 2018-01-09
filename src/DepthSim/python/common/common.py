@@ -120,20 +120,52 @@ class Objects():
         self.objects_file = objects_file
         self.objects = {} # dict of Actors
 
-    def loadObjectMeshes(self,registrationResultFilename,renderer,shader=None):
+    def loadObjectMeshes(self,registrationResultFilename,renderer,shader=None,keyword=None):
       stream = file(self.path+registrationResultFilename)
       registrationResult = yaml.load(stream)
       firstFrameToWorldTransform = getFirstFrameToWorldTransform(self.path+'/transforms.yaml')
-
       for objName, data in registrationResult.iteritems():
           objectMeshFilename = self.objects_file+"/"+data['filename'] 
-          objectToFirstFrame = transformUtils.transformFromPose(data['pose'][0], data['pose'][1])
-          poly = ioUtils.readPolyData(objectMeshFilename)
-          poly = filterUtils.transformPolyData(poly, objectToFirstFrame)
-          mapper = vtk.vtkPolyDataMapper()
-          if shader: shader(mapper)
-          mapper.SetInputData(poly)
-          actor = vtk.vtkActor()
-          actor.SetMapper(mapper)
-          renderer.AddActor(actor)
-          self.objects[objectMeshFilename] = actor
+          if keyword and keyword in objectMeshFilename:
+            objectToFirstFrame = transformUtils.transformFromPose(data['pose'][0], data['pose'][1])
+            poly = ioUtils.readPolyData(objectMeshFilename)
+            poly = filterUtils.transformPolyData(poly, objectToFirstFrame)
+            mapper = vtk.vtkPolyDataMapper()
+            if shader: shader(mapper)
+            mapper.SetInputData(poly)
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            renderer.AddActor(actor)
+            self.objects[objectMeshFilename] = actor
+
+
+'''
+def point_cloud_to_mesh():
+    delaunay =vtk.vtkDelaunay2D()
+  delaunay->SetAlpha(4.0);
+>     delaunay->SetTolerance(0.0001);
+>     delaunay->SetOffset(1.25);
+>     delaunay->BoundingTriangulationOff();
+>     delaunay->SetInputData(polyData);
+>     delaunay->SetSourceData(polyData);
+>     delaunay->Update();
+
+
+def point_cloud_to_mesh(cloud):
+
+poissonReconstruction.SetSamplesPerNode(1.0);
+poissonReconstruction.SetDepth(10);          
+poissonReconstruction.SetKernelDepth(6);      
+poissonReconstruction.SetSolverDivide(10);    
+poissonReconstruction.SetIsoDivide(10);  
+
+vtkSmartPointer<vtkPoissonReconstruction> pR =
+vtkSmartPointer<vtkPoissonReconstruction>::New();
+    pR->SetInputConnection(polyDataNormals->GetOutputPort());
+    pR->SetSamplesPerNode(1.0);
+    pR->SetDepth(10);
+    pR->SetKernelDepth(10);
+    pR->SetSolverDivide(10);
+    pR->SetIsoDivide(10);
+    pR->Update(); 
+    '''

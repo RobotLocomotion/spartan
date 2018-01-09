@@ -109,7 +109,7 @@ if __name__ == '__main__':
       #mapper.Update()
 
       #write out depth image
-      imageWriter.SetFileName(data_dir+"/images/"+str(i).zfill(10)+"normal_ground_truth1.png");
+      imageWriter.SetFileName(data_dir+"/images/"+str(i).zfill(10)+"normal_ground_truth.png");
       imageWriter.SetInputConnection(windowToColorBuffer.GetOutputPort());
       imageWriter.Write();
   
