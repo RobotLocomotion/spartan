@@ -156,7 +156,7 @@ class RobotService(object):
 
 class HandEyeCalibration(object):
 
-    def __init__(self, robotSystem, handFrame='palm', cameraSerialNumber="", configFilename=None):
+    def __init__(self, robotSystem, handFrame='wsg_50_base_link', cameraSerialNumber="", configFilename=None):
         self.robotSystem = robotSystem
         self.configFilename = configFilename
         self.robotService = RobotService(robotSystem)

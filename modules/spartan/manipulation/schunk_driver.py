@@ -12,19 +12,21 @@ import spartan.utils.ros_utils as rosUtils
 
 class SchunkDriver(object):
 
-	def __init__(self, commandTopic="/schunk_driver/schunk_wsg_command", statusTopic="/schunk_driver/schunk_wsg_status"):
+	def __init__(self, commandTopic="/schunk_driver/schunk_wsg_command", statusTopic="/schunk_driver/schunk_wsg_status",
+				 statusSubscriberCallback=None):
 		self.commandTopic = commandTopic
 		self.statusTopic = statusTopic
-		self.initialize()
+		self.initialize(statusSubscriberCallback)
 
-	def initialize(self):
+	def initialize(self, statusSubscriberCallback):
 		self.setupDefaultMessages()
-		self.setupSubscribers()
+		if statusSubscriberCallback is not None:
+			self.setupSubscribers(statusSubscriberCallback)
 		self.setupPublishers()
 
-	def setupSubscribers(self):
-		self.statusSubscriber = rosUtils.SimpleSubscriber(self.statusTopic, wsg50_msgs.msg.WSG_50_state)
-		self.statusSubscriber.start()
+	def setupSubscribers(self, statusSubscriberCallback):
+		self.statusSubscriber = rosUtils.SimpleSubscriber(self.statusTopic, wsg50_msgs.msg.WSG_50_state, statusSubscriberCallback)
+		self.statusSubscriber.start(queue_size=1)
 
 	def setupPublishers(self):
 		self.commandPublisher = rospy.Publisher(self.commandTopic, wsg50_msgs.msg.WSG_50_command, queue_size=1)

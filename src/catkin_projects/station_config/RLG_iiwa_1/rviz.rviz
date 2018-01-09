@@ -121,17 +121,27 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        palm:
+        wsg_50_base_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        wsg_50_finger_left_link:
+        wsg_50_gripper_left:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        wsg_50_finger_right_link:
+        wsg_50_finger_left:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        wsg_50_gripper_right:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        wsg_50_finger_right:
           Alpha: 1
           Show Axes: false
           Show Trail: false
