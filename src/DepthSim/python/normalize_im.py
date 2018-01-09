@@ -8,4 +8,6 @@ for f in os.listdir(path):
 	n = misc.imread(path+f)
 	n = misc.imresize(n,(100,100))
 	n=n/float(np.max(n))
+	print n
+	break
 	misc.imsave(path+f, n)
