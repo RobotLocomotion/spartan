@@ -5,12 +5,12 @@ group "0.sim" {
   }
 
   cmd "1.kuka_simulation" {
-    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/drake/examples/kuka_iiwa_arm/kuka_simulation";
+    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/kuka_simulation";
     host = "localhost";
   }
 
   cmd "2.kuka_simulation_w_schunk_gripper" {
-    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/drake/examples/kuka_iiwa_arm/iiwa_wsg_simulation";
+    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/iiwa_wsg_simulation";
     host = "localhost";
   }
 }
@@ -46,7 +46,7 @@ group "2.iiwa-drivers" {
   }
 
   cmd "1.plan-runner" {
-    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/drake/examples/kuka_iiwa_arm/kuka_plan_runner";
+    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/kuka_plan_runner";
     host = "localhost";
   }
 

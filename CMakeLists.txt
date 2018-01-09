@@ -112,9 +112,11 @@ ExternalProject_Add(drake
     BUILD_IN_SOURCE 1
     USES_TERMINAL_BUILD 1
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} build ${BAZEL_ARGS} //drake/examples/kuka_iiwa_arm/... //:install @optitrack_driver//src:optitrack_client
+    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} build ${BAZEL_ARGS} //examples/kuka_iiwa_arm/... //:install @optitrack_driver//src:optitrack_client
     INSTALL_COMMAND ${BAZEL_ENV} "${BAZEL}" ${BAZEL_DRAKE_STARTUP_ARGS} run ${BAZEL_ARGS} //:install -- "${CMAKE_INSTALL_PREFIX}"
 )
+
+
 # This is based on drake's VTK/Qt dependency (see `tools/vtk.bzl` in drake).
 # On MacOS, Drake uses homebrew VTK compiled with Qt5 and brew Python
 # On Linux, checks distribution
@@ -212,25 +214,25 @@ ExternalProject_Add(spartan_lcmtypes
   DEPENDS drake
 )
 
-ExternalProject_Add(RemoteTreeViewer
-  SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
-  BINARY_DIR ${build_dir}/RemoteTreeViewer
-  BUILD_ALWAYS 1
-  CMAKE_CACHE_ARGS
-    ${CMAKE_ARGS_FOR_EXTERNALS}
-  DEPENDS drake
-)
+# ExternalProject_Add(RemoteTreeViewer
+#   SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
+#   BINARY_DIR ${build_dir}/RemoteTreeViewer
+#   BUILD_ALWAYS 1
+#   CMAKE_CACHE_ARGS
+#     ${CMAKE_ARGS_FOR_EXTERNALS}
+#   DEPENDS drake
+# )
 
-if (WITH_REACHABILITY_ANALYZER)
-  ExternalProject_Add(ReachabilityAnalyzer
-  SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
-  BINARY_DIR ${build_dir}/ReachabilityAnalyzer
-  BUILD_ALWAYS 1
-  CMAKE_CACHE_ARGS
-    ${CMAKE_ARGS_FOR_EXTERNALS}
-  DEPENDS drake director RemoteTreeViewer common_utils
-  )
-endif()
+# if (WITH_REACHABILITY_ANALYZER)
+#   ExternalProject_Add(ReachabilityAnalyzer
+#   SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
+#   BINARY_DIR ${build_dir}/ReachabilityAnalyzer
+#   BUILD_ALWAYS 1
+#   CMAKE_CACHE_ARGS
+#     ${CMAKE_ARGS_FOR_EXTERNALS}
+#   DEPENDS drake director RemoteTreeViewer common_utils
+#   )
+# endif()
 
 if (WITH_TRIMESH)
     find_package(PythonInterp REQUIRED)
@@ -275,17 +277,17 @@ if (WITH_TRIMESH)
     )
 endif()
 
-if (OFF)
-  ExternalProject_Add(ObjectDetection
-    SOURCE_DIR ${source_dir}/src/ObjectDetection
-    BINARY_DIR ${build_dir}/ObjectDetection
-    BUILD_ALWAYS 1
-    CMAKE_CACHE_ARGS
-      ${CMAKE_ARGS_FOR_EXTERNALS}
-    DEPENDS director RemoteTreeViewer
-  )
+# if (OFF)
+#   ExternalProject_Add(ObjectDetection
+#     SOURCE_DIR ${source_dir}/src/ObjectDetection
+#     BINARY_DIR ${build_dir}/ObjectDetection
+#     BUILD_ALWAYS 1
+#     CMAKE_CACHE_ARGS
+#       ${CMAKE_ARGS_FOR_EXTERNALS}
+#     DEPENDS director RemoteTreeViewer
+#   )
 
-endif()
+# endif()
 
 if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
   set(IIWA_DRIVER_GIT_REPOSITORY
@@ -299,7 +301,7 @@ if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
 
   if (WITH_IIWA_DRIVER_RLG)
     set(IIWA_DRIVER_GIT_TAG
-    "22e97d4db4057c65918deb70dec2323e4fe81191"
+    "eee1dd3656ae86197027ff8d168a029541900958"
     )
   endif()
 
@@ -359,7 +361,7 @@ if (WITH_ROS)
       ${CMAKE_ARGS_FOR_EXTERNALS}
       # Combine environment prefix path (with ROS) with our own
       "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};${CMAKE_PREFIX_PATH_ENV}"
-    DEPENDS drake director common_utils RemoteTreeViewer
+    DEPENDS drake director common_utils 
   )
 endif()
 
