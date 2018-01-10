@@ -214,25 +214,25 @@ ExternalProject_Add(spartan_lcmtypes
   DEPENDS drake
 )
 
-# ExternalProject_Add(RemoteTreeViewer
-#   SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
-#   BINARY_DIR ${build_dir}/RemoteTreeViewer
-#   BUILD_ALWAYS 1
-#   CMAKE_CACHE_ARGS
-#     ${CMAKE_ARGS_FOR_EXTERNALS}
-#   DEPENDS drake
-# )
+ExternalProject_Add(RemoteTreeViewer
+  SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
+  BINARY_DIR ${build_dir}/RemoteTreeViewer
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+  DEPENDS drake
+)
 
-# if (WITH_REACHABILITY_ANALYZER)
-#   ExternalProject_Add(ReachabilityAnalyzer
-#   SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
-#   BINARY_DIR ${build_dir}/ReachabilityAnalyzer
-#   BUILD_ALWAYS 1
-#   CMAKE_CACHE_ARGS
-#     ${CMAKE_ARGS_FOR_EXTERNALS}
-#   DEPENDS drake director RemoteTreeViewer common_utils
-#   )
-# endif()
+if (WITH_REACHABILITY_ANALYZER)
+  ExternalProject_Add(ReachabilityAnalyzer
+  SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
+  BINARY_DIR ${build_dir}/ReachabilityAnalyzer
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+  DEPENDS drake director RemoteTreeViewer common_utils
+  )
+endif()
 
 if (WITH_TRIMESH)
     find_package(PythonInterp REQUIRED)
