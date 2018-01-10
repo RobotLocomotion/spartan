@@ -93,7 +93,6 @@ def encode_normal_rgb(renderer, height, width, pickType='cells', tolerance=0.05)
 
 def getFirstFrameToWorldTransform(transformsFile):
     if os.path.isfile(transformsFile):
-        print("using user specified transform")
         stream = file(transformsFile)
         transformYaml = yaml.load(stream)
         pose = transformYaml['firstFrameToWorld']
