@@ -20,11 +20,11 @@ import yaml
 
 
 models = {
-    "plate_11in": "drake/../../../../../models/dishes/plate_11in_decomp/plate_11in_decomp.urdf",
-    "plate_8p5in": "drake/../../../../../models/dishes/plate_8p5in_decomp/plate_8p5in_decomp.urdf",
-    "bowl_6p25in": "drake/../../../../../models/dishes/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf", 
-    "dish_rack": "drake/../../../../../models/dishes/dish_rack_simple.urdf",
-    "floor": "drake/../../../../../build/bullet3/data/plane.urdf"
+    "plate_11in": "drake/../models/dishes/plate_11in_decomp/plate_11in_decomp.urdf",
+    "plate_8p5in": "drake/../models/dishes/plate_8p5in_decomp/plate_8p5in_decomp.urdf",
+    "bowl_6p25in": "drake/../models/dishes/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf", 
+    "dish_rack": "drake/../models/dishes/dish_rack_simple.urdf",
+    "floor": "drake/../build/bullet3/data/plane.urdf"
 }
 
 
