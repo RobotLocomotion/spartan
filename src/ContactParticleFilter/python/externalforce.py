@@ -339,6 +339,7 @@ class ExternalForce(object):
         msg = cpf_lcmtypes.external_force_torque_t()
 
         msgMultipleContactLocations = cpf_lcmtypes.multiple_contact_location_t()
+        msgMultipleContactLocations.utime = self.getUtime()
         trueResidual = np.zeros((self.drakeModel.numJoints,))
 
         # make sure we call doKinematics before we do all the geometricJacobian stuff

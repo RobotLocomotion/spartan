@@ -59,8 +59,6 @@ class LinkWidget(object):
         elif event.type() == QtCore.QEvent.MouseButtonPress and event.button() == QtCore.Qt.LeftButton:
             self.onLeftMousePress(vis.mapMousePosition(obj, event), event.modifiers())
 
-
-
     # need to return the cellID of the picke thing
     def getSelection(self, displayPoint):
 
@@ -113,7 +111,12 @@ class LinkWidget(object):
         modifiers = QtGui.QApplication.keyboardModifiers()
 
         if modifiers == QtCore.Qt.ControlModifier and self.cellCaptureMode:
+            print "provisionally capturing cell"
             self.provisionallyCaptureCell(linkName, pickedCellId)
+
+        if modifiers == QtCore.Qt.ShiftModifier and self.cellCaptureMode:
+            print "removing cell"
+            self.removeCell(linkName, pickedCellId)
 
 
     def onLeftMousePress(self, displayPoint, modifiers=None):
@@ -218,6 +221,17 @@ class LinkWidget(object):
             # colorCodeArrayNew = numpy_support.numpy_to_vtk(colorCodeNumpy)
             # data['colorCodeArray'].DeepCopy(colorCodeArrayNew)
             data['colorCodeArray'].Modified()
+
+    """
+    Switches a cell from captured to not
+    """
+    def removeCell(self, linkName, cellId):
+        currentVal = int(self.linkDict[linkName]['colorCodeArray'].GetValue(cellId))
+        if currentVal == 0: # return if it's already not captured
+            return
+        self.linkDict[linkName]['colorCodeArray'].SetValue(cellId, 0)
+        self.linkDict[linkName]['colorCodeArray'].Modified()
+
 
     def manageKeyPressCapture(self):
         pass

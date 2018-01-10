@@ -263,6 +263,8 @@ class ExperimentManager(object):
                 print "finished running single contact experiment \n"
 
 
+        print "finished running experiments"
+
     def runExperiments_taskrunner(self):
         self.taskRunner.callOnThread(self.runExperiments)
 

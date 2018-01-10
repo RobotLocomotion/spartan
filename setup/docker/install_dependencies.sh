@@ -16,9 +16,18 @@ apt install --no-install-recommends \
   apt-utils \
   usbutils \
   dialog \
-  python-pip
+  python-pip \
+  ipython \
+  ipython-notebook
 
 pip install -U pip setuptools
 
-# Dependencies of trimesh
-pip install numpy scipy pyassimp pyglet
+# python dependencies
+pip install numpy \
+  scipy \
+  pyassimp \
+  pyglet \
+  tinydb \
+  suds \
+  jupyter \
+  seaborn
