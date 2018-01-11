@@ -52,6 +52,9 @@
 #include "schunk_wsg_ros/schunk_wsg_ros.h"
 #include "schunk_wsg_ros/schunk_wsg_ros_controller.h"
 
+#include "common_utils/system_utils.h"
+#include "yaml-cpp/yaml.h"
+
 DEFINE_double(simulation_sec, std::numeric_limits<double>::infinity(),
               "Number of seconds to simulate.");
 DEFINE_double(camera_update_period, 0.1, "Camera update period, in seconds.");
@@ -59,9 +62,15 @@ DEFINE_double(minimum_step_size, 0.0001,
               "Minimum simulation step size, in seconds.");
 DEFINE_double(maximum_step_size, 0.01,
               "Maximum simulation step size, in seconds.");
+DEFINE_double(
+    rbt_timestep, 0.0,
+    "RBT timestep (0.0 = continuous sim, positive = timestepping mode).");
+
 DEFINE_bool(
     fixed_step_mode, false,
     "Whether to use fixed step mode (of maximum_step_size) for simulation.");
+
+DEFINE_string(config, "", "Sim config filename (required).");
 
 using drake::manipulation::util::WorldSimTreeBuilder;
 using drake::manipulation::util::ModelInstanceInfo;
@@ -98,70 +107,77 @@ constexpr double kSchunkWsgStatusPeriod = 0.01;
 const char* const kIiwaUrdf =
     "drake/manipulation/models/iiwa_description/urdf/"
     "iiwa14_polytope_collision.urdf";
+const char* const kSchunkUrdf =
+    "drake/manipulation/models/wsg_50_description/sdf/schunk_wsg_50.sdf";
 
-// Constructs a complete rigid body plant for the scene.
-// TODO(gizatt) replace this with a functional scene constructor
-// from an SDF, and maybe some kind of annotation from a YAML if necessary.
+// Constructs a complete rigid body plant for the scene given a
+// YAML scene configuration.
 template <typename T>
 std::unique_ptr<RigidBodyPlant<T>> BuildCombinedPlant(
     ModelInstanceInfo<T>* iiwa_instance, ModelInstanceInfo<T>* wsg_instance,
-    ModelInstanceInfo<T>* box_instance) {
+    std::vector<ModelInstanceInfo<T>>* object_instances, YAML::Node config) {
   auto tree_builder = std::make_unique<WorldSimTreeBuilder<double>>();
 
   // Adds models to the simulation builder. Instances of these models can be
   // subsequently added to the world.
+
+  // Add a kuka (without a hand attached)
   tree_builder->StoreDrakeModel("iiwa", kIiwaUrdf);
-  tree_builder->StoreDrakeModel(
-      "table",
-      "drake/examples/kuka_iiwa_arm/models/table/"
-      "extra_heavy_duty_table_surface_only_collision.sdf");
-  tree_builder->StoreDrakeModel("box",
-                                "drake/examples/kuka_iiwa_arm/models/objects/"
-                                "block_for_pick_and_place.urdf");
-  tree_builder->StoreDrakeModel(
-      "wsg",
-      "drake/manipulation/models/wsg_50_description/sdf/schunk_wsg_50.sdf");
+  printf("Registered iiwa at %s\n", kIiwaUrdf);
 
-  // Build a world with two fixed tables.  A box is placed one on
-  // table, and the iiwa arm is fixed to the other.
-  tree_builder->AddFixedModelInstance("table",
-                                      Eigen::Vector3d::Zero() /* xyz */,
-                                      Eigen::Vector3d::Zero() /* rpy */);
-  tree_builder->AddFixedModelInstance("table",
-                                      Eigen::Vector3d(0.8, 0, 0) /* xyz */,
-                                      Eigen::Vector3d::Zero() /* rpy */);
-  tree_builder->AddFixedModelInstance("table",
-                                      Eigen::Vector3d(0, 0.85, 0) /* xyz */,
-                                      Eigen::Vector3d::Zero() /* rpy */);
+  // Add the WSG hand
+  tree_builder->StoreDrakeModel("wsg", kSchunkUrdf);
+  printf("Registered schunk gripper at %s\n", kSchunkUrdf);
 
-  tree_builder->AddGround();
+  // Adds config-requested models to the builder.
+  for (const auto& node : config["models"]) {
+    std::string full_path =
+        expandEnvironmentVariables(node.second.as<std::string>());
+    printf("Registering additional model %s:%s\n",
+           node.first.as<std::string>().c_str(), full_path.c_str());
+    tree_builder->StoreModel(node.first.as<std::string>(), full_path);
+  }
 
-  // The `z` coordinate of the top of the table in the world frame.
-  // The quantity 0.736 is the `z` coordinate of the frame associated with the
-  // 'surface' collision element in the SDF. This element uses a box of height
-  // 0.057m thus giving the surface height (`z`) in world coordinates as
-  // 0.736 + 0.057 / 2.
-  const double kTableTopZInWorld = 0.736 + 0.057 / 2;
+  // Adds each model requested
+  if (config["with_ground"] && config["with_ground"].as<bool>() == true) {
+    tree_builder->AddGround();
+  }
 
-  // Coordinates for kRobotBase originally from iiwa_world_demo.cc.
-  // The intention is to center the robot on the table.
-  const Eigen::Vector3d kRobotBase(0, 0, kTableTopZInWorld);
-  // Start the box slightly above the table.  If we place it at
-  // the table top exactly, it may start colliding the table (which is
-  // not good, as it will likely shoot off into space).
-  const Eigen::Vector3d kBoxBase(0.8, 0., kTableTopZInWorld + 0.1);
+  // Add the IIWA at requested base position (default at origin)
+  int id;
+  Eigen::Vector3d robotBaseXyz(0, 0, 0);
+  Eigen::Vector3d robotBaseRpy(0, 0, 0);
+  if (config["robot"]) {
+    std::vector<double> pose =
+        config["robot"]["base_pose"].as<std::vector<double>>();
+    Eigen::Vector3d xyz(pose[0], pose[1], pose[2]);
+    Eigen::Vector3d rpy(pose[3], pose[4], pose[5]);
+    id = tree_builder->AddFixedModelInstance("iiwa", xyz, rpy);
+    *iiwa_instance = tree_builder->get_model_info_for_instance(id);
+  }
 
-  int id = tree_builder->AddFixedModelInstance("iiwa", kRobotBase);
-  *iiwa_instance = tree_builder->get_model_info_for_instance(id);
-  id = tree_builder->AddFloatingModelInstance("box", kBoxBase,
-                                              Eigen::Vector3d(0, 0, 1));
-  *box_instance = tree_builder->get_model_info_for_instance(id);
+  // Add the schunk gripper on its end
   id = tree_builder->AddModelInstanceToFrame(
       "wsg", tree_builder->tree().findFrame("iiwa_frame_ee"),
       drake::multibody::joints::kFixed);
   *wsg_instance = tree_builder->get_model_info_for_instance(id);
 
-  auto plant = std::make_unique<RigidBodyPlant<T>>(tree_builder->Build());
+  // Add all requested objects
+  for (const auto& node : config["instances"]) {
+    std::vector<double> pose = node["q0"].as<std::vector<double>>();
+    Eigen::Vector3d xyz(pose[0], pose[1], pose[2]);
+    Eigen::Vector3d rpy(pose[3], pose[4], pose[5]);
+    if (node["fixed"].as<bool>())
+      id = tree_builder->AddFixedModelInstance(node["model"].as<std::string>(),
+                                               xyz, rpy);
+    else
+      id = tree_builder->AddFloatingModelInstance(
+          node["model"].as<std::string>(), xyz, rpy);
+    object_instances->push_back(tree_builder->get_model_info_for_instance(id));
+  }
+
+  auto plant = std::make_unique<RigidBodyPlant<T>>(tree_builder->Build(),
+                                                   FLAGS_rbt_timestep);
 
   return plant;
 }
@@ -176,15 +192,21 @@ void rosSpin() {
 int DoMain(ros::NodeHandle& node_handle) {
   DiagramBuilder<double> builder;
 
-  ModelInstanceInfo<double> iiwa_instance, wsg_instance, box_instance;
+  ModelInstanceInfo<double> iiwa_instance, wsg_instance;
+  std::vector<ModelInstanceInfo<double>> object_instances;
 
+  YAML::Node yaml_config = YAML::LoadFile(FLAGS_config);
   std::unique_ptr<RigidBodyPlant<double>> model_ptr =
-      BuildCombinedPlant<double>(&iiwa_instance, &wsg_instance, &box_instance);
+      BuildCombinedPlant<double>(&iiwa_instance, &wsg_instance,
+                                 &object_instances, yaml_config);
   model_ptr->set_name("plant");
 
   auto model =
       builder.template AddSystem<IiwaAndWsgPlantWithStateEstimator<double>>(
-          std::move(model_ptr), iiwa_instance, wsg_instance, box_instance);
+          std::move(model_ptr),
+          std::vector<ModelInstanceInfo<double>>({iiwa_instance}), 
+          std::vector<ModelInstanceInfo<double>>({wsg_instance}), 
+          std::vector<ModelInstanceInfo<double>>({}));
   model->set_name("plant_with_state_estimator");
 
   const RigidBodyTree<double>& tree = model->get_plant().get_rigid_body_tree();
@@ -308,16 +330,6 @@ int DoMain(ros::NodeHandle& node_handle) {
   builder.Connect(model->get_output_port_iiwa_robot_state_msg(),
                   iiwa_state_pub->get_input_port(0));
   iiwa_state_pub->set_publish_period(kIiwaLcmStatusPeriod);
-
-  auto box_state_pub =
-      builder.AddSystem(LcmPublisherSystem::Make<bot_core::robot_state_t>(
-          "OBJECT_STATE_EST", &lcm));
-  box_state_pub->set_name("box_state_publisher");
-  box_state_pub->set_publish_period(kIiwaLcmStatusPeriod);
-
-  builder.Connect(model->get_output_port_object_robot_state_msg(),
-                  box_state_pub->get_input_port(0));
-  box_state_pub->set_publish_period(kIiwaLcmStatusPeriod);
 
   auto sys = builder.Build();
   Simulator<double> simulator(*sys);
