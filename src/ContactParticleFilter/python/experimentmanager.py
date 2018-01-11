@@ -111,7 +111,7 @@ class ExperimentManager(object):
             self.addExternalForce(forceName)
 
         # give some time for CPF to reset itself
-        time.sleep(1.0)
+        time.sleep(2.0)
 
         # setup the lcm logger
         lcm_log_file = ExperimentManager.makeUniqueName() + ".lcm"
