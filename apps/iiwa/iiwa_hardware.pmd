@@ -188,8 +188,19 @@ script "3.sim_startup" {
     start cmd "0.kuka-driver";
 }
 
-script "3.start_ROS" {
+script "4.start_ROS" {
   start cmd "0.roscore";
   wait ms 3000;
   start group "8.ROS";
+}
+
+script "5.start_CPF_experiments"{
+  start cmd "0.roscore";
+  wait ms 3000;
+  start group "8.ROS";
+  start cmd "0.LCM->ROS State Translator";
+  start cmd "1.kuka_simulation";
+  start cmd "1.plan-runner";
+  start cmd "2.state-translator";
+  start group "7.ContactParticleFilter";
 }

@@ -6,6 +6,7 @@ from director import objectmodel as om
 from director import visualization as vis
 from director import vtkAll as vtk
 from director import transformUtils
+from director import filterUtils
 from director.debugVis import DebugData
 from director.shallowCopy import shallowCopy
 from director.thirdparty import transformations
@@ -43,6 +44,9 @@ test_desc_message.rigid_bodies.append(body_desc)
 test_desc_message.num_rigid_bodies = len(test_desc_message.rigid_bodies)
 
 
+
+
+
 class OptitrackVisualizer(object):
     '''
     Usage:
@@ -60,6 +64,11 @@ class OptitrackVisualizer(object):
 
     defaultOptitrackToWorld = transformUtils.frameFromPositionAndRPY(
         [0,0,0],[90,0,90])
+
+    # this transforms the markers corresponding to the robot base to be aligned with the 
+    # actual positions on the robot
+    iiwa2ToOptitrack = transformUtils.transformFromPose([ 0.2104436 , -0.00575157,  0.1438488 ], [  9.99913840e-01,   1.24279540e-02,  -4.22242801e-03,
+             1.72184285e-04])
 
     def __init__(self, channel="OPTITRACK_FRAMES",
                  desc_channel="OPTITRACK_DATA_DESCRIPTIONS", name='Optitrack Visualier'):
@@ -86,6 +95,9 @@ class OptitrackVisualizer(object):
         self.callbacks = callbacks.CallbackRegistry([
             'RIGID_BODY_LIST_CHANGED',
             ])
+
+    def setTransformForIiwa2(self):
+        self.optitrackToWorld = transformUtils.concatenateTransforms([self.iiwa2ToOptitrack, self.defaultOptitrackToWorld])
 
     def connectRigidBodyListChanged(self, func):
         return self.callbacks.connect('RIGID_BODY_LIST_CHANGED', func)
@@ -305,3 +317,61 @@ class OptitrackVisualizer(object):
 
     def onDescMessage(self, msg):
         self.data_descriptions = msg
+
+    def makeIiwa2RigidBodyMarkerSet(self):
+        return RigidBodyMarkerSet.test(rigidBodyName="rlg_iiwa_2", optitrackVis=self)
+
+
+class RigidBodyMarkerSet(object):
+
+    def __init__(self, rigidBody, marker_object_list, optitrackVis=None):
+        self.rigidBody = rigidBody
+        self.marker_object_list = marker_object_list
+        self.optitrackVis = optitrackVis
+        self.name = self.rigidBody.getProperty('Name') + " rigid body marker set"
+        self.optitrackVisFolder = om.getOrCreateContainer("OPTITRACK_FRAMES")
+        self.parentFolder = om.getOrCreateContainer("Rigid Body Marker Sets", parentObj=self.optitrackVisFolder)
+
+        self.rigidBodyToWorld = transformUtils.copyFrame(rigidBody.getChildFrame().transform)
+        self.worldToRigidBody = self.rigidBodyToWorld.GetLinearInverse()
+
+        self.polyData = self.makePolyData()
+        self.makeVisObject()
+
+    def makePolyData(self):
+        d = DebugData()
+        for marker in self.marker_object_list:
+            markerToWorld = marker.getChildFrame().transform
+            markerToRigidBody = transformUtils.concatenateTransforms([markerToWorld, self.worldToRigidBody])
+
+            markerPolyDataInRigidBodyFrame = filterUtils.transformPolyData(marker.polyData, markerToRigidBody)
+
+            d.addPolyData(markerPolyDataInRigidBodyFrame)
+
+
+        return d.getPolyData()
+
+    def makeVisObject(self):
+        self.visObject = vis.updatePolyData(self.polyData, self.name, parent=self.parentFolder)
+        vis.addChildFrame(self.visObject)
+        self.visObject.getChildFrame().copyFrame(self.rigidBodyToWorld)
+
+    def getOptiTrackToWorld(self):
+        optiTrackToWorld = self.optitrackVis.optitrackToWorld
+        self_to_world = self.visObject.getChildFrame().transform
+
+
+        newOptiToWorld = transformUtils.concatenateTransforms([self_to_world, self.worldToRigidBody, optiTrackToWorld])
+
+        print transformUtils.poseFromTransform(newOptiToWorld)
+        return newOptiToWorld
+
+
+    @staticmethod
+    def test(rigidBodyName="rlg_iiwa_2", **kwargs):
+        rigidBody = om.findObjectByName("rlg_iiwa_2")
+        marker_set_name = "Marker set " + rigidBodyName
+        marker_set_folder = om.getOrCreateContainer(marker_set_name)
+        marker_object_list  = marker_set_folder.children()
+        rbms = RigidBodyMarkerSet(rigidBody, marker_object_list, **kwargs)
+        return rbms

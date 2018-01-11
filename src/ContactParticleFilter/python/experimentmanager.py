@@ -4,6 +4,7 @@ import tinydb
 
 from director import ioUtils
 from director import lcmUtils
+from director import objectmodel as om
 
 import spartan.utils.utils as spartanUtils
 from spartan.utils.taskrunner import TaskRunner
@@ -93,26 +94,43 @@ class ExperimentManager(object):
                                     inWorldFrame=False)
 
 
-    def runSingleContactExperiment(self, forceName="iiwa_link_7_1", poseName='q_nom', noise_level=0):
+    def runSingleContactExperiment(self, forceName="iiwa_link_7_1", poseName='q_nom', noise_level=0, mode="simulation"):
+
+
 
         # make sure we move to the pose
-
-        if self.isSimulation():
-            # self.taskRunner.callOnMain(self.estRobotStatePublisher.start)
-            print "moving to pose"
-            joint_position = self.storedPosesDict[poseName]
-            self.robotService.moveToJointPosition(joint_position)
-            print "finished moving to pose"
+        print "moving to pose"
+        joint_position = self.storedPosesDict[poseName]
+        self.robotService.moveToJointPosition(joint_position)
+        print "finished moving to pose"
 
 
+        if mode=="simulation":
             # self.taskRunner.callOnMain(self.externalForce.removeAllForces)
             self.externalForce.removeAllForcesThreadSafe()
             # self.addExternalForce(forceName)
+            self.externalForce.options["noise"]["stddev"] = noise_level
+            self.externalForce.options["noise"]["addNoise"] = True
             self.addExternalForce(forceName)
+            
+            # give some time for CPF to reset itself
+            time.sleep(2.0)
 
-        # give some time for CPF to reset itself
-        time.sleep(2.0)
+        
+        # if we are in hardware mode then wait here until the CPF starts registering estimates
+        if mode=="hardware":
+            self.externalForce.stopPublishing()
+            self.addExternalForce(forceName) # do this for visualization purposes
 
+            
+            while True:
+                print "waiting for CPF to detect a contact point"
+                if self.lastCPFEstimateMsg.num_contact_points > 0:
+                    print "CPF has detected a contact point, starting logging"
+                    break
+                time.sleep(0.5) # run this at 2Hz
+
+        
         # setup the lcm logger
         lcm_log_file = ExperimentManager.makeUniqueName() + ".lcm"
         lcm_log_full_filename = os.path.join(self.dataFolderName, lcm_log_file)
@@ -142,18 +160,13 @@ class ExperimentManager(object):
         d['force_dict_in_world'] = None
         d['mode'] = self.config['mode']
 
-        if self.isSimulation():
-            linkName = self.savedForceLocations[forceName]['linkName']
-            forceDict = self.externalForce.externalForces[linkName]
-            # convert everything to world frame
-            self.forceDictInWorld = self.externalForce.convertForceToWorldFrame(forceDict)
-            d['force_dict_in_world'] = self.forceDictInWorld
-
-        # d['stats'] = self.cpfData
 
         # store the data in the database
         self.db.insert(d)
-        self.externalForce.removeAllForcesThreadSafe()
+
+        if mode=="simulation":
+            self.externalForce.removeAllForcesThreadSafe()
+            self.externalForce.options["noise"]["stddev"] = 0 # set it back to no noise
 
         # self.taskRunner.callOnMain(self.externalForce.removeAllForces)
         # self.externalForce.removeAllForces()
@@ -191,6 +204,7 @@ class ExperimentManager(object):
     Save the CPF_ESTIMATE messages as soon as they are received`
     """
     def onContactFilterEstimate(self, msg):
+        self.lastCPFEstimateMsg = msg
         if self.recordCPFEstimate:
             d = dict()
             # d['ground_truth'] = self.forceDictInWorld
@@ -247,7 +261,7 @@ class ExperimentManager(object):
         self.taskRunner.callOnThread(self.moveTest)
 
 
-    def runExperiments(self):
+    def runExperimentsSimulation(self):
         self.setupExperimentDataFiles()
         force_names = self.config['force_names']
         
@@ -255,46 +269,45 @@ class ExperimentManager(object):
             force_names= self.savedForceLocations.keys()
 
         poses = self.config['poses']
+        noise_levels = self.config["noise_levels"]
 
         for poseName in poses:
             for forceName in force_names:
-                print "\n running single contact experiment, forceName=%(forceName)s, poseName=%(poseName)s", {'forceName':forceName, 'poseName':poseName}
-                self.runSingleContactExperiment(forceName=forceName, poseName=poseName)
-                print "finished running single contact experiment \n"
+                for noiseLevel in noise_levels:
+
+                    print "\n running single contact experiment, forceName=%(forceName)s, poseName=%(poseName)s, noiseLevel=%(noiseLevel)s", {'forceName':forceName, 'poseName':poseName, 'noiseLevel': noiseLevel}
+                    self.runSingleContactExperiment(forceName=forceName, poseName=poseName, noise_level=noiseLevel, mode="simulation")
+                    print "finished running single contact experiment \n"
 
 
         print "finished running experiments"
 
-    def runExperiments_taskrunner(self):
-        self.taskRunner.callOnThread(self.runExperiments)
+    def runExperimentsSimulation_taskrunner(self):
+        self.taskRunner.callOnThread(self.runExperimentsSimulation)
 
 
+    def setupHardwareExperiments(self):
+        self.config["mode"] = "hardware"
+        self.setupExperimentDataFiles()
 
-    # def computeStatistics(self, linkName):
-    #     msgs = self.msgs['cpf_estimate']
-    #
-    #     # get contact force details
-    #     # note this is all in link frame
-    #     forceDict = self.externalForce.externalForces[linkName]
-    #
-    #     # convert everything to world frame
-    #     forceDict = self.externalForce.convertForceToWorldFrame(forceDict)
-    #
-    #     forceLocation = forceDict['forceLocation']
-    #     forceDirection = forceDict['forceDirection']
-    #
-    #     stats = dict()
-    #     stats
-    #
-    #     location_l2 = []
-    #     direction_l2 = []
-    #     magnitude_l2 = [] # as a fraction of actual force
-    #
-    #     # here I am assuming there is only a single contact point
-    #     for d in cpfData:
-    #
+        # make the list
+        self.experiment_list = []
+        for poseName in poses:
+            for forceName in force_names:
+                self.experiment_list.append((poseName, forceName))
+
+    def runNextHardwareExperiment(self):
+        if len(self.experiment_list) == 0:
+            print "no more experiments left to run, returning"
+
+        pose_force = self.experiment_list.pop(0)
+        print "running experiment for ", pose_force
+
+        self.runSingleContactExperiment(forceName=pose_force[1], poseName=pose_force[0], mode="hardware")
 
 
+    def runNextHardwareExperiment_taskrunner(self):
+        self.taskRunner.callOnThread(self.runNextHardwareExperiment)
 
     def getPlanningStartPose(self):
         return self.robotSystem.robotStateJointController.q
@@ -317,3 +330,33 @@ class ExperimentManager(object):
     @staticmethod
     def makeUniqueName():
         return time.strftime("%Y%m%d-%H%M%S")
+
+
+class ForceProbeManager(object):
+
+    """
+    optitrackVis is of type OptitrackVisualizer
+    """
+    def __init__(self, optitrackVis, name="force_probe"):
+        self.optitrackVis = optitrackVis
+        self.intiialized = False
+
+    """
+    Attempt to acquire the "force_probe" vis object from the optitrack visualizer class
+    """
+    def initialize(self):
+        if self.initialized:
+            return True
+
+        self.force_probe_vis_obj = om.findObjectByName("force_probe", parent=self.optitrackVis.rigid_bodies)
+
+        if self.force_probe_vis_obj is None:
+            return False
+        else:
+            self.initialized = True
+            return True
+
+    def getForceProbeData(self):
+        d = dict()
+        d['force_location_in_world'] = []
+        d['force_direction_in_world'] = []

@@ -390,6 +390,14 @@ class ExternalForce(object):
                 singleContactResidual = self.computeSingleContactPointResidual(val['linkName'], val['wrench'])
                 trueResidual += singleContactResidual
 
+
+        # Add noise to true residual if specified
+        if self.options['noise']['addNoise']:
+            residual = trueResidual
+            residualSize = np.size(residual)
+            residual = residual + np.random.normal(scale=self.options['noise']['stddev'], size=residualSize)
+            trueResidual = residual
+
         # this message goes to the simulator
         msg.num_external_forces = numExternalForces
         lcmUtils.publish(self.publishChannel, msg)
@@ -638,9 +646,9 @@ class ExternalForce(object):
         if residual is None:
             return None
 
-        if self.options['noise']['addNoise']:
-            residualSize = np.size(residual)
-            residual = residual + np.random.normal(scale=self.options['noise']['stddev'], size=residualSize)
+        # if self.options['noise']['addNoise']:
+        #     residualSize = np.size(residual)
+        #     residual = residual + np.random.normal(scale=self.options['noise']['stddev'], size=residualSize)
 
 
         if self.options['twoStepEstimator']['provideLinkContactInfo']:
