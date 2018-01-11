@@ -70,7 +70,7 @@ class ExperimentManager(object):
     def visualizeForcesFromFile(self):
         self.externalForce.startCaptureMode()
         for key in self.savedForceLocations:
-            self.addExternalForce(key)
+            self.addExternalForce(key, useThreadSafe=False)
 
     def setupSubscribers(self):
         self.subscribers = dict()
@@ -80,19 +80,27 @@ class ExperimentManager(object):
         self.subscribers['cpf_estimate'] = lcmUtils.addSubscriber("CONTACT_FILTER_POINT_ESTIMATE", cpf_lcmtypes.contact_filter_estimate_t, self.onContactFilterEstimate)
         self.msgs['cpf_estimate'] = []
 
-    def addExternalForce(self, forceName='iiwa_link_7_1'):
+    def addExternalForce(self, forceName='iiwa_link_7_1', useThreadSafe=True):
         d = self.savedForceLocations[forceName]
         linkName = d['linkName']
         forceLocation = d['forceLocation']
         forceDirection = d['forceDirection']
         # forceMagnitude = d['forceMagnitude']
         forceMagnitude = self.config['force_magnitude']
-        self.externalForce.addForceThreadSafe(linkName,
-                                    forceDirection=forceDirection,
-                                    forceLocation=forceLocation,
-                                    forceMagnitude=forceMagnitude,
-                                    inWorldFrame=False)
 
+        if useThreadSafe:
+            self.externalForce.addForceThreadSafe(linkName,
+                                        forceDirection=forceDirection,
+                                        forceLocation=forceLocation,
+                                        forceMagnitude=forceMagnitude,
+                                        inWorldFrame=False)
+
+        else:
+             self.externalForce.addForce(linkName,
+                                        forceDirection=forceDirection,
+                                        forceLocation=forceLocation,
+                                        forceMagnitude=forceMagnitude,
+                                        inWorldFrame=False)
 
     def runSingleContactExperiment(self, forceName="iiwa_link_7_1", poseName='q_nom', noise_level=0, mode="simulation"):
 
