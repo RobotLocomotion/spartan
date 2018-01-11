@@ -257,7 +257,7 @@
   <link name="iiwa_link_ee">
   </link>
   <frame name="iiwa_frame_ee" link="iiwa_link_ee"
-         xyz="0.09 0 0" rpy="3.14159265359 0 1.57079632679"/>
+         xyz="0.09 0 0" rpy="3.14159265359 0.3926 1.57079632679"/>
   <!--Extensions -->
   <!-- Load Gazebo lib and set the robot namespace -->
   <gazebo>
