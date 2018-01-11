@@ -105,8 +105,8 @@ constexpr char kSchunkWsgStatusTopic[] = "/schunk_driver/schunk_wsg_status";
 constexpr double kSchunkWsgStatusPeriod = 0.01;
 
 const char* const kIiwaUrdf =
-    "drake/manipulation/models/iiwa_description/urdf/"
-    "iiwa14_polytope_collision.urdf";
+    "${SPARTAN_SOURCE_DIR}/models/iiwa/iiwa_description/"
+    "iiwa14_simplified_collision.urdf";
 const char* const kSchunkUrdf =
     "drake/manipulation/models/wsg_50_description/sdf/schunk_wsg_50.sdf";
 
@@ -122,8 +122,10 @@ std::unique_ptr<RigidBodyPlant<T>> BuildCombinedPlant(
   // subsequently added to the world.
 
   // Add a kuka (without a hand attached)
-  tree_builder->StoreDrakeModel("iiwa", kIiwaUrdf);
-  printf("Registered iiwa at %s\n", kIiwaUrdf);
+  std::string iiwa_full_url =
+      expandEnvironmentVariables(std::string(kIiwaUrdf));
+  tree_builder->StoreModel("iiwa", iiwa_full_url);
+  printf("Registered iiwa at %s\n", iiwa_full_url.c_str());
 
   // Add the WSG hand
   tree_builder->StoreDrakeModel("wsg", kSchunkUrdf);
@@ -204,8 +206,8 @@ int DoMain(ros::NodeHandle& node_handle) {
   auto model =
       builder.template AddSystem<IiwaAndWsgPlantWithStateEstimator<double>>(
           std::move(model_ptr),
-          std::vector<ModelInstanceInfo<double>>({iiwa_instance}), 
-          std::vector<ModelInstanceInfo<double>>({wsg_instance}), 
+          std::vector<ModelInstanceInfo<double>>({iiwa_instance}),
+          std::vector<ModelInstanceInfo<double>>({wsg_instance}),
           std::vector<ModelInstanceInfo<double>>({}));
   model->set_name("plant_with_state_estimator");
 
