@@ -145,11 +145,11 @@ std::unique_ptr<RigidBodyPlant<T>> BuildCombinedPlant(
 
   // Coordinates for kRobotBase originally from iiwa_world_demo.cc.
   // The intention is to center the robot on the table.
-  const Eigen::Vector3d kRobotBase(-0.243716, -0.625087, kTableTopZInWorld);
+  const Eigen::Vector3d kRobotBase(0, 0, kTableTopZInWorld);
   // Start the box slightly above the table.  If we place it at
   // the table top exactly, it may start colliding the table (which is
   // not good, as it will likely shoot off into space).
-  const Eigen::Vector3d kBoxBase(1 + -0.43, -0.65, kTableTopZInWorld + 0.1);
+  const Eigen::Vector3d kBoxBase(0.8, 0., kTableTopZInWorld + 0.1);
 
   int id = tree_builder->AddFixedModelInstance("iiwa", kRobotBase);
   *iiwa_instance = tree_builder->get_model_info_for_instance(id);
