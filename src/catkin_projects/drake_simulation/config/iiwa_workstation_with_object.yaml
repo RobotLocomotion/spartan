@@ -1,0 +1,26 @@
+models:
+  plate_11in: "${SPARTAN_SOURCE_DIR}/models/dishes/plate_11in_decomp/plate_11in_decomp.urdf"
+  plate_8p5in: "${SPARTAN_SOURCE_DIR}/models/dishes/plate_8p5in_decomp/plate_8p5in_decomp.urdf"
+  bowl_6p25in: "${SPARTAN_SOURCE_DIR}/models/dishes/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf"
+  dish_rack: "${SPARTAN_SOURCE_DIR}/models/dishes/dish_rack_simple.urdf"
+  robot_table: "${SPARTAN_SOURCE_DIR}/drake/examples/kuka_iiwa_arm/models/table/extra_heavy_duty_table_surface_only_collision.sdf"
+
+with_ground: true
+
+robot:
+  base_pose: [0.0, 0.0, 0.7645, 0.0, 0.0, 0.0]
+
+instances:
+  - model: "robot_table"
+    q0: [0, 0, 0, 0, 0, 0]
+    fixed: true
+  - model: "robot_table"
+    q0: [0.8, 0, 0, 0, 0, 0]
+    fixed: true
+  - model: "robot_table"
+    q0: [0.0, 0.85, 0, 0, 0, 0]
+    fixed: true
+    
+  - model: "bowl_6p25in"
+    q0: [0.6, 0, 0.9, 1.57, 0, 0]
+    fixed: false
