@@ -145,6 +145,14 @@ install(PROGRAMS
 
 install(TARGETS drake_passive_simulation_from_config
    iiwa_rlg_simulation
+   image_to_images_t
+   rgbd_to_ros_pointcloud2_driver
+   iiwa_common
+   iiwa_lcm
+   iiwa_wsg_diagram_factory
+   iiwa_oracular_state_estimator
+   schunk_wsg_ros
+   schunk_wsg_ros_controller
    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

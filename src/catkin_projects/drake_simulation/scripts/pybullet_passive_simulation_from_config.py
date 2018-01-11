@@ -43,10 +43,9 @@ if __name__ == "__main__":
         model_dict = config["models"]
 
         # Add each model as requested
-        drake_resource_root = os.environ["DRAKE_RESOURCE_ROOT"]
         ids = []
         for instance in config["instances"]:
-            urdf = drake_resource_root + "/" + model_dict[instance["model"]]
+            urdf = os.path.expandvars(model_dict[instance["model"]])
             q0 = instance["q0"]
             position = q0[0:3]
             quaternion = p.getQuaternionFromEuler(q0[3:8])
