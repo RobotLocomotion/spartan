@@ -64,12 +64,17 @@ if __name__=="__main__":
 
 	cmd += " --rm " # remove the image when you exit
 
+	# set network to share that of host machine
+	cmd += " --network=host "
+
 	if args.entrypoint and args.entrypoint != "":
 		cmd += "--entrypoint=\"%(entrypoint)s\" " % {"entrypoint": args.entrypoint}
 	else:
 		cmd += "-it "
 	cmd += args.image
 	cmd_endxhost = "xhost -local:root"
+
+
 
 	print("command = \n \n", cmd, "\n", cmd_endxhost)
 	print("")
