@@ -2,9 +2,9 @@ models:
   # Relative to DRAKE_RESOURCE_ROOT in
   # spartan/build/install/share/drake
   # and has to start with string "drake"
-  plate_11in: "drake/../models/dishes/plate_11in_decomp/plate_11in_decomp.urdf"
-  plate_8p5in: "drake/../models/dishes/plate_8p5in_decomp/plate_8p5in_decomp.urdf"
-  bowl_6p25in: "drake/../models/dishes/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf"
+  plate_11in: "${SPARTAN_SOURCE_DIR}/models/dishes/plate_11in_decomp/plate_11in_decomp.urdf"
+  plate_8p5in: "${SPARTAN_SOURCE_DIR}/models/dishes/plate_8p5in_decomp/plate_8p5in_decomp.urdf"
+  bowl_6p25in: "${SPARTAN_SOURCE_DIR}/models/dishes/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf"
 
 with_ground: true
 
