@@ -11,6 +11,7 @@
 import argparse
 from copy import deepcopy
 import math
+import numpy as np
 import os
 import re
 import rospy
@@ -26,6 +27,7 @@ from director.packagepath import PackageMap
 import spartan.utils.ros_utils as rosUtils
 import wsg50_msgs.msg
 
+import cv2
 
 kIiwaUrdf = "${SPARTAN_SOURCE_DIR}/models/iiwa/iiwa_description/iiwa14_schunk_gripper.urdf"
 
@@ -53,6 +55,16 @@ SCHUNK_CONTROLLED_JOINTS = [
     "wsg_50_base_joint_gripper_left",
     "wsg_50_base_joint_gripper_right",
 ]
+
+IIWA_CAMERA_PRIOR_JOINT = "wsg_50_old_palm_joint"
+IIWA_CAMERA_EYE_XYZ = [-0.045362, -0.0539602, 0.0497005]
+IIWA_CAMERA_EYE_QUAT = [7.06220552e-01, 7.07984565e-01, 3.26610787e-03, 5.10074366e-05]
+IIWA_CAMERA_FOV = 120
+IIWA_CAMERA_MIN_DISTANCE = 0.01
+IIWA_CAMERA_MAX_DISTANCE = 100.
+IIWA_CAMERA_WIDTH = 640
+IIWA_CAMERA_HEIGHT = 480
+IIWA_CAMERA_ASPECT = float(IIWA_CAMERA_WIDTH) / float(IIWA_CAMERA_HEIGHT)
 
 def load_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0, 1], fixed = True, packageMap = None):
     full_path = os.path.expandvars(inp_path)
@@ -249,19 +261,39 @@ class IiwaRlgSimulator():
         msg.speed_mm_per_s = (-states[0][1] + states[1][1])*1000.
         self.schunk_status_publisher.publish(msg)
 
+    def DoRendering(self):
+        # Get the state of the camera link
+        linkState = pybullet.getLinkState(self.kuka_id, self.iiwa_wsg_joint_name_to_id[IIWA_CAMERA_PRIOR_JOINT], computeLinkVelocity=0)
+        
+        cameraWorldPosition, cameraWorldOrientation = \
+            pybullet.multiplyTransforms(
+                linkState[0], linkState[1],
+                IIWA_CAMERA_EYE_XYZ, IIWA_CAMERA_EYE_QUAT)
+
+        cameraRotationMatrix = np.reshape(np.array(pybullet.getMatrixFromQuaternion(cameraWorldOrientation)), [3, 3])
+        cameraForward = cameraRotationMatrix.dot(np.array([-1., 0., 0.]))
+        cameraUp = cameraRotationMatrix.dot(np.array([0., 0., 1.]))
+
+        viewMatrix = pybullet.computeViewMatrix(cameraWorldPosition, cameraWorldPosition+cameraForward, cameraWorldPosition+cameraUp)
+        projectionMatrix = pybullet.computeProjectionMatrixFOV(IIWA_CAMERA_FOV, IIWA_CAMERA_ASPECT, IIWA_CAMERA_MIN_DISTANCE, IIWA_CAMERA_MAX_DISTANCE)
+        images = pybullet.getCameraImage(IIWA_CAMERA_WIDTH, IIWA_CAMERA_HEIGHT, viewMatrix, projectionMatrix, shadow=0,lightDirection=[1,1,1],renderer=pybullet.ER_BULLET_HARDWARE_OPENGL)
+
     def RunSim(self):
         # Run simulation with time control
         start_time = time.time()
         sim_time = 0.0
         avg_sim_rate = -1.
-        sim_rate_RC = 0.1 # RC time constant for estimating sim rate
+        sim_rate_RC = 0.01 # RC time constant for estimating sim rate
         sim_rate_alpha = self.timestep / (sim_rate_RC + self.timestep) 
         last_print_time = time.time() - 100
 
         last_status_send = 0
+        last_render = 0
 
         keep_going = True
         while 1:
+            start_step_time = time.time()
+
             # Resolve new commands for the IIWA
             self.lc.handle_timeout(1)
             pybullet.setJointMotorControlArray(
@@ -284,9 +316,7 @@ class IiwaRlgSimulator():
                 )
 
             # Do a sim step
-            start_step_time = time.time()
             pybullet.stepSimulation()
-            end_step_time = time.time()
             sim_time += self.timestep
 
             # Publish state
@@ -294,6 +324,24 @@ class IiwaRlgSimulator():
                 self.PublishIiwaStatus()
                 self.PublishSchunkStatus()
                 last_status_send = sim_time
+
+            # Render
+            if (sim_time - last_render) > 0.033:
+                self.DoRendering()
+                last_render = sim_time
+
+            events = pybullet.getKeyboardEvents()
+            for key in events.keys():
+                if events[key] & pybullet.KEY_WAS_TRIGGERED:
+                    if key == ord('q'):
+                        return False
+                    elif key == ord('r'):
+                        print("Restarting")
+                        return True
+
+            end_step_time = time.time()
+
+            # THINGS BELOW HERE MUST HAPPEN QUICKLY FOR TIME ESTIMATION TO BE ACCURATE
 
             # Estimate sim rate
             this_sim_step_rate = self.timestep / (end_step_time - start_step_time)
@@ -313,14 +361,6 @@ class IiwaRlgSimulator():
                 last_print_time = time.time()
                 print("Overall sim rate: ", sim_time / target_sim_time, ", current sim rate: ", avg_sim_rate, " at time ", sim_time)
 
-            events = pybullet.getKeyboardEvents()
-            for key in events.keys():
-                if events[key] & pybullet.KEY_WAS_TRIGGERED:
-                    if key == ord('q'):
-                        return False
-                    elif key == ord('r'):
-                        print("Restarting")
-                        return True
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -335,6 +375,8 @@ if __name__ == "__main__":
     physicsClient = pybullet.connect(pybullet.GUI)#or pybullet.DIRECT for non-graphical version
     
     sim = IiwaRlgSimulator(args.config, args.timestep, args.rate)
+
+    cv2.namedWindow('rgb', cv2.WINDOW_NORMAL)
 
     keep_simulating = True
     while keep_simulating:
