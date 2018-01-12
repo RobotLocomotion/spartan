@@ -1,10 +1,17 @@
 import os
 import time
 import tinydb
+import numpy as np
 
 from director import ioUtils
 from director import lcmUtils
 from director import objectmodel as om
+from director.debugVis import DebugData
+from director import visualization as vis
+from director.timercallback import TimerCallback
+
+
+
 
 import spartan.utils.utils as spartanUtils
 from spartan.utils.taskrunner import TaskRunner
@@ -14,22 +21,23 @@ import utils as cpfUtils
 import cpf_lcmtypes
 
 
+
 class ExperimentManager(object):
 
-    def __init__(self, robotSystem, robotStateJointController, linkSelection, externalForce, estRobotStatePublisher, configFilename=""):
+    def __init__(self, robotSystem, robotStateJointController, linkSelection, externalForce, estRobotStatePublisher, configFilename="", optitrackVis=None):
         self.robotSystem = robotSystem
         self.robotStateJointController = robotStateJointController
         self.linkSelection = linkSelection
         self.externalForce = externalForce
         self.estRobotStatePublisher = estRobotStatePublisher
+        self.optitrackVis = optitrackVis
+
 
         self.spartanSourceDir = spartanUtils.getSpartanSourceDir()
         self.cpfSourceDir = cpfUtils.getCPFSourceDir()
         self.loadConfig()
-        self.initialize()
+        self.initialize()    
 
-
-        self.initialize()
 
 
     def loadConfig(self):
@@ -52,6 +60,7 @@ class ExperimentManager(object):
         self.taskRunner = TaskRunner()
         self.robotService = rosUtils.RobotService.makeKukaRobotService()
         self.setupSubscribers()
+        self.forceProbeManager = ForceProbeManager(self.optitrackVis, externalForce=self.externalForce)
 
     def isSimulation(self):
         return self.config["mode"] == "simulation"
@@ -138,7 +147,10 @@ class ExperimentManager(object):
                     break
                 time.sleep(0.5) # run this at 2Hz
 
-        
+
+            # give the CPF 2 seconds to converge
+            time.sleep(2.0)
+
         # setup the lcm logger
         lcm_log_file = ExperimentManager.makeUniqueName() + ".lcm"
         lcm_log_full_filename = os.path.join(self.dataFolderName, lcm_log_file)
@@ -298,6 +310,14 @@ class ExperimentManager(object):
         self.config["mode"] = "hardware"
         self.setupExperimentDataFiles()
 
+        # setup the force probe manager
+        self.forceProbeManager.initialize()
+        self.forceProbeManager.visualize()
+        self.forceProbeManager.startPublishing()
+
+        poses = self.config["poses"]
+        force_names = self.config["force_names"]
+
         # make the list
         self.experiment_list = []
         for poseName in poses:
@@ -335,9 +355,20 @@ class ExperimentManager(object):
         self.logger = spartanUtils.LCMLogger(filename)
         self.logger.start()
 
+    def testForceProbeManager(self):
+        self.forceProbeManager.initialize()
+        self.forceProbeManager.visualize()
+        self.forceProbeManager.startPublishing()
+
+        print "initialized = ", self.forceProbeManager.initialized
+        # self.forceProbeManager.testGetForceDirection()
+        # self.forceProbeManager.testGetForceLocation()
+
     @staticmethod
     def makeUniqueName():
         return time.strftime("%Y%m%d-%H%M%S")
+
+
 
 
 class ForceProbeManager(object):
@@ -345,9 +376,38 @@ class ForceProbeManager(object):
     """
     optitrackVis is of type OptitrackVisualizer
     """
-    def __init__(self, optitrackVis, name="force_probe"):
+    def __init__(self, optitrackVis, name="force_probe", externalForce=None, publishChannel="FORCE_PROBE_DATA"):
         self.optitrackVis = optitrackVis
-        self.intiialized = False
+        self.initialized = False
+        self.name = name
+        self.externalForce = externalForce # for calibration purposes
+        self.publishChannel = publishChannel
+
+        self.forceDirectionInMarkerFrame = np.array([-0.4420162591516641, 0.01632227464677638, 0.8968585228428864])
+
+        self.forceLocationInMarkerFrame = np.array([-0.23840738592790875, -0.017554611742802595, 0.49571733690704545])
+
+        self.folder = om.getOrCreateContainer("Force Probe")
+        self.makePolyData()
+        self.visualizaionActive = False
+
+        self.timer = TimerCallback(targetFps=25)
+        self.timer.callback = self.publish
+        
+
+
+    def makePolyData(self):
+        d = DebugData()
+        d.addSphere(self.forceLocationInMarkerFrame, radius=0.007, resolution=8)
+
+        point = self.forceLocationInMarkerFrame - 0.1*self.forceDirectionInMarkerFrame
+        d.addLine(point, self.forceLocationInMarkerFrame, radius=0.005)
+
+        self.polyData = d.getPolyData()
+
+        self.visObj = vis.updatePolyData(self.polyData, 'force probe', parent=self.folder)
+        self.visObj.setProperty('Visible', False)
+        vis.addChildFrame(self.visObj)
 
     """
     Attempt to acquire the "force_probe" vis object from the optitrack visualizer class
@@ -356,15 +416,95 @@ class ForceProbeManager(object):
         if self.initialized:
             return True
 
-        self.force_probe_vis_obj = om.findObjectByName("force_probe", parent=self.optitrackVis.rigid_bodies)
+        self.force_probe_vis_obj = om.findObjectByName(self.name, parent=self.optitrackVis.rigid_bodies)
+        self.force_probe_marker_folder = om.findObjectByName("Marker set " + self.name)
 
-        if self.force_probe_vis_obj is None:
+        if (self.force_probe_vis_obj is None) or (self.force_probe_marker_folder is None):
             return False
         else:
             self.initialized = True
+            self.force_probe_vis_obj.getChildFrame().connectFrameModified(self.onMarkerFrameModified)
             return True
 
     def getForceProbeData(self):
         d = dict()
-        d['force_location_in_world'] = []
-        d['force_direction_in_world'] = []
+        probeToWorld = self.getTransform()
+
+        d['contact_position_in_world'] = probeToWorld.TransformPoint(self.forceLocationInMarkerFrame)
+        d['force_direction_in_world'] = probeToWorld.TransformVector(self.forceDirectionInMarkerFrame)
+
+        return d
+
+
+    def onMarkerFrameModified(self, frame_placeholder=None):
+        if not self.visObj.getProperty('Visible'):
+            return
+
+        probeToWorld = self.getTransform()
+        self.visObj.getChildFrame().copyFrame(probeToWorld)
+        self.visObj.setProperty('Visible', True)
+
+    def visualize(self):
+        self.visObj.setProperty('Visible', True)
+        self.onMarkerFrameModified() # just pass a bullshit argument
+
+    def getTransform(self):
+        return self.force_probe_vis_obj.getChildFrame().transform
+
+    def testGetForceDirection(self):
+        tipMarkerIdx = 0
+        shaftMarkerIdx = 1
+
+        tipMarkerVisObj = om.findObjectByName(self.name + ". marker " + str(tipMarkerIdx) )
+        tipMarkerLocation = np.array(tipMarkerVisObj.getChildFrame().transform.GetPosition())
+
+        shaftMarkerVisObj = om.findObjectByName(self.name + ". marker " + str(shaftMarkerIdx) )
+        shaftMarkerLocation = np.array(shaftMarkerVisObj.getChildFrame().transform.GetPosition())
+
+        forceDirectionInWorld = tipMarkerLocation - shaftMarkerLocation 
+        forceDirectionInWorld = forceDirectionInWorld/np.linalg.norm(forceDirectionInWorld)
+
+        markerFrameToWorld = self.getTransform()
+        worldToMarkerFrame = markerFrameToWorld.GetLinearInverse()
+        forceDirectionInMarkerFrame = worldToMarkerFrame.TransformVector(forceDirectionInWorld)
+
+        print "forceDirectionInWorld ", forceDirectionInWorld
+        print "forceDirection = ", forceDirectionInMarkerFrame
+
+    def testGetForceLocation(self):
+
+        force_name = self.externalForce.externalForces.keys()[0]
+        val = self.externalForce.externalForces[force_name]
+
+        linkName = val['linkName']
+        linkFrame = self.externalForce.robotStateModel.getLinkFrame(linkName)
+        contactLocationInWorld = linkFrame.TransformPoint(val['forceLocation'])
+        contactNormalInWorld = linkFrame.TransformVector(val['forceDirection'])
+
+        markerFrameToWorld = self.getTransform()
+        worldToMarkerFrame = markerFrameToWorld.GetLinearInverse()
+        contactLocationInMarkerFrame = worldToMarkerFrame.TransformPoint(contactLocationInWorld)
+
+        print "contactLocationInWorld = ", contactLocationInWorld
+        print "contactLocation = ", contactLocationInMarkerFrame
+
+
+    def publish(self):
+
+        if not self.initialized:
+            return
+
+        d = self.getForceProbeData()
+        msg  = cpf_lcmtypes.single_contact_filter_estimate_t()
+        msg.body_name = "force_probe"
+
+        msg.contact_position_in_world = d['contact_position_in_world']
+        msg.contact_force_in_world = d['force_direction_in_world'] # note this is just a unit vector, doesn't ahve magnitude
+
+        lcmUtils.publish(self.publishChannel, msg)
+
+    def startPublishing(self):
+        self.timer.start()
+
+    def stopPublishing(self):
+        self.timer.stop()

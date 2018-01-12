@@ -36,12 +36,16 @@ class MessageContainer(object):
 
 class ExperimentAnalyzer(object):
 
-    def __init__(self, logFolderName="20180105-165005_simulation"):
+    """
+    Mode can be either "simulation" or "hardware"
+    """
+    def __init__(self, logFolderName="20180105-165005_simulation", mode="simulation"):
         self.logFolderName = logFolderName
 
         self.cpfSourceDir = cpfUtils.getCPFSourceDir()
         self.logFolder = os.path.join(cpfUtils.getCPFDataDir(), logFolderName)
         self.loadDatabase()
+        self.mode = mode
 
         self.initialize()
 
@@ -49,11 +53,19 @@ class ExperimentAnalyzer(object):
         self.channels_info = dict()
         self.channels_info["EXTERNAL_CONTACT_LOCATION"] = cpf_lcmtypes.multiple_contact_location_t
         self.channels_info["CONTACT_FILTER_POINT_ESTIMATE"] = cpf_lcmtypes.contact_filter_estimate_t
+        self.channels_info["FORCE_PROBE_DATA"] = cpf_lcmtypes.single_contact_filter_estimate_t
 
         # create a new database
         # remove old database file
         db_analysis_file = os.path.join(self.logFolder, "db_analysis.json")
-        os.remove(db_analysis_file)
+        
+        # remove analysis file if it exists
+        try:
+            os.remove(db_analysis_file)
+        except OSError:
+            pass
+        
+
         self.db_analysis = tinydb.TinyDB(db_analysis_file)
 
     def loadDatabase(self):
@@ -86,16 +98,29 @@ class ExperimentAnalyzer(object):
                 message_containers[event.channel].insert_message_data(event.timestamp, event.data)
 
 
-        # store the results in a data structure
-        stats = self.computeStatisticsForSim(message_containers)
+        # # store the results in a data structure
+        # if self.mode == "simulation":
+        #     stats = self.computeStatisticsForSim(message_containers)
+
+        # if self.mode == "hardware":
+        #     stats = self.computeStatisticsForHardware(message_containers)
+        
+        stats = self.computeStatistics(message_containers, mode=self.mode)
         return stats
 
 
     """
     Compute some statistics like average location error, average force error, etc.
     """
-    def computeStatisticsForSim(self, message_containers):
-        ground_truth = message_containers["EXTERNAL_CONTACT_LOCATION"]
+    def computeStatistics(self, message_containers, mode="simulation"):
+        ground_truth = None
+        
+        if mode == "simulation":
+            ground_truth = message_containers["EXTERNAL_CONTACT_LOCATION"]
+
+        if mode == "hardware":
+            ground_truth = message_containers["FORCE_PROBE_DATA"]
+
         estimate = message_containers["CONTACT_FILTER_POINT_ESTIMATE"]
 
         # don't use member variables here . . .
@@ -105,8 +130,14 @@ class ExperimentAnalyzer(object):
 
         for idx, msg in enumerate(estimate.messages):
             timestamp = estimate.timestamps[idx]
+            
             ground_truth_msg = ground_truth.get_message(timestamp)
-            stats = self.computeSingleMessageStatisticsSim(msg, ground_truth_msg)
+            
+            # this is needed because the sim outputsd data in a different format
+            if self.mode == "simulation":
+                ground_truth_msg = ground_truth_msg.contacts[0]
+
+            stats = self.computeSingleMessageStatistics(msg, ground_truth_msg, mode=self.mode)
             self.stats_list.append(stats)
             self.position_error.append(stats['contact_position_in_world'])
             self.force_error.append(stats['contact_force_in_world'])
@@ -144,10 +175,12 @@ class ExperimentAnalyzer(object):
     
     we will assume there is only a single contact point for simplicity, otherwise data associate becomes hard as well
     """
-    def computeSingleMessageStatisticsSim(self, estimate, actual):
+    def computeSingleMessageStatistics(self, estimate, actual, mode="simulation"):
         # do everything in world frame
         estimate_s = estimate.single_contact_estimate[0]
-        actual_s = actual.contacts[0]
+        actual_s = actual
+        # estimate_s = estimate
+        # actual_s = actual.contacts[0]
 
 
         data_actual = self.convertSingleContactFilterEstimateMessageToNumpyArray(actual_s)
@@ -162,11 +195,23 @@ class ExperimentAnalyzer(object):
             stats[stat_name] = l2_norm
 
         # custom scaling logic for contact force in world
-        name = "contact_force_in_world"
-        delta = (data_actual[name] - data_est[name]) / np.linalg.norm(data_actual[name])
-        l2_norm = np.linalg.norm(delta)
-        stats[name] = l2_norm
+        if mode == "simulation":
+            name = "contact_force_in_world"
+            delta = (data_actual[name] - data_est[name]) / np.linalg.norm(data_actual[name])
+            l2_norm = np.linalg.norm(delta)
+            stats[name] = l2_norm
 
+        if mode == "hardware":
+            name = "contact_force_in_world"
+            force_direction_actual = data_actual[name] / np.linalg.norm(data_actual[name])
+            force_direction_est =  data_est[name] / np.linalg.norm(data_est[name])
+
+            delta = force_direction_actual - force_direction_est
+            l2_norm = np.linalg.norm(delta)
+            stats[name] = l2_norm
+
+
+        # this is sort of meaningless for hardware mode
         name = "contact_force_in_world"
         stats["contact_force_magnitude"] = abs( (np.linalg.norm(data_actual[name]) - np.linalg.norm(data_est[name])) / np.linalg.norm(data_actual[name]) )
 
