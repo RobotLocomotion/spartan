@@ -50,6 +50,21 @@ def load_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0,
 
 
 class IiwaRlgSimulator():
+    ''' 
+    This class implements a simulation of the Kuka IIWA + Schunk WSG 50
+    + random other objects simulation in Pybullet. 
+
+    Its constructor subscribes to the appropriate input channels:
+        - LCM channel `IIWA_COMMAND`, type `lcmt_iiwa_command`, for joint position
+          commands. (Torque mode not supported, but it would be easy to switch.)
+        - Ros topic `/schunk_driver/schunk_wsg_command`, type
+          wsg50_msgs::WSG_50_command for position setpoing and max force
+    
+    ResetSimulation() sets up the simulation.
+
+    RunSim run a sim until (R)eset or (Q)uit from the sim gui.
+    '''
+
     def __init__(self, config, timestep, rate):
         self.config = config
         self.timestep = timestep
