@@ -12,6 +12,7 @@ import argparse
 from copy import deepcopy
 import math
 import os
+import re
 import pybullet
 import threading
 import time
@@ -19,9 +20,9 @@ import yaml
 
 import lcm
 from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
+from director.packagepath import PackageMap
 
-kIiwaUrdf = "${SPARTAN_SOURCE_DIR}/models/iiwa/iiwa_description/iiwa14_simplified_collision.urdf"
-kSchunkUrdf = "${SPARTAN_SOURCE_DIR}/drake/manipulation/models/wsg_50_description/sdf/schunk_wsg_50.sdf"
+kIiwaUrdf = "${SPARTAN_SOURCE_DIR}/models/iiwa/iiwa_description/iiwa14_schunk_gripper.urdf"
 
 IIWA_CONTROLLED_JOINTS = [
     "iiwa_joint_1",
@@ -33,11 +34,45 @@ IIWA_CONTROLLED_JOINTS = [
     "iiwa_joint_7",
 ]
 
-def load_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0, 1], fixed = True):
+IIWA_MAX_JOINT_FORCES = [
+    10000.,
+    10000.,
+    10000.,
+    10000.,
+    10000.,
+    10000.,
+    10000.
+]
+
+SCHUNK_CONTROLLED_JOINTS = [
+    "wsg_50_base_joint_gripper_left",
+    "wsg_50_base_joint_gripper_right",
+]
+
+def load_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0, 1], fixed = True, packageMap = None):
     full_path = os.path.expandvars(inp_path)
+
     ext = full_path.split(".")[-1]
     if ext == "urdf":
         print "Loading ", full_path, " as URDF in pos ", position
+
+        if packageMap is not None:
+            # load text of URDF, resolve package URLS to absolute paths,
+            # and save it out to a temp directory
+            with open(full_path, 'r') as urdf_file:
+                full_text = urdf_file.read()
+                with open("/tmp/resolved_urdf.urdf", 'w') as out_file:
+                    # Find package references
+                    matches = re.finditer(r'package:\/\/[^\/]*\/', full_text)
+                    curr_ind = 0
+                    # Replace them in output file with the global path
+                    for match in matches:
+                        out_file.write(full_text[curr_ind:match.start()])
+                        out_file.write(packageMap.resolveFilename(match.group(0)))
+                        curr_ind = match.end()
+                    out_file.write(full_text[curr_ind:-1])
+            full_path = "/tmp/resolved_urdf.urdf"
+
         return pybullet.loadURDF(full_path, basePosition=position, baseOrientation=quaternion, useFixedBase=fixed)
     elif ext == "sdf":
         print "Loading ", full_path, " as SDF in pos ", position
@@ -70,12 +105,23 @@ class IiwaRlgSimulator():
         self.timestep = timestep
         self.rate = rate
 
+        self.packageMap = PackageMap()
+        self.packageMap.populateFromEnvironment(["ROS_PACKAGE_PATH"])
+        self.packageMap.printPackageMap()
+
         self.iiwa_command_lock = threading.Lock()
         self.last_iiwa_position_command = [0.] * len(IIWA_CONTROLLED_JOINTS)
 
-        # Set up command subscriber
+        self.schunk_command_lock = threading.Lock()
+        self.last_schunk_position_command = [0.] * len(SCHUNK_CONTROLLED_JOINTS)
+        self.last_schunk_torque_command = [0.] * len(SCHUNK_CONTROLLED_JOINTS)
+
+        # Set up IIWA command subscriber over LCM
         self.lc = lcm.LCM()
         self.iiwa_command_sub = self.lc.subscribe("IIWA_COMMAND", self.HandleIiwaCommand)        
+
+        # Set up Schunk command subscriber on ROS
+        print "TODO"
 
 
     def ResetSimulation(self):
@@ -97,7 +143,7 @@ class IiwaRlgSimulator():
             q0 = config["robot"]["base_pose"]
             position = q0[0:3]
             quaternion = pybullet.getQuaternionFromEuler(q0[3:6])
-            self.kuka_id = load_from_urdf_or_sdf(kIiwaUrdf, position, quaternion, True)
+            self.kuka_id = load_from_urdf_or_sdf(kIiwaUrdf, position, quaternion, True, self.packageMap)
 
         self.BuildJointNameToIdDict()
         self.BuildMotorIdList()
@@ -116,14 +162,17 @@ class IiwaRlgSimulator():
 
     def BuildJointNameToIdDict(self):
         num_joints = pybullet.getNumJoints(self.kuka_id)
-        self.iiwa_joint_name_to_id = {}
+        self.iiwa_wsg_joint_name_to_id = {}
         for i in range(num_joints):
           joint_info = pybullet.getJointInfo(self.kuka_id, i)
-          self.iiwa_joint_name_to_id[joint_info[1].decode("UTF-8")] = joint_info[0]
+          self.iiwa_wsg_joint_name_to_id[joint_info[1].decode("UTF-8")] = joint_info[0]
 
     def BuildMotorIdList(self):
         self.iiwa_motor_id_list = [
-            self.iiwa_joint_name_to_id[motor_name] for motor_name in IIWA_CONTROLLED_JOINTS
+            self.iiwa_wsg_joint_name_to_id[motor_name] for motor_name in IIWA_CONTROLLED_JOINTS
+        ]
+        self.schunk_motor_id_list = [
+            self.iiwa_wsg_joint_name_to_id[motor_name] for motor_name in SCHUNK_CONTROLLED_JOINTS
         ]
 
     def HandleIiwaCommand(self, channel, data):
@@ -136,7 +185,7 @@ class IiwaRlgSimulator():
             print "Exception ", e, " in lcm command handler"
         self.iiwa_command_lock.release()
 
-    def GetIiwaTorqueCommand(self):
+    def GetIiwaPositionCommand(self):
         self.iiwa_command_lock.acquire()
         command = deepcopy(self.last_iiwa_position_command)
         self.iiwa_command_lock.release()
@@ -164,6 +213,13 @@ class IiwaRlgSimulator():
 
         self.lc.publish("IIWA_STATUS", status_msg.encode())
 
+    def GetSchunkCommand(self):
+        self.schunk_command_lock.acquire()
+        position_command = deepcopy(self.last_schunk_position_command)
+        torque_command = deepcopy(self.last_schunk_torque_command)
+        self.schunk_command_lock.release()
+        return position_command, torque_command
+
     def RunSim(self):
         # Run simulation with time control
         start_time = time.time()
@@ -175,12 +231,25 @@ class IiwaRlgSimulator():
 
         keep_going = True
         while 1:
+            # Resolve new commands for the IIWA
             self.lc.handle_timeout(1)
             pybullet.setJointMotorControlArray(
                 self.kuka_id,
                 self.iiwa_motor_id_list,
-                pybullet.POSITION_CONTROL,
-                self.GetIiwaTorqueCommand()
+                controlMode=pybullet.POSITION_CONTROL,
+                targetPositions=self.GetIiwaPositionCommand(),
+                forces=IIWA_MAX_JOINT_FORCES
+                )
+
+            # Resolve new commands for the gripper
+            # ROS spinonce?
+            schunk_position_command, schunk_torque_command = self.GetSchunkCommand()
+            pybullet.setJointMotorControlArray(
+                self.kuka_id,
+                self.schunk_motor_id_list,
+                controlMode=pybullet.POSITION_CONTROL,
+                targetPositions=schunk_position_command,
+                forces=schunk_torque_command
                 )
 
             # Do a sim step
