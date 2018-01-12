@@ -17,8 +17,9 @@ apt install --no-install-recommends \
   usbutils \
   dialog \
   python-pip \
+  python-dev \
   ipython \
-  ipython-notebook
+  ipython-notebook 
 
 pip install -U pip setuptools
 
