@@ -13,14 +13,19 @@ from copy import deepcopy
 import math
 import os
 import re
+import rospy
 import pybullet
 import threading
 import time
 import yaml
 
+# More Spartan-specific stuff
 import lcm
 from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
 from director.packagepath import PackageMap
+import spartan.utils.ros_utils as rosUtils
+import wsg50_msgs.msg
+
 
 kIiwaUrdf = "${SPARTAN_SOURCE_DIR}/models/iiwa/iiwa_description/iiwa14_schunk_gripper.urdf"
 
@@ -121,8 +126,9 @@ class IiwaRlgSimulator():
         self.iiwa_command_sub = self.lc.subscribe("IIWA_COMMAND", self.HandleIiwaCommand)        
 
         # Set up Schunk command subscriber on ROS
-        print "TODO"
-
+        self.schunk_command_sub = rosUtils.SimpleSubscriber("/schunk_driver/schunk_wsg_command", wsg50_msgs.msg.WSG_50_command, self.HandleSchunkCommand)
+        self.schunk_command_sub.start(queue_size=1)
+        self.schunk_status_publisher = rospy.Publisher("/schunk_driver/schunk_wsg_status", wsg50_msgs.msg.WSG_50_state, queue_size=1)
 
     def ResetSimulation(self):
         pybullet.resetSimulation()
@@ -182,7 +188,7 @@ class IiwaRlgSimulator():
             for i in range(msg.num_joints):
                 self.last_iiwa_position_command[i] = msg.joint_position[i]
         except Exception as e:
-            print "Exception ", e, " in lcm command handler"
+            print "Exception ", e, " in lcm iiwa command handler"
         self.iiwa_command_lock.release()
 
     def GetIiwaPositionCommand(self):
@@ -213,12 +219,35 @@ class IiwaRlgSimulator():
 
         self.lc.publish("IIWA_STATUS", status_msg.encode())
 
+
+    def HandleSchunkCommand(self, msg):
+        self.schunk_command_lock.acquire()
+        try:
+            self.last_schunk_position_command = [-msg.position_mm*0.005, msg.position_mm*0.005]
+            self.last_schunk_torque_command = [msg.force, msg.force]
+        except Exception as e:
+            print "Exception ", e, " in ros schunk command handler"
+        self.schunk_command_lock.release()
+
     def GetSchunkCommand(self):
         self.schunk_command_lock.acquire()
         position_command = deepcopy(self.last_schunk_position_command)
         torque_command = deepcopy(self.last_schunk_torque_command)
         self.schunk_command_lock.release()
         return position_command, torque_command
+
+    def PublishSchunkStatus(self):
+        # Get joint state info
+        states = pybullet.getJointStates(self.kuka_id, self.schunk_motor_id_list)
+
+        msg = wsg50_msgs.msg.WSG_50_state()
+        msg.header.stamp = rospy.Time.now()
+        # Distance *between* paddles
+        msg.position_mm = (-states[0][0] + states[1][0])*1000.
+        msg.force = (-states[0][3] + states[1][3])/2.
+        # Rate of change of distance between paddles
+        msg.speed_mm_per_s = (-states[0][1] + states[1][1])*1000.
+        self.schunk_status_publisher.publish(msg)
 
     def RunSim(self):
         # Run simulation with time control
@@ -228,6 +257,8 @@ class IiwaRlgSimulator():
         sim_rate_RC = 0.1 # RC time constant for estimating sim rate
         sim_rate_alpha = self.timestep / (sim_rate_RC + self.timestep) 
         last_print_time = time.time() - 100
+
+        last_status_send = 0
 
         keep_going = True
         while 1:
@@ -259,7 +290,10 @@ class IiwaRlgSimulator():
             sim_time += self.timestep
 
             # Publish state
-            self.PublishIiwaStatus()
+            if (sim_time - last_status_send) > 0.033:
+                self.PublishIiwaStatus()
+                self.PublishSchunkStatus()
+                last_status_send = sim_time
 
             # Estimate sim rate
             this_sim_step_rate = self.timestep / (end_step_time - start_step_time)
@@ -294,6 +328,8 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--rate", help="Desired simulation rate (fraction of realtime)", type=float, default=1.0)
     parser.add_argument("-t", "--timestep", help="Simulation timestep", type=float, default=0.001)
     args = parser.parse_args()
+
+    rospy.init_node('pybullet_iiwa_rlg_simulation')
 
     # Set up a simulation with a ground plane and desired timestep
     physicsClient = pybullet.connect(pybullet.GUI)#or pybullet.DIRECT for non-graphical version
