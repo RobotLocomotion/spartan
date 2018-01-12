@@ -1,8 +1,11 @@
 mode: "simulation" # can be either simulation or hardware
 duration: 5 # how long one run lasts
 force_magnitude: 100
-noise_levels: [0, 0.1, 0.2]
-poses: ['q_nom', 'q_nom_down'] # the different poses to try out
+# noise_levels: [0, 0.1, 0.2]
+noise_levels: [0]
+poses: ['q_nom', 'q_nom_down', 'forward', 'twist'] # the different poses to try out
+# poses: [ 'q_nom_down'] # the different poses to try out
 # force_locations: ['iiwa_link_7_1', 'iiwa_link_5_1', 'iiwa_link_6_1']
-force_names: ['iiwa_link_7_2', 'iiwa_link_7_1', 'iiwa_link_4_1', 'iiwa_link_5_1', 'iiwa_link_5_2', 'iiwa_link_6_3', 'iiwa_link_6_1'] # if empty it defaults to using all of them
+force_names: ['iiwa_link_7_1', 'iiwa_link_4_1', 'iiwa_link_5_1', 'iiwa_link_5_2', 'iiwa_link_6_3', 'iiwa_link_6_1'] # if empty it defaults to using all of them
+# force_names: ['iiwa_link_5_1']
 stored_poses_file: "stored_poses.yaml"

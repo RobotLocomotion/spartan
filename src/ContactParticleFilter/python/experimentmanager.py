@@ -136,7 +136,8 @@ class ExperimentManager(object):
         
         # if we are in hardware mode then wait here until the CPF starts registering estimates
         if mode=="hardware":
-            self.externalForce.stopPublishing()
+            # self.externalForce.stopPublishing()
+            self.externalForce.removeAllForcesThreadSafe()
             self.addExternalForce(forceName) # do this for visualization purposes
 
             

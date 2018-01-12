@@ -47,6 +47,7 @@ class ExternalForce(object):
         self.options = cfUtils.loadConfig(configFilename)
 
         self.removeAllForcesFlag = False
+        self.publishFlag = True
         self.addForcesThreadSafeList = []
 
         self.loadDrakeModelFromFilename()
@@ -399,12 +400,13 @@ class ExternalForce(object):
             trueResidual = residual
 
         # this message goes to the simulator
-        msg.num_external_forces = numExternalForces
-        lcmUtils.publish(self.publishChannel, msg)
+        if self.publishFlag:
+            msg.num_external_forces = numExternalForces
+            lcmUtils.publish(self.publishChannel, msg)
 
-        # this message is for analysis
-        msgMultipleContactLocations.num_contacts = numExternalForces
-        lcmUtils.publish("EXTERNAL_CONTACT_LOCATION", msgMultipleContactLocations)
+            # this message is for analysis
+            msgMultipleContactLocations.num_contacts = numExternalForces
+            lcmUtils.publish("EXTERNAL_CONTACT_LOCATION", msgMultipleContactLocations)
 
         # this message is for debugging
         if self.options['debug']['publishTrueResidual']:
@@ -421,7 +423,9 @@ class ExternalForce(object):
             residualMsg.internal_torque = 0*trueResidual
             residualMsg.foot_contact_torque = 0*trueResidual
 
-            lcmUtils.publish("RESIDUAL_ACTUAL", residualMsg)
+
+            if self.publishFlag:
+                lcmUtils.publish("RESIDUAL_ACTUAL", residualMsg)
 
         if self.options['twoStepEstimator']['computeEstimate']:
             twoStepEstimateData = self.computeTwoStepEstimate()
