@@ -138,5 +138,12 @@ int main(int argc, char** argv) {
   // outPolyData->SetPoints(outPoints);
   WritePolyData(outPolyData, outputFile.c_str());
 
+  // Visualize things
+  RemoteTreeViewerWrapper rm;
+  // Publish model
+  rm.publishPointCloud(convertPclPointXyzEtcToMatrix3Xd<pcl::PointXYZ>(modelCloudTF), {"cropping", "model_cloud"}, {{0.8, 0.1, 0.8}});
+  // Publish scene
+  rm.publishPointCloud(convertPclPointXyzEtcToMatrix3Xd<pcl::PointXYZ>(sceneCloud), {"cropping", "scene_cloud"}, {{0.1, 0.8, 0.1}});
+
   return 0;
 }

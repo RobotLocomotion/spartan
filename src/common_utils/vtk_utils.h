@@ -125,6 +125,16 @@ vtkSmartPointer<vtkCellArray> NewVertexCells(vtkIdType numberOfVerts) {
   return cellArray;
 }
 
+static Eigen::Matrix3Xd Matrix3XdFromPolyData(const vtkSmartPointer<vtkPolyData> cloudPolyData){
+  Eigen::Matrix3Xd out_pts(3, cloudPolyData->GetNumberOfPoints());
+  for (int i = 0; i < cloudPolyData->GetNumberOfPoints(); i++) {
+    out_pts(0, i) = cloudPolyData->GetPoint(i)[0];
+    out_pts(1, i) = cloudPolyData->GetPoint(i)[1];
+    out_pts(2, i) = cloudPolyData->GetPoint(i)[2];
+  }
+  return out_pts; 
+}
+
 static vtkSmartPointer<vtkPolyData> PolyDataFromMatrix3Xd(
     Eigen::Matrix3Xd input) {
   vtkIdType nr_points = input.cols();
