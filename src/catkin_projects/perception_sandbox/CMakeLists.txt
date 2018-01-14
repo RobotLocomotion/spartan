@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(perception_sandbox)
 set(CMAKE_CXX_STANDARD 11)
 
-find_package(gflags REQUIRED)
+find_package(GFlags REQUIRED)
 find_package(OpenCV REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -52,7 +52,7 @@ add_executable(pointcloud2_capture_node src/pointcloud2_capture_node.cpp)
 target_include_directories(pointcloud2_capture_node SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
 target_link_libraries(pointcloud2_capture_node
    ${catkin_LIBRARIES}
-   ${gflags_LIBRARIES}
+   ${GFLAGS_LIBRARIES}
    ${OpenCV_LIBRARIES}
 )
 
