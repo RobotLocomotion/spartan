@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 11)
 find_package(drake REQUIRED)
 # Drake's up-to-date Eigen
 find_package(Eigen3 3.3.3 REQUIRED)
-find_package(GFlags REQUIRED)
+find_package(GFlags MODULE REQUIRED COMPONENTS shared)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -57,7 +57,7 @@ add_executable(drake_passive_simulation_from_config src/drake_passive_simulation
 target_link_libraries(drake_passive_simulation_from_config
     ${catkin_LIBRARIES}
     ${drake_LIBRARIES}
-    ${GFLAGS_LIBRARIES}
+    gflags_shared
     ${EIGEN3_LIBRARIES}
 )
 
@@ -129,7 +129,7 @@ target_link_libraries(iiwa_rlg_simulation
     iiwa_oracular_state_estimator
     schunk_wsg_ros
     schunk_wsg_ros_controller
-    ${GFLAGS_LIBRARIES}
+    gflags_shared
     ${drake_LIBRARIES}
     RemoteTreeViewerWrapper)
 
