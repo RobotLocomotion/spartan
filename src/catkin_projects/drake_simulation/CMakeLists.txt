@@ -23,7 +23,7 @@ catkin_package(
 # INCLUDE_DIRS
 # CATKIN_DEPENDS message_runtime
 #  LIBRARIES perception_msgs
-  CATKIN_DEPENDS roscpp drake_ros_systems
+  CATKIN_DEPENDS roscpp drake_ros_systems wsg50_msgs
 #  DEPENDS system_lib
 )
 
