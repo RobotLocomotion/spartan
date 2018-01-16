@@ -102,14 +102,16 @@ class ExperimentManager(object):
                                         forceDirection=forceDirection,
                                         forceLocation=forceLocation,
                                         forceMagnitude=forceMagnitude,
-                                        inWorldFrame=False)
+                                        inWorldFrame=False,
+                                        name=forceName)
 
         else:
              self.externalForce.addForce(linkName,
                                         forceDirection=forceDirection,
                                         forceLocation=forceLocation,
                                         forceMagnitude=forceMagnitude,
-                                        inWorldFrame=False)
+                                        inWorldFrame=False,
+                                        name=forceName)
 
     def runSingleContactExperiment(self, forceName="iiwa_link_7_1", poseName='q_nom', noise_level=0, mode="simulation"):
 
@@ -291,14 +293,16 @@ class ExperimentManager(object):
 
         poses = self.config['poses']
         noise_levels = self.config["noise_levels"]
+        num_trials = self.config["num_trials"]
 
         for poseName in poses:
             for forceName in force_names:
                 for noiseLevel in noise_levels:
+                    for runIdx in xrange(num_trials):
 
-                    print "\n running single contact experiment, forceName=%(forceName)s, poseName=%(poseName)s, noiseLevel=%(noiseLevel)s", {'forceName':forceName, 'poseName':poseName, 'noiseLevel': noiseLevel}
-                    self.runSingleContactExperiment(forceName=forceName, poseName=poseName, noise_level=noiseLevel, mode="simulation")
-                    print "finished running single contact experiment \n"
+                        print "\n running single contact experiment, forceName=%(forceName)s, poseName=%(poseName)s, noiseLevel=%(noiseLevel)s", {'forceName':forceName, 'poseName':poseName, 'noiseLevel': noiseLevel, "runIdx": runIdx}
+                        self.runSingleContactExperiment(forceName=forceName, poseName=poseName, noise_level=noiseLevel, mode="simulation")
+                        print "finished running single contact experiment \n"
 
 
         print "finished running experiments"
@@ -328,6 +332,7 @@ class ExperimentManager(object):
     def runNextHardwareExperiment(self):
         if len(self.experiment_list) == 0:
             print "no more experiments left to run, returning"
+            return
 
         pose_force = self.experiment_list.pop(0)
         print "running experiment for ", pose_force

@@ -127,6 +127,7 @@ class ExperimentAnalyzer(object):
         self.stats_list = []
         self.position_error = []
         self.force_error = []
+        angle_error = []
 
         for idx, msg in enumerate(estimate.messages):
             timestamp = estimate.timestamps[idx]
@@ -140,7 +141,8 @@ class ExperimentAnalyzer(object):
             stats = self.computeSingleMessageStatistics(msg, ground_truth_msg, mode=self.mode)
             self.stats_list.append(stats)
             self.position_error.append(stats['contact_position_in_world'])
-            self.force_error.append(stats['contact_force_in_world'])
+            self.force_error.append(stats['contact_force_magnitude'])
+            angle_error.append(stats["angle_to_force_direction"])
 
 
         self.position_error = np.array(self.position_error)
@@ -154,6 +156,10 @@ class ExperimentAnalyzer(object):
         d['force'] = dict()
         d['force']['mean'] = np.average(self.force_error)
         d['force']['std_dev'] = np.std(self.force_error)
+
+        d['angle'] = dict()
+        d['angle']['mean'] = np.average(angle_error)
+        d['angle']['std_dev'] = np.std(angle_error)
 
         self.stats = d
         return d
@@ -194,21 +200,33 @@ class ExperimentAnalyzer(object):
             l2_norm = np.linalg.norm(delta)
             stats[stat_name] = l2_norm
 
-        # custom scaling logic for contact force in world
-        if mode == "simulation":
-            name = "contact_force_in_world"
-            delta = (data_actual[name] - data_est[name]) / np.linalg.norm(data_actual[name])
-            l2_norm = np.linalg.norm(delta)
-            stats[name] = l2_norm
 
-        if mode == "hardware":
-            name = "contact_force_in_world"
-            force_direction_actual = data_actual[name] / np.linalg.norm(data_actual[name])
-            force_direction_est =  data_est[name] / np.linalg.norm(data_est[name])
+        # compute force direction in world, first normalize both
+        name = "contact_force_in_world"
+        force_direction_actual = data_actual[name] / np.linalg.norm(data_actual[name])
+        force_direction_est = data_est[name] / np.linalg.norm(data_est[name])
+        dot_prod = np.dot(force_direction_actual, force_direction_est)
+        angle_to_force_direction_rad = np.arccos(dot_prod)
+        angle_to_force_direction = np.rad2deg(angle_to_force_direction_rad)
 
-            delta = force_direction_actual - force_direction_est
-            l2_norm = np.linalg.norm(delta)
-            stats[name] = l2_norm
+        stats["angle_to_force_direction"] = angle_to_force_direction
+
+        #
+        # # custom scaling logic for contact force in world
+        # if mode == "simulation":
+        #     name = "contact_force_in_world"
+        #     delta = (data_actual[name] - data_est[name]) / np.linalg.norm(data_actual[name])
+        #     l2_norm = np.linalg.norm(delta)
+        #     stats[name] = l2_norm
+        #
+        # if mode == "hardware":
+        #     name = "contact_force_in_world"
+        #     force_direction_actual = data_actual[name] / np.linalg.norm(data_actual[name])
+        #     force_direction_est =  data_est[name] / np.linalg.norm(data_est[name])
+        #
+        #     delta = force_direction_actual - force_direction_est
+        #     l2_norm = np.linalg.norm(delta)
+        #     stats[name] = l2_norm
 
 
         # this is sort of meaningless for hardware mode
