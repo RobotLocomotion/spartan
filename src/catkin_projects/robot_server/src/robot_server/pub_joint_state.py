@@ -73,7 +73,7 @@ class JointStatePublisher:
         # (e.g. at time of writing, it was off by hours and was
         # messing up the TF server), so for now I'm approximating with
         # our local system time. -gizatt
-        self.publishROSJointStateMessage(ros_time_now)
+        self.publishROSJointStateMessage()
 
     def onSchunkStatus(self, msg):
         ros_time_now =  rospy.Time.now()
