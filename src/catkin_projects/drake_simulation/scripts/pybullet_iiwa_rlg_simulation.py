@@ -25,9 +25,12 @@ import lcm
 from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
 from director.packagepath import PackageMap
 import spartan.utils.ros_utils as rosUtils
+import std_msgs.msg
 import wsg50_msgs.msg
+import sensor_msgs.msg
 
 import cv2
+from cv_bridge import CvBridge, CvBridgeError
 
 kIiwaUrdf = "${SPARTAN_SOURCE_DIR}/models/iiwa/iiwa_description/iiwa14_schunk_gripper.urdf"
 
@@ -66,6 +69,15 @@ IIWA_CAMERA_WIDTH = 640
 IIWA_CAMERA_HEIGHT = 480
 IIWA_CAMERA_ASPECT = float(IIWA_CAMERA_WIDTH) / float(IIWA_CAMERA_HEIGHT)
 
+IIWA_CAMERA_RGB_TOPIC = "/camera_1112170110/rgb/image_raw" # sensor_msgs/Image
+IIWA_CAMERA_DEPTH_TOPIC = "/camera_1112170110/depth/image_raw" # sensor_msgs/Image
+IIWA_CAMERA_RGB_INFO_TOPIC = "/camera_1112170110/rgb/camera_info" # sensor_msgs/Image
+IIWA_CAMERA_DEPTH_INFO_TOPIC = "/camera_1112170110/depth/camera_info" # sensor_msgs/Image
+IIWA_CAMERA_RGB_INFO_FILE = "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/1112170110/master/rgb_camera_info.yaml"
+IIWA_CAMERA_DEPTH_INFO_FILE = "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/1112170110/master/depth_camera_info.yaml"
+IIWA_CAMERA_RGB_FRAME = "camera_1112170110_rgb_optical_frame"
+IIWA_CAMERA_DEPTH_FRAME = "camera_1112170110_depth_optical_frame"
+
 def load_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0, 1], fixed = True, packageMap = None):
     full_path = os.path.expandvars(inp_path)
 
@@ -100,6 +112,18 @@ def load_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0,
         print "Unknown extension in path ", full_path, ": ", ext
         exit(-1)
 
+def load_camera_info(info_file):
+    info = sensor_msgs.msg.CameraInfo()
+    info_yaml = yaml.load(open(os.path.expandvars(info_file), 'r'))
+
+    info.width = info_yaml["image_width"]
+    info.height = info_yaml["image_height"]
+    info.distortion_model = info_yaml["distortion_model"]
+    info.D = info_yaml["distortion_coefficients"]["data"]
+    info.K = info_yaml["camera_matrix"]["data"]
+    info.R = info_yaml["rectification_matrix"]["data"]
+    info.P = info_yaml["projection_matrix"]["data"]
+    return info
 
 class IiwaRlgSimulator():
     ''' 
@@ -141,6 +165,15 @@ class IiwaRlgSimulator():
         self.schunk_command_sub = rosUtils.SimpleSubscriber("/schunk_driver/schunk_wsg_command", wsg50_msgs.msg.WSG_50_command, self.HandleSchunkCommand)
         self.schunk_command_sub.start(queue_size=1)
         self.schunk_status_publisher = rospy.Publisher("/schunk_driver/schunk_wsg_status", wsg50_msgs.msg.WSG_50_state, queue_size=1)
+
+        # Set up image publishing
+        self.rgb_publisher = rospy.Publisher(IIWA_CAMERA_RGB_TOPIC, sensor_msgs.msg.Image, queue_size=1)
+        self.depth_publisher = rospy.Publisher(IIWA_CAMERA_DEPTH_TOPIC, sensor_msgs.msg.Image, queue_size=1)
+        self.rgb_info_publisher = rospy.Publisher(IIWA_CAMERA_RGB_INFO_TOPIC, sensor_msgs.msg.CameraInfo, queue_size=1)
+        self.depth_info_publisher = rospy.Publisher(IIWA_CAMERA_DEPTH_INFO_TOPIC, sensor_msgs.msg.CameraInfo, queue_size=1)
+        self.rgb_info = load_camera_info(IIWA_CAMERA_RGB_INFO_FILE)
+        self.depth_info = load_camera_info(IIWA_CAMERA_DEPTH_INFO_FILE)
+        self.cv_bridge = CvBridge()
 
     def ResetSimulation(self):
         pybullet.resetSimulation()
@@ -275,8 +308,38 @@ class IiwaRlgSimulator():
         cameraUp = cameraRotationMatrix.dot(np.array([0., 0., 1.]))
 
         viewMatrix = pybullet.computeViewMatrix(cameraWorldPosition, cameraWorldPosition+cameraForward, cameraWorldPosition+cameraUp)
-        projectionMatrix = pybullet.computeProjectionMatrixFOV(IIWA_CAMERA_FOV, IIWA_CAMERA_ASPECT, IIWA_CAMERA_MIN_DISTANCE, IIWA_CAMERA_MAX_DISTANCE)
+
+        camera_fov_x = 2 * math.atan2(self.depth_info.height, 2 * self.depth_info.P[0]) * 180. / math.pi
+        camera_fov_y = 2 * math.atan2(self.depth_info.width, 2 * self.depth_info.P[5]) * 180. / math.pi
+
+        projectionMatrix = pybullet.computeProjectionMatrixFOV(camera_fov_x, IIWA_CAMERA_ASPECT, IIWA_CAMERA_MIN_DISTANCE, IIWA_CAMERA_MAX_DISTANCE)
+
         images = pybullet.getCameraImage(IIWA_CAMERA_WIDTH, IIWA_CAMERA_HEIGHT, viewMatrix, projectionMatrix, shadow=0,lightDirection=[1,1,1],renderer=pybullet.ER_BULLET_HARDWARE_OPENGL)
+
+        rgbImage = images[2]
+        print images[3][100:110, 100:110]
+        depthImage = (IIWA_CAMERA_MAX_DISTANCE * IIWA_CAMERA_MIN_DISTANCE) / (IIWA_CAMERA_MAX_DISTANCE + images[3] * (IIWA_CAMERA_MIN_DISTANCE - IIWA_CAMERA_MAX_DISTANCE))
+        print depthImage[100:110, 100:110]
+        rgbMsg = self.cv_bridge.cv2_to_imgmsg(cv2.cvtColor(rgbImage, cv2.COLOR_BGRA2BGR), "bgr8")
+        depthMsg = self.cv_bridge.cv2_to_imgmsg((depthImage*1000).astype('uint16'), "passthrough")
+
+        now_header = std_msgs.msg.Header()
+        now_header.stamp = rospy.Time.now()
+        now_header.frame_id = IIWA_CAMERA_RGB_FRAME
+        self.rgb_info.header = now_header
+        self.rgb_info.header.frame_id = IIWA_CAMERA_RGB_FRAME
+        self.rgb_info_publisher.publish(self.rgb_info)
+        rgbMsg.header = now_header
+        self.rgb_publisher.publish(rgbMsg)
+        
+
+        now_header.frame_id = IIWA_CAMERA_DEPTH_FRAME
+        self.depth_info.header = now_header
+        self.depth_info_publisher.publish(self.depth_info)
+        depthMsg.header = now_header
+        self.depth_publisher.publish(depthMsg)
+
+
 
     def RunSim(self):
         # Run simulation with time control
@@ -375,8 +438,6 @@ if __name__ == "__main__":
     physicsClient = pybullet.connect(pybullet.GUI)#or pybullet.DIRECT for non-graphical version
     
     sim = IiwaRlgSimulator(args.config, args.timestep, args.rate)
-
-    cv2.namedWindow('rgb', cv2.WINDOW_NORMAL)
 
     keep_simulating = True
     while keep_simulating:
