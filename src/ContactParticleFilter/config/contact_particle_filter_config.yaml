@@ -27,12 +27,12 @@ thresholds:
 
 motionModel:
   var: 0.001 #0.05
-  varMin: 0.002 # 0.01
+  varMin: 0.001 # 0.01
   varMax: 0.0025
   varMaxSquaredErrorCutoff: 10.0
 
 measurementModel:
-  var: 0.15
+  var: 0.1
 
 addParticleSet:
   multipleInitialSteps: False
@@ -44,7 +44,7 @@ debug:
 
   # toggles whether to use residual publish on "RESIDUAL_OBSERVER_STATE" or
   # or "RESIDUAL_ACTUAL"
-  useTrueResidual: True
+  useTrueResidual: TRUE
   # placeholder for now, not in use
   residualChannel: "RESIDUAL_OBSERVER_STATE" # alternate channel is "RESIDUAL_ACTUAL"
   maxNumParticleSets: 1
