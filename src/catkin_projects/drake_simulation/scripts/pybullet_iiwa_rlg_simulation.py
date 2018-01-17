@@ -1,7 +1,15 @@
 #!/usr/bin/env python
 
-# Given a configuration file (see this package's config folder for examples),
-# simulates it.
+# Simulates an IIWA with a Schunk gripper, using a supplied
+# configuration file to set up the environment.
+# (See, e.g., drake_simulation/config/iiwa_workstation_with_object.yaml.)
+#
+# Accept IIWA commands over LCM and produces IIWA state over LCM, mocking
+# the current IIWA driver.
+# Accepts Schunk commands over ROS and produces Schunk state over ROS,
+# mocking the current Schunk driver.
+# Generates raw RGB and Depth data, using a specified depth camera
+# configuration profile.
 # 
 # Arguments:
 #   config: Configuration file
@@ -32,8 +40,17 @@ import sensor_msgs.msg
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
+# TODO(gizatt): Slowly port the relevant parts of this to the
+# simulation configuration file. For now, tweaks can be made
+# in this file as needed.
+
+# The controlled robot URDF, including both the IIWA *and*
+# the gripper. (I haven't figured out how to programmatically
+# attach the hand onto the gripper in Pybullet yet. Easier to
+# specify all-in-one and programmatically separate their joints...)
 kIiwaUrdf = "${SPARTAN_SOURCE_DIR}/models/iiwa/iiwa_description/iiwa14_schunk_gripper.urdf"
 
+# IIWA joints that IIWA commands will affect
 IIWA_CONTROLLED_JOINTS = [
     "iiwa_joint_1",
     "iiwa_joint_2",
@@ -43,7 +60,8 @@ IIWA_CONTROLLED_JOINTS = [
     "iiwa_joint_6",
     "iiwa_joint_7",
 ]
-
+# Max force the joints will use to track their setpoint
+# in position control mode.
 IIWA_MAX_JOINT_FORCES = [
     10000.,
     10000.,
@@ -54,29 +72,26 @@ IIWA_MAX_JOINT_FORCES = [
     10000.
 ]
 
+# Schunk joints that Schunk commands will affect
 SCHUNK_CONTROLLED_JOINTS = [
     "wsg_50_base_joint_gripper_left",
     "wsg_50_base_joint_gripper_right",
 ]
 
-IIWA_CAMERA_PRIOR_JOINT = "wsg_50_old_palm_joint"
-IIWA_CAMERA_EYE_XYZ = [-0.045362, -0.0539602, 0.0497005]
-IIWA_CAMERA_EYE_QUAT = [7.06220552e-01, 7.07984565e-01, 3.26610787e-03, 5.10074366e-05]
-IIWA_CAMERA_FOV = 120
-IIWA_CAMERA_MIN_DISTANCE = 0.01
-IIWA_CAMERA_MAX_DISTANCE = 100.
-IIWA_CAMERA_WIDTH = 640
-IIWA_CAMERA_HEIGHT = 480
-IIWA_CAMERA_ASPECT = float(IIWA_CAMERA_WIDTH) / float(IIWA_CAMERA_HEIGHT)
+# Camera configuration parameters
+# Which link is the camera on? (Specified by which joint is before it.)
+IIWA_CAMERA_SERIAL = "1112170110"
+# Rendering range of the camera
+IIWA_CAMERA_MIN_DISTANCE = 0.1
+IIWA_CAMERA_MAX_DISTANCE = 10.
+# Channels on which camera info will be published
+IIWA_CAMERA_RGB_TOPIC = "/camera_%s/rgb/image_raw" % IIWA_CAMERA_SERIAL
+IIWA_CAMERA_DEPTH_TOPIC = "/camera_%s/depth/image_raw" % IIWA_CAMERA_SERIAL
+IIWA_CAMERA_RGB_INFO_TOPIC = "/camera_%s/rgb/camera_info" % IIWA_CAMERA_SERIAL
+IIWA_CAMERA_DEPTH_INFO_TOPIC = "/camera_%s/depth/camera_info" % IIWA_CAMERA_SERIAL
+IIWA_CAMERA_RGB_FRAME = "camera_%s_rgb_optical_frame" % IIWA_CAMERA_SERIAL
+IIWA_CAMERA_DEPTH_FRAME = "camera_%s_depth_optical_frame" % IIWA_CAMERA_SERIAL
 
-IIWA_CAMERA_RGB_TOPIC = "/camera_1112170110/rgb/image_raw" # sensor_msgs/Image
-IIWA_CAMERA_DEPTH_TOPIC = "/camera_1112170110/depth/image_raw" # sensor_msgs/Image
-IIWA_CAMERA_RGB_INFO_TOPIC = "/camera_1112170110/rgb/camera_info" # sensor_msgs/Image
-IIWA_CAMERA_DEPTH_INFO_TOPIC = "/camera_1112170110/depth/camera_info" # sensor_msgs/Image
-IIWA_CAMERA_RGB_INFO_FILE = "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/1112170110/master/rgb_camera_info.yaml"
-IIWA_CAMERA_DEPTH_INFO_FILE = "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/1112170110/master/depth_camera_info.yaml"
-IIWA_CAMERA_RGB_FRAME = "camera_1112170110_rgb_optical_frame"
-IIWA_CAMERA_DEPTH_FRAME = "camera_1112170110_depth_optical_frame"
 
 def load_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0, 1], fixed = True, packageMap = None):
     full_path = os.path.expandvars(inp_path)
@@ -112,18 +127,50 @@ def load_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0,
         print "Unknown extension in path ", full_path, ": ", ext
         exit(-1)
 
-def load_camera_info(info_file):
-    info = sensor_msgs.msg.CameraInfo()
-    info_yaml = yaml.load(open(os.path.expandvars(info_file), 'r'))
+class RgbdCameraMetaInfo():
+    def __init__(self, camera_serial, linkNameToJointIdMap):
+        rgb_info_file = "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/%s/master/rgb_camera_info.yaml" % camera_serial
+        depth_info_file = "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/%s/master/depth_camera_info.yaml" % camera_serial
+        overall_info_file = "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/%s/master/camera_info.yaml" % camera_serial
 
-    info.width = info_yaml["image_width"]
-    info.height = info_yaml["image_height"]
-    info.distortion_model = info_yaml["distortion_model"]
-    info.D = info_yaml["distortion_coefficients"]["data"]
-    info.K = info_yaml["camera_matrix"]["data"]
-    info.R = info_yaml["rectification_matrix"]["data"]
-    info.P = info_yaml["projection_matrix"]["data"]
-    return info
+        self.rgb_info_msg = self.populateCameraInfoMsg(rgb_info_file)
+        self.depth_info_msg = self.populateCameraInfoMsg(depth_info_file)
+
+        info_yaml = yaml.load(open(os.path.expandvars(overall_info_file), 'r'))
+        # Process overall camera info:
+        self.rgb_extrinsics = self.processCameraExtrinsicsYaml(info_yaml["rgb"]["extrinsics"], linkNameToJointIdMap)
+        self.depth_extrinsics = self.processCameraExtrinsicsYaml(info_yaml["depth"]["extrinsics"], linkNameToJointIdMap)
+
+    @staticmethod
+    def populateCameraInfoMsg(info_filename):
+        # Construct a CameraInfo msg
+        info_yaml = yaml.load(open(os.path.expandvars(info_filename), 'r'))
+        info_msg = sensor_msgs.msg.CameraInfo()
+        info_msg.width = info_yaml["image_width"]
+        info_msg.height = info_yaml["image_height"]
+        info_msg.distortion_model = info_yaml["distortion_model"]
+        info_msg.D = info_yaml["distortion_coefficients"]["data"]
+        info_msg.K = info_yaml["camera_matrix"]["data"]
+        info_msg.R = info_yaml["rectification_matrix"]["data"]
+        info_msg.P = info_yaml["projection_matrix"]["data"]
+        return info_msg
+
+    @staticmethod
+    def processCameraExtrinsicsYaml(extrinsics_yaml, linkNameToJointIdMap):
+        extrinsics_dict = {"parent_joint_id": 0,
+                           "pose_xyz": [0., 0., 0.],
+                           "pose_quat": [1., 0., 0., 0.]}
+        extrinsics_dict["parent_joint_id"] = linkNameToJointIdMap[extrinsics_yaml["reference_link_name"]]
+        tf = extrinsics_yaml["transform_to_reference_link"]
+        extrinsics_dict["pose_xyz"][0] = tf["translation"]["x"]
+        extrinsics_dict["pose_xyz"][1] = tf["translation"]["y"]
+        extrinsics_dict["pose_xyz"][2] = tf["translation"]["z"]
+        extrinsics_dict["pose_quat"][0] = tf["rotation"]["w"]
+        extrinsics_dict["pose_quat"][1] = tf["rotation"]["x"]
+        extrinsics_dict["pose_quat"][2] = tf["rotation"]["y"]
+        extrinsics_dict["pose_quat"][3] = tf["rotation"]["z"]
+        return  extrinsics_dict
+    
 
 class IiwaRlgSimulator():
     ''' 
@@ -171,8 +218,6 @@ class IiwaRlgSimulator():
         self.depth_publisher = rospy.Publisher(IIWA_CAMERA_DEPTH_TOPIC, sensor_msgs.msg.Image, queue_size=1)
         self.rgb_info_publisher = rospy.Publisher(IIWA_CAMERA_RGB_INFO_TOPIC, sensor_msgs.msg.CameraInfo, queue_size=1)
         self.depth_info_publisher = rospy.Publisher(IIWA_CAMERA_DEPTH_INFO_TOPIC, sensor_msgs.msg.CameraInfo, queue_size=1)
-        self.rgb_info = load_camera_info(IIWA_CAMERA_RGB_INFO_FILE)
-        self.depth_info = load_camera_info(IIWA_CAMERA_DEPTH_INFO_FILE)
         self.cv_bridge = CvBridge()
 
     def ResetSimulation(self):
@@ -196,7 +241,7 @@ class IiwaRlgSimulator():
             quaternion = pybullet.getQuaternionFromEuler(q0[3:6])
             self.kuka_id = load_from_urdf_or_sdf(kIiwaUrdf, position, quaternion, True, self.packageMap)
 
-        self.BuildJointNameToIdDict()
+        self.BuildJointNameInfo()
         self.BuildMotorIdList()
 
         # Models entry is a dictionary of model URDF strings
@@ -211,12 +256,22 @@ class IiwaRlgSimulator():
             fixed = instance["fixed"]
             self.object_ids.append(load_from_urdf_or_sdf(model_dict[instance["model"]], position, quaternion, fixed))
 
-    def BuildJointNameToIdDict(self):
+        # Set up camera info (which relies on having models loaded
+        # so we know where to mount the camera)
+        self.rgbd_info = RgbdCameraMetaInfo(IIWA_CAMERA_SERIAL, self.link_to_joint_id_map)
+
+    def BuildJointNameInfo(self):
+        ''' Peruses all joints in Pybullet, and ...
+            - Assembles a map from their joint name to their joint index
+            - Assembles a map from their joint name to their parent link name
+        '''
         num_joints = pybullet.getNumJoints(self.kuka_id)
         self.iiwa_wsg_joint_name_to_id = {}
+        self.link_to_joint_id_map = {}
         for i in range(num_joints):
           joint_info = pybullet.getJointInfo(self.kuka_id, i)
           self.iiwa_wsg_joint_name_to_id[joint_info[1].decode("UTF-8")] = joint_info[0]
+          self.link_to_joint_id_map[joint_info[12].decode("UTF-8")] = joint_info[0]
 
     def BuildMotorIdList(self):
         self.iiwa_motor_id_list = [
@@ -296,46 +351,66 @@ class IiwaRlgSimulator():
 
     def DoRendering(self):
         # Get the state of the camera link
-        linkState = pybullet.getLinkState(self.kuka_id, self.iiwa_wsg_joint_name_to_id[IIWA_CAMERA_PRIOR_JOINT], computeLinkVelocity=0)
+        linkState = pybullet.getLinkState(self.kuka_id, 
+            self.rgbd_info.depth_extrinsics["parent_joint_id"],
+            computeLinkVelocity=0)
         
+        # Compute the camera's eye position
         cameraWorldPosition, cameraWorldOrientation = \
             pybullet.multiplyTransforms(
                 linkState[0], linkState[1],
-                IIWA_CAMERA_EYE_XYZ, IIWA_CAMERA_EYE_QUAT)
+                self.rgbd_info.depth_extrinsics["pose_xyz"], 
+                self.rgbd_info.depth_extrinsics["pose_quat"])
 
+        # Use that to form Forward and Up vectors for the camera
         cameraRotationMatrix = np.reshape(np.array(pybullet.getMatrixFromQuaternion(cameraWorldOrientation)), [3, 3])
         cameraForward = cameraRotationMatrix.dot(np.array([-1., 0., 0.]))
         cameraUp = cameraRotationMatrix.dot(np.array([0., 0., 1.]))
 
-        viewMatrix = pybullet.computeViewMatrix(cameraWorldPosition, cameraWorldPosition+cameraForward, cameraWorldPosition+cameraUp)
+        # Assemble a view matrix
+        viewMatrix = pybullet.computeViewMatrix(cameraWorldPosition, cameraWorldPosition+cameraForward, cameraUp)
 
-        camera_fov_x = 2 * math.atan2(self.depth_info.height, 2 * self.depth_info.P[0]) * 180. / math.pi
-        camera_fov_y = 2 * math.atan2(self.depth_info.width, 2 * self.depth_info.P[5]) * 180. / math.pi
+        # Compute the FOV and aspect from the camera intrinsics
+        camera_width = self.rgbd_info.depth_info_msg.width
+        camera_height = self.rgbd_info.depth_info_msg.height
+        camera_fov_x = 2 * math.atan2(camera_height, 2 * self.rgbd_info.depth_info_msg.P[0]) * 180. / math.pi
+        camera_fov_y = 2 * math.atan2(camera_width, 2 * self.rgbd_info.depth_info_msg.P[5]) * 180. / math.pi
+        camera_aspect = float(camera_width) / float(camera_height)
+        # Use the computed FOV to produce a projection matrix
+        # (Note: I'm sure you can directly compute a projection Matrix
+        # from the intrinsics, but I'm not sure what the mapping is --
+        # OpenCV makes a lot of assumptions about their projection matrix
+        # details and scaling. It's not exactly a camera intrinsic matrix...
+        # So this is easier.)
+        projectionMatrix = pybullet.computeProjectionMatrixFOV(camera_fov_x, camera_aspect, IIWA_CAMERA_MIN_DISTANCE, IIWA_CAMERA_MAX_DISTANCE)
 
-        projectionMatrix = pybullet.computeProjectionMatrixFOV(camera_fov_x, IIWA_CAMERA_ASPECT, IIWA_CAMERA_MIN_DISTANCE, IIWA_CAMERA_MAX_DISTANCE)
-
-        images = pybullet.getCameraImage(IIWA_CAMERA_WIDTH, IIWA_CAMERA_HEIGHT, viewMatrix, projectionMatrix, shadow=0,lightDirection=[1,1,1],renderer=pybullet.ER_BULLET_HARDWARE_OPENGL)
+        images = pybullet.getCameraImage(camera_width, camera_height, viewMatrix, projectionMatrix, shadow=0,lightDirection=[1,1,1],renderer=pybullet.ER_BULLET_HARDWARE_OPENGL)
 
         rgbImage = images[2]
-        print images[3][100:110, 100:110]
+        # Rescale depth buffer from [0, 1] to real depth following
+        # formula from https://stackoverflow.com/questions/6652253/getting-the-true-z-value-from-the-depth-buffer
         depthImage = (IIWA_CAMERA_MAX_DISTANCE * IIWA_CAMERA_MIN_DISTANCE) / (IIWA_CAMERA_MAX_DISTANCE + images[3] * (IIWA_CAMERA_MIN_DISTANCE - IIWA_CAMERA_MAX_DISTANCE))
-        print depthImage[100:110, 100:110]
+
+        # Convert and publish!        
         rgbMsg = self.cv_bridge.cv2_to_imgmsg(cv2.cvtColor(rgbImage, cv2.COLOR_BGRA2BGR), "bgr8")
+        # Convert depth to mm and store as unsigned short
         depthMsg = self.cv_bridge.cv2_to_imgmsg((depthImage*1000).astype('uint16'), "passthrough")
 
+        # Construct a header with the current timestamp and the RGB
+        # frame, and publish RGB camera info and the RGB camera image
         now_header = std_msgs.msg.Header()
         now_header.stamp = rospy.Time.now()
         now_header.frame_id = IIWA_CAMERA_RGB_FRAME
-        self.rgb_info.header = now_header
-        self.rgb_info.header.frame_id = IIWA_CAMERA_RGB_FRAME
-        self.rgb_info_publisher.publish(self.rgb_info)
+        self.rgbd_info.rgb_info_msg.header = now_header
+        self.rgb_info_publisher.publish(self.rgbd_info.rgb_info_msg)
         rgbMsg.header = now_header
         self.rgb_publisher.publish(rgbMsg)
-        
 
+        # Change the header frame to the Depth frame and publish the depth
+        # info and image.
         now_header.frame_id = IIWA_CAMERA_DEPTH_FRAME
-        self.depth_info.header = now_header
-        self.depth_info_publisher.publish(self.depth_info)
+        self.rgbd_info.depth_info_msg.header = now_header
+        self.depth_info_publisher.publish(self.rgbd_info.depth_info_msg)
         depthMsg.header = now_header
         self.depth_publisher.publish(depthMsg)
 
