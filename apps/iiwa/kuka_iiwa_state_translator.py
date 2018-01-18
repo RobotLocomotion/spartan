@@ -11,8 +11,9 @@ import argparse
 
 class KukaIiwaStateTranslator(object):
 
-    def __init__(self):
+    def __init__(self, basePosition):
         self.lastGripperMsg = self.makeDefaultGripperMessage()
+        self.basePosition = basePosition
         self.onSchunkGripperStatus(self.lastGripperMsg)
         self.setupJointNames()
 
@@ -48,7 +49,7 @@ class KukaIiwaStateTranslator(object):
         m = lcmbotcore.robot_state_t()
         # m.utime = msg.utime                                        # this used to get utimes from the kuka robot.  should later fix in drake-iiwa-driver/src/kuka_driver.cc
         m.utime = getUtime()
-        m.pose = robotstate.getPoseLCMFromXYZRPY([0,0,0], [0,0,0])
+        m.pose = robotstate.getPoseLCMFromXYZRPY(self.basePosition[0:3], self.basePosition[3:6])
         m.twist = lcmbotcore.twist_t()
         m.twist.linear_velocity = lcmbotcore.vector_3d_t()
         m.twist.angular_velocity = lcmbotcore.vector_3d_t()
@@ -85,9 +86,12 @@ if __name__ == "__main__":
 
     parser = drcargs.getGlobalArgParser().getParser()
     parser.add_argument('--useIiwaStateEst', action='store_true', help='republishes IIWA_STATE_EST on EST_ROBOT_STATE channel instead translating from IIWA_STATUS_MESSAGE')
+    parser.add_argument("--basePosition", help="Base position of Kuka, formatted \"0.0, 0.0, 0.0, 0.0, 0.0, 0.0\"", type=str, default="0., 0., 0., 0., 0., 0.")
     args = parser.parse_args()
 
-    kukaStateTranslator = KukaIiwaStateTranslator()
+    basePosition = np.array([float(f) for f in args.basePosition.split(",")])
+    print "Using base position ", basePosition
+    kukaStateTranslator = KukaIiwaStateTranslator(basePosition)
 
     if args.useIiwaStateEst:
         # for use when running with drake simulator

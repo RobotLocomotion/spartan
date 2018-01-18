@@ -23,6 +23,11 @@ group "0.sim" {
     exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/iiwa_wsg_simulation";
     host = "localhost";
   }
+
+  cmd "5.state-translator-sim" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py --basePosition '0.0, 0.0, 1.7645, 0., 0., 0.'";
+    host = "localhost";
+  }
 }
 
 group "1.vision-drivers" {
