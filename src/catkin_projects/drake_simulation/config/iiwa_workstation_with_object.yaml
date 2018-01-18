@@ -4,6 +4,9 @@ models:
   bowl_6p25in: "${SPARTAN_SOURCE_DIR}/models/dishes/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf"
   dish_rack: "${SPARTAN_SOURCE_DIR}/models/dishes/dish_rack_simple.urdf"
   robot_table: "${SPARTAN_SOURCE_DIR}/drake/examples/kuka_iiwa_arm/models/table/extra_heavy_duty_table_surface_only_collision.sdf"
+  cabinet_with_desktop: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/cabinet_with_desktop.urdf"
+  white_bin: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/white_bin.urdf"
+  big_robot_toy: "${SPARTAN_SOURCE_DIR}/drake/examples/kuka_iiwa_arm/models/objects/big_robot_toy.urdf"
 
 with_ground: true
 
@@ -14,13 +17,12 @@ instances:
   - model: "robot_table"
     q0: [0, 0, 0, 0, 0, 0]
     fixed: true
-  - model: "robot_table"
-    q0: [0.8, 0, 0, 0, 0, 0]
+  - model: "cabinet_with_desktop"
+    q0: [0.6, 0.0, 0.0, 0, 0, 1.57]
     fixed: true
-  - model: "robot_table"
-    q0: [0.0, 0.85, 0, 0, 0, 0]
+  - model: "white_bin"
+    q0: [0.0, 0.8, 0.7, 0, 0, 1.57]
     fixed: true
-    
-  - model: "bowl_6p25in"
+  - model: "big_robot_toy"
     q0: [0.6, 0, 0.9, 1.57, 0, 0]
     fixed: false
