@@ -28,7 +28,6 @@ option(WITH_MOSEK "Build with support for MOSEK" OFF)
 
 option(WITH_IIWA_DRIVER_RLG "Build drake-iiwa-driver, RLG version." ON)
 option(WITH_IIWA_DRIVER_TRI "Build drake-iiwa-driver, TRI version." OFF)
-option(WITH_SCHUNK_DRIVER "Build drake-schunk-driver." ON)
 option(WITH_ROS "Build the catkin-workspace projects." ON)
 option(WITH_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 option(WITH_TRIMESH "Build trimesh, a python utility for working with triangle meshes" OFF)
@@ -280,24 +279,6 @@ if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
 
 endif()
 
-if (WITH_SCHUNK_DRIVER)
-
-  ExternalProject_Add(drake-schunk-driver
-    SOURCE_DIR ${build_dir}/externals/drake-schunk-driver
-    GIT_REPOSITORY git@github.com:RobotLocomotion/drake-schunk-driver.git
-    GIT_TAG a28d35c
-    BUILD_ALWAYS 1
-    BUILD_IN_SOURCE 1
-    USES_TERMINAL_BUILD 1
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ${BAZEL_ENV} "${BAZEL}" build //...
-    INSTALL_COMMAND
-      mkdir -p ${build_dir}/install/bin/ && "${CP}" ${build_dir}/externals/drake-schunk-driver/bazel-bin/src/schunk_driver ${CMAKE_INSTALL_PREFIX}/bin/schunk_driver &&
-      chmod ug+w ${CMAKE_INSTALL_PREFIX}/bin/schunk_driver
-    DEPENDS drake
-  )
-
-endif()
 
 if (WITH_ROS)
   if ((NOT DEFINED ENV{CMAKE_PREFIX_PATH}) OR (NOT $ENV{CMAKE_PREFIX_PATH} MATCHES ".*ros.*"))

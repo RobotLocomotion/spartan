@@ -33,13 +33,11 @@ apt install --no-install-recommends \
   qtmultimedia5-dev \
   qtscript5-dev \
   qttools5-dev \
-  
-  # needed for April Tag detection 
   libcgal-dev \
   libxmu-dev \
   libxi-dev
 
-  
+
 # Install ROS Kinetic
 apt install -y --no-install-recommends lsb-release
 sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
