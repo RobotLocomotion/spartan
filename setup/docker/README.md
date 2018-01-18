@@ -24,7 +24,7 @@ sudo apt-get install nvidia-modprobe
 ```
 and then restart your machine.
 
-3) Clone, setup, and build Spartan:
+3) Clone, setup, and build Spartan: You need to have ssh keys setup to clone the submodules. Make sure that these ssh keys don't have a password, otherwise it will not work.
 ```
 git clone git@github.com:RobotLocomotion/spartan.git
 cd spartan
