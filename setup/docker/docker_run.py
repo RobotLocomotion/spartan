@@ -20,6 +20,8 @@ if __name__=="__main__":
 
 	parser.add_argument("-p", "--passthrough", type=str, default="", help="(optional) extra string that will be tacked onto the docker run command, allows you to pass extra options. Make sure to put this in quotes and leave a space before the first character")
 
+	parser.add_argument("-nodudp", "--no_udp", action='store_true', help="(optional) don't expose the udp ports")
+
 	args = parser.parse_args()
 	print("running docker container derived from image %s" %args.image)
 	source_dir=os.getcwd()
@@ -48,10 +50,11 @@ if __name__=="__main__":
 	cmd += " --user %s " % user_name                                                    # login as current user
 
 	# expose UDP ports
-	cmd += " -p 30200:30200/udp " # expose udp ports for kuka
-	cmd += " -p 30201:30201/udp " # expose udp ports for kuka
-	cmd += " -p 1500:1500/udp " # expose udp ports for schunk
-	cmd += " -p 1501:1501/udp " # expose udp ports for schunk
+	if not args.no_udp:
+		cmd += " -p 30200:30200/udp " # expose udp ports for kuka
+		cmd += " -p 30201:30201/udp " # expose udp ports for kuka
+		cmd += " -p 1500:1500/udp " # expose udp ports for schunk
+		cmd += " -p 1501:1501/udp " # expose udp ports for schunk
 
 	cmd += " " + args.passthrough + " "
 
@@ -63,7 +66,7 @@ if __name__=="__main__":
 		cmd += "--entrypoint=\"%(entrypoint)s\" " % {"entrypoint": args.entrypoint}
 	else:
 		cmd += "-it "
-	cmd += args.image
+	cmd += image_name
 	cmd_endxhost = "xhost -local:root"
 
 	print("command = \n \n", cmd, "\n", cmd_endxhost)

@@ -1,4 +1,4 @@
-FROM nvidia/cuda:8.0-devel-ubuntu16.04
+    FROM nvidia/cuda:8.0-devel-ubuntu16.04
 
 ARG USER_NAME
 ARG USER_PASSWORD
@@ -16,6 +16,7 @@ RUN usermod -u $USER_ID $USER_NAME
 RUN groupmod -g $USER_GID $USER_NAME
 
 
+# working directory is /home/$USER_NAME
 WORKDIR /home/$USER_NAME
 # require no sudo pw in docker
 # RUN echo $USER_PASSWORD | sudo -S bash -c 'echo "'$USER_NAME' ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/docker-user' && printf "\n"
@@ -42,8 +43,13 @@ RUN mkdir -p .config/terminator
 COPY ./setup/docker/terminator_config .config/terminator/config
 RUN chown $USER_NAME:$USER_NAME -R .config
 
+# setup bazel bashrc
+RUN echo "startup --output_base=/home/$USER_NAME/.spartan-build" >> .bazelrc
+
 # change ownership of everything to our user
-RUN cd $WORKDIR && chown $USER_NAME:$USER_NAME -R .
+RUN cd /home/$USER_NAME && chown $USER_NAME:$USER_NAME -R .
+
+
 
 ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh && /bin/bash"
 
