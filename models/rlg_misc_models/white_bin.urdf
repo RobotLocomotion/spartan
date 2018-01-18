@@ -2,7 +2,7 @@
 <robot name="white_bin">
   <link name="white_bin">
     <inertial>
-      <origin xyz="0 0 0.05" rpy="1.57 0 0" />
+      <origin xyz="0 0 0.05" rpy="0 0 0" />
       <mass value="1"/>
       <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
     </inertial>
