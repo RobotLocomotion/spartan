@@ -47,6 +47,8 @@ foreach(proj drake director signal-scope)
   endif()
 endforeach()
 
+list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/modules")
+
 set(CMAKE_ARGS_FOR_EXTERNALS
   -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
   "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
@@ -60,7 +62,8 @@ set(CMAKE_ARGS_FOR_EXTERNALS
   "-DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}"
   "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX}"
   "-DCMAKE_SHARED_LINKER_FLAGS:STRING=${CMAKE_SHARED_LINKER_FLAGS}"
-  -DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}
+  "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
+  "-DCMAKE_MODULE_PATH:STRING=${CMAKE_MODULE_PATH}"
 )
 
 ExternalProject_Add(drake
@@ -164,25 +167,25 @@ ExternalProject_Add(spartan_lcmtypes
   DEPENDS drake
 )
 
-# ExternalProject_Add(RemoteTreeViewer
-#   SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
-#   BINARY_DIR ${build_dir}/RemoteTreeViewer
-#   BUILD_ALWAYS 1
-#   CMAKE_CACHE_ARGS
-#     ${CMAKE_ARGS_FOR_EXTERNALS}
-#   DEPENDS drake
-# )
+ExternalProject_Add(RemoteTreeViewer
+  SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
+  BINARY_DIR ${build_dir}/RemoteTreeViewer
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+  DEPENDS drake
+)
 
-# if (WITH_REACHABILITY_ANALYZER)
-#   ExternalProject_Add(ReachabilityAnalyzer
-#   SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
-#   BINARY_DIR ${build_dir}/ReachabilityAnalyzer
-#   BUILD_ALWAYS 1
-#   CMAKE_CACHE_ARGS
-#     ${CMAKE_ARGS_FOR_EXTERNALS}
-#   DEPENDS drake director RemoteTreeViewer common_utils
-#   )
-# endif()
+if (WITH_REACHABILITY_ANALYZER)
+  ExternalProject_Add(ReachabilityAnalyzer
+  SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
+  BINARY_DIR ${build_dir}/ReachabilityAnalyzer
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+  DEPENDS drake director RemoteTreeViewer common_utils
+  )
+endif()
 
 if (WITH_TRIMESH)
     find_package(PythonInterp REQUIRED)
@@ -251,7 +254,7 @@ if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
 
   if (WITH_IIWA_DRIVER_RLG)
     set(IIWA_DRIVER_GIT_TAG
-    "22e97d4db4057c65918deb70dec2323e4fe81191"
+    "eee1dd3656ae86197027ff8d168a029541900958"
     )
   endif()
 

@@ -139,9 +139,9 @@ class SimpleSubscriber(object):
         self.hasNewMessage = False
         self.lastMsg = None
 
-    def start(self):
-        self.subscriber = rospy.Subscriber(self.topic, self.messageType, self.callback)
-
+    def start(self, queue_size=None):
+        self.subscriber = rospy.Subscriber(self.topic, self.messageType, self.callback, queue_size=queue_size)
+        
     def stop(self):
         self.subscriber.unregister()
 

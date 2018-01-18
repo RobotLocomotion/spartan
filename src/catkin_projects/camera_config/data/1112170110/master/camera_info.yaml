@@ -5,7 +5,7 @@ header:
 
 depth:
   extrinsics:
-    reference_link_name: 'palm' # link which this transform is specified relative to
+    reference_link_name: 'wsg_50_old_palm' # link which this transform is specified relative to
     transform_to_reference_link:
       translation:
         x: -0.045362
@@ -20,7 +20,7 @@ depth:
 
 rgb:
   extrinsics:
-    reference_link_name: 'palm' # link which this transform is specified relative to
+    reference_link_name: 'wsg_50_old_palm' # link which this transform is specified relative to
     transform_to_reference_link:
       translation:
         x: -0.0195286

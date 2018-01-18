@@ -431,125 +431,212 @@
     </actuator>
   </transmission>
 
-
-  <joint name="gripper_mount_joint" type="fixed">
-    <origin rpy="0.0 0.0 1.57" xyz="0.0 0.0 0.0"/>
+  <!-- For backwards compat with calibrations,
+       add a ghost link where the old
+       hand palm used to be. -->
+  <joint name="wsg_50_old_palm_joint" type="fixed">
+    <origin rpy="0.0 0.3926 1.57079632679" xyz="0.02 0 0"/>
     <parent link="iiwa_link_ee"/>
-    <child link="palm"/>
+    <child link="wsg_50_old_palm"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <link name="wsg_50_old_palm">
+  </link>
+
+  <!-- And add the gripper-->
+  <joint name="wsg_50_mount_joint" type="fixed">
+    <origin rpy="1.57079632679 0.3926 1.57079632679" xyz="0.005 0 0"/>
+    <parent link="iiwa_link_ee"/>
+    <child link="wsg_50_base_link"/>
     <axis xyz="0 0 1"/>
   </joint>
 
-  <link name="palm">
+  <!-- BASE LINK -->
+  <link name="wsg_50_base_link">
     <inertial>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <mass value="1"/>
-      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+      <mass value="1.2"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
     </inertial>
     <visual>
+      <origin rpy="0 0 0" xyz="0.0 0 0"/>
       <geometry>
-        <mesh filename="package://schunk_description/meshes/wsg_50/palm.stl"/>
+        <mesh filename="package://wsg_50_description/meshes/WSG50_110.obj" scale="1 1 1"/>
       </geometry>
+      <material name="grey">
+        <color rgba="0.5 0.5 0.5 1"/>
+      </material>
     </visual>
-    <!-- The gripper itself -->
     <collision>
+      <origin rpy="0 0 0" xyz="0.0 0 0"/>
       <geometry>
-        <box size="0.1453 0.0725 0.049"/>
+        <mesh filename="package://wsg_50_description/meshes/WSG50_110.obj" scale="1 1 1"/>
       </geometry>
-      <origin rpy="0 0 0" xyz="0.0 -0.0351 0.0"/>
-    </collision>
-    <!-- the larger mounting plate -->
-    <collision>
-      <geometry>
-        <box size="0.05 0.0064 0.095"/>
-      </geometry>
-      <origin rpy="0 0 0" xyz="0.0 0.007 0"/>
     </collision>
   </link>
-  <joint name="wsg_50_finger_left_joint" type="prismatic">
-    <origin rpy="0 1.5707 0" xyz="0 -0.0719 0"/>
-    <parent link="palm"/>
-    <child link="wsg_50_finger_left_link"/>
-    <axis xyz="0 0 -1"/>
-    <!--<limit effort="10" lower="-0.001" upper="0.109" velocity="1.0"/>-->
+  <gazebo reference="wsg_50_base_link">
+    <material>Gazebo/Grey</material>
+    <turnGravityOff>false</turnGravityOff>
+  </gazebo>
+  <!-- GRIPPER LEFT -->
+  <joint name="wsg_50_base_joint_gripper_left" type="prismatic">
+    <limit effort="1.0" lower="-0.055" upper="-0.0027" velocity="1.0"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <!--origin xyz="-0.0067 0 0.049" rpy="0 0 0" /-->
+    <parent link="wsg_50_base_link"/>
+    <child link="wsg_50_gripper_left"/>
+    <dynamics damping="100" friction="100"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="100" velocity="100"/>
   </joint>
-  <link name="wsg_50_finger_left_link">
+  <transmission name="wsg_50_base_trans_left" type="pr2_mechanism_model/SimpleTransmission">
+    <actuator name="wsg_50_base_motor_left"/>
+    <joint name="wsg_50_base_joint_gripper_left"/>
+    <mechanicalReduction>1</mechanicalReduction>
+    <motorTorqueConstant>1</motorTorqueConstant>
+  </transmission>
+  <link name="wsg_50_gripper_left">
     <inertial>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <mass value="1"/>
-      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
     </inertial>
-    <!-- <xacro:left_finger_pretty_visual/> -->
     <visual>
+      <origin rpy="0 0 0" xyz="0.0 0 0"/>
       <geometry>
-        <mesh filename="package://schunk_description/meshes/wsg_50/finger_without_gelsight.stl"/>
+        <mesh filename="package://wsg_50_description/meshes/GUIDE_WSG50_110.obj" scale="0.001 0.001 0.001"/>
       </geometry>
+      <material name="black">
+        <color rgba="0 0 0 0"/>
+      </material>
     </visual>
     <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <box size="0.0365 0.117 0.0122"/>
+        <mesh filename="package://wsg_50_description/meshes/GUIDE_WSG50_110.obj" scale="0.001 0.001 0.001"/>
       </geometry>
-      <origin rpy="0 0 0" xyz="0.003 -0.0585 -0.0106"/>
     </collision>
+    <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
   </link>
-  <joint name="wsg_50_finger_right_joint" type="prismatic">
-    <origin rpy="3.1415 -1.5707 0" xyz="0 -0.0719 0.0"/>
-    <parent link="palm"/>
-    <child link="wsg_50_finger_right_link"/>
-    <axis xyz="0 0 1"/>
-    <!--<limit effort="10" lower="-0.001" upper="0.109" velocity="1.0"/> -->
+  <gazebo reference="wsg_50_gripper_left">
+    <material>Gazebo/Blue</material>
+    <turnGravityOff>false</turnGravityOff>
+  </gazebo>
+  <!-- LEFT FINGER -->
+  <joint name="wsg_50_guide_joint_finger_left" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0.023"/>
+    <parent link="wsg_50_gripper_left"/>
+    <child link="wsg_50_finger_left"/>
+    <dynamics damping="100" friction="100"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="100" velocity="100"/>
   </joint>
-  <link name="wsg_50_finger_right_link">
+  <link name="wsg_50_finger_left">
     <inertial>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <mass value="1"/>
-      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
     </inertial>
-    <!-- <xacro:right_finger_pretty_visual/> -->
     <visual>
-      <origin rpy="3.14159265359 0 0" xyz="0.0 0.0 0.0"/>
+      <origin rpy="0 0 0" xyz="0.0 0 0"/>
       <geometry>
-        <mesh filename="package://schunk_description/meshes/wsg_50/finger_without_gelsight.stl"/>
+        <mesh filename="package://wsg_50_description/meshes/WSG-FMF.obj" scale="0.001 0.001 0.001"/>
       </geometry>
+      <material name="black">
+        <color rgba="0 0 0 0"/>
+      </material>
     </visual>
-    <!-- Finger adapter and aluminum adapter block -->
     <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <box size="0.03 0.0344 0.0344"/>
+        <mesh filename="package://wsg_50_description/meshes/WSG-FMF.obj" scale="0.001 0.001 0.001"/>
       </geometry>
-      <origin rpy="0 0 0" xyz="0.0 0.0172 0.0172"/>
     </collision>
-    <!-- Stick to gelsight box and backplate / optotrak marker mount -->
-    <collision>
-      <geometry>
-        <box size="0.036 0.0883 0.0207"/>
-      </geometry>
-      <origin rpy="0 0 0" xyz="0.0 0.075 0.025"/>
-    </collision>
-    <!-- Gelsight box -->
-    <collision>
-      <geometry>
-        <box size="0.0318 0.0318 0.037"/>
-      </geometry>
-      <origin rpy="0 0 0" xyz="-0.0055 0.1005 0.01231"/>
-    </collision>
+    <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
   </link>
-  <!-- extensions -->
-  <transmission name="wsg_50_finger_left_trans">
-    <type>transmission_interface/SimpleTransmission</type>
-    <joint name="wsg_50_finger_left_joint"/>
-    <actuator name="wsg_50_finger_left_motor">
-      <hardwareInterface>EffortJointInterface</hardwareInterface>
-      <mechanicalReduction>1</mechanicalReduction>
-    </actuator>
+  <gazebo reference="wsg_50_finger_left">
+    <material>Gazebo/Blue</material>
+    <turnGravityOff>false</turnGravityOff>
+  </gazebo>
+  <!-- GRIPPER RIGHT -->
+  <joint name="wsg_50_base_joint_gripper_right" type="prismatic">
+    <limit effort="1.0" lower="0.0027" upper="0.055" velocity="1.0"/>
+    <origin rpy="0 0 3.14159" xyz="0 0 0"/>
+    <parent link="wsg_50_base_link"/>
+    <child link="wsg_50_gripper_right"/>
+    <axis xyz="-1 0 0"/>
+    <dynamics damping="100" friction="100"/>
+    <limit effort="100" velocity="100"/>
+  </joint>
+  <transmission name="wsg_50_base_trans_right" type="pr2_mechanism_model/SimpleTransmission">
+    <actuator name="wsg_50_base_motor_right"/>
+    <joint name="wsg_50_base_joint_gripper_right"/>
+    <mechanicalReduction>1</mechanicalReduction>
+    <motorTorqueConstant>1</motorTorqueConstant>
   </transmission>
-  <transmission name="wsg_50_finger_right_trans">
-    <type>transmission_interface/SimpleTransmission</type>
-    <joint name="wsg_50_finger_right_joint"/>
-    <actuator name="wsg_50_finger_right_motor">
-      <hardwareInterface>EffortJointInterface</hardwareInterface>
-      <mechanicalReduction>1</mechanicalReduction>
-    </actuator>
-  </transmission>
+  <link name="wsg_50_gripper_right">
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0.0 0 0"/>
+      <geometry>
+        <mesh filename="package://wsg_50_description/meshes/GUIDE_WSG50_110.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://wsg_50_description/meshes/GUIDE_WSG50_110.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+  </link>
+  <gazebo reference="gripper_right">
+    <material>Gazebo/White</material>
+    <turnGravityOff>false</turnGravityOff>
+  </gazebo>
+  <!-- RIGHT FINGER -->
+  <joint name="wsg_50_guide_joint_finger_right" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0.023"/>
+    <parent link="wsg_50_gripper_right"/>
+    <child link="wsg_50_finger_right"/>
+    <dynamics damping="100" friction="100"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="100" velocity="100"/>
+  </joint>
+  <link name="wsg_50_finger_right">
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0.0 0 0"/>
+      <geometry>
+        <mesh filename="package://wsg_50_description/meshes/WSG-FMF.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://wsg_50_description/meshes/WSG-FMF.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+  </link>
+  <gazebo reference="wsg_50_finger_right">
+    <material>Gazebo/White</material>
+    <turnGravityOff>false</turnGravityOff>
+  </gazebo>
 
 
 </robot>
