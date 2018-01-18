@@ -6,6 +6,7 @@ find_package(drake REQUIRED)
 # Drake's up-to-date Eigen
 find_package(Eigen3 3.3.3 REQUIRED)
 find_package(GFlags MODULE REQUIRED COMPONENTS shared)
+find_package(yaml-cpp REQUIRED)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -58,6 +59,7 @@ target_link_libraries(drake_passive_simulation_from_config
     ${catkin_LIBRARIES}
     ${drake_LIBRARIES}
     gflags_shared
+    ${yaml-cpp_LIBRARIES}
     ${EIGEN3_LIBRARIES}
 )
 
@@ -121,6 +123,7 @@ add_dependencies(iiwa_rlg_simulation ${catkin_EXPORTED_TARGETS})
 target_link_libraries(iiwa_rlg_simulation
     ${catkin_LIBRARIES}
     ${bot2-core-lcmtypes_LIBRARIES}
+    ${yaml-cpp_LIBRARIES}
     image_to_images_t
     rgbd_to_ros_pointcloud2_driver
     iiwa_common
