@@ -28,17 +28,28 @@ import threading
 import time
 import yaml
 
-# More Spartan-specific stuff
+# Comms with Arm
 import lcm
 from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
-from director.packagepath import PackageMap
-import spartan.utils.ros_utils as rosUtils
-import std_msgs.msg
-import wsg50_msgs.msg
-import sensor_msgs.msg
 
+# Comms with hand
+import spartan.utils.ros_utils as rosUtils
+import wsg50_msgs.msg
+
+# Comms from camera
+import std_msgs.msg
+import sensor_msgs.msg
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
+
+# Visualization to Director
+import pydrake
+import pydrake.rbtree
+import RemoteTreeViewerWrapper_pybind as Rtv
+
+# Loading URDFs from ROS package paths
+from director.packagepath import PackageMap
+
 
 # TODO(gizatt): Slowly port the relevant parts of this to the
 # simulation configuration file. For now, tweaks can be made
@@ -93,7 +104,7 @@ IIWA_CAMERA_RGB_FRAME = "camera_%s_rgb_optical_frame" % IIWA_CAMERA_SERIAL
 IIWA_CAMERA_DEPTH_FRAME = "camera_%s_depth_optical_frame" % IIWA_CAMERA_SERIAL
 
 
-def load_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0, 1], fixed = True, packageMap = None):
+def load_pybullet_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0, 1], fixed = True, packageMap = None):
     full_path = os.path.expandvars(inp_path)
 
     ext = full_path.split(".")[-1]
@@ -120,12 +131,15 @@ def load_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0,
         return pybullet.loadURDF(full_path, basePosition=position, baseOrientation=quaternion, useFixedBase=fixed)
     elif ext == "sdf":
         print "Loading ", full_path, " as SDF in pos ", position
-        x =pybullet.loadSDF(full_path)
-        print x
-        return x
+        return pybullet.loadSDF(full_path)
     else:
         print "Unknown extension in path ", full_path, ": ", ext
         exit(-1)
+
+
+def load_drake_from_urdf_or_sdf(inp_path):
+    full_path = os.path.expandvars(inp_path)
+    return pydrake.rbtree.RigidBodyTree(full_path, floating_base_type=pydrake.rbtree.kRollPitchYaw)
 
 class RgbdCameraMetaInfo():
     def __init__(self, camera_serial, linkNameToJointIdMap):
@@ -195,7 +209,6 @@ class IiwaRlgSimulator():
 
         self.packageMap = PackageMap()
         self.packageMap.populateFromEnvironment(["ROS_PACKAGE_PATH"])
-        self.packageMap.printPackageMap()
 
         self.iiwa_command_lock = threading.Lock()
         self.last_iiwa_position_command = [0.] * len(IIWA_CONTROLLED_JOINTS)
@@ -220,6 +233,10 @@ class IiwaRlgSimulator():
         self.depth_info_publisher = rospy.Publisher(IIWA_CAMERA_DEPTH_INFO_TOPIC, sensor_msgs.msg.CameraInfo, queue_size=1)
         self.cv_bridge = CvBridge()
 
+        # Set up a Remote Tree Viewer wrapper to publish
+        # object states
+        self.rtv = Rtv.RemoteTreeViewerWrapper()
+
     def ResetSimulation(self):
         pybullet.resetSimulation()
 
@@ -230,7 +247,7 @@ class IiwaRlgSimulator():
         config = yaml.load(open(self.config))
 
         if config["with_ground"] == True:
-            self.ground_id = load_from_urdf_or_sdf(os.environ["SPARTAN_SOURCE_DIR"] + "/build/bullet3/data/plane.urdf")
+            self.ground_id = load_pybullet_from_urdf_or_sdf(os.environ["SPARTAN_SOURCE_DIR"] + "/build/bullet3/data/plane.urdf")
         else:
             self.ground_id = None
 
@@ -239,7 +256,7 @@ class IiwaRlgSimulator():
             q0 = config["robot"]["base_pose"]
             position = q0[0:3]
             quaternion = pybullet.getQuaternionFromEuler(q0[3:6])
-            self.kuka_id = load_from_urdf_or_sdf(kIiwaUrdf, position, quaternion, True, self.packageMap)
+            self.kuka_id = load_pybullet_from_urdf_or_sdf(kIiwaUrdf, position, quaternion, True, self.packageMap)
 
         self.BuildJointNameInfo()
         self.BuildMotorIdList()
@@ -249,12 +266,14 @@ class IiwaRlgSimulator():
         self.object_ids = []
 
         # Add each model as requested
+        self.rbts = []
         for instance in config["instances"]:
             q0 = instance["q0"]
             position = q0[0:3]
             quaternion = pybullet.getQuaternionFromEuler(q0[3:8])
             fixed = instance["fixed"]
-            self.object_ids.append(load_from_urdf_or_sdf(model_dict[instance["model"]], position, quaternion, fixed))
+            self.object_ids.append(load_pybullet_from_urdf_or_sdf(model_dict[instance["model"]], position, quaternion, fixed))
+            self.rbts.append(load_drake_from_urdf_or_sdf(model_dict[instance["model"]]))
 
         # Set up camera info (which relies on having models loaded
         # so we know where to mount the camera)
@@ -415,6 +434,26 @@ class IiwaRlgSimulator():
         self.depth_publisher.publish(depthMsg)
 
 
+    def UpdateRtv(self):
+        for i, object_id in enumerate(self.object_ids):
+            pos, quat = pybullet.getBasePositionAndOrientation(object_id)
+            # this pos is in COM frame... offset to Drake's preference
+            # of URDF link frame.
+            # Should only be a problem for *root* links,
+            # (i.e. index 1 in Drake), as the rest are relative
+            # to that.
+            com_root = np.array(self.rbts[i].get_body(1).get_center_of_mass())
+            # Ugh conve
+            pos = np.array(pos) - com_root
+            rpy = np.array(pybullet.getEulerFromQuaternion(quat))
+            state_vec = np.hstack([pos, rpy])
+
+            N = pybullet.getNumJoints(object_id)
+            if N > 0:
+                jointInfo = pybullet.getJointStates(object_id, range(pybullet.getNumJoints(object_id)))
+                print "Warning, untested. Remove this print if this works..."
+                state_vec = np.hstack([state_vec, np.array([j[0] for j in jointInfo])])
+            self.rtv.publishRigidBodyTree(self.rbts[i], state_vec, [1., 1., 1., 1.], ["object", str(i)], True)
 
     def RunSim(self):
         # Run simulation with time control
@@ -462,6 +501,7 @@ class IiwaRlgSimulator():
                 self.PublishIiwaStatus()
                 self.PublishSchunkStatus()
                 last_status_send = sim_time
+                self.UpdateRtv()
 
             # Render
             if (sim_time - last_render) > 0.033:
