@@ -11,7 +11,7 @@ include_directories(${Eigen3_INCLUDE_DIR})
 find_package(VTK REQUIRED)
 include_directories(${VTK_INCLUDE_DIRS})
 
-find_path(yaml-cpp REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
