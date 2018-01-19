@@ -25,7 +25,7 @@ group "0.sim" {
   }
 
   cmd "5.state-translator-sim" {
-    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py --basePosition '0.0, 0.0, 1.7645, 0., 0., 0.'";
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py --basePosition '0.0, 0.0, 0.7645, 0., 0., 0.'";
     host = "localhost";
   }
 }
@@ -198,7 +198,7 @@ script "3.sim_pybullet_startup" {
     start cmd "0.LCM->ROS State Translator";
     start cmd "2.ROS-OpenNI-sim";
     start cmd "1.plan-runner";
-    start cmd "2.state-translator";
+    start cmd "5.state-translator-sim";
     start cmd "2.ROS Model and TF Publisher";
     start cmd "3.rviz";
 

@@ -13,10 +13,11 @@
         <mesh filename="meshes/visual/plate_11in.obj" scale="0.001"/>
       </geometry>
     </visual>
-    <collision>
+    <collision concave="yes">
       <geometry>
         <mesh filename="meshes/collision/plate_11in.obj" scale="0.001"/>
       </geometry>
     </collision>
+    <contact_coefficients kd="1.0" kp="1000.0" mu="0.8"/>
   </link>
 </robot>

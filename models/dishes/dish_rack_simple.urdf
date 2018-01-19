@@ -2,8 +2,8 @@
 <robot name="dish_rack_simple">
   <link name="dish_rack_simple">
     <inertial>
-      <mass value="0"/>
-      <origin rpy="90 0 0" xyz="0 0. 0.01"/>
+      <mass value="5"/>
+      <origin rpy="0 0 0" xyz="0 0. 0.01"/>
       <!-- Relatively bad guesses -->
       <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.1"/>
     </inertial>
