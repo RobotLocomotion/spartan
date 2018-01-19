@@ -11,6 +11,8 @@ include_directories(${Eigen3_INCLUDE_DIR})
 find_package(VTK REQUIRED)
 include_directories(${VTK_INCLUDE_DIRS})
 
+find_path(yaml-cpp REQUIRED)
+
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
 add_executable(reachability_analyzer reachability_analyzer.cpp reachability_analyzer.hpp)
@@ -20,6 +22,7 @@ target_link_libraries(reachability_analyzer
     ${drake_LIBRARIES}
     gflags_shared
     ${VTK_LIBRARIES}
-    RemoteTreeViewerWrapper)
+    RemoteTreeViewerWrapper
+    yaml-cpp)
 
 install(TARGETS reachability_analyzer DESTINATION bin)
