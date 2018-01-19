@@ -64,35 +64,36 @@ def render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_d
 
   poses = common.CameraPoses(data_dir+"/posegraph.posegraph")
   for i in range(1,num_im+1):
-      print "rendering image "+str(i)
-      utimeFile = open(data_dir+"/images/"+ str(i).zfill(10) + "_utime.txt", 'r')
-      utime = int(utimeFile.read())    
+      try:
+        utimeFile = open(data_dir+"/images/"+ str(i).zfill(10) + "_utime.txt", 'r')
+        utime = int(utimeFile.read())    
 
-      #update camera transform
-      cameraToCameraStart = poses.getCameraPoseAtUTime(utime)
-      t = cameraToCameraStart
-      common.setCameraTransform(camera, t)
-      renWin.Render()
+        #update camera transform
+        cameraToCameraStart = poses.getCameraPoseAtUTime(utime)
+        t = cameraToCameraStart
+        common.setCameraTransform(camera, t)
+        renWin.Render()
 
-      #update filters
-      filter1.Modified()
-      filter1.Update()
-      windowToColorBuffer.Modified()
-      windowToColorBuffer.Update()
+        #update filters
+        filter1.Modified()
+        filter1.Update()
+        windowToColorBuffer.Modified()
+        windowToColorBuffer.Update()
 
-      #extract depth image
-      depthImage = vtk.vtkImageData()
-      pts = vtk.vtkPoints()
-      ptColors = vtk.vtkUnsignedCharArray()
-      vtk.vtkDepthImageUtils.DepthBufferToDepthImage(filter1.GetOutput(), windowToColorBuffer.GetOutput(), camera, depthImage, pts, ptColors)
-      scale.SetInputData(depthImage)
-      scale.Update()
+        #extract depth image
+        depthImage = vtk.vtkImageData()
+        pts = vtk.vtkPoints()
+        ptColors = vtk.vtkUnsignedCharArray()
+        vtk.vtkDepthImageUtils.DepthBufferToDepthImage(filter1.GetOutput(), windowToColorBuffer.GetOutput(), camera, depthImage, pts, ptColors)
+        scale.SetInputData(depthImage)
+        scale.Update()
 
-      #write out depth image
-      imageWriter.SetFileName(out_dir+str(i).zfill(10)+"_"+data_dir_name+"_depth_ground_truth.png");
-      imageWriter.SetInputConnection(scale.GetOutputPort());
-      #imageWriter.Write();  
-
+        #write out depth image
+        imageWriter.SetFileName(out_dir+str(i).zfill(10)+"_"+data_dir_name+"_depth_ground_truth.png");
+        imageWriter.SetInputConnection(scale.GetOutputPort());
+        imageWriter.Write();  
+      except(IOError):
+        break
   renderer.RemoveAllViewProps();
   renWin.Render();
 
@@ -145,7 +146,7 @@ def render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out
       #write out depth image
       imageWriter.SetFileName(data_dir+"/images/"+str(i).zfill(10)+"_"+data_dir_name+"-normal_ground_truth.png");
       imageWriter.SetInputConnection(windowToColorBuffer.GetOutputPort());
-      #imageWriter.Write();
+      imageWriter.Write();
 
 if __name__ == '__main__':
   #setup
