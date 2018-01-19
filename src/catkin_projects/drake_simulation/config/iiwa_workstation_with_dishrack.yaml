@@ -3,11 +3,8 @@ models:
   plate_8p5in: "${SPARTAN_SOURCE_DIR}/models/dishes/plate_8p5in_decomp/plate_8p5in_decomp.urdf"
   bowl_6p25in: "${SPARTAN_SOURCE_DIR}/models/dishes/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf"
   dish_rack: "${SPARTAN_SOURCE_DIR}/models/dishes/dish_rack_simple.urdf"
-#  robot_table: "${SPARTAN_SOURCE_DIR}/drake/examples/kuka_iiwa_arm/models/table/extra_heavy_duty_table_surface_only_collision.sdf"
   cabinet_with_desktop: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/cabinet_with_desktop.urdf"
   white_bin: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/white_bin.urdf"
-  apriltag_cube: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/apriltag_cube.urdf"
-  #meshed_pointcloud_better_tissuebox: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/meshed_pointcloud_better_tissuebox.urdf"
 
 with_ground: true
 
@@ -21,9 +18,18 @@ instances:
   - model: "white_bin"
     q0: [0.0, 0.8, 0.7, 0, 0, 1.57]
     fixed: true
-  - model: "apriltag_cube"
-    q0: [0.6, -0.1, 0.8, 0., 0, 0]
+  - model: "dish_rack"
+    q0: [0.3, 0.2, 0.75, 0., 0, 0]
+    fixed: true
+  - model: "plate_11in"
+    q0: [0.712, -0.05, 1.1, 0.0, 0.0, 0.0]
     fixed: false
-  #- model: "meshed_pointcloud_better_tissuebox"
-  #  q0: [1.8, -0.5, 1.5, -2.2, 0., 1.57]
-  #  fixed: true
+  - model: "plate_11in"
+    q0: [0.712, -0.10, 1.1, 0.0, 0.0, 0.0]
+    fixed: false
+  - model: "plate_8p5in"
+    q0: [0.712, -0.15, 1.1, 0.0, 0.0, 0.0]
+    fixed: false
+  - model: "plate_8p5in"
+    q0: [0.712, -0.20, 1.1, 0.0, 0.0, 0.0]
+    fixed: false

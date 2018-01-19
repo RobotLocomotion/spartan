@@ -10,6 +10,13 @@
 # mocking the current Schunk driver.
 # Generates raw RGB and Depth data, using a specified depth camera
 # configuration profile.
+# Note that the RGB / RGB camera info currently published are wrong in at
+# least two ways:
+#   - 1) The RGB image is published from the Depth camera extrinsic location.
+#   - 2) The RGB camera frame <-> hand frame are specified in
+#        camera_info.yaml but probably never published out to the rest of the
+#        ROS tf system. So either figure out how to tell the openni stack to
+#        do that, or do it yourself. (Ask Kuni)
 # 
 # Arguments:
 #   config: Configuration file
@@ -34,6 +41,7 @@ from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
 
 # Comms with hand
 import spartan.utils.ros_utils as rosUtils
+import spartan.utils.cv_utils as cvUtils
 import wsg50_msgs.msg
 
 # Comms from camera
@@ -88,6 +96,10 @@ SCHUNK_CONTROLLED_JOINTS = [
     "wsg_50_base_joint_gripper_left",
     "wsg_50_base_joint_gripper_right",
 ]
+# Schunk finger link names
+#SCHUNK_FINGER_LINKS = [
+#    
+#]
 
 # Camera configuration parameters
 # Which link is the camera on? (Specified by which joint is before it.)
@@ -202,7 +214,7 @@ class IiwaRlgSimulator():
     RunSim run a sim until (R)eset or (Q)uit from the sim gui.
     '''
 
-    def __init__(self, config, timestep, rate):
+    def __init__(self, config, timestep, rate, rgbd_noise=0.005, rgbd_normal_limit=0.05, rgbd_projector_baseline=0.1):
         self.config = config
         self.timestep = timestep
         self.rate = rate
@@ -233,6 +245,10 @@ class IiwaRlgSimulator():
         self.depth_info_publisher = rospy.Publisher(IIWA_CAMERA_DEPTH_INFO_TOPIC, sensor_msgs.msg.CameraInfo, queue_size=1)
         self.cv_bridge = CvBridge()
 
+        self.rgbd_projector_baseline = rgbd_projector_baseline
+        self.rgbd_normal_limit = rgbd_normal_limit
+        self.rgbd_noise = rgbd_noise
+
         # Set up a Remote Tree Viewer wrapper to publish
         # object states
         self.rtv = Rtv.RemoteTreeViewerWrapper()
@@ -258,6 +274,11 @@ class IiwaRlgSimulator():
             quaternion = pybullet.getQuaternionFromEuler(q0[3:6])
             self.kuka_id = load_pybullet_from_urdf_or_sdf(kIiwaUrdf, position, quaternion, True, self.packageMap)
 
+            for obj_id in range(-1, pybullet.getNumJoints(self.kuka_id)):
+                print "Dynamic info for body %d, %d:" % (self.kuka_id, obj_id)
+                print pybullet.getDynamicsInfo(self.kuka_id, obj_id)
+                pybullet.changeDynamics(self.kuka_id, obj_id, lateralFriction=0.9, spinningFriction=0.9, frictionAnchor=1)
+
         self.BuildJointNameInfo()
         self.BuildMotorIdList()
 
@@ -273,6 +294,12 @@ class IiwaRlgSimulator():
             quaternion = pybullet.getQuaternionFromEuler(q0[3:8])
             fixed = instance["fixed"]
             self.object_ids.append(load_pybullet_from_urdf_or_sdf(model_dict[instance["model"]], position, quaternion, fixed))
+            # Report all friction properties
+            for obj_id in range(-1, pybullet.getNumJoints(self.object_ids[-1])):
+                print "Dynamic info for body %d, %d:" % (self.object_ids[-1], obj_id)
+                print pybullet.getDynamicsInfo(self.object_ids[-1], obj_id)
+                pybullet.changeDynamics(self.object_ids[-1], obj_id, lateralFriction=0.9, spinningFriction=0.9, frictionAnchor=0)
+
             self.rbts.append(load_drake_from_urdf_or_sdf(model_dict[instance["model"]]))
 
         # Set up camera info (which relies on having models loaded
@@ -343,7 +370,7 @@ class IiwaRlgSimulator():
         self.schunk_command_lock.acquire()
         try:
             self.last_schunk_position_command = [-msg.position_mm*0.005, msg.position_mm*0.005]
-            self.last_schunk_torque_command = [msg.force, msg.force]
+            self.last_schunk_torque_command = [msg.force*10, msg.force*10]
         except Exception as e:
             print "Exception ", e, " in ros schunk command handler"
         self.schunk_command_lock.release()
@@ -368,7 +395,7 @@ class IiwaRlgSimulator():
         msg.speed_mm_per_s = (-states[0][1] + states[1][1])*1000.
         self.schunk_status_publisher.publish(msg)
 
-    def DoRendering(self):
+    def DoDepthRendering(self):
         # Get the state of the camera link
         linkState = pybullet.getLinkState(self.kuka_id, 
             self.rgbd_info.depth_extrinsics["parent_joint_id"],
@@ -405,15 +432,107 @@ class IiwaRlgSimulator():
 
         images = pybullet.getCameraImage(camera_width, camera_height, viewMatrix, projectionMatrix, shadow=0,lightDirection=[1,1,1],renderer=pybullet.ER_BULLET_HARDWARE_OPENGL)
 
-        rgbImage = images[2]
         # Rescale depth buffer from [0, 1] to real depth following
         # formula from https://stackoverflow.com/questions/6652253/getting-the-true-z-value-from-the-depth-buffer
-        depthImage = (IIWA_CAMERA_MAX_DISTANCE * IIWA_CAMERA_MIN_DISTANCE) / (IIWA_CAMERA_MAX_DISTANCE + images[3] * (IIWA_CAMERA_MIN_DISTANCE - IIWA_CAMERA_MAX_DISTANCE))
+        gtDepthImage = (IIWA_CAMERA_MAX_DISTANCE * IIWA_CAMERA_MIN_DISTANCE) / (IIWA_CAMERA_MAX_DISTANCE + images[3] * (IIWA_CAMERA_MIN_DISTANCE - IIWA_CAMERA_MAX_DISTANCE))
+
+        # Calculate normals before adding noise
+        if self.rgbd_normal_limit > 0.:
+            gtNormalImage = np.absolute(cv2.Scharr(gtDepthImage, cv2.CV_32F, 1, 0)) +  np.absolute(cv2.Scharr(gtDepthImage, cv2.CV_32F, 0, 1))
+            _, normalThresh = cv2.threshold(gtNormalImage, self.rgbd_normal_limit, 1., cv2.THRESH_BINARY_INV)
+
+        if self.rgbd_noise > 0.0:
+            noiseMat = np.random.randn(camera_height, camera_width)*self.rgbd_noise
+            gtDepthImage += noiseMat
+
+        depthImage = gtDepthImage
+
+        if self.rgbd_projector_baseline > 0.0:
+            K = np.reshape(np.array(self.rgbd_info.depth_info_msg.K), [3, 3])
+
+            # How much does each depth point project laterally (in the axis of the camera-projector pair?)
+            x_indices_im = np.tile(np.arange(camera_width), [camera_height,1])
+            x_projection = (x_indices_im - K[0, 2]) * gtDepthImage / K[0, 0]
+
+            # For a fixed shift...
+            for shift_amt in range(-50, -5, 5):
+                imshift_tf_matrix = np.array([[1., 0., shift_amt], [0., 1., 0.]])
+                shifted_x_projection = cv2.warpAffine(x_projection, imshift_tf_matrix, (camera_width, camera_height), borderMode=cv2.BORDER_REPLICATE)
+                shifted_gt_depth = cv2.warpAffine(gtDepthImage, imshift_tf_matrix, (camera_width, camera_height), borderMode=cv2.BORDER_CONSTANT, borderValue=float(np.max(gtDepthImage)))
+
+                # (projected test point - projected original point) dot producted with vector perpendicular to sample point and projector origin
+                error_im = (shifted_x_projection - x_projection)*(-gtDepthImage) + \
+                       (shifted_gt_depth - gtDepthImage)*(x_projection - self.rgbd_projector_baseline)
+                _, error_thresh = cv2.threshold(error_im, 0., 1., cv2.THRESH_BINARY_INV)
+                depthImage = depthImage * error_thresh
+
+        # Apply normal limiting
+        if self.rgbd_normal_limit > 0.:
+            depthImage *= normalThresh
+
+        #im = cvUtils.generateGridOfImages(
+        #    [
+        #        cvUtils.generateColorMap(gtDepthImage),
+        #        cvUtils.generateColorMap(gtNormalImage, -0.1, .1),
+        #        cvUtils.generateColorMap(normalThresh),
+        #        cvUtils.generateColorMap(depthImage)
+        #    ], 3, 10)
+        #cv2.imshow("depthcorruption", im)
+        #cv2.waitKey(1)
 
         # Convert and publish!        
-        rgbMsg = self.cv_bridge.cv2_to_imgmsg(cv2.cvtColor(rgbImage, cv2.COLOR_BGRA2BGR), "bgr8")
-        # Convert depth to mm and store as unsigned short
         depthMsg = self.cv_bridge.cv2_to_imgmsg((depthImage*1000).astype('uint16'), "passthrough")
+
+        # Construct a header with the current timestamp and the RGB
+        # frame, and publish RGB camera info and the RGB camera image
+        now_header = std_msgs.msg.Header()
+        now_header.stamp = rospy.Time.now()
+        now_header.frame_id = IIWA_CAMERA_DEPTH_FRAME
+        self.rgbd_info.depth_info_msg.header = now_header
+        self.depth_info_publisher.publish(self.rgbd_info.depth_info_msg)
+        depthMsg.header = now_header
+        self.depth_publisher.publish(depthMsg)
+
+    def DoRgbRendering(self):
+        # Get the state of the camera link
+        linkState = pybullet.getLinkState(self.kuka_id, 
+            self.rgbd_info.rgb_extrinsics["parent_joint_id"],
+            computeLinkVelocity=0)
+        
+        # Compute the camera's eye position
+        cameraWorldPosition, cameraWorldOrientation = \
+            pybullet.multiplyTransforms(
+                linkState[0], linkState[1],
+                self.rgbd_info.rgb_extrinsics["pose_xyz"], 
+                self.rgbd_info.rgb_extrinsics["pose_quat"])
+
+        # Use that to form Forward and Up vectors for the camera
+        cameraRotationMatrix = np.reshape(np.array(pybullet.getMatrixFromQuaternion(cameraWorldOrientation)), [3, 3])
+        cameraForward = cameraRotationMatrix.dot(np.array([-1., 0., 0.]))
+        cameraUp = cameraRotationMatrix.dot(np.array([0., 0., 1.]))
+
+        # Assemble a view matrix
+        viewMatrix = pybullet.computeViewMatrix(cameraWorldPosition, cameraWorldPosition+cameraForward, cameraUp)
+
+        # Compute the FOV and aspect from the camera intrinsics
+        camera_width = self.rgbd_info.rgb_info_msg.width
+        camera_height = self.rgbd_info.rgb_info_msg.height
+        camera_fov_x = 2 * math.atan2(camera_height, 2 * self.rgbd_info.rgb_info_msg.P[0]) * 180. / math.pi
+        camera_fov_y = 2 * math.atan2(camera_width, 2 * self.rgbd_info.rgb_info_msg.P[5]) * 180. / math.pi
+        camera_aspect = float(camera_width) / float(camera_height)
+        # Use the computed FOV to produce a projection matrix
+        # (Note: I'm sure you can directly compute a projection Matrix
+        # from the intrinsics, but I'm not sure what the mapping is --
+        # OpenCV makes a lot of assumptions about their projection matrix
+        # details and scaling. It's not exactly a camera intrinsic matrix...
+        # So this is easier.)
+        projectionMatrix = pybullet.computeProjectionMatrixFOV(camera_fov_x, camera_aspect, IIWA_CAMERA_MIN_DISTANCE, IIWA_CAMERA_MAX_DISTANCE)
+
+        images = pybullet.getCameraImage(camera_width, camera_height, viewMatrix, projectionMatrix, shadow=0,lightDirection=[1,1,1],renderer=pybullet.ER_BULLET_HARDWARE_OPENGL)
+
+        rgbImage = images[2]
+        # Convert and publish!        
+        rgbMsg = self.cv_bridge.cv2_to_imgmsg(cv2.cvtColor(rgbImage, cv2.COLOR_BGRA2BGR), "rgb8")
 
         # Construct a header with the current timestamp and the RGB
         # frame, and publish RGB camera info and the RGB camera image
@@ -424,14 +543,6 @@ class IiwaRlgSimulator():
         self.rgb_info_publisher.publish(self.rgbd_info.rgb_info_msg)
         rgbMsg.header = now_header
         self.rgb_publisher.publish(rgbMsg)
-
-        # Change the header frame to the Depth frame and publish the depth
-        # info and image.
-        now_header.frame_id = IIWA_CAMERA_DEPTH_FRAME
-        self.rgbd_info.depth_info_msg.header = now_header
-        self.depth_info_publisher.publish(self.rgbd_info.depth_info_msg)
-        depthMsg.header = now_header
-        self.depth_publisher.publish(depthMsg)
 
 
     def UpdateRtv(self):
@@ -489,7 +600,8 @@ class IiwaRlgSimulator():
                 self.schunk_motor_id_list,
                 controlMode=pybullet.POSITION_CONTROL,
                 targetPositions=schunk_position_command,
-                forces=schunk_torque_command
+                forces=schunk_torque_command,
+                positionGains=[1000., 1000.]
                 )
 
             # Do a sim step
@@ -504,8 +616,9 @@ class IiwaRlgSimulator():
                 self.UpdateRtv()
 
             # Render
-            if (sim_time - last_render) > 0.033:
-                self.DoRendering()
+            if (sim_time - last_render) > 1.0:
+                self.DoDepthRendering()
+                self.DoRgbRendering()
                 last_render = sim_time
 
             events = pybullet.getKeyboardEvents()
@@ -545,14 +658,22 @@ if __name__ == "__main__":
     parser.add_argument("config", help="Configuration file to simulate.", type=str)
     parser.add_argument("-r", "--rate", help="Desired simulation rate (fraction of realtime)", type=float, default=1.0)
     parser.add_argument("-t", "--timestep", help="Simulation timestep", type=float, default=0.001)
+    parser.add_argument("--rgbd_noise", help="Normal noise injected to RGBD depth returns", type=float, default=0.001)
+    parser.add_argument("--rgbd_projector_baseline", help="RGBD projector baseline used to calculate depth shadowing", type=float, default=0.1)
+    parser.add_argument("--rgbd_normal_limit", help="Threshold for rejecting high-normal depth returns. (Smaller is more stringent, 0.0 to turn off.)", type=float, default=0.05)
     args = parser.parse_args()
 
     rospy.init_node('pybullet_iiwa_rlg_simulation')
 
+    #cv2.namedWindow("depthcorruption")
+
     # Set up a simulation with a ground plane and desired timestep
     physicsClient = pybullet.connect(pybullet.GUI)#or pybullet.DIRECT for non-graphical version
     
-    sim = IiwaRlgSimulator(args.config, args.timestep, args.rate)
+    sim = IiwaRlgSimulator(args.config, args.timestep, args.rate,
+            rgbd_projector_baseline = args.rgbd_projector_baseline,
+            rgbd_noise = args.rgbd_noise,
+            rgbd_normal_limit = args.rgbd_normal_limit)
 
     keep_simulating = True
     while keep_simulating:

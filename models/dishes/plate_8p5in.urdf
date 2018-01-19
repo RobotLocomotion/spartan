@@ -12,7 +12,7 @@
         <mesh filename="meshes/visual/plate_8p5in.obj" scale="0.001"/>
       </geometry>
     </visual>
-    <collision>
+    <collision concave="yes">
       <geometry>
         <mesh filename="meshes/collision/plate_8p5in.obj" scale="0.001"/>
       </geometry>
