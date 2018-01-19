@@ -41,7 +41,7 @@ class FusionServer(object):
 		self.config = dict()
 		self.config['scan'] = dict()
 		self.config['scan']['pose_list'] = ['scan_back', 'scan_left', 'scan_top', 'scan_right', 'scan_back']
-		self.config['scan']['joint_speed'] = 60
+		self.config['scan']['joint_speed'] = 40
 		self.config['home_pose_name'] = 'above_table_pre_grasp'
 
 	def start_bagging(self):
@@ -101,12 +101,19 @@ class FusionServer(object):
 
 		return StopBaggingFusionDataResponse("success")
 
-	def handle_capture_scene_for_fusion(self, req):
+	def handle_perform_elastic_fusion(self, req):
+		## call executable for filename
+		cmd = ". /opt/ros/kinetic/setup.sh && $SPARTAN_SOURCE_DIR/src/ElasticFusion/GUI/build/ElasticFusion -l " + req.bag_filepath
+		os.system("echo " + cmd)
+		os.system(cmd)
+		return PerformElasticFusionResponse("need to merge auto-output pointcloud.vtp and return it here")
+
+	def handle_capture_scene_and_fuse(self, req):
 		# Start bagging with own srv call
 		try:
 			start_bagging_fusion_data = rospy.ServiceProxy('start_bagging_fusion_data', StartBaggingFusionData)
 			resp1 = start_bagging_fusion_data()
-			bag_filepath = resp1.data_filepath
+			bag_filepath = resp1.bag_filepath
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
@@ -119,21 +126,30 @@ class FusionServer(object):
 		# Stop bagging with own srv call
 		try:
 			stop_bagging_fusion_data = rospy.ServiceProxy('stop_bagging_fusion_data', StopBaggingFusionData)
-			resp1 = stop_bagging_fusion_data()
-			print resp1.status
+			resp2 = stop_bagging_fusion_data()
+			print resp2.status, "stopped bagging"
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
-		return CaptureSceneForFusionResponse(bag_filepath)
+		# Perform fusion
+		try:
+			perform_elastic_fusion = rospy.ServiceProxy('perform_elastic_fusion', PerformElasticFusion)
+			resp3 = perform_elastic_fusion(resp1.bag_filepath)
+			pointcloud_filepath = resp3.pointcloud_filepath
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
 
-	def capture_fusion_data_server(self):
+		return CaptureSceneAndFuseResponse(pointcloud_filepath)
+
+	def run_fusion_data_server(self):
 		rospy.init_node('capture_fusion_data_server')
 		s = rospy.Service('start_bagging_fusion_data', StartBaggingFusionData, self.handle_start_bagging_fusion_data)
 		s = rospy.Service('stop_bagging_fusion_data', StopBaggingFusionData, self.handle_stop_bagging_fusion_data)
-		s = rospy.Service('capture_scene_for_fusion', CaptureSceneForFusion, self.handle_capture_scene_for_fusion)
+		s = rospy.Service('perform_elastic_fusion', PerformElasticFusion, self.handle_perform_elastic_fusion)
+		s = rospy.Service('capture_scene_and_fuse', CaptureSceneAndFuse, self.handle_capture_scene_and_fuse)
 		print "Ready to capture fusion data."
 		rospy.spin()
 
 if __name__ == "__main__":
 	fs = FusionServer()
-	fs.capture_fusion_data_server()
+	fs.run_fusion_data_server()

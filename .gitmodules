@@ -22,10 +22,13 @@
 [submodule "modules/spartan/mcubeUROP"]
 	path = modules/spartan/mcubeUROP
 	url = git@github.com:manuelli/mcubeUROP.git
-
 [submodule "src/Mask_RCNN"]
 	path = src/Mask_RCNN
 	url = git@github.com:matterport/Mask_RCNN.git
+[submodule "src/ElasticFusion"]
+	path = src/ElasticFusion
+	url = git@github.com:peteflorence/ElasticFusion.git
+	branch = pf-rosbagreader
 [submodule "src/catkin_projects/drake_trajectory_planning_msgs"]
 	path = src/catkin_projects/drake_trajectory_planning_msgs
 	url = git@github.com:manuelli/drake_trajectory_planning_msgs.git
