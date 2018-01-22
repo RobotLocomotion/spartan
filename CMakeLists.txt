@@ -81,7 +81,7 @@ ExternalProject_Add(libbot
     SOURCE_DIR ${build_dir}/externals/libbot
     BINARY_DIR ${build_dir}/libbot
     GIT_REPOSITORY "https://github.com/RobotLocomotion/libbot2.git"
-    GIT_TAG "f260260b7d04c1d85169f985e1a2b4447a6832ef"
+    GIT_TAG "0813e5a66a09fcbdaf3c7fae69dc05eeb1223749"
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
       ${CMAKE_ARGS_FOR_EXTERNALS}
