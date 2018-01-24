@@ -59,7 +59,7 @@ target_link_libraries(drake_passive_simulation_from_config
     ${catkin_LIBRARIES}
     ${drake_LIBRARIES}
     gflags_shared
-    ${yaml-cpp_LIBRARIES}
+    yaml-cpp
     ${EIGEN3_LIBRARIES}
 )
 
@@ -123,7 +123,7 @@ add_dependencies(iiwa_rlg_simulation ${catkin_EXPORTED_TARGETS})
 target_link_libraries(iiwa_rlg_simulation
     ${catkin_LIBRARIES}
     ${bot2-core-lcmtypes_LIBRARIES}
-    ${yaml-cpp_LIBRARIES}
+    yaml-cpp
     image_to_images_t
     rgbd_to_ros_pointcloud2_driver
     iiwa_common
