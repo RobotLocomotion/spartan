@@ -167,20 +167,20 @@ class RobotService(object):
         self.jointNames = jointNames
         self.numJoints = len(jointNames)
 
-    def moveToJointPosition(self, q, maxJointDegreesPerSecond=30):
+    def moveToJointPosition(self, q, maxJointDegreesPerSecond=30, timeout=None):
         assert len(q) == self.numJoints
 
         jointState = RobotService.jointPositionToJointStateMsg(self.jointNames, q)
 
-        rospy.wait_for_service('robot_control/MoveToJointPosition')
+        rospy.wait_for_service('robot_control/MoveToJointPosition', timeout=timeout)
         s = rospy.ServiceProxy('robot_control/MoveToJointPosition', robot_msgs.srv.MoveToJointPosition)
         response = s(jointState, maxJointDegreesPerSecond)
         
         return response
 
-    def moveToCartesianPosition(self, poseStamped, maxJointDegreesPerSecond=30):
+    def moveToCartesianPosition(self, poseStamped, maxJointDegreesPerSecond=30, timeout=None):
         ikServiceName = 'robot_control/IkService'
-        rospy.wait_for_service(ikServiceName)
+        rospy.wait_for_service(ikServiceName, timeout=timeout)
         s = rospy.ServiceProxy(ikServiceName, robot_msgs.srv.RunIK)
         response = s(poseStamped)
 
@@ -195,7 +195,7 @@ class RobotService(object):
         rospy.loginfo("ik was successful, moving to joint position")
         return self.moveToJointPosition(joint_state.position, maxJointDegreesPerSecond=maxJointDegreesPerSecond)
 
-    def runIK(self, poseStamped, seedPose=None, nominalPose=None):
+    def runIK(self, poseStamped, seedPose=None, nominalPose=None, timeout=None):
 
         req = robot_msgs.srv.RunIKRequest()
         req.pose_stamped = poseStamped
@@ -207,7 +207,7 @@ class RobotService(object):
             req.nominal_pose.append(RobotService.jointPositionToJointStateMsg(self.jointNames, nominalPose))
 
         ikServiceName = 'robot_control/IkService'
-        rospy.wait_for_service(ikServiceName)
+        rospy.wait_for_service(ikServiceName, timeout=timeout)
         s = rospy.ServiceProxy(ikServiceName, robot_msgs.srv.RunIK)
         response = s(req)
 
