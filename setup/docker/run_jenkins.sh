@@ -35,3 +35,11 @@ fi
 
 # See if we can source everything OK.
 . setup_environment.sh
+
+# Launch a complete robot context and execute some canned movement.
+python setup/docker/test_full_simulation_stack.py
+exit_status=$?
+if [ ! $exit_status -eq 0 ]; then
+  echo "Error code in test_full_simulation_stack.py: " $exit_status
+  exit $exit_status
+fi
