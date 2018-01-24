@@ -19,4 +19,4 @@ class DirectorSchunkDriver(object):
 		self.taskRunner.callOnThread(self.schunkDriver.sendCloseGripperCommand)
 
 	def sendGripperCommand(self, position, force):
-		self.taskRunner.callOnThread(self.schunkDriver.sendGripperCommand, posiition, force)
+		self.taskRunner.callOnThread(self.schunkDriver.sendGripperCommand, position, force)

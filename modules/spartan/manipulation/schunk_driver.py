@@ -12,25 +12,24 @@ import spartan.utils.ros_utils as rosUtils
 
 class SchunkDriver(object):
 
-	def __init__(self, commandTopic="/schunk_driver/schunk_wsg_command", statusTopic="/schunk_driver/schunk_wsg_status",
-				 statusSubscriberCallback=None):
+	def __init__(self, commandTopic="/schunk_driver/schunk_wsg_command", statusTopic="/schunk_driver/schunk_wsg_status", statusSubscriberCallback=None):
 		self.commandTopic = commandTopic
 		self.statusTopic = statusTopic
-		self.initialize(statusSubscriberCallback)
+		self.statusSubscriberCallback = statusSubscriberCallback
+		self.initialize()
 
-	def initialize(self, statusSubscriberCallback):
+	def initialize(self):
 		self.setupDefaultMessages()
-		if statusSubscriberCallback is not None:
-			self.setupSubscribers(statusSubscriberCallback)
 		self.setupPublishers()
+		self.setupSubscribers()
 
-	def setupSubscribers(self, statusSubscriberCallback):
-		self.statusSubscriber = rosUtils.SimpleSubscriber(self.statusTopic, wsg50_msgs.msg.WSG_50_state, statusSubscriberCallback)
+	def setupSubscribers(self):
+		self.lastStatusMsg = None
+		self.statusSubscriber = rosUtils.SimpleSubscriber(self.statusTopic, wsg50_msgs.msg.WSG_50_state, self.handleStatusCallback)
 		self.statusSubscriber.start(queue_size=1)
 
 	def setupPublishers(self):
 		self.commandPublisher = rospy.Publisher(self.commandTopic, wsg50_msgs.msg.WSG_50_command, queue_size=1)
-
 
 	def setupDefaultMessages(self):
 		self.openGripperMsg = wsg50_msgs.msg.WSG_50_command()
@@ -40,6 +39,11 @@ class SchunkDriver(object):
 		self.closeGripperMsg = wsg50_msgs.msg.WSG_50_command()
 		self.closeGripperMsg.position_mm = 0
 		self.closeGripperMsg.force = 40
+
+	def handleStatusCallback(self, msg):
+		self.lastStatusMsg = msg
+		if self.statusSubscriberCallback is not None:
+			self.statusSubscriberCallback(msg)
 
 	def sendOpenGripperCommand(self):
 		self.openGripperMsg.header.stamp = rospy.Time.now()
@@ -66,5 +70,3 @@ class SchunkDriver(object):
 		rospy.sleep(sleepTime) # wait for gripper to close
 		objectInGripper = True
 		return objectInGripper
-
-
