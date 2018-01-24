@@ -663,7 +663,7 @@ if __name__ == "__main__":
     parser.add_argument("--rgbd_normal_limit", help="Threshold for rejecting high-normal depth returns. (Smaller is more stringent, 0.0 to turn off.)", type=float, default=0.05)
     args = parser.parse_args()
 
-    rospy.init_node('pybullet_iiwa_rlg_simulation')
+    rospy.init_node('pybullet_iiwa_rlg_simulation', anonymous=True)
 
     #cv2.namedWindow("depthcorruption")
 
