@@ -325,8 +325,7 @@ applogic.resetCamera(viewDirection=[-1,1,-0.5], view=view)
 useROS = True
 if useROS:
     import rospy
-    rospy.init_node('director')
-
+    rospy.init_node('director', anonymous=True)
 
 useKukaRLGDev = True
 if useKukaRLGDev:
