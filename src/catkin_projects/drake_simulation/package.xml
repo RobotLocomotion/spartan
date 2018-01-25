@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<package>
+<package format="2">
   <name>drake_simulation</name>
   <version>0.0.1</version>
   <description>
@@ -15,12 +15,14 @@
   <build_depend>image_transport</build_depend>
   <build_depend>wsg50_msgs</build_depend>
   <build_depend>drake_ros_systems</build_depend>
+
+  <build_export_depend>wsg50_msgs</build_export_depend>
   
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>libpcl-all</buildtool_depend>
 
-  <run_depend>wsg50_msgs</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>drake_ros_systems</run_depend>
+  <exec_depend>wsg50_msgs</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>drake_ros_systems</exec_depend>
 
 </package>
