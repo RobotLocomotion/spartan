@@ -80,12 +80,14 @@ target_link_libraries(image_to_images_t
 add_library(schunk_wsg_ros
     src/iiwa_rlg_simulation/schunk_wsg_ros/schunk_wsg_ros.cc
     src/iiwa_rlg_simulation/schunk_wsg_ros/schunk_wsg_ros.h)
+add_dependencies(schunk_wsg_ros ${catkin_EXPORTED_TARGETS})
 target_link_libraries(schunk_wsg_ros
     ${catkin_LIBRARIES}
     ${drake_LIBRARIES})
 add_library(schunk_wsg_ros_controller
     src/iiwa_rlg_simulation/schunk_wsg_ros/schunk_wsg_ros_controller.cc
     src/iiwa_rlg_simulation/schunk_wsg_ros/schunk_wsg_ros_controller.h)
+add_dependencies(schunk_wsg_ros_controller ${catkin_EXPORTED_TARGETS})
 target_link_libraries(schunk_wsg_ros_controller
     ${catkin_LIBRARIES}
     ${drake_LIBRARIES})
