@@ -37,7 +37,7 @@ fi
 . setup_environment.sh
 
 # Launch a complete robot context and execute some canned movement.
-python setup/docker/test_full_simulation_stack.py
+python ${SPARTAN_SOURCE_DIR}/setup/docker/test_full_simulation_stack.py
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code in test_full_simulation_stack.py: " $exit_status
