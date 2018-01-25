@@ -20,7 +20,7 @@ target_link_libraries(testRemoteTreeViewerWrapper
 install(TARGETS testRemoteTreeViewerWrapper DESTINATION bin)
 
 
-set(pybind11_DIR "${CMAKE_INSTALL_PREFIX}/lib/cmake/pybind11")
+set(PYBIND11_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include")
 set(PYTHON_EXECUTABLE "python2.7")
 find_package(pybind11 REQUIRED)
 

@@ -136,6 +136,18 @@ ExternalProject_Add(director
   DEPENDS libbot drake
 )
 
+ExternalProject_Add(pybind11
+  SOURCE_DIR ${build_dir}/externals/pybind11
+  BINARY_DIR ${build_dir}/pybind11
+  GIT_REPOSITORY git@github.com:pybind/pybind11
+  GIT_TAG v2.2.1
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+    -DPYBIND11_INSTALL:BOOL=ON
+    -DPYBIND11_TEST:BOOL=OFF
+)
+
 ExternalProject_Add(common_utils
   SOURCE_DIR ${source_dir}/src/common_utils
   BINARY_DIR ${build_dir}/common_utils
