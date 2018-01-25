@@ -17,7 +17,7 @@ fi
 # to work.
 . setup_environment.sh
 
-make -j8
+make -j8 --output-sync=target
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code in make: " $exit_status
@@ -26,7 +26,7 @@ fi
 
 # Try building *again* to ensure that re-installing various pieces doesn't
 # break (see e.g. issue #159)
-make -j8
+make -j8 -
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code in make: " $exit_status
