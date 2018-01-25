@@ -5,7 +5,7 @@ mkdir build
 cd build
 
 . /opt/ros/kinetic/setup.bash
-cmake -DWITH_PERCEPTION:BOOL=ON -DWITH_TRIMESH:BOOL=OFF -DWITH_SCHUNK_DRIVER:BOOL=ON -DWITH_IIWA_DRIVER_RLG:BOOL=ON -DWITH_ROS:BOOL=ON -DWITH_REACHABILITY_ANALYZER:BOOL=ON ..
+cmake -DWITH_PERCEPTION:BOOL=ON -DWITH_BULLET3:BOOL=ON -DWITH_TRIMESH:BOOL=OFF -DWITH_SCHUNK_DRIVER:BOOL=ON -DWITH_IIWA_DRIVER_RLG:BOOL=ON -DWITH_ROS:BOOL=ON -DWITH_REACHABILITY_ANALYZER:BOOL=ON ..
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code in CMake: " $exit_status
@@ -36,8 +36,11 @@ fi
 # See if we can source everything OK.
 . setup_environment.sh
 
+# Launch a fake X-server in the background
+Xvfb :100 -ac &
+
 # Launch a complete robot context and execute some canned movement.
-python ${SPARTAN_SOURCE_DIR}/setup/docker/test_full_simulation_stack.py
+DISPLAY=:100 python ${SPARTAN_SOURCE_DIR}/setup/docker/test_full_simulation_stack.py
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code in test_full_simulation_stack.py: " $exit_status
