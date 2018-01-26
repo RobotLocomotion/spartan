@@ -77,13 +77,17 @@ ExternalProject_Add(drake
     INSTALL_COMMAND ""
 )
 
+
+set(LCM_PYTHON_DIR_HINTS "${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages")
+
 ExternalProject_Add(libbot
     SOURCE_DIR ${build_dir}/externals/libbot
     BINARY_DIR ${build_dir}/libbot
     GIT_REPOSITORY "https://github.com/RobotLocomotion/libbot2.git"
-    GIT_TAG "f260260b7d04c1d85169f985e1a2b4447a6832ef"
+    GIT_TAG "b47cc520aaf8f97c7cfcf370827b3345bca061c3"
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
+      -DLCM_PYTHON_DIR_HINTS:FILEPATH=${LCM_PYTHON_DIR_HINTS}
       ${CMAKE_ARGS_FOR_EXTERNALS}
     DEPENDS drake
 )
