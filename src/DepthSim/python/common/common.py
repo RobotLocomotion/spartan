@@ -57,8 +57,8 @@ def setCameraInstrinsicsAsus(camera):
 
 def setCameraIntrinsics(camera, principalX, principalY, focalLength):
     '''Note, call this function after setting the view dimensions'''
-    imageWidth = 480
-    imageHeight = 640
+    imageWidth = 640
+    imageHeight = 480
     wcx = -2*(principalX - float(imageWidth)/2) / imageWidth
     wcy =  2*(principalY - float(imageHeight)/2) / imageHeight
     viewAngle = focalLengthToViewAngle(focalLength, imageHeight)
@@ -106,8 +106,8 @@ def set_up_camera_params(camera):
   setCameraInstrinsicsAsus(camera)
   setCameraTransform(camera, vtk.vtkTransform())
   camera.SetWindowCenter(0,0)
-  kClippingPlaneFar = 5.
-  kClippingPlaneNear = .6
+  kClippingPlaneFar = 3.
+  kClippingPlaneNear = .2
   camera.SetClippingRange(kClippingPlaneNear, kClippingPlaneFar)
   camera.SetViewAngle(48.8879)
   kA = kClippingPlaneFar / (kClippingPlaneFar - kClippingPlaneNear)
@@ -125,7 +125,7 @@ class Objects():
       firstFrameToWorldTransform = getFirstFrameToWorldTransform(self.path+'/transforms.yaml')
       for objName, data in registrationResult.iteritems():
           objectMeshFilename = self.objects_file+"/"+data['filename'] 
-          if keyword and keyword in objectMeshFilename:
+          if not keyword or keyword in objectMeshFilename:
             objectToFirstFrame = transformUtils.transformFromPose(data['pose'][0], data['pose'][1])
             poly = ioUtils.readPolyData(objectMeshFilename)
             poly = filterUtils.transformPolyData(poly, objectToFirstFrame)
