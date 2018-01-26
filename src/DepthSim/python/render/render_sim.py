@@ -35,7 +35,7 @@ def set_material_prop(actor):
   actor.GetProperty().SetSpecularPower(20.0);
   actor.GetProperty().SetOpacity(1.0);
 
-def render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir,use_mesh,view_height=640,view_width=480):
+def render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir,use_mesh,object_dir,keyword=None):
   actor = vtk.vtkActor()
   filter1= vtk.vtkWindowToImageFilter()
   imageWriter = vtk.vtkPNGWriter()
@@ -49,8 +49,8 @@ def render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_d
     actor.SetMapper(mapper)
     renderer.AddActor(actor)
   else: #import just the objects
-    objects = common.Objects(data_dir,"/home/drc/spartan/Data_objects")
-    objects.loadObjectMeshes("/registration_result.yaml",renderer,keyword="drill")
+    objects = common.Objects(data_dir,object_dir)
+    objects.loadObjectMeshes("/registration_result.yaml",renderer,keyword=keyword)
 
   #setup filters
   filter1.SetInput(renWin)
@@ -97,7 +97,7 @@ def render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_d
   renderer.RemoveAllViewProps();
   renWin.Render();
 
-def render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir,use_mesh,view_height=640,view_width=480):
+def render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir,use_mesh,object_dir,keyword=None):
   #setup rendering enviornment
   actor = vtk.vtkActor()
   filter1= vtk.vtkWindowToImageFilter()
@@ -116,8 +116,8 @@ def render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out
     renderer.AddActor(actor)
 
   else: #import just the objects
-    objects = common.Objects(data_dir,"/home/drc/spartan/Data_objects")
-    objects.loadObjectMeshes("/registration_result.yaml",renderer,keyword="drill",shader = set_shader_input)
+    objects = common.Objects(data_dir,object_dir)
+    objects.loadObjectMeshes("/registration_result.yaml",renderer,keyword=keyword,shader = set_shader_input)
 
 
   #setup rendering enviornment
@@ -131,6 +131,7 @@ def render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out
 
   poses = common.CameraPoses(data_dir+"/posegraph.posegraph")
   for i in range(1,num_im+1):
+    try:
       utimeFile = open(data_dir+"/images/"+ str(i).zfill(10) + "_utime.txt", 'r')
       utime = int(utimeFile.read())    
 
@@ -144,9 +145,13 @@ def render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out
       windowToColorBuffer.Update()
 
       #write out depth image
-      imageWriter.SetFileName(data_dir+"/images/"+str(i).zfill(10)+"_"+data_dir_name+"-normal_ground_truth.png");
+      imageWriter.SetFileName(out_dir+str(i).zfill(10)+"_"+data_dir_name+"_normal_ground_truth.png");
       imageWriter.SetInputConnection(windowToColorBuffer.GetOutputPort());
       imageWriter.Write();
+    except(IOError):
+        break
+  renderer.RemoveAllViewProps();
+  renWin.Render();
 
 if __name__ == '__main__':
   #setup
