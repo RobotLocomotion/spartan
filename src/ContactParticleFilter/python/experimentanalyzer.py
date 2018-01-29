@@ -54,6 +54,7 @@ class ExperimentAnalyzer(object):
         self.channels_info["EXTERNAL_CONTACT_LOCATION"] = cpf_lcmtypes.multiple_contact_location_t
         self.channels_info["CONTACT_FILTER_POINT_ESTIMATE"] = cpf_lcmtypes.contact_filter_estimate_t
         self.channels_info["FORCE_PROBE_DATA"] = cpf_lcmtypes.single_contact_filter_estimate_t
+        self.channels_info["TWO_STEP_ESTIMATOR"] = cpf_lcmtypes.actual_and_estimated_contact_locations_t
 
         # create a new database
         # remove old database file
@@ -129,16 +130,20 @@ class ExperimentAnalyzer(object):
         self.force_error = []
         angle_error = []
 
+
+
+        # this is for CPF estimate
         for idx, msg in enumerate(estimate.messages):
             timestamp = estimate.timestamps[idx]
             
             ground_truth_msg = ground_truth.get_message(timestamp)
             
-            # this is needed because the sim outputsd data in a different format
+            # this is needed because the sim outputted data in a different format
             if self.mode == "simulation":
                 ground_truth_msg = ground_truth_msg.contacts[0]
 
-            stats = self.computeSingleMessageStatistics(msg, ground_truth_msg, mode=self.mode)
+            estimate_msg = msg.single_contact_estimate[0]
+            stats = self.computeSingleMessageStatistics(estimate_msg, ground_truth_msg, mode=mode)
             self.stats_list.append(stats)
             self.position_error.append(stats['contact_position_in_world'])
             self.force_error.append(stats['contact_force_magnitude'])
@@ -161,6 +166,52 @@ class ExperimentAnalyzer(object):
         d['angle']['mean'] = np.average(angle_error)
         d['angle']['std_dev'] = np.std(angle_error)
 
+
+        # compute statistics for the two step estimator
+        if mode == "simulation":
+            position_tse = []
+            force_tse = []
+            angle_tse = []
+
+            missed_link_surface = False
+            has_at_least_one_valid_estimate = False
+
+            tse_messages = message_containers["TWO_STEP_ESTIMATOR"]
+            for idx, msg in enumerate(tse_messages.messages):
+
+
+                ground_truth_msg = ground_truth.get_message(timestamp)
+                ground_truth_msg = ground_truth_msg.contacts[0]
+
+                msg = msg.estimated_contact_location
+                if msg.utime < 0: # this means it didn't intersect the link surface
+                    missed_link_surface = True
+                    # position_tse.append(-1)
+                    # force_tse.append(-1)
+                    # angle_tse.append(-1)
+                else:
+                    has_at_least_one_valid_estimate = True
+                    stats = self.computeSingleMessageStatistics(msg.contacts[0], ground_truth_msg, mode=mode)
+                    position_tse.append(stats['contact_position_in_world'])
+                    force_tse.append(stats['contact_force_magnitude'])
+                    angle_tse.append(stats['angle_to_force_direction'])
+
+
+            # compute the statistics
+            keys = ['position_tse', 'force_tse', 'angle_tse']
+            for key in keys:
+                d[key] = dict()
+                d[key]['missed_link_surface'] = missed_link_surface
+                d[key]['has_at_least_one_valid_estimate'] = has_at_least_one_valid_estimate
+                d[key]['mean'] = -1 # this means invalid
+
+            if has_at_least_one_valid_estimate:
+                d['position_tse']['mean'] = np.average(np.array(position_tse))
+                d['force_tse']['mean'] = np.average(np.array(force_tse))
+                d['angle_tse']['mean'] = np.average(np.array(angle_tse))
+
+
+
         self.stats = d
         return d
 
@@ -176,14 +227,14 @@ class ExperimentAnalyzer(object):
         return d
 
     """
-    @:param estimate: contact_filter_estimate_t
+    @:param estimate_s: single_contact_filter_estimate_t
     @:param actual: multiple_contact_location_t (on EXTERNAL_CONTACT_LOCATION channel)
     
     we will assume there is only a single contact point for simplicity, otherwise data associate becomes hard as well
     """
-    def computeSingleMessageStatistics(self, estimate, actual, mode="simulation"):
+    def computeSingleMessageStatistics(self, estimate_s, actual, mode="simulation"):
         # do everything in world frame
-        estimate_s = estimate.single_contact_estimate[0]
+        # estimate_s = estimate.single_contact_estimate[0] # this is of type sinlge_contact_filter_estimate_t
         actual_s = actual
         # estimate_s = estimate
         # actual_s = actual.contacts[0]

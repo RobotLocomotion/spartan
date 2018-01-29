@@ -8,6 +8,8 @@ from collections import namedtuple
 from director import transformUtils
 import director.vtkAll as vtk
 from director import lcmUtils
+from director.debugVis import DebugData
+from director import visualization as vis
 
 # CPF imports
 from pythondrakemodel import PythonDrakeModel
@@ -74,6 +76,8 @@ class TwoStepEstimator:
         return q
 
     def computeTwoStepEstimate(self, residual, linkNamesWithContactForce=None):
+
+
         """
         Computes the two step estimate from Haddadin et. al. paper
         :param residual:
@@ -104,7 +108,7 @@ class TwoStepEstimator:
         if len(linkNamesWithContactForce) == 0:
             return None
 
-
+        self.linkNamesWithContactForce = linkNamesWithContactForce
 
         # do kinematics on our internal model
         q = self.getCurrentPose()
@@ -163,7 +167,10 @@ class TwoStepEstimator:
 
         # now intersect line with linkMesh, choose the start and end of the ray
         # so that we find a contact point where the force is pointing "into" the link
-        # mesh
+        # mesh. 
+
+        # The force is going from rayOrigin to rayEnd
+        # these are expressed in the link
         rayOrigin = contactPoint_d - 0.5*forceNormalized
         rayEnd = contactPoint_d + 0.5*forceNormalized
 
@@ -180,6 +187,8 @@ class TwoStepEstimator:
         rayEndInWorld = np.array(linkToWorld.TransformPoint(rayEnd))
         contactRayVisObjectName = linkName + " contact ray world frame"
 
+
+        # this is in link frame
         pt = self.raycastAgainstLinkMesh(linkName, rayOrigin, rayEnd)
 
 
@@ -204,16 +213,16 @@ class TwoStepEstimator:
         return d
 
     def raycastAgainstLinkMesh(self, linkName, rayOrigin, rayEnd):
-        meshToWorld = self.linkMeshData[linkName]['transform']
-        rayOriginInWorld = np.array(meshToWorld.TransformPoint(rayOrigin))
-        rayEndInWorld = np.array(meshToWorld.TransformPoint(rayEnd))
+        meshToNominalFrame = self.linkMeshData[linkName]['transform']
+        rayOriginNominalFrame = np.array(meshToNominalFrame.TransformPoint(rayOrigin))
+        rayEndNominalFrame = np.array(meshToNominalFrame.TransformPoint(rayEnd))
 
-        # ### DEBUGGING
-        # if self.showContactRay:
-        #     d = DebugData()
-        #     d.addLine(rayOriginInWorld, rayEndInWorld, radius=0.005)
-        #     color=[1,0,0]
-        #     obj = vis.updatePolyData(d.getPolyData(), "raycast ray in mesh frame", color=color)
+        ### DEBUGGING
+        if False:
+            d = DebugData()
+            d.addLine(rayOriginNominalFrame, rayEndNominalFrame, radius=0.005)
+            color=[1,0,0]
+            obj = vis.updatePolyData(d.getPolyData(), "raycast ray in mesh frame", color=color)
 
         tolerance = 0.0 # intersection tolerance
         pt = [0.0, 0.0, 0.0] # data coordinate where intersection occurs
@@ -221,13 +230,13 @@ class TwoStepEstimator:
         pcoords = [0.0, 0.0, 0.0] # parametric location within cell (triangle) where intersection occurs
         subId = vtk.mutable(0) # sub id of cell intersection
 
-        result = self.linkMeshData[linkName]['locator'].IntersectWithLine(rayOriginInWorld, rayEndInWorld, tolerance, lineT, pt, pcoords, subId)
+        result = self.linkMeshData[linkName]['locator'].IntersectWithLine(rayOriginNominalFrame, rayEndNominalFrame, tolerance, lineT, pt, pcoords, subId)
 
         # this means we didn't find an intersection
         if not result:
             return None
 
         # otherwise we need to transform it back to linkFrame
-        worldToMesh = meshToWorld.GetLinearInverse()
-        ptInLinkFrame = worldToMesh.TransformPoint(pt)
+        nominalFrameToMesh = meshToNominalFrame.GetLinearInverse()
+        ptInLinkFrame = nominalFrameToMesh.TransformPoint(pt)
         return ptInLinkFrame

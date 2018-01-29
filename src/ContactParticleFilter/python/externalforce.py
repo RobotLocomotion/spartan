@@ -35,6 +35,8 @@ from pythondrakemodel import PythonDrakeModel
 from twostepestimator import TwoStepEstimator
 import contactfilterutils as cfUtils
 
+
+
 import spartan.utils.utils as spartanUtils
 
 Wrench_Time = namedtuple('wrenchTime', ['wrench','time'])
@@ -87,8 +89,10 @@ class ExternalForce(object):
 
     def addSubscribers(self):
         # lcmUtils.addSubscriber('CONTACT_FILTER_POINT_ESTIMATE', cpf_lcmtypes.contact_filter_estimate_t, self.onContactEstimate)
-        lcmUtils.addSubscriber('RESIDUAL_OBSERVER_STATE', robotlocomotion_lcmtypes.residual_observer_state_t, self.onResidualObserverState)
 
+        # only add this if we are using true residual
+        if not self.options['debug']['useTrueResidual']:
+            lcmUtils.addSubscriber('RESIDUAL_OBSERVER_STATE', robotlocomotion_lcmtypes.residual_observer_state_t, self.onResidualObserverState)
 
         # lcmUtils.addSubscriber("CONTACT_FILTER_BODY_WRENCH_ESTIMATE", cpf_lcmtypes.contact_filter_body_wrench_estimate_t, self.onActiveLinkContactEstimate)
         # lcmUtils.addSubscriber("EXTERNAL_FORCE_TORQUE", lcmdrake.lcmt_external_force_torque(), self.onActiveLinkContactEstimate)
@@ -430,7 +434,7 @@ class ExternalForce(object):
         if self.options['twoStepEstimator']['computeEstimate']:
             twoStepEstimateData = self.computeTwoStepEstimate()
 
-            # if twoStepEstimateData is None it means that some criterion
+            # if twoStepEstimateData is None it means that some criterionf
             # wasn't satisfied and we didn't actually perform the estimation
             if twoStepEstimateData is not None:
                 self.publishTwoStepEstimateData(twoStepEstimateData, msgMultipleContactLocations)
@@ -660,9 +664,9 @@ class ExternalForce(object):
             linksWithContactForce = []
             for key, val in self.externalForces.iteritems():
                 if val['forceMagnitude'] > 0.1:
-                    linksWithContactForce.append(key)
+                    linksWithContactForce.append(val['linkName'])
         else:
-            linksWithContactForce=None
+            linksWithContactForce = None
 
 
         return self.twoStepEstimator.computeTwoStepEstimate(residual, linksWithContactForce)
