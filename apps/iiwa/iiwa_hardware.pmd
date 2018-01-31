@@ -10,7 +10,7 @@ group "0.sim" {
   }
   
   cmd "1.pybullet_kuka_simulation_single_object_ci" {
-    exec = "rosrun drake_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/drake_simulation/config/iiwa_workstation_with_object_ci.yaml";
+    exec = "rosrun drake_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/drake_simulation/config/iiwa_workstation_with_object_ci.yaml --headless";
     host = "localhost";
   }
 

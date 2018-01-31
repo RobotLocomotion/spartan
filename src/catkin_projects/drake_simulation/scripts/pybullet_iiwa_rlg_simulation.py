@@ -616,7 +616,7 @@ class IiwaRlgSimulator():
                 self.UpdateRtv()
 
             # Render
-            if (sim_time - last_render) > 1.0:
+            if (sim_time - last_render) > 0.333:
                 self.DoDepthRendering()
                 self.DoRgbRendering()
                 last_render = sim_time
@@ -661,6 +661,7 @@ if __name__ == "__main__":
     parser.add_argument("--rgbd_noise", help="Normal noise injected to RGBD depth returns", type=float, default=0.001)
     parser.add_argument("--rgbd_projector_baseline", help="RGBD projector baseline used to calculate depth shadowing", type=float, default=0.1)
     parser.add_argument("--rgbd_normal_limit", help="Threshold for rejecting high-normal depth returns. (Smaller is more stringent, 0.0 to turn off.)", type=float, default=0.05)
+    parser.add_argument("--headless", help="Run without GUI.", action="store_true")
     args = parser.parse_args()
 
     rospy.init_node('pybullet_iiwa_rlg_simulation', anonymous=True)
@@ -668,7 +669,10 @@ if __name__ == "__main__":
     #cv2.namedWindow("depthcorruption")
 
     # Set up a simulation with a ground plane and desired timestep
-    physicsClient = pybullet.connect(pybullet.GUI)#or pybullet.DIRECT for non-graphical version
+    if args.headless:
+        physicsClient = pybullet.connect(pybullet.DIRECT)
+    else:
+        physicsClient = pybullet.connect(pybullet.GUI)
     
     sim = IiwaRlgSimulator(args.config, args.timestep, args.rate,
             rgbd_projector_baseline = args.rgbd_projector_baseline,
