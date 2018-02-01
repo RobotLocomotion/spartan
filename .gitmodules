@@ -35,3 +35,6 @@
 [submodule "src/catkin_projects/drake_ros_systems"]
 	path = src/catkin_projects/drake_ros_systems
 	url = git@github.com:gizatt/drake_ros_systems
+[submodule "models/rlg_misc_models"]
+	path = models/rlg_misc_models
+	url = https://github.com/gizatt/rlg_misc_models
