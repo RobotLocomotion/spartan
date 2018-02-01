@@ -38,3 +38,6 @@
 [submodule "models/rlg_misc_models"]
 	path = models/rlg_misc_models
 	url = https://github.com/gizatt/rlg_misc_models
+[submodule "models/dish_models"]
+	path = models/dish_models
+	url = https://github.com/gizatt/dish_models
