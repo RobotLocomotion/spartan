@@ -36,6 +36,7 @@ option(WITH_IIWA_DRIVER_TRI "Build drake-iiwa-driver, TRI version." OFF)
 option(WITH_ROS "Build the catkin-workspace projects." ON)
 option(WITH_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 option(WITH_TRIMESH "Build trimesh, a python utility for working with triangle meshes" OFF)
+option(WITH_DRAKE_IIWA_SIM "Build IIWA full system simulation with Drake tools?" OFF)
 
 # Setup external projects
 include(ExternalProject)
@@ -353,6 +354,7 @@ if (WITH_ROS)
       ${CMAKE_ARGS_FOR_EXTERNALS}
       # Combine environment prefix path (with ROS) with our own
       "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};${CMAKE_PREFIX_PATH_ENV}"
+      -DWITH_DRAKE_IIWA_SIM:BOOL=${WITH_DRAKE_IIWA_SIM}
     DEPENDS drake director common_utils
   )
 endif()
