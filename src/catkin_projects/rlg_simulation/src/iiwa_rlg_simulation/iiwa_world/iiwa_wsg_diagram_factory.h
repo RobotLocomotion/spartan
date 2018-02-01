@@ -12,7 +12,7 @@
 #include "drake/systems/primitives/pass_through.h"
 
 namespace spartan {
-namespace drake_simulation {
+namespace rlg_simulation {
 namespace iiwa_rlg_simulation {
 
 /// A custom systems::Diagram composed of a systems::RigidBodyPlant, a

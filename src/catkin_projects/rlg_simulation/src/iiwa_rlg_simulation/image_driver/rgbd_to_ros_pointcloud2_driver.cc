@@ -16,7 +16,7 @@
 using std::string;
 
 namespace spartan {
-namespace drake_simulation {
+namespace rlg_simulation {
 namespace iiwa_rlg_simulation {
 
 using drake::systems::sensors::PixelType;

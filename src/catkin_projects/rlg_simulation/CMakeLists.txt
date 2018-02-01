@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(drake_simulation)
+project(rlg_simulation)
 set(CMAKE_CXX_STANDARD 11)
 
 find_package(drake REQUIRED)

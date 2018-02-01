@@ -2,7 +2,7 @@
 
 # Simulates an IIWA with a Schunk gripper, using a supplied
 # configuration file to set up the environment.
-# (See, e.g., drake_simulation/config/iiwa_workstation_with_object.yaml.)
+# (See, e.g., rlg_simulation/config/iiwa_workstation_with_object.yaml.)
 #
 # Accept IIWA commands over LCM and produces IIWA state over LCM, mocking
 # the current IIWA driver.

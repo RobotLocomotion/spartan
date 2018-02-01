@@ -9,7 +9,7 @@
 #include "drake/common/trajectories/piecewise_polynomial_trajectory.h"
 
 namespace spartan {
-namespace drake_simulation {
+namespace rlg_simulation {
 namespace iiwa_rlg_simulation {
 
 using namespace drake;

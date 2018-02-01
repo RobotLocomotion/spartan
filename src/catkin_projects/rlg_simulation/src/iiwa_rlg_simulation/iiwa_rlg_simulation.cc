@@ -90,7 +90,7 @@ using drake::systems::Simulator;
 using drake_ros_systems::RosPublisherSystem;
 using drake_ros_systems::RosSubscriberSystem;
 
-using namespace spartan::drake_simulation::iiwa_rlg_simulation;
+using namespace spartan::rlg_simulation::iiwa_rlg_simulation;
 
 constexpr char kCameraBaseFrameName[] = "camera_base_frame";
 constexpr char kColorCameraFrameName[] = "color_camera_optical_frame";

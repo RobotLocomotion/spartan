@@ -5,12 +5,12 @@ group "0.sim" {
   }
 
   cmd "1.pybullet_kuka_simulation_single_object" {
-    exec = "rosrun drake_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/drake_simulation/config/iiwa_workstation_with_object.yaml";
+    exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object.yaml";
     host = "localhost";
   }
   
   cmd "1.pybullet_kuka_simulation_single_object_ci" {
-    exec = "rosrun drake_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/drake_simulation/config/iiwa_workstation_with_object_ci.yaml --headless";
+    exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object_ci.yaml --headless";
     host = "localhost";
   }
 

@@ -8,7 +8,7 @@
 #include "drake/systems/framework/leaf_system.h"
 
 namespace spartan {
-namespace drake_simulation {
+namespace rlg_simulation {
 namespace iiwa_rlg_simulation {
 
 using namespace drake::systems;

@@ -14,7 +14,7 @@
 #include "drake/systems/primitives/matrix_gain.h"
 
 namespace spartan {
-namespace drake_simulation {
+namespace rlg_simulation {
 namespace iiwa_rlg_simulation {
 
 template <typename T>

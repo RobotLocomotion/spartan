@@ -29,7 +29,7 @@ using std::unique_ptr;
 using std::make_unique;
 
 namespace spartan {
-namespace drake_simulation {
+namespace rlg_simulation {
 namespace iiwa_rlg_simulation {
 
 template <typename T>

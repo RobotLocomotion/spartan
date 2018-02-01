@@ -12,7 +12,7 @@
 #include "drake/multibody/rigid_body_tree.h"
 
 namespace spartan {
-namespace drake_simulation {
+namespace rlg_simulation {
 namespace iiwa_rlg_simulation {
 
 using namespace drake;
