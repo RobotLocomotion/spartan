@@ -1,9 +1,42 @@
 ## Camera calibration in Spartan
 
+### Prepare to capture images
+
+- Decide the device's serial number or name
+- Create a new folder in `station_config/hand_eye_calibration` and create a new `.yaml` file.  Copy over the structure from another yaml file.
+- Specify in `iiwamanipdev.py` what the name of this `.yaml` file is within `station_config`
+- Create a new folder in `camera_config` and copy over the structure from other folders
+- Rebuild catkin_project/fast
+```
+cd spartan/build
+make catkin_projects/fast
+```
+- When you launch the sensor via `roslaunch camera_config openni2.launch`, pass the serial_number you chose
+
+### Capture images
+
+- Place the calibration target (place the pieces of tape with `*`s on them next to each other)
+
+#### Capture RGB images
+
+- Launch director
+- `cal.run()` in the Python terminal (it's f8)
+- (by default, the rgb images are captured)
+- Open rviz, and look at the camera topic to make sure the target is in frame (at least in most images)
+- Images will be saved to, for example:
+```
+spartan/calibration_data/20180201-233350_rgb/
+```
+
+
+#### Capture IR images
+
+- Cover the projector
+- Set up the IR lamps
+- View the IR images and 
+
+
+TODO
 - later: clean up station_config structure (not just one cal.yaml)
 - extrinsics should live in station_config
-
-- `iiwamanipdev.py` is where `cal` is loaded
-
-- need to specify config `.yaml` there
-
+- adjust joint limits
