@@ -52,8 +52,12 @@ spartan/calibration_data/20180201-2335959_ir/
 
 ### Run calibration optimization on images
 
-
-
+- Find the folder names of the `_rgb` and `_ir` images
+- copy those folders (`cp -r`) into a subdirectory of spartan_grasp (for examples `spartan_grasp/sandbox`)
+- Edit `test_run_camera_calibration.py` to point to the folder paths, and also edit the name and serail number of the camera
+- `./test_run_camera_calibration.py`
+- Calibration results will be stored in `spartan_grasp/sandbox/calibration_results`
+- Copy the calibration results over back into `spartan` directory world
 
 
 TODO
