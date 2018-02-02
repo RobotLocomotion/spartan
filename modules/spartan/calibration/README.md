@@ -28,15 +28,16 @@ make catkin_projects/fast
 spartan/calibration_data/20180201-233350_rgb/
 ```
 
-
 #### Capture IR images
 
 - Cover the projector
-- Set up the IR lamps
-- View the IR images and 
+- Set up the IR illuminators
+- View the IR images in rviz and make sure the IR illumination is good enough (it can be sensitive to the height and angle of the IR illuminator)
+- `cal.run(captureRGB=False, captureIR=True)`
 
 
 TODO
+- add picture of IR illuminators setup
 - later: clean up station_config structure (not just one cal.yaml)
 - extrinsics should live in station_config
 - adjust joint limits
