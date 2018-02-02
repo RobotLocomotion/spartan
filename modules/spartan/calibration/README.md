@@ -62,6 +62,16 @@ Remember to remove the projector-covering device!!
 - Copy the calibration results over back into `spartan` directory world (under `camera_config` -- copy the other folder structures)
 - Remember to rebuild catkin_projects with `make catkin_projects/fast`
 
+### Test the calibration quality
+
+Here are a few good simple tests:
+
+1. Verify in rviz that the frames (rgb and depth) generally look in the right spot
+
+2. Point the depth sensor down at the table and verify it looks generally flat
+
+3. Can even point robot at itself and see if the point cloud matches the urdf
+
 
 TODO
 - add picture of IR illuminators setup
