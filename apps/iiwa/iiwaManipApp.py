@@ -347,8 +347,5 @@ if useKukaRLGDev:
     # import spartan.perception.dev as devUtils
     # efusion = devUtils.ElasticFusionReconstruction()
 
-    import spartan.calibration.handeyecalibration
-    cal = spartan.calibration.handeyecalibration.HandEyeCalibration(robotSystem)
-
     import spartan.director.iiwamanipdev
     spartan.director.iiwamanipdev.setupRLGDirector(globals())
