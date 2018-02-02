@@ -57,7 +57,8 @@ spartan/calibration_data/20180201-2335959_ir/
 - Edit `test_run_camera_calibration.py` to point to the folder paths, and also edit the name and serail number of the camera
 - `./test_run_camera_calibration.py`
 - Calibration results will be stored in `spartan_grasp/sandbox/calibration_results`
-- Copy the calibration results over back into `spartan` directory world
+- Copy the calibration results over back into `spartan` directory world (under `camera_config` -- copy the other folder structures)
+- Remember to rebuild catkin_projects with `make catkin_projects/fast`
 
 
 TODO
