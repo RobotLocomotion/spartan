@@ -50,6 +50,8 @@ spartan/calibration_data/20180201-233350_rgb/
 spartan/calibration_data/20180201-2335959_ir/
 ```
 
+Remember to remove the projector-covering device!!
+
 ### Run calibration optimization on images
 
 - Find the folder names of the `_rgb` and `_ir` images
