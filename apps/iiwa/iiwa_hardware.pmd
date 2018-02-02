@@ -128,7 +128,7 @@ group "8.ROS" {
   }
 
   cmd "6.ROS-OpenNI" {
-    exec = "roslaunch camera_config openni2.launch camera_serial_number:=1112170110";
+    exec = "roslaunch camera_config openni2.launch camera_serial_number:=carmine_1";
     host = "localhost";
   }
 

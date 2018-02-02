@@ -1,0 +1,30 @@
+depth:
+  extrinsics:
+    reference_link_name: wsg_50_base_link
+    transform_to_reference_link:
+      rotation:
+        w: 0.9999564034698163
+        x: -0.008545844498752425
+        y: 0.002180370911402258
+        z: -0.003066868794397248
+      translation:
+        x: -0.04600606633693562
+        y: 0.04757077336803255
+        z: 0.07133390979525822
+header:
+  calibration_date: 20180202-005721
+  camera_name: carmine
+  serial_number: 1
+rgb:
+  extrinsics:
+    reference_link_name: wsg_50_base_link
+    transform_to_reference_link:
+      rotation:
+        w: 0.9999441940322525
+        x: -0.007884359300686861
+        y: 0.003787414636589845
+        z: -0.005924625724667594
+      translation:
+        x: -0.01925196834632674
+        y: 0.04283603721541845
+        z: 0.06872857146028051
