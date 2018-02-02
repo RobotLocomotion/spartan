@@ -34,6 +34,7 @@ spartan/calibration_data/20180201-233350_rgb/
 
 #### Capture IR images
 
+- WARNING: for unknown reasons saving mono16 ir images to .png does not work.  Make sure to use `.bmp` instead.  You can specify this in the `station_config/*/*.yaml` file
 - Cover the projector (make sure to not tape the lens!!! A business card folded over, and taped so that no tape touches lenses)
 - Set up the IR illuminators (see pic below)
 
@@ -50,6 +51,7 @@ spartan/calibration_data/20180201-2335959_ir/
 ```
 
 ### Run calibration optimization on images
+
 
 
 
