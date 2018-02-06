@@ -167,7 +167,7 @@ class RobotService(object):
         self.jointNames = jointNames
         self.numJoints = len(jointNames)
 
-    def moveToJointPosition(self, q, maxJointDegreesPerSecond=30, timeout=None):
+    def moveToJointPosition(self, q, maxJointDegreesPerSecond=30, timeout=10):
         assert len(q) == self.numJoints
 
         jointState = RobotService.jointPositionToJointStateMsg(self.jointNames, q)
@@ -178,7 +178,7 @@ class RobotService(object):
         
         return response
 
-    def moveToCartesianPosition(self, poseStamped, maxJointDegreesPerSecond=30, timeout=None):
+    def moveToCartesianPosition(self, poseStamped, maxJointDegreesPerSecond=30, timeout=10):
         ikServiceName = 'robot_control/IkService'
         rospy.wait_for_service(ikServiceName, timeout=timeout)
         s = rospy.ServiceProxy(ikServiceName, robot_msgs.srv.RunIK)
@@ -195,7 +195,7 @@ class RobotService(object):
         rospy.loginfo("ik was successful, moving to joint position")
         return self.moveToJointPosition(joint_state.position, maxJointDegreesPerSecond=maxJointDegreesPerSecond)
 
-    def runIK(self, poseStamped, seedPose=None, nominalPose=None, timeout=None):
+    def runIK(self, poseStamped, seedPose=None, nominalPose=None, timeout=10):
 
         req = robot_msgs.srv.RunIKRequest()
         req.pose_stamped = poseStamped
