@@ -4,12 +4,12 @@ group "0.sim" {
     host = "localhost";
   }
 
-  cmd "1.pybullet_kuka_simulation_single_object" {
+  cmd "1a.pybullet_kuka_simulation_single_object" {
     exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object.yaml";
     host = "localhost";
   }
   
-  cmd "1.pybullet_kuka_simulation_single_object_ci" {
+  cmd "1b.pybullet_kuka_simulation_single_object_ci" {
     exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object_ci.yaml --headless";
     host = "localhost";
   }
@@ -197,7 +197,7 @@ script "2.restart_controller" {
 
 script "3.sim_pybullet_startup" {
     start cmd "0.roscore";
-    start cmd "1.pybullet_kuka_simulation_single_object";
+    start cmd "1a.pybullet_kuka_simulation_single_object";
 
     wait ms 2000;
     start cmd "0.LCM->ROS State Translator";
@@ -211,7 +211,7 @@ script "3.sim_pybullet_startup" {
 
 script "4.sim_pybullet_startup_for_ci" {
     start cmd "0.roscore";
-    start cmd "1.pybullet_kuka_simulation_single_object_ci";
+    start cmd "1b.pybullet_kuka_simulation_single_object_ci";
 
     wait ms 3000;
     start cmd "0.LCM->ROS State Translator";
