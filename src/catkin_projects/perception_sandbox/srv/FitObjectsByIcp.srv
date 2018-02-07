@@ -1,0 +1,6 @@
+# request
+std_msgs/String[] mesh_paths
+float32[] scales
+perception_sandbox/IcpParams icp_params
+---
+geometry_msgs/Transform[] poses

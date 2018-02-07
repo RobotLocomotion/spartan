@@ -1,0 +1,3 @@
+int32 num_attempts
+float32 initial_max_correspondence_distance
+int32 max_iterations

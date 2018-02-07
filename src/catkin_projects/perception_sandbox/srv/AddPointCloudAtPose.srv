@@ -1,0 +1,5 @@
+# request
+spartan_grasp_msgs/PointCloudWithTransform point_cloud_with_transform
+geometry_msgs/Point minPt
+geometry_msgs/Point maxPt
+---

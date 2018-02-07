@@ -5,14 +5,43 @@ set(CMAKE_CXX_STANDARD 11)
 find_package(GFlags MODULE REQUIRED COMPONENTS shared)
 find_package(OpenCV REQUIRED)
 
+find_package(PCL 1.8 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
 find_package(catkin REQUIRED COMPONENTS
 	std_msgs
 	sensor_msgs
 	cv_bridge
 	roscpp
 	image_transport
-   pcl_conversions
-   pcl_ros
+  pcl_conversions
+  pcl_ros
+  spartan_grasp_msgs
+  message_generation
+  std_srvs
+  eigen_conversions
+)
+
+add_message_files(
+  FILES
+  IcpParams.msg
+)
+
+add_service_files(
+  FILES
+  AddPointCloudAtPose.srv
+  FitObjectsByIcp.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  spartan_grasp_msgs
+  geometry_msgs
+  sensor_msgs
+  actionlib_msgs
 )
 
 catkin_package(
@@ -22,7 +51,6 @@ catkin_package(
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
 )
-
 
 ###########
 ## Build ##
@@ -56,6 +84,27 @@ target_link_libraries(pointcloud2_capture_node
    ${OpenCV_LIBRARIES}
 )
 
+# While this library relies on PCL and OpenCV, they are brought in
+# by catkin_LIBRARIES. I think this finds the ROS-supplied (system installed)
+# OpenCV and PCL. In the current configuration, these are close enough that
+# this doesn't pose an issue. If you want to involve Drake in a node
+# like this down the road, see
+# https://github.com/RobotLocomotion/drake-shambhala/issues/38
+# for some ideas of how to resolve the Eigen compatibility issues you'll have.
+add_executable(pointcloud_object_fitting_server src/pointcloud_object_fitting_server.cpp)
+target_include_directories(pointcloud_object_fitting_server SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
+target_include_directories(pointcloud_object_fitting_server SYSTEM PUBLIC ${PCL_INCLUDE_DIRS})
+
+target_compile_options(pointcloud_object_fitting_server PRIVATE -g)
+add_dependencies(pointcloud_object_fitting_server
+   perception_sandbox_gencpp)
+target_link_libraries(pointcloud_object_fitting_server
+   ${catkin_LIBRARIES}
+   gflags_shared
+   ${OpenCV_LIBRARIES} 
+   ${PCL_LIBRARIES}
+)
+
 
 #############
 ## Install ##
@@ -66,7 +115,7 @@ target_link_libraries(pointcloud2_capture_node
 #  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 ## Mark executables and/or libraries for installation
-install(TARGETS opencv_view_node pointcloud2_capture_node
+install(TARGETS opencv_view_node pointcloud2_capture_node pointcloud_object_fitting_server
    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
