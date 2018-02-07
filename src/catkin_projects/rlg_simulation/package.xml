@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>rlg_simulation</name>
+  <version>0.0.1</version>
+  <description>
+  	Simulation utilities
+  </description>
+  <author email="gizatt@mit.edu">Greg Izatt</author>
+  <maintainer email="gizatt@mit.edu">Greg Izatt</maintainer>
+  <license>MIT</license>
+  
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>image_transport</build_depend>
+  <build_depend>wsg50_msgs</build_depend>
+  <build_depend>drake_ros_systems</build_depend>
+
+  <build_export_depend>wsg50_msgs</build_export_depend>
+  
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>libpcl-all</buildtool_depend>
+
+  <exec_depend>wsg50_msgs</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>drake_ros_systems</exec_depend>
+
+</package>

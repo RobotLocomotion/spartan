@@ -4,13 +4,33 @@ group "0.sim" {
     host = "localhost";
   }
 
-  cmd "1.kuka_simulation" {
+  cmd "1a.pybullet_kuka_simulation_single_object" {
+    exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object.yaml";
+    host = "localhost";
+  }
+  
+  cmd "1b.pybullet_kuka_simulation_single_object_ci" {
+    exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object_ci.yaml --headless";
+    host = "localhost";
+  }
+
+  cmd "2.ROS-OpenNI-sim" {
+    exec = "roslaunch camera_config openni2_pybullet_sim.launch camera_serial_number:=1112170110";
+    host = "localhost";
+  }
+
+  cmd "3.drake_kuka_simulation" {
     exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/kuka_simulation";
     host = "localhost";
   }
 
-  cmd "2.kuka_simulation_w_schunk_gripper" {
+  cmd "4.drake_kuka_simulation_w_schunk_gripper" {
     exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/iiwa_wsg_simulation";
+    host = "localhost";
+  }
+
+  cmd "5.state-translator-sim" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py --basePosition '0.0, 0.0, 0.7645, 0., 0., 0.'";
     host = "localhost";
   }
 }
@@ -175,15 +195,37 @@ script "2.restart_controller" {
     start group "2.iiwa-drivers";
 }
 
-script "3.sim_startup" {
-    start cmd "4.director";
-    wait ms 4000;
+script "3.sim_pybullet_startup" {
+    start cmd "0.roscore";
+    start cmd "1a.pybullet_kuka_simulation_single_object";
+
+    wait ms 2000;
     start cmd "0.LCM->ROS State Translator";
-    start cmd "2.kuka_simulation_w_schunk_gripper";
-    start cmd "0.kuka-driver";
+    start cmd "2.ROS-OpenNI-sim";
+    start cmd "1.plan-runner";
+    start cmd "5.state-translator-sim";
+    start cmd "2.ROS Model and TF Publisher";
+    start cmd "3.rviz";
+
 }
 
-script "3.start_ROS" {
+script "4.sim_pybullet_startup_for_ci" {
+    start cmd "0.roscore";
+    start cmd "1b.pybullet_kuka_simulation_single_object_ci";
+
+    wait ms 3000;
+    start cmd "0.LCM->ROS State Translator";
+    start cmd "2.ROS-OpenNI-sim";
+    start cmd "1.plan-runner";
+    start cmd "5.state-translator-sim";
+    start cmd "2.ROS Model and TF Publisher";
+    start cmd "1.ROS Trajectory Server";
+    start cmd "4.Robot Movement Service";
+    start cmd "5.IK Service";
+    wait ms 3000;
+}
+
+script "5.start_ROS" {
   start cmd "0.roscore";
   wait ms 3000;
   start group "8.ROS";

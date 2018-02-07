@@ -26,12 +26,17 @@ option(WITH_SNOPT "Build drake with support for the SNOPT solver." ON)
 option(WITH_GUROBI "Build with support for Gurobi" OFF)
 option(WITH_MOSEK "Build with support for MOSEK" OFF)
 
+# Intended to install the SAME version as Drake uses internally.
+# However, the SHAs are currently not synced (I don't know how to
+# write that kind of bazel query).
+option(WITH_BULLET3 "Build a complete version of Bullet, and install pybullet support." OFF)
+
 option(WITH_IIWA_DRIVER_RLG "Build drake-iiwa-driver, RLG version." ON)
 option(WITH_IIWA_DRIVER_TRI "Build drake-iiwa-driver, TRI version." OFF)
 option(WITH_ROS "Build the catkin-workspace projects." ON)
 option(WITH_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 option(WITH_TRIMESH "Build trimesh, a python utility for working with triangle meshes" OFF)
-
+option(WITH_DRAKE_IIWA_SIM "Build IIWA full system simulation with Drake tools?" OFF)
 
 # Setup external projects
 include(ExternalProject)
@@ -132,6 +137,18 @@ ExternalProject_Add(director
   DEPENDS libbot drake
 )
 
+ExternalProject_Add(pybind11
+  SOURCE_DIR ${build_dir}/externals/pybind11
+  BINARY_DIR ${build_dir}/pybind11
+  GIT_REPOSITORY git@github.com:pybind/pybind11
+  GIT_TAG v2.2.1
+  BUILD_ALWAYS 1
+  CMAKE_CACHE_ARGS
+    ${CMAKE_ARGS_FOR_EXTERNALS}
+    -DPYBIND11_INSTALL:BOOL=ON
+    -DPYBIND11_TEST:BOOL=OFF
+)
+
 ExternalProject_Add(common_utils
   SOURCE_DIR ${source_dir}/src/common_utils
   BINARY_DIR ${build_dir}/common_utils
@@ -190,6 +207,44 @@ if (WITH_REACHABILITY_ANALYZER)
   )
 endif()
 
+if (WITH_BULLET3)
+  set(BULLET3_GIT_REPOSITORY
+  "git@github.com:bulletphysics/bullet3.git"
+  CACHE STRING
+  "Location of bullet3 repo.")
+
+  # Different than Drake's version -- see
+  # spartan/drake/WORKSPACE for Drake's version (2.86.1,
+  # as of writing)
+  # We need something recent enough to have exact python
+  # version matching supported.
+  set(BULLET3_GIT_TAG "c0619ac92408788d7fa72fa787b3b47ab08b5d2d")
+
+  # Extra arguments lifted from bullet install helper:
+  # https://github.com/bulletphysics/bullet3/blob/master/build_cmake_pybullet_double.sh
+  # I'm making this depend on Drake so it's guaranteed to
+  # install after Drake. We're installing a different
+  # version than Drake (2.86.1 vs post-2.87), which is risky
+  # enough already.
+  ExternalProject_Add(bullet3
+    SOURCE_DIR ${build_dir}/externals/bullet3
+    BINARY_DIR ${build_dir}/bullet3
+    GIT_REPOSITORY "${BULLET3_GIT_REPOSITORY}"
+    GIT_TAG "${BULLET3_GIT_TAG}"
+    BUILD_ALWAYS 1
+    CMAKE_CACHE_ARGS
+      ${CMAKE_ARGS_FOR_EXTERNALS}
+      -DBUILD_PYBULLET:BOOL=ON
+      -DBUILD_PYBULLET_NUMPY:BOOL=ON
+      -DPYTHON_VERSION_PYBULLET:STRING=2.7
+      -DEXACT_PYTHON_VERSION:BOOL=ON
+      -DUSE_DOUBLE_PRECISION:BOOL=ON
+    INSTALL_COMMAND make install && mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/ && cp ${build_dir}/bullet3/examples/pybullet/pybullet.so ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages
+    DEPENDS drake
+  )
+
+endif()
+
 if (WITH_TRIMESH)
     find_package(PythonInterp REQUIRED)
 
@@ -207,7 +262,7 @@ if (WITH_TRIMESH)
         BUILD_ALWAYS 1
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""
-        INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/bin/ && ${CP} ${build_dir}/externals/v-hacd/bin/linux/testVHACD ${CMAKE_INSTALL_PREFIX}/bin/testVHACD
+        INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/bin/ && cp ${build_dir}/externals/v-hacd/bin/linux/testVHACD ${CMAKE_INSTALL_PREFIX}/bin/testVHACD
       )
     else()
       message(FATAL_ERROR "Not using linux, don't know how to install v-hacd.")
@@ -227,7 +282,7 @@ if (WITH_TRIMESH)
       GIT_TAG "${TRIMESH_GIT_TAG}"
       BUILD_ALWAYS 1
       BUILD_COMMAND python setup.py build
-      INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages && ${CP} -r ${build_dir}/externals/trimesh/build/lib.linux-x86_64-2.7/trimesh ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/
+      INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages && cp -r ${build_dir}/externals/trimesh/build/lib.linux-x86_64-2.7/trimesh ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/
       BUILD_IN_SOURCE 1
       DEPENDS v-hacd
     )
@@ -299,7 +354,8 @@ if (WITH_ROS)
       ${CMAKE_ARGS_FOR_EXTERNALS}
       # Combine environment prefix path (with ROS) with our own
       "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};${CMAKE_PREFIX_PATH_ENV}"
-    DEPENDS drake director common_utils 
+      -DWITH_DRAKE_IIWA_SIM:BOOL=${WITH_DRAKE_IIWA_SIM}
+    DEPENDS drake director common_utils
   )
 endif()
 

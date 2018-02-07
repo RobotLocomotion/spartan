@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+	
+	<arg name="pkg_name" default="camera_config" />
+	<arg name="camera_serial_number" default="1112170110" />
+	<arg name="calibration_folder" default="master" />
+	<arg name="calibration_folder_full_path" value="$(eval find(arg('pkg_name')) +'/data/' + str(arg('camera_serial_number')) +'/' + arg('calibration_folder') )" />
+	
+
+	<include file="$(find openni2_launch)/launch/openni2.launch"  >
+		<arg name="depth_camera_info_url" value="file://$(arg calibration_folder_full_path)/depth_camera_info.yaml" />
+		<arg name="rgb_camera_info_url" value="file://$(arg calibration_folder_full_path)/rgb_camera_info.yaml" />
+		<arg name="camera" value="camera_$(arg camera_serial_number)"/>
+		<arg name="load_driver" value="false"/>
+	</include>
+
+	<include file="$(eval find(arg('pkg_name')) + '/launch/camera_transform_publisher.launch' )"  >
+		<arg name="camera_serial_number" value="$(arg camera_serial_number)" />
+	</include>
+
+
+</launch>

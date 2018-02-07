@@ -47,7 +47,17 @@ class RobotMovementService(object):
         self.jointNames = controlUtils.getIiwaJointNames()
 
     def getRobotState(self):
-        return self.subscribers['joint_states'].waitForNextMessage()
+        full_state = self.subscribers['joint_states'].waitForNextMessage()
+        # Reduce to just this robot's state
+        keep_indices = [full_state.name.index(name) for name in self.jointNames if name in full_state.name]
+        if len(keep_indices) != len(self.jointNames):
+            raise Exception("At least one of the requested joint names was not in the full robot state.")
+        reduced_state = sensor_msgs.msg.JointState()
+        reduced_state.name = self.jointNames
+        reduced_state.position = [full_state.position[i] for i in keep_indices]
+        reduced_state.velocity = [full_state.velocity[i] for i in keep_indices]
+        reduced_state.effort = [full_state.effort[i] for i in keep_indices]
+        return reduced_state
 
     """
     @:param req: MoveToJointPosition.srv
