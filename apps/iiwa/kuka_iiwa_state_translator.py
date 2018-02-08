@@ -11,8 +11,9 @@ import argparse
 
 class KukaIiwaStateTranslator(object):
 
-    def __init__(self):
+    def __init__(self, floatingBase=False):
         self.lastGripperMsg = self.makeDefaultGripperMessage()
+        self.floatingBase = floatingBase
         self.onSchunkGripperStatus(self.lastGripperMsg)
         self.setupJointNames()
 
@@ -26,9 +27,16 @@ class KukaIiwaStateTranslator(object):
 
         self.armJointNames = ['iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3', 'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6', 'iiwa_joint_7']
 
+        self.floatingBaseJointNames = ['base_x',  'base_y', 'base_z', 'base_roll', 'base_pitch', 'base_yaw']
+
+
+
         # self.jointNames = self.armJointNames + self.fingerJointNames
 
         self.jointNames = self.armJointNames
+
+        if self.floatingBase:
+            self.jointNames = self.floatingBaseJointNames + self.jointNames
 
         self.numJoints = len(self.jointNames)
 
@@ -56,7 +64,11 @@ class KukaIiwaStateTranslator(object):
         m.twist.angular_velocity = lcmbotcore.vector_3d_t()
         m.num_joints = self.numJoints
         m.joint_name = self.jointNames
+
         m.joint_position = jointPosition
+        if self.floatingBase:
+            m.joint_position = [0]*6 + jointPosition
+        
         m.joint_velocity = np.zeros(m.num_joints)
         m.joint_effort = np.zeros(m.num_joints)
         m.force_torque = lcmbotcore.force_torque_t()
@@ -87,9 +99,11 @@ if __name__ == "__main__":
 
     parser = drcargs.getGlobalArgParser().getParser()
     parser.add_argument('--useIiwaStateEst', action='store_true', help='republishes IIWA_STATE_EST on EST_ROBOT_STATE channel instead translating from IIWA_STATUS_MESSAGE')
+
+    parser.add_argument("--floatingBase", action='store_true', help="publishes EST_ROBOT_STATE with floating base coordinates")
     args = parser.parse_args()
 
-    kukaStateTranslator = KukaIiwaStateTranslator()
+    kukaStateTranslator = KukaIiwaStateTranslator(floatingBase=args.floatingBase)
 
     if args.useIiwaStateEst:
         # for use when running with drake simulator

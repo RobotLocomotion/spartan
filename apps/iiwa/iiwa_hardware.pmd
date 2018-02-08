@@ -54,6 +54,11 @@ group "2.iiwa-drivers" {
     exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py";
     host = "localhost";
   }
+
+  cmd "2.state-translator --floatingBase" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py";
+    host = "localhost";
+  }
 }
 
 cmd "4.director" {

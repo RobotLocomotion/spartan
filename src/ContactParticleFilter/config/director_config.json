@@ -1,0 +1,66 @@
+{
+  "modelName" : "kuka_iiwa",
+  "urdfConfig": {
+    "default": "../../../drake/manipulation/models/iiwa_description/urdf/iiwa14_polytope_collision.urdf",
+    "robotState": "../../../drake/manipulation/models/iiwa_description/urdf/iiwa14_polytope_collision.urdf",
+    "ik":         "../../../drake/manipulation/models/iiwa_description/urdf/iiwa14_polytope_collision.urdf",
+    "chull":      "../../../drake/manipulation/models/iiwa_description/urdf/iiwa14_polytope_collision.urdf",
+    "playback":   "../../../drake/manipulation/models/iiwa_description/urdf/iiwa14_polytope_collision.urdf",
+    "teleop":     "../../../drake/manipulation/models/iiwa_description/urdf/iiwa14_polytope_collision.urdf"
+  },
+
+  "teleopJointGroups" : [
+    { "name" : "Left Arm",
+      "joints" : [
+        "iiwa_joint_1",
+        "iiwa_joint_2",
+        "iiwa_joint_3",
+        "iiwa_joint_4",
+        "iiwa_joint_5",
+        "iiwa_joint_6",
+        "iiwa_joint_7"
+        ],
+      "labels" : ["1", "2", "3", "4", "5", "6", "7"]
+    }
+  ],
+
+  "drakeJointNames": [
+    "base_x",
+    "base_y",
+    "base_z",
+    "base_roll",
+    "base_pitch",
+    "base_yaw",
+    "iiwa_joint_1",
+    "iiwa_joint_2",
+    "iiwa_joint_3",
+    "iiwa_joint_4",
+    "iiwa_joint_5",
+    "iiwa_joint_6",
+    "iiwa_joint_7"
+  ],
+
+  "robotStateJointNames": [
+    "iiwa_joint_1",
+    "iiwa_joint_2",
+    "iiwa_joint_3",
+    "iiwa_joint_4",
+    "iiwa_joint_5",
+    "iiwa_joint_6",
+    "iiwa_joint_7"
+  ],
+
+  "planningMode" : "pydrake",
+  "fixedPointFile" : "kuka_iiwa_fp.csv",
+  "postureDatabaseFile" : "stored_poses.json",
+
+  "handCombinations": [],
+  "userConfig" : ["fixedBaseArm"],
+
+   "endEffectorConfig" : {
+    "endEffectorLinkNames": ["iiwa_link_ee"],
+    "graspOffsetFrame" : [[0,0,0], [0,0,0]],
+    "fixedJoints" : ["base_x","base_y","base_z","base_roll","base_pitch","base_yaw"]
+  }
+
+}

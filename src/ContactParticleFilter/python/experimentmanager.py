@@ -182,6 +182,7 @@ class ExperimentManager(object):
         d['lcm_log_file'] = lcm_log_file
         d['force_dict_in_world'] = None
         d['mode'] = self.config['mode']
+        d['floating_base_type'] = self.externalForce.options['robot']['floatingBaseType']
 
 
         # store the data in the database

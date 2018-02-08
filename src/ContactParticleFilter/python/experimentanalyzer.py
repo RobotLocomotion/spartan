@@ -47,6 +47,7 @@ class ExperimentAnalyzer(object):
         self.loadDatabase()
         self.mode = mode
 
+        self.compute_tse_stats = True
         self.initialize()
 
     def initialize(self):
@@ -59,6 +60,8 @@ class ExperimentAnalyzer(object):
         # create a new database
         # remove old database file
         db_analysis_file = os.path.join(self.logFolder, "db_analysis.json")
+
+
         
         # remove analysis file if it exists
         try:
@@ -168,7 +171,8 @@ class ExperimentAnalyzer(object):
 
 
         # compute statistics for the two step estimator
-        if mode == "simulation":
+        if mode == "simulation" and self.compute_tse_stats:
+        
             position_tse = []
             force_tse = []
             angle_tse = []
@@ -183,7 +187,7 @@ class ExperimentAnalyzer(object):
                 ground_truth_msg = ground_truth.get_message(timestamp)
                 ground_truth_msg = ground_truth_msg.contacts[0]
 
-                msg = msg.estimated_contact_location
+                msg = msg.estimated_contact_location.contacts[0]
                 if msg.utime < 0: # this means it didn't intersect the link surface
                     missed_link_surface = True
                     # position_tse.append(-1)
@@ -191,7 +195,7 @@ class ExperimentAnalyzer(object):
                     # angle_tse.append(-1)
                 else:
                     has_at_least_one_valid_estimate = True
-                    stats = self.computeSingleMessageStatistics(msg.contacts[0], ground_truth_msg, mode=mode)
+                    stats = self.computeSingleMessageStatistics(msg, ground_truth_msg, mode=mode)
                     position_tse.append(stats['contact_position_in_world'])
                     force_tse.append(stats['contact_force_magnitude'])
                     angle_tse.append(stats['angle_to_force_direction'])

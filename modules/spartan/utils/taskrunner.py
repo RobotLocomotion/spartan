@@ -14,9 +14,13 @@ class TaskRunner(object):
     sys.setcheckinterval(1000)
     #sys.setswitchinterval(self.interval)			# sys.setswitchinterval is only Python 3
     self.taskQueue = asynctaskqueue.AsyncTaskQueue()
+    self.taskQueue.start()
     self.pendingTasks = []
     self.threads = []
     self.timer = TimerCallback(callback=self._onTimer, targetFps=1/self.interval)
+    self.timer.start()
+    self.taskQueue.start()
+
 
   def _onTimer(self):
     # Give up control to another python thread in self.threads
@@ -50,10 +54,10 @@ class TaskRunner(object):
 
   def callOnMain(self, func, *args, **kwargs):
     self.pendingTasks.append(lambda: func(*args, **kwargs))
-    self.timer.start()
+    # self.timer.start()
 
   def callOnThread(self, func, *args, **kwargs):
     t = Thread(target=lambda: func(*args, **kwargs))
     self.threads.append(t)
     t.start()
-    self.timer.start()
+    # self.timer.start()
