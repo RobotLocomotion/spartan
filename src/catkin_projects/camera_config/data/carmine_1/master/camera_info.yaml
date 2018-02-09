@@ -11,6 +11,8 @@ depth:
         x: -0.04600606633693562
         y: 0.04757077336803255
         z: 0.07133390979525822
+  min_range: 0.35
+  max_range: 3
 header:
   calibration_date: 20180202-005721
   camera_name: carmine

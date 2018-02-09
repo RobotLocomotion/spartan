@@ -12,9 +12,10 @@ import director.transformUtils as transformUtils
 
 class CameraTransformPublisher:
 
-	def __init__(self):
+	def __init__(self, debug=False):
 		self.cameraName = rospy.get_param('~camera_name')
 		self.cameraInfoFilename = rospy.get_param('~camera_info_filename')
+		self.debug = debug
 		rospy.loginfo("camera_info_filename  = %s", self.cameraInfoFilename)
 
 		cameraInfoYamlDict = spartanUtils.getDictFromYamlFilename(self.cameraInfoFilename)
@@ -25,6 +26,9 @@ class CameraTransformPublisher:
 		self.staticTransformBroadcaster = tf2_ros.StaticTransformBroadcaster()
 
 		rospy.loginfo("finished initializing the node")
+
+		
+
 
 
 	def parseCameraInfo(self, cameraInfoYamlDict):
@@ -42,6 +46,9 @@ class CameraTransformPublisher:
 			# z forward, x right, y down
 			opticalToLinkVtk = spartanUtils.transformFromPose(d['extrinsics']['transform_to_reference_link'])
 
+			
+
+
 			# body is the body frame of the camera as defined here http://www.ros.org/reps/rep-0103.html#id21
 			# x forward, y left, z up
 			bodyToLinkVtk = CameraTransformPublisher.transformOpticalFrameToBodyFrame(opticalToLinkVtk)
@@ -55,6 +62,16 @@ class CameraTransformPublisher:
 			cameraToLinkStamped.header.frame_id = d['extrinsics']['reference_link_name']
 
 			data['camera_to_link_transform_stamped'] = cameraToLinkStamped
+
+			if self.debug:
+				opticalToLinkPoseDict = spartanUtils.poseFromTransform(opticalToLinkVtk)
+				opticalToLink = rosUtils.ROSTransformMsgFromPose(opticalToLinkPoseDict)
+
+				opticalToLinkStamped = geometry_msgs.msg.TransformStamped()
+				opticalToLinkStamped.transform = opticalToLink
+				opticalToLinkStamped.child_frame_id = self.cameraName + '_' + cameraType + "_frame_debug"
+				opticalToLinkStamped.header.frame_id = d['extrinsics']['reference_link_name']
+				data['optical_to_link_transform_stamped_debug'] = opticalToLinkStamped
 	
 
 			self.cameraInfo[cameraType] = data
@@ -69,6 +86,12 @@ class CameraTransformPublisher:
 			self.staticTransformBroadcaster.sendTransform(t)
 			# print t
 			# rospy.loginfo("broadcasting frame for camera %s", key)
+
+			if self.debug:
+				t = val['optical_to_link_transform_stamped_debug']
+				t.header.stamp = rospy.Time.now()
+				# self.broadcaster.sendTransform(t)
+				self.staticTransformBroadcaster.sendTransform(t)
 			
 
 

@@ -101,19 +101,25 @@ SCHUNK_CONTROLLED_JOINTS = [
 #    
 #]
 
-# Camera configuration parameters
-# Which link is the camera on? (Specified by which joint is before it.)
-IIWA_CAMERA_SERIAL = "1112170110"
+
 # Rendering range of the camera
-IIWA_CAMERA_MIN_DISTANCE = 0.1
-IIWA_CAMERA_MAX_DISTANCE = 10.
-# Channels on which camera info will be published
-IIWA_CAMERA_RGB_TOPIC = "/camera_%s/rgb/image_raw" % IIWA_CAMERA_SERIAL
-IIWA_CAMERA_DEPTH_TOPIC = "/camera_%s/depth/image_raw" % IIWA_CAMERA_SERIAL
-IIWA_CAMERA_RGB_INFO_TOPIC = "/camera_%s/rgb/camera_info" % IIWA_CAMERA_SERIAL
-IIWA_CAMERA_DEPTH_INFO_TOPIC = "/camera_%s/depth/camera_info" % IIWA_CAMERA_SERIAL
-IIWA_CAMERA_RGB_FRAME = "camera_%s_rgb_optical_frame" % IIWA_CAMERA_SERIAL
-IIWA_CAMERA_DEPTH_FRAME = "camera_%s_depth_optical_frame" % IIWA_CAMERA_SERIAL
+# defaults for the carmine
+IIWA_DEPTH_CAMERA_MIN_DISTANCE = 0.35 
+IIWA_DEPTH_CAMERA_MAX_DISTANCE = 3.0
+
+IIWA_RGB_CAMERA_MIN_DISTANCE = 0.1
+IIWA_RGB_CAMERA_MAX_DISTANCE = 10.
+
+CAMERA_FORWARD_VEC = [0,0,-1]
+CAMERA_UP_VEC = [0,1,0]
+
+# # Channels on which camera info will be published
+# IIWA_CAMERA_RGB_TOPIC = "/camera_%s/rgb/image_raw" % IIWA_CAMERA_SERIAL
+# IIWA_CAMERA_DEPTH_TOPIC = "/camera_%s/depth/image_raw" % IIWA_CAMERA_SERIAL
+# IIWA_CAMERA_RGB_INFO_TOPIC = "/camera_%s/rgb/camera_info" % IIWA_CAMERA_SERIAL
+# IIWA_CAMERA_DEPTH_INFO_TOPIC = "/camera_%s/depth/camera_info" % IIWA_CAMERA_SERIAL
+# IIWA_CAMERA_RGB_FRAME = "camera_%s_rgb_optical_frame" % IIWA_CAMERA_SERIAL
+# IIWA_CAMERA_DEPTH_FRAME = "camera_%s_depth_optical_frame" % IIWA_CAMERA_SERIAL
 
 
 def load_pybullet_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0, 1], fixed = True, packageMap = None):
@@ -167,6 +173,23 @@ class RgbdCameraMetaInfo():
         self.rgb_extrinsics = self.processCameraExtrinsicsYaml(info_yaml["rgb"]["extrinsics"], linkNameToJointIdMap)
         self.depth_extrinsics = self.processCameraExtrinsicsYaml(info_yaml["depth"]["extrinsics"], linkNameToJointIdMap)
 
+        self.camera_serial_number = camera_serial
+        self.topics = RgbdCameraMetaInfo.getCameraPublishTopics(self.camera_serial_number)
+        self.frames = RgbdCameraMetaInfo.getCameraFrames(self.camera_serial_number)
+
+
+        if 'min_range' in info_yaml['depth']:
+            self.depth_min_range = info_yaml['depth']['min_range']
+        else:
+            self.depth_min_range = IIWA_CAMERA_MIN_DISTANCE
+
+        if 'max_range' in info_yaml['depth']:
+            self.depth_max_range = info_yaml['depth']['max_range']
+        else:
+            self.depth_max_range = IIWA_CAMERA_MAX_DISTANCE
+
+        
+
     @staticmethod
     def populateCameraInfoMsg(info_filename):
         # Construct a CameraInfo msg
@@ -196,6 +219,24 @@ class RgbdCameraMetaInfo():
         extrinsics_dict["pose_quat"][2] = tf["rotation"]["y"]
         extrinsics_dict["pose_quat"][3] = tf["rotation"]["z"]
         return  extrinsics_dict
+
+    @staticmethod
+    def getCameraPublishTopics(camera_serial_number):
+        topics = dict()
+        topics['RGB_TOPIC'] = "/camera_%s/rgb/image_raw" % camera_serial_number
+        topics['DEPTH_TOPIC'] = "/camera_%s/depth/image_raw" % camera_serial_number
+        topics['RGB_INFO_TOPIC'] = "/camera_%s/rgb/camera_info" % camera_serial_number
+        topics['DEPTH_INFO_TOPIC'] = "/camera_%s/depth/camera_info" % camera_serial_number
+        return topics
+
+    @staticmethod
+    def getCameraFrames(camera_serial_number):
+        frames = dict()
+        frames['RGB_FRAME'] = "camera_%s_rgb_optical_frame" % camera_serial_number
+        frames['DEPTH_FRAME'] = "camera_%s_depth_optical_frame" % camera_serial_number
+
+        return frames
+
     
 
 class IiwaRlgSimulator():
@@ -214,10 +255,11 @@ class IiwaRlgSimulator():
     RunSim run a sim until (R)eset or (Q)uit from the sim gui.
     '''
 
-    def __init__(self, config, timestep, rate, rgbd_noise=0.005, rgbd_normal_limit=0.05, rgbd_projector_baseline=0.1):
+    def __init__(self, config, timestep, rate, rgbd_noise=0.005, rgbd_normal_limit=0.05, rgbd_projector_baseline=0.1, camera_serial_number="carmine_1"):
         self.config = config
         self.timestep = timestep
         self.rate = rate
+        self.camera_serial_number = camera_serial_number
 
         self.packageMap = PackageMap()
         self.packageMap.populateFromEnvironment(["ROS_PACKAGE_PATH"])
@@ -239,10 +281,11 @@ class IiwaRlgSimulator():
         self.schunk_status_publisher = rospy.Publisher("/schunk_driver/schunk_wsg_status", wsg50_msgs.msg.WSG_50_state, queue_size=1)
 
         # Set up image publishing
-        self.rgb_publisher = rospy.Publisher(IIWA_CAMERA_RGB_TOPIC, sensor_msgs.msg.Image, queue_size=1)
-        self.depth_publisher = rospy.Publisher(IIWA_CAMERA_DEPTH_TOPIC, sensor_msgs.msg.Image, queue_size=1)
-        self.rgb_info_publisher = rospy.Publisher(IIWA_CAMERA_RGB_INFO_TOPIC, sensor_msgs.msg.CameraInfo, queue_size=1)
-        self.depth_info_publisher = rospy.Publisher(IIWA_CAMERA_DEPTH_INFO_TOPIC, sensor_msgs.msg.CameraInfo, queue_size=1)
+        camera_topics = RgbdCameraMetaInfo.getCameraPublishTopics(self.camera_serial_number)
+        self.rgb_publisher = rospy.Publisher(camera_topics['RGB_TOPIC'], sensor_msgs.msg.Image, queue_size=1)
+        self.depth_publisher = rospy.Publisher(camera_topics['DEPTH_TOPIC'], sensor_msgs.msg.Image, queue_size=1)
+        self.rgb_info_publisher = rospy.Publisher(camera_topics['RGB_INFO_TOPIC'], sensor_msgs.msg.CameraInfo, queue_size=1)
+        self.depth_info_publisher = rospy.Publisher(camera_topics['DEPTH_INFO_TOPIC'], sensor_msgs.msg.CameraInfo, queue_size=1)
         self.cv_bridge = CvBridge()
 
         self.rgbd_projector_baseline = rgbd_projector_baseline
@@ -304,7 +347,7 @@ class IiwaRlgSimulator():
 
         # Set up camera info (which relies on having models loaded
         # so we know where to mount the camera)
-        self.rgbd_info = RgbdCameraMetaInfo(IIWA_CAMERA_SERIAL, self.link_to_joint_id_map)
+        self.rgbd_info = RgbdCameraMetaInfo(self.camera_serial_number, self.link_to_joint_id_map)
 
     def BuildJointNameInfo(self):
         ''' Peruses all joints in Pybullet, and ...
@@ -410,8 +453,8 @@ class IiwaRlgSimulator():
 
         # Use that to form Forward and Up vectors for the camera
         cameraRotationMatrix = np.reshape(np.array(pybullet.getMatrixFromQuaternion(cameraWorldOrientation)), [3, 3])
-        cameraForward = cameraRotationMatrix.dot(np.array([-1., 0., 0.]))
-        cameraUp = cameraRotationMatrix.dot(np.array([0., 0., 1.]))
+        cameraForward = cameraRotationMatrix.dot(np.array(CAMERA_FORWARD_VEC))
+        cameraUp = cameraRotationMatrix.dot(np.array(CAMERA_UP_VEC))
 
         # Assemble a view matrix
         viewMatrix = pybullet.computeViewMatrix(cameraWorldPosition, cameraWorldPosition+cameraForward, cameraUp)
@@ -428,13 +471,15 @@ class IiwaRlgSimulator():
         # OpenCV makes a lot of assumptions about their projection matrix
         # details and scaling. It's not exactly a camera intrinsic matrix...
         # So this is easier.)
-        projectionMatrix = pybullet.computeProjectionMatrixFOV(camera_fov_x, camera_aspect, IIWA_CAMERA_MIN_DISTANCE, IIWA_CAMERA_MAX_DISTANCE)
+        min_range = self.rgbd_info.depth_min_range
+        max_range = self.rgbd_info.depth_max_range
+        projectionMatrix = pybullet.computeProjectionMatrixFOV(camera_fov_x, camera_aspect,min_range, max_range)
 
         images = pybullet.getCameraImage(camera_width, camera_height, viewMatrix, projectionMatrix, shadow=0,lightDirection=[1,1,1],renderer=pybullet.ER_BULLET_HARDWARE_OPENGL)
 
         # Rescale depth buffer from [0, 1] to real depth following
         # formula from https://stackoverflow.com/questions/6652253/getting-the-true-z-value-from-the-depth-buffer
-        gtDepthImage = (IIWA_CAMERA_MAX_DISTANCE * IIWA_CAMERA_MIN_DISTANCE) / (IIWA_CAMERA_MAX_DISTANCE + images[3] * (IIWA_CAMERA_MIN_DISTANCE - IIWA_CAMERA_MAX_DISTANCE))
+        gtDepthImage = (max_range * min_range) / (max_range + images[3] * (min_range - max_range))
 
         # Calculate normals before adding noise
         if self.rgbd_normal_limit > 0.:
@@ -487,7 +532,7 @@ class IiwaRlgSimulator():
         # frame, and publish RGB camera info and the RGB camera image
         now_header = std_msgs.msg.Header()
         now_header.stamp = rospy.Time.now()
-        now_header.frame_id = IIWA_CAMERA_DEPTH_FRAME
+        now_header.frame_id = self.rgbd_info.frames['DEPTH_FRAME']
         self.rgbd_info.depth_info_msg.header = now_header
         self.depth_info_publisher.publish(self.rgbd_info.depth_info_msg)
         depthMsg.header = now_header
@@ -508,8 +553,8 @@ class IiwaRlgSimulator():
 
         # Use that to form Forward and Up vectors for the camera
         cameraRotationMatrix = np.reshape(np.array(pybullet.getMatrixFromQuaternion(cameraWorldOrientation)), [3, 3])
-        cameraForward = cameraRotationMatrix.dot(np.array([-1., 0., 0.]))
-        cameraUp = cameraRotationMatrix.dot(np.array([0., 0., 1.]))
+        cameraForward = cameraRotationMatrix.dot(np.array(CAMERA_FORWARD_VEC))
+        cameraUp = cameraRotationMatrix.dot(np.array(CAMERA_UP_VEC))
 
         # Assemble a view matrix
         viewMatrix = pybullet.computeViewMatrix(cameraWorldPosition, cameraWorldPosition+cameraForward, cameraUp)
@@ -526,7 +571,7 @@ class IiwaRlgSimulator():
         # OpenCV makes a lot of assumptions about their projection matrix
         # details and scaling. It's not exactly a camera intrinsic matrix...
         # So this is easier.)
-        projectionMatrix = pybullet.computeProjectionMatrixFOV(camera_fov_x, camera_aspect, IIWA_CAMERA_MIN_DISTANCE, IIWA_CAMERA_MAX_DISTANCE)
+        projectionMatrix = pybullet.computeProjectionMatrixFOV(camera_fov_x, camera_aspect, IIWA_RGB_CAMERA_MIN_DISTANCE, IIWA_RGB_CAMERA_MAX_DISTANCE)
 
         images = pybullet.getCameraImage(camera_width, camera_height, viewMatrix, projectionMatrix, shadow=0,lightDirection=[1,1,1],renderer=pybullet.ER_BULLET_HARDWARE_OPENGL)
 
@@ -538,7 +583,7 @@ class IiwaRlgSimulator():
         # frame, and publish RGB camera info and the RGB camera image
         now_header = std_msgs.msg.Header()
         now_header.stamp = rospy.Time.now()
-        now_header.frame_id = IIWA_CAMERA_RGB_FRAME
+        now_header.frame_id = self.rgbd_info.frames['RGB_FRAME']
         self.rgbd_info.rgb_info_msg.header = now_header
         self.rgb_info_publisher.publish(self.rgbd_info.rgb_info_msg)
         rgbMsg.header = now_header
@@ -662,6 +707,7 @@ if __name__ == "__main__":
     parser.add_argument("--rgbd_projector_baseline", help="RGBD projector baseline used to calculate depth shadowing", type=float, default=0.1)
     parser.add_argument("--rgbd_normal_limit", help="Threshold for rejecting high-normal depth returns. (Smaller is more stringent, 0.0 to turn off.)", type=float, default=0.05)
     parser.add_argument("--headless", help="Run without GUI.", action="store_true")
+    parser.add_argument("--camera_serial_number", type=str, default="carmine_1", )
     args = parser.parse_args()
 
     rospy.init_node('pybullet_iiwa_rlg_simulation', anonymous=True)
@@ -677,7 +723,8 @@ if __name__ == "__main__":
     sim = IiwaRlgSimulator(args.config, args.timestep, args.rate,
             rgbd_projector_baseline = args.rgbd_projector_baseline,
             rgbd_noise = args.rgbd_noise,
-            rgbd_normal_limit = args.rgbd_normal_limit)
+            rgbd_normal_limit = args.rgbd_normal_limit,
+            camera_serial_number=args.camera_serial_number)
 
     keep_simulating = True
     while keep_simulating:

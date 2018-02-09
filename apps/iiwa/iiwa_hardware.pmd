@@ -15,7 +15,7 @@ group "0.sim" {
   }
 
   cmd "2.ROS-OpenNI-sim" {
-    exec = "roslaunch camera_config openni2_pybullet_sim.launch camera_serial_number:=1112170110";
+    exec = "roslaunch camera_config openni2_pybullet_sim.launch camera_serial_number:=carmine_1";
     host = "localhost";
   }
 
