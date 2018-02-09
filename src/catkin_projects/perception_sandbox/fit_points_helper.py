@@ -25,9 +25,17 @@ def cleanup_and_exit(code):
 
 if __name__=="__main__":
     rospy.init_node("collect_point_clouds_with_arm_object_fit", anonymous=True)
+	
+	#meshes = ["${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/meshes/visual/companion_cube.stl"]
+    #meshes = [os.path.expandvars(mesh) for mesh in meshes]
 
-    meshes = ["${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/meshes/visual/companion_cube.obj"]
+    meshes = ["${SPARTAN_SOURCE_DIR}/models/dish_models/meshes/visual/dish_rack_simple.obj",
+    		 "${SPARTAN_SOURCE_DIR}/models/dish_models/meshes/visual/plate_11in.obj",
+    		 "${SPARTAN_SOURCE_DIR}/models/dish_models/meshes/visual/plate_11in.obj",
+    		 "${SPARTAN_SOURCE_DIR}/models/dish_models/meshes/visual/plate_8p5in.obj",
+    		 "${SPARTAN_SOURCE_DIR}/models/dish_models/meshes/visual/plate_8p5in.obj"]
+
     meshes = [os.path.expandvars(mesh) for mesh in meshes]
 
     pcserver = PointCloudObjectFittingServer()
-    print pcserver.FitObjectsByIcp(meshes, [0.003])
+    print pcserver.FitObjectsByIcp(meshes, [0.001, 0.001, 0.001, 0.001, 0.001], num_attempts = 30, initial_max_correspondence_distance=0.5)

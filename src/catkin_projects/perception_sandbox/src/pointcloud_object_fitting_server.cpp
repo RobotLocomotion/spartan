@@ -4,6 +4,7 @@
 #include <mutex>
 #include <string>
 
+#include <Eigen/Geometry>
 #include "Eigen/Dense"
 
 // For argument parsing
@@ -18,6 +19,7 @@
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/obj_io.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -37,7 +39,9 @@
 #include "common_utils/cv_utils.h"
 #include "common_utils/math_utils.h"
 #include "common_utils/pcl_utils.h"
+#include "common_utils/pcl_vtk_utils.h"
 #include "common_utils/system_utils.h"
+#include "common_utils/vtk_utils.h"
 
 #include "eigen_conversions/eigen_msg.h"
 #include "perception_sandbox/AddPointCloudAtPose.h"
@@ -54,6 +58,12 @@
     FitObjectsByIcp --> returns best fit candidate for set of objects
 **/
 
+DEFINE_bool(run_test, false, "Run in test mode?");
+DEFINE_string(test_scene, "last_scene.pcd", "Scene to test on");
+DEFINE_string(test_scene_frame_id, "base", "Scene's frame id");
+DEFINE_string(test_object, "none.obj", "Object to test on");
+DEFINE_double(test_object_scale, 1.0, "Object's scaling'");
+
 using namespace std;
 
 class ObjectFittingServer {
@@ -62,6 +72,7 @@ class ObjectFittingServer {
   ros::Publisher pc2_pub_;
   double lastPublishTime_;
   ros::Publisher debug_cloud_pub_;
+  ros::Publisher partial_cloud_pub_;
 
   ros::ServiceServer service_add_;
   ros::ServiceServer service_reset_;
@@ -77,7 +88,10 @@ class ObjectFittingServer {
             "/object_fitting/complete_cloud", 1)),
         debug_cloud_pub_(nh_.advertise<pcl::PointCloud<pcl::PointXYZRGBNormal>>(
             "/object_fitting/debug_cloud", 1)),
-        lastPublishTime_(getUnixTime()),
+        partial_cloud_pub_(
+            nh_.advertise<pcl::PointCloud<pcl::PointXYZRGBNormal>>(
+                "/object_fitting/partial_cloud", 1)),
+        lastPublishTime_(getUnixTime() - 100.),
         service_add_(nh_.advertiseService(
             "/object_fitting/AddPointCloudAtPose",
             &ObjectFittingServer::AddPointCloudAtPose, this)),
@@ -90,6 +104,12 @@ class ObjectFittingServer {
     complete_cloud_.header.frame_id = "base";
   }
   ~ObjectFittingServer() {}
+
+  void SetPointCloud(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scene_cloud) {
+    data_update_lock_.lock();
+    complete_cloud_ = *scene_cloud;
+    data_update_lock_.unlock();
+  }
 
   bool AddPointCloudAtPose(
       perception_sandbox::AddPointCloudAtPose::Request& req,
@@ -152,10 +172,13 @@ class ObjectFittingServer {
     // Apply a voxel grid filter
     pcl::VoxelGrid<pcl::PointXYZRGBNormal> sor;
     sor.setInputCloud(complete_cloud_.makeShared());
-    sor.setLeafSize(0.005f, 0.005f, 0.005f);
+    sor.setLeafSize(0.01f, 0.01f, 0.01f);
     sor.filter(complete_cloud_);
 
+    pcl::io::savePCDFileASCII("last_scene.pcd", complete_cloud_);
+
     data_update_lock_.unlock();
+
     return true;
   }
 
@@ -172,100 +195,174 @@ class ObjectFittingServer {
                        perception_sandbox::FitObjectsByIcp::Response& res) {
     data_update_lock_.lock();
 
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr full_fit_objects_cloud(
+        new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+
     // For each mesh...
     int n_objects = req.mesh_paths.size();
     for (int i = 0; i < n_objects; i++) {
-      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr object_cloud(
+      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr debug_cloud(
           new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-      /*
-      TODO: need to sample point cloud from the mesh
-      which requires recruiting my old drake / vtk tools...
-      vtk probably easiest route, need to probe functionality
-      pcl::io::loadOBJFile(req.mesh_paths[i].data, mesh);
-      */
 
-      // Scale as requested
-      if (req.scales[i] != 1.0) {
-        Eigen::Affine3d tf = Eigen::Affine3d::Identity();
-        tf.matrix().block<3, 3>(0, 0) *= req.scales[i];
-
-        pcl::transformPointCloud(*object_cloud, *object_cloud, tf);
+      // Build scene cloud that doesn't include points near
+      // the currently fit objects
+      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr reduced_scene_cloud(
+          new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+      if (i == 0) {
+        *reduced_scene_cloud += complete_cloud_;
+      } else {
+        printf("Pruning scene cloud against %lu fit points...\n",
+               full_fit_objects_cloud->size());
+        pcl::KdTreeFLANN<pcl::PointXYZRGBNormal> kdtree;
+        std::vector<int> pointIdxNKNSearch(1);
+        std::vector<float> pointNKNSquaredDistance(1);
+        kdtree.setInputCloud(full_fit_objects_cloud);
+        for (const auto& searchPt : complete_cloud_.points) {
+          if (kdtree.nearestKSearch(searchPt, 1, pointIdxNKNSearch,
+                                    pointNKNSquaredDistance) > 0) {
+            if (pointNKNSquaredDistance[0] >
+                powf(0.02, 2.)) {  // Prune distance
+              reduced_scene_cloud->push_back(searchPt);
+            }
+          }
+        }
       }
+      reduced_scene_cloud->header.stamp = 0;
+      reduced_scene_cloud->header.frame_id = complete_cloud_.header.frame_id;
+      partial_cloud_pub_.publish(reduced_scene_cloud);
 
-      // Randomly seed transform at random reasonable locations,
-      // and then refine with ICP. Take the best one in terms of
-      // ICP residual error.
       double best_cost = std::numeric_limits<double>::infinity();
       Eigen::Affine3d best_tf = Eigen::Affine3d::Identity();
 
-      pcl::PointXYZRGBNormal minPtPcl, maxPtPcl;
-      pcl::getMinMax3D(complete_cloud_, minPtPcl, maxPtPcl);
-      Eigen::Vector3d minPt = Vector3dFromPclPoint(minPtPcl);
-      Eigen::Vector3d maxPt = Vector3dFromPclPoint(maxPtPcl);
+      if (reduced_scene_cloud->points.size() < 10) {
+        printf(
+            "Not enough points in reduced scene cloud: have only %lu after "
+            "pruning\n",
+            reduced_scene_cloud->points.size());
+      } else {
+        // Load an resample the specified object
+        printf("Loading msg from %s\n", req.mesh_paths[i].data.c_str());
+        vtkSmartPointer<vtkPolyData> cloudPolyData =
+            ReadPolyData(req.mesh_paths[i].data.c_str());
+        cout << "Loaded " << cloudPolyData->GetNumberOfPoints()
+             << " points from " << req.mesh_paths[i].data << endl;
+        cloudPolyData =
+            DownsampleAndCleanPolyData(cloudPolyData, 0.01 / req.scales[i]);
+        pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr object_cloud =
+            PointCloudFromPolyDataWithNormals<pcl::PointXYZRGBNormal>(
+                cloudPolyData);
 
-      pcl::PointXYZRGBNormal modelMinPtPcl, modelMaxPtPcl;
-      pcl::getMinMax3D(*object_cloud, modelMinPtPcl, modelMaxPtPcl);
-      Eigen::Vector3d modelCenter = (Vector3dFromPclPoint(modelMinPtPcl) +
-                                     Vector3dFromPclPoint(modelMaxPtPcl)) /
-                                    2.;
+        // Scale as requested
+        if (req.scales[i] != 1.0) {
+          Eigen::Affine3d tf = Eigen::Affine3d::Identity();
+          tf.matrix().block<3, 3>(0, 0) *= req.scales[i];
 
-      for (int attempt = 0; attempt < req.icp_params.num_attempts; attempt++) {
-        // Pick random initial condition inside of scene bounds
-        Eigen::Affine3d est_tf_attempt = Eigen::Affine3d::Identity();
-        for (int k = 0; k < 3; k++)
-          est_tf_attempt.matrix()(k, 3) =
-              modelCenter[k] + randrange(minPt[k], maxPt[k]);
-        est_tf_attempt.matrix().block<3, 3>(0, 0) =
-            Eigen::Quaternion<double>::UnitRandom().toRotationMatrix();
-        std::cout << "Starting condition: " << est_tf_attempt.matrix()
-                  << std::endl;
-
-        pcl::IterativeClosestPoint<pcl::PointXYZRGBNormal,
-                                   pcl::PointXYZRGBNormal>
-            icp;
-        icp.setTransformationEpsilon(1e-5);
-        icp.setMaximumIterations(1);
-        icp.setInputSource(object_cloud);
-        icp.setInputTarget(complete_cloud_.makeShared());
-        icp.setMaxCorrespondenceDistance(
-            req.icp_params.initial_max_correspondence_distance);
-
-        pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr reg_result(
-            new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-        pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr intermed(
-            new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-        pcl::transformPointCloud(*object_cloud, *reg_result, est_tf_attempt);
-
-        int iter = 0;
-        double curr_error = std::numeric_limits<double>::infinity();
-        pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr debug_cloud(
-            new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-
-        while (iter < req.icp_params.max_iterations) {
-          intermed = reg_result;
-          icp.setInputSource(intermed);
-          icp.align(*reg_result);
-
-          est_tf_attempt.matrix() =
-              icp.getFinalTransformation().cast<double>() *
-              est_tf_attempt.matrix();
-
-          pcl::transformPointCloud(*object_cloud, *debug_cloud, est_tf_attempt);
-          debug_cloud->header.stamp = 0;
-          debug_cloud->header.frame_id = complete_cloud_.header.frame_id;
-          debug_cloud_pub_.publish(debug_cloud);
-
-          iter++;
+          pcl::transformPointCloud(*object_cloud, *object_cloud, tf);
         }
 
-        std::cout << "Final fitness: " << icp.getFitnessScore() << std::endl;
+        // Randomly seed transform at random reasonable locations,
+        // and then refine with ICP. Take the best one in terms of
+        // ICP residual error.
+        double best_cost = std::numeric_limits<double>::infinity();
+        Eigen::Affine3d best_tf = Eigen::Affine3d::Identity();
 
-        if (icp.getFitnessScore() < best_cost) {
-          best_tf = est_tf_attempt;
-          best_cost = icp.getFitnessScore();
+        pcl::PointXYZRGBNormal minPtPcl, maxPtPcl;
+        pcl::getMinMax3D(*reduced_scene_cloud, minPtPcl, maxPtPcl);
+        Eigen::Vector3d minPt = Vector3dFromPclPoint(minPtPcl);
+        Eigen::Vector3d maxPt = Vector3dFromPclPoint(maxPtPcl);
+
+        pcl::PointXYZRGBNormal modelMinPtPcl, modelMaxPtPcl;
+        pcl::getMinMax3D(*object_cloud, modelMinPtPcl, modelMaxPtPcl);
+        Eigen::Vector3d modelCenter = (Vector3dFromPclPoint(modelMinPtPcl) +
+                                       Vector3dFromPclPoint(modelMaxPtPcl)) /
+                                      2.;
+
+        for (int attempt = 0; attempt < req.icp_params.num_attempts;
+             attempt++) {
+          // Pick random initial condition inside of scene bounds
+          Eigen::Affine3d est_tf_attempt = Eigen::Affine3d::Identity();
+          Eigen::Affine3d est_tf_last;
+          for (int k = 0; k < 3; k++)
+            est_tf_attempt.matrix()(k, 3) =
+                modelCenter[k] + randrange(minPt[k], maxPt[k]);
+          est_tf_attempt.matrix().block<3, 3>(0, 0) =
+              Eigen::Quaternion<double>::UnitRandom().toRotationMatrix();
+          std::cout << "Starting condition: " << est_tf_attempt.matrix()
+                    << std::endl;
+
+          pcl::IterativeClosestPoint<pcl::PointXYZRGBNormal,
+                                     pcl::PointXYZRGBNormal>
+              icp;
+          icp.setTransformationEpsilon(1e-5);
+          icp.setMaximumIterations(1);
+          icp.setInputSource(object_cloud);
+          icp.setInputTarget(reduced_scene_cloud);
+          icp.setMaxCorrespondenceDistance(
+              req.icp_params.initial_max_correspondence_distance);
+
+          pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr reg_result(
+              new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+          pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr intermed(
+              new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+          pcl::transformPointCloud(*object_cloud, *reg_result, est_tf_attempt);
+
+          int iter = 0;
+          double corresp_dist =
+              req.icp_params.initial_max_correspondence_distance;
+          double curr_error = std::numeric_limits<double>::infinity();
+
+          while (iter < req.icp_params.max_iterations) {
+            intermed = reg_result;
+            icp.setInputSource(intermed);
+            icp.align(*reg_result);
+
+            est_tf_last = est_tf_attempt;
+            est_tf_attempt.matrix() =
+                icp.getFinalTransformation().cast<double>() *
+                est_tf_attempt.matrix();
+            double diff =
+                (est_tf_last.matrix() - est_tf_attempt.matrix()).norm();
+            if (diff < 0.001) {
+              break;
+            }
+
+            corresp_dist = fmax(0.01, corresp_dist * 0.95);
+            icp.setMaxCorrespondenceDistance(corresp_dist);
+
+            if (iter % 50 == 0) {
+              pcl::transformPointCloud(*object_cloud, *debug_cloud,
+                                       est_tf_attempt);
+              debug_cloud->header.stamp = 0;
+              debug_cloud->header.frame_id = complete_cloud_.header.frame_id;
+              debug_cloud_pub_.publish(debug_cloud);
+            }
+            iter++;
+          }
+
+          std::cout << "Final fitness after " << iter
+                    << " iters: " << icp.getFitnessScore() << std::endl;
+
+          if (icp.getFitnessScore() < best_cost) {
+            best_tf = est_tf_attempt;
+            best_cost = icp.getFitnessScore();
+          }
         }
+
+        pcl::transformPointCloud(*object_cloud, *debug_cloud, best_tf);
+        *full_fit_objects_cloud += *debug_cloud;
       }
+
+      std::cout << "Best fitness ever: " << best_tf.matrix() << " with fitness "
+                << best_cost << std::endl;
+      geometry_msgs::Transform tf_out;
+      tf::transformEigenToMsg(best_tf, tf_out);
+      res.poses.push_back(tf_out);
     }
+
+    // render all fits combined
+    full_fit_objects_cloud->header.stamp = 0;
+    full_fit_objects_cloud->header.frame_id = complete_cloud_.header.frame_id;
+    debug_cloud_pub_.publish(full_fit_objects_cloud);
 
     data_update_lock_.unlock();
     return true;
@@ -290,10 +387,43 @@ int main(int argc, char** argv) {
   ros::NodeHandle n;
 
   ObjectFittingServer ofs(n);
-  while (ros::ok()) {
+
+  if (FLAGS_run_test) {
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scene_cloud_loaded(
+        new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+
+    if (pcl::io::loadPCDFile<pcl::PointXYZRGBNormal>(
+            FLAGS_test_scene, *scene_cloud_loaded) == -1)  //* load the file
+    {
+      printf("Couldn't load test cloud.\n");
+      return -1;
+    }
+
+    scene_cloud_loaded->header.frame_id = FLAGS_test_scene_frame_id;
+
+    ofs.SetPointCloud(scene_cloud_loaded);
+    usleep(1000 * 200);
     ofs.Update();
-    ros::spinOnce();
-    usleep(1000 * 1000);
+
+    // Generate an ICP request message
+    perception_sandbox::FitObjectsByIcp::Request fake_req;
+    perception_sandbox::FitObjectsByIcp::Response fake_resp;
+
+    fake_req.mesh_paths.push_back(std_msgs::String());
+    fake_req.mesh_paths[0].data = string(FLAGS_test_object);
+    fake_req.scales.push_back(FLAGS_test_object_scale);
+    fake_req.icp_params.num_attempts = 1;
+    fake_req.icp_params.initial_max_correspondence_distance = 0.1;
+    fake_req.icp_params.max_iterations = 5;
+
+    ofs.FitObjectsByIcp(fake_req, fake_resp);
+
+  } else {
+    while (ros::ok()) {
+      ofs.Update();
+      ros::spinOnce();
+    }
   }
+
   return 0;
 }

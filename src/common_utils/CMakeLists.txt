@@ -7,6 +7,7 @@ set(HEADERS
 	math_utils.h
 	system_utils.h
 	pcl_utils.h
+	pcl_vtk_utils.h
 	vtk_utils.h)
 
 install(FILES ${HEADERS}

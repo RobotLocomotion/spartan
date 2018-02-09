@@ -21,9 +21,9 @@ from director import transformUtils
 
 # Each goal is [camera loc][lookat pos][up dir]
 goals = [
-   # [[0.2, -0.5, 1.2], [0.8, 0.0, 0.8], [0., 0., 1.0]],
+    [[0.2, -0.5, 1.2], [0.8, 0.0, 0.8], [0., 0., 1.0]],
     [[0.2, 0.0, 1.5], [0.8, 0.0, 0.8], [0., 0., 1.0]],
-#    [[0.2, 0.5, 1.2], [0.8, 0.0, 0.8], [0., 0., 1.0]]
+    [[0.2, 0.5, 1.2], [0.8, 0.0, 0.8], [0., 0., 1.0]]
     ]
 
 
@@ -105,5 +105,6 @@ if __name__=="__main__":
             print "robotService moveToCartesianPosition returned failure ", success
             cleanup_and_exit(1)
 
+        rospy.sleep(3)
         rospy.sleep(3)
         pcserver.addPointCloud(minPt = [0.0, -0.5, -0.5], maxPt = [1.5, 0.5, 2.5])
