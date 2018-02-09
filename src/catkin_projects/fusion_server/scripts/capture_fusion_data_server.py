@@ -7,12 +7,18 @@ import sys
 import time
 import subprocess
 
+# ply reader
+from plyfile import PlyData, PlyElement
+
 # spartan
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
 
+
 # ros srv
 from fusion_server.srv import *
+from numpy_pc2 import array_to_xyz_pointcloud2f
+
 
 
 # this function taken from here:
@@ -29,13 +35,17 @@ def terminate_ros_node(s):
 
 class FusionServer(object): 
 
-	def __init__(self):
+	def __init__(self, camera_serial_number="carmine_1"):
+		self.camera_serial_number = camera_serial_number
 		self.bagging = False
 		self.rosbag_proc = None
 		storedPosesFile = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'station_config','RLG_iiwa_1','stored_poses.yaml')
 		self.storedPoses = spartanUtils.getDictFromYamlFilename(storedPosesFile)
 		self.robotService = rosUtils.RobotService(self.storedPoses['header']['joint_names'])
 		self.setupConfig()
+		self.setupSubscribers()
+		self.setupTF()
+		self.setupCache()
 
 	def setupConfig(self):
 		self.config = dict()
@@ -43,24 +53,82 @@ class FusionServer(object):
 		self.config['scan']['pose_list'] = ['scan_back', 'scan_left', 'scan_top', 'scan_right', 'scan_back']
 		self.config['scan']['joint_speed'] = 40
 		self.config['home_pose_name'] = 'above_table_pre_grasp'
+		self.config['sleep_time_before_bagging'] = 2.0
+		self.config['world_frame'] = 'base'
+
+		self.topics_to_bag = [
+			"/tf",
+			"/tf_static",
+			"/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/image_rect",
+			"/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/camera_info",
+			"/camera_"+self.camera_serial_number+"/rgb/camera_info",
+			"/camera_"+self.camera_serial_number+"/rgb/image_rect_color"
+		]
+
+		self.topics_dict = dict()
+		self.topics_dict['rgb'] = "/camera_"+self.camera_serial_number+"/rgb/image_rect_color"
+		self.topics_dict['depth'] = "/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/image_rect"
+		self.topics_dict['camera_info'] = "/camera_"+self.camera_serial_number+"/rgb/camera_info"
+
+	def setupTF(self):
+        if self.tfBuffer is None:
+            self.tfBuffer = tf2_ros.Buffer()
+
+	def setupSubscribers(self):
+		self.subscribers = dict()
+
+		self.subsribers['rgb'] = rosUtils.SimpleSubscriber(self.topics_dict['rgb'], sensor_msgs.msg.Image)
+
+		self.subscribers['depth'] = rosUtils.SimpleSubscriber(self.topics_dict['depth'], sensor_msgs.msg.Image)
+
+	def startImageSubscribers(self):
+		for key, sub in self.subscribers.iteritems():
+			sub.start()
+
+	def stopImageSubscribers(self):
+		for key, sub in self.subscribers.iteritems():
+			sub.stop()
+
+	def setupCache(self):
+		self.cache = dict()
+
+	def flushCache(self):
+		self.setupCache()
+
+	"""
+	Get transform from rgb_optical_frame to world
+	"""
+	def getRGBOpticalFrameToWorldTransform(self):
+		rgbOpticalFrameToWorld = self.tfBuffer.lookup_transform(self.cofnig['world_frame'], ros_utils.getRGBOpticalFrameName, rospy.Time(0))
+        return rgbOpticalFrameToWorld
 
 	def start_bagging(self):
+		self.flushCache()
+
 		bagfile_directory = os.path.expanduser("~")+"/bagfiles/fusion/"
 
 		# make sure bagfile_directory exists
 		os.system("mkdir -p " + bagfile_directory)
 
-		# camera serial number
-		camera_serial_number = "1112170110"
-
+		 
 		topics_to_bag = [
 			"/tf",
 			"/tf_static",
-			"/camera_"+camera_serial_number+"/depth_registered/sw_registered/image_rect",
-			"/camera_"+camera_serial_number+"/depth_registered/sw_registered/camera_info",
-			"/camera_"+camera_serial_number+"/rgb/camera_info",
-			"/camera_"+camera_serial_number+"/rgb/image_rect_color"
+			"/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/image_rect",
+			"/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/camera_info",
+			"/camera_"+self.camera_serial_number+"/rgb/camera_info",
+			"/camera_"+self.camera_serial_number+"/rgb/image_rect_color"
 		]
+
+		# add simple subscribers to fix xtion driver issues
+		self.startImageSubscribers()
+
+		# sleep for two seconds to allow for xtion driver compression issues to be resolved
+		rospy.sleep(self.config['sleep_time_before_bagging'])
+
+
+		# get camera to world transform
+		self.cache['point_cloud_to_world_stamped'] = self.getRGBOpticalFrameToWorldTransform()
 
 		# build up command string
 		rosbag_cmd = "rosbag record"
@@ -103,10 +171,39 @@ class FusionServer(object):
 
 	def handle_perform_elastic_fusion(self, req):
 		## call executable for filename
-		cmd = ". /opt/ros/kinetic/setup.sh && $SPARTAN_SOURCE_DIR/src/ElasticFusion/GUI/build/ElasticFusion -l " + req.bag_filepath
+		cmd = ". /opt/ros/kinetic/setup.sh && $SPARTAN_SOURCE_DIR/src/ElasticFusion/GUI/build/ElasticFusion -q -t 900 -d 2 -l " + req.bag_filepath
+
+		cl_args = ""
+		cl_args += " --ros_bag_filename " + req.bag_filepath
+		cl_args += " --ros_image_depth_topic " + self.topics_dict['depth']
+		cl_args += " --ros_image_rgb_topic " + self.topics_dict['rgb']
+		cl_args += " --ros_camera_info_topic " + self.topics_dict['camera_info']
+
+		cmd += cl_args
+
 		os.system("echo " + cmd)
 		os.system(cmd)
+
+		ply_filename = req.bag_filepath + ".ply"
+
+		# of type sensor_msgs.msg.PointCloud2
+		point_cloud = self.convert_ply_to_pointcloud2(PlyData.read(ply_filename))
+		
+		res = PerformElasticFusionResponse()
+		res.pointcloud_filepath = ply_filename
+		res.point_cloud = point_cloud
+		res.point_cloud_to_world_stamped = self.cache['point_cloud_to_world_stamped']
+
+
 		return PerformElasticFusionResponse("need to merge auto-output pointcloud.vtp and return it here")
+
+	def convert_ply_to_pointcloud2(self, plydata):
+
+        cloud_arr = np.zeros((len(plydata.elements[0].data), 3))
+        for i in xrange(len(plydata.elements[0].data)):
+            cloud_arr[i] = list(plydata.elements[0].data[i])[:3]
+
+        return array_to_xyz_pointcloud2f(cloud_arr)
 
 	def handle_capture_scene_and_fuse(self, req):
 		# Start bagging with own srv call

@@ -130,6 +130,9 @@ def saveSingleDepthImage(topic, filename, encoding=None):
 
         os.system(cmd)
 
+def getRGBOpticalFrameName(camera_name):
+    return "camera_" +  camera_name + "_rgb_optical_frame"
+
 
 class SimpleSubscriber(object):
     def __init__(self, topic, messageType, externalCallback=None):
