@@ -113,13 +113,6 @@ IIWA_RGB_CAMERA_MAX_DISTANCE = 10.
 CAMERA_FORWARD_VEC = [0,0,-1]
 CAMERA_UP_VEC = [0,1,0]
 
-# # Channels on which camera info will be published
-# IIWA_CAMERA_RGB_TOPIC = "/camera_%s/rgb/image_raw" % IIWA_CAMERA_SERIAL
-# IIWA_CAMERA_DEPTH_TOPIC = "/camera_%s/depth/image_raw" % IIWA_CAMERA_SERIAL
-# IIWA_CAMERA_RGB_INFO_TOPIC = "/camera_%s/rgb/camera_info" % IIWA_CAMERA_SERIAL
-# IIWA_CAMERA_DEPTH_INFO_TOPIC = "/camera_%s/depth/camera_info" % IIWA_CAMERA_SERIAL
-# IIWA_CAMERA_RGB_FRAME = "camera_%s_rgb_optical_frame" % IIWA_CAMERA_SERIAL
-# IIWA_CAMERA_DEPTH_FRAME = "camera_%s_depth_optical_frame" % IIWA_CAMERA_SERIAL
 
 
 def load_pybullet_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = [0, 0, 0, 1], fixed = True, packageMap = None):
