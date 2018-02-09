@@ -28,4 +28,9 @@ apt install --no-install-recommends \
 pip install -U pip setuptools
 
 # Dependencies of trimesh
-pip install numpy scipy pyassimp pyglet
+pip install \
+  numpy \
+  scipy \
+  pyassimp \
+  pyglet \
+  plyfile
