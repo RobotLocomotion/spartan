@@ -16,7 +16,7 @@ for f in os.listdir(path):
 				if len(transformYaml.keys()) > 5:
 					paths.append((f,transformYaml.keys())) 
 for i in paths:
-	print i
+	print i[0]
 	'''
 	name = os.path.basename(os.path.normpath(path+i[0]))
 	for j in os.listdir(path+i[0]+"/images/"):

@@ -17,5 +17,5 @@ def solve_intrinsics(dir):
 		image_util.save(dir+"/"+name+"_r.png", r, rescale=True)
 		image_util.save(dir+"/"+name+"_s.png", s, rescale=True)
 
-base_dir = "/media/drc/DATA/chris_labelfusion/logs_test/2017-06-16-15/images"
+base_dir = "/media/drc/DATA/NYU/bathroom_0001/"
 solve_intrinsics(base_dir)
