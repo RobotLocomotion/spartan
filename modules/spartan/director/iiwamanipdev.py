@@ -56,3 +56,7 @@ def setupRLGDirector(globalsDict=None):
     cal = spartan.calibration.handeyecalibration.HandEyeCalibration(globalsDict['robotSystem'], configFilename=handEyeCalibrationConfigFilename)
     cal.loadConfigFromFile()
     globalsDict['cal'] = cal
+
+    # set rate limit on RemoteTreeViewer
+    # fix for https://github.com/RobotLocomotion/spartan/issues/244
+    globalsDict['treeViewer'].subscriber.setSpeedLimit(5)
