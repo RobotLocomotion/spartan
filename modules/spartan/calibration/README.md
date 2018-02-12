@@ -5,7 +5,7 @@
 ### Prepare to capture images
 
 - Decide the device's serial number or name
-- Create a new folder in `station_config/hand_eye_calibration` and create a new `.yaml` file.  Copy over the structure from another yaml file.
+- Create a new folder in `src/catkin_projects/station_config/hand_eye_calibration` and create a new `.yaml` file.  Copy over the structure from another yaml file.
 - Specify in `iiwamanipdev.py` what the name of this `.yaml` file is within `station_config`
 - Create a new folder in `camera_config` and copy over the structure from other folders
 - Rebuild catkin_project/fast
