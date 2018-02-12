@@ -174,12 +174,12 @@ class RgbdCameraMetaInfo():
         if 'min_range' in info_yaml['depth']:
             self.depth_min_range = info_yaml['depth']['min_range']
         else:
-            self.depth_min_range = IIWA_CAMERA_MIN_DISTANCE
+            self.depth_min_range = IIWA_DEPTH_CAMERA_MIN_DISTANCE
 
         if 'max_range' in info_yaml['depth']:
             self.depth_max_range = info_yaml['depth']['max_range']
         else:
-            self.depth_max_range = IIWA_CAMERA_MAX_DISTANCE
+            self.depth_max_range = IIWA_DEPTH_CAMERA_MAX_DISTANCE
 
         
 
