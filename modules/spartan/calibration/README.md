@@ -74,7 +74,6 @@ Here are a few good simple tests:
 
 
 TODO
-- add picture of IR illuminators setup
 - later: clean up station_config structure (not just one cal.yaml)
 - extrinsics should live in station_config
 - adjust joint limits
