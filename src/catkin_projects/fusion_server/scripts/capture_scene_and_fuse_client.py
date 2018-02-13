@@ -2,6 +2,7 @@
 
 import sys
 import rospy
+import fusion_server
 from fusion_server.srv import *
 import time
 

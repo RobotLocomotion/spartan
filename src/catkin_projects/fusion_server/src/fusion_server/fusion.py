@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import subprocess
+import copy
 import numpy as np
 
 # ply reader
@@ -68,6 +69,7 @@ class FusionServer(object):
         self.robotService = rosUtils.RobotService(self.storedPoses['header']['joint_names'])
         self.setupConfig()
         self.setupSubscribers()
+        self.setupPublishers()
         self.setupTF()
         self.setupCache()
 
@@ -77,17 +79,23 @@ class FusionServer(object):
         # self.config['scan']['pose_list'] = ['scan_back', 'scan_left', 'scan_top', 'scan_right', 'scan_back']
 
         self.config['scan']['pose_list'] = ['scan_left_close', 'scan_left_center', 'scan_above_table_far', 'scan_right_center', 'scan_right_close']
+
+        # self.config['scan']['pose_list'] = ['scan_above_table_far']
         
 
         self.config['speed'] = dict()
         self.config['speed']['scan'] = 15
-        self.config['speed']['fast'] = 40
+        self.config['speed']['fast'] = 30
+
+        self.config['spin_rate'] = 1
 
         
         self.config['home_pose_name'] = 'scan_above_table_far'
         self.config['sleep_time_before_bagging'] = 2.0
         self.config['world_frame'] = 'base'
         self.config['sleep_time_at_each_pose'] = 0.5
+
+        self.config["reconstruction_frame_id"] = "fusion_reconstruction"
 
         self.topics_to_bag = [
             "/tf",
@@ -109,12 +117,18 @@ class FusionServer(object):
         if self.tfBuffer is None:
             self.tfBuffer = tfBuffer
 
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster()
+
     def setupSubscribers(self):
         self.subscribers = dict()
 
         self.subscribers['rgb'] = rosUtils.SimpleSubscriber(self.topics_dict['rgb'], sensor_msgs.msg.Image)
 
         self.subscribers['depth'] = rosUtils.SimpleSubscriber(self.topics_dict['depth'], sensor_msgs.msg.Image)
+
+    def setupPublishers(self):
+        topic_name = "fusion_reconstruction"
+        self.pointcloud_publisher = rospy.Publisher(topic_name, sensor_msgs.msg.PointCloud2, queue_size=1)
 
     def startImageSubscribers(self):
         for key, sub in self.subscribers.iteritems():
@@ -161,12 +175,14 @@ class FusionServer(object):
 
         rospy.loginfo("started image subscribers, sleeping for %d seconds", self.config['sleep_time_before_bagging'])
         # sleep for two seconds to allow for xtion driver compression issues to be resolved
-        rospy.sleep(self.config['sleep_time_before_bagging'])
+        
+        # rospy.sleep(self.config['sleep_time_before_bagging'])
 
 
         # get camera to world transform
         self.cache['point_cloud_to_world_stamped'] = self.getRGBOpticalFrameToWorldTransform()
-
+        transform_stamped = self.cache['point_cloud_to_world_stamped']
+        
         # build up command string
         rosbag_cmd = "rosbag record"
         bagfile_name = "fusion" + str(time.time())
@@ -179,6 +195,9 @@ class FusionServer(object):
 
         # start bagging
         rosbag_proc = subprocess.Popen(rosbag_cmd, stdin=subprocess.PIPE, shell=True, cwd=bagfile_directory)
+
+        rospy.loginfo("sleeping while waiting for bagging to start")
+        rospy.sleep(2.0)
         return os.path.join(bagfile_directory, bagfile_name+".bag"), rosbag_proc
 
     def handle_start_bagging_fusion_data(self, req):
@@ -283,7 +302,12 @@ class FusionServer(object):
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
 
-        return CaptureSceneAndFuseResponse(resp3.elastic_fusion_output)
+        # publish the pointcloud to RVIZ
+        elastic_fusion_output = resp3.elastic_fusion_output
+        self.cache['fusion_output'] = elastic_fusion_output
+        self.publish_pointcloud_to_rviz(elastic_fusion_output.point_cloud, self.cache['point_cloud_to_world_stamped'])
+
+        return CaptureSceneAndFuseResponse(elastic_fusion_output)
 
     def run_fusion_data_server(self):
         s = rospy.Service('start_bagging_fusion_data', StartBaggingFusionData, self.handle_start_bagging_fusion_data)
@@ -291,4 +315,47 @@ class FusionServer(object):
         s = rospy.Service('perform_elastic_fusion', PerformElasticFusion, self.handle_perform_elastic_fusion)
         s = rospy.Service('capture_scene_and_fuse', CaptureSceneAndFuse, self.handle_capture_scene_and_fuse)
         print "Ready to capture fusion data."
-        rospy.spin()
+
+        rate = rospy.Rate(self.config['spin_rate'])
+        while not rospy.is_shutdown():
+            if 'fusion_output' in self.cache:
+                fusion_output = self.cache['fusion_output']
+                self.publish_pointcloud_to_rviz(fusion_output.point_cloud, self.cache['point_cloud_to_world_stamped'])
+
+            # self.publish_reconstruction_to_world_transform()
+            rate.sleep()
+
+
+    def publish_pointcloud_to_rviz(self, point_cloud_2_msg, point_cloud_to_world_stamped):
+        """
+        Publishes out the reconstruction to rviz
+        """
+
+        rospy.loginfo("publishing pointcloud to rviz")
+        header = point_cloud_2_msg.header
+        header.stamp = rospy.Time.now()
+
+        reconstruction_frame_id = self.config['reconstruction_frame_id']
+        header.frame_id = reconstruction_frame_id
+
+        self.pointcloud_publisher.publish(point_cloud_2_msg)
+        self.publish_reconstruction_to_world_transform(point_cloud_to_world_stamped)
+
+
+    def publish_reconstruction_to_world_transform(self, point_cloud_to_world_stamped=None):
+        """
+        Publish transform from reconstruction to world frame
+        """
+        if point_cloud_to_world_stamped is None:
+            if 'point_cloud_to_world_stamped' in self.cache:
+                point_cloud_to_world_stamped = self.cache['point_cloud_to_world_stamped']
+            else:
+                return
+    
+
+        reconstruction_frame_id = self.config['reconstruction_frame_id']
+
+        reconstruction_to_world_stamped = copy.deepcopy(point_cloud_to_world_stamped)
+        reconstruction_to_world_stamped.header.stamp = rospy.Time.now()
+        reconstruction_to_world_stamped.child_frame_id = reconstruction_frame_id
+        self.tf_broadcaster.sendTransform(reconstruction_to_world_stamped)
