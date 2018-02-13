@@ -1,0 +1,3 @@
+string pointcloud_filepath
+sensor_msgs/PointCloud2 point_cloud
+geometry_msgs/TransformStamped point_cloud_to_world_stamped
