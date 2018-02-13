@@ -64,13 +64,15 @@ Remember to remove the projector-covering device!!
 
 ### Test the calibration quality
 
-Here are a few good simple tests:
+DO THESE TESTS:
 
 1. Verify in rviz that the frames (rgb and depth) generally look in the right spot
 
 2. Point the depth sensor down at the table and verify it looks generally flat
 
 3. Can even point robot at itself and see if the point cloud matches the urdf
+
+4. In RVIZ open `image_rect_color` and verify that it doesn't look distorted. A good way to do that is to look at the checkerboard and edges of the table.
 
 
 TODO
