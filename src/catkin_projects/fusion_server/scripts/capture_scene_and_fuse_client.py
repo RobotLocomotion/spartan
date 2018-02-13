@@ -11,10 +11,13 @@ def capture_scene_and_fuse_client():
     print "Found it!, starting capture..."
     try:
         capture_scene_and_fuse = rospy.ServiceProxy('capture_scene_and_fuse', CaptureSceneAndFuse)
-        resp1 = capture_scene_and_fuse()
-        return resp1.pointcloud_filepath
+        resp = capture_scene_and_fuse()
+        print "pointcloud_filepath = %s" %resp.elastic_fusion_output.pointcloud_filepath
+        rospy.loginfo("pointcloud_filepath = %s", resp.elastic_fusion_output.pointcloud_filepath)
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
+
+    return resp
 
 def usage():
     return "don't need any args to capture scene!"
@@ -24,4 +27,5 @@ if __name__ == "__main__":
         print usage()
         sys.exit(1)
     
-    print "data_filepath = %s"%(capture_scene_and_fuse_client())
+    capture_scene_and_fuse_client()
+    
