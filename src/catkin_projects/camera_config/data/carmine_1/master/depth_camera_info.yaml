@@ -43,11 +43,11 @@ camera_matrix:
 distortion_model: plumb_bob
 distortion_coefficients:
   data:
-    - -0.07780609783432509
-    - 0.5317540500441359
-    - 0.001722477811046529
-    - -0.001753969574344939
-    - -1.730818208522905
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
   rows: 1
   cols: 5
 image_width: 640
