@@ -285,14 +285,9 @@ class FusionServer(object):
         return CaptureSceneAndFuseResponse(resp3.elastic_fusion_output)
 
     def run_fusion_data_server(self):
-        rospy.init_node('capture_fusion_data_server')
         s = rospy.Service('start_bagging_fusion_data', StartBaggingFusionData, self.handle_start_bagging_fusion_data)
         s = rospy.Service('stop_bagging_fusion_data', StopBaggingFusionData, self.handle_stop_bagging_fusion_data)
         s = rospy.Service('perform_elastic_fusion', PerformElasticFusion, self.handle_perform_elastic_fusion)
         s = rospy.Service('capture_scene_and_fuse', CaptureSceneAndFuse, self.handle_capture_scene_and_fuse)
         print "Ready to capture fusion data."
         rospy.spin()
-
-if __name__ == "__main__":
-    fs = FusionServer()
-    fs.run_fusion_data_server()
