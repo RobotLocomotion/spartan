@@ -1,0 +1,3 @@
+#!/bin/bash
+
+use_ros && use_spartan && kuka_iiwa_procman
