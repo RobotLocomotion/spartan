@@ -491,6 +491,8 @@ class HandEyeCalibration(object):
         if self.passiveSubscriber:
             self.passiveSubscriber.stop()
 
+        self.moveHome()
+
         return calibrationRunData
 
     def run(self, captureRGB=True, captureIR=False, cameraName="sr300", targetWidth=4,
@@ -552,6 +554,8 @@ class HandEyeCalibration(object):
         returnData['cameraLocations'] = []
         returnData['feasiblePoses'] = []
 
+        previousCameraLocation = None
+
         for dist in distances:
             for pitch in pitchAngles:
                 for yaw in yawAngles:
@@ -561,6 +565,15 @@ class HandEyeCalibration(object):
 
                     # cameraLocation = HandEyeCalibration.gripperPositionTarget(config['target_location'], yaw=yaw, pitch=pitch, radius=dist)
                     cameraLocation = HandEyeCalibration.gripperPositionTargetRadialFromCalibrationPlate(config['target_location'], yaw=yaw, pitch=pitch, radius=dist)
+
+
+                    # if it's too close to previous one, then skip it
+                    if previousCameraLocation is not None:
+                        if np.linalg.norm(previousCameraLocation - cameraLocation) < self.config['poses']['min_distance_between_poses']:
+                            print("skipping pose, too close to previous pose")
+                            continue
+
+                    previousCameraLocation = cameraLocation
 
                     ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation, targetLocationWorld=config['target_location'])
 
@@ -584,8 +597,6 @@ class HandEyeCalibration(object):
 
 
         return returnData
-
-
 
     def drawResult(self, result):
 

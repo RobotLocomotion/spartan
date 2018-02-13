@@ -7,7 +7,7 @@ poses:
   - 0
   - 0
   distance:
-    max: 1.0
+    max: 0.8
     min: 0.6
     step_size: 0.15
   pitch:
@@ -22,6 +22,9 @@ poses:
     max: 180
     min: -180
     step_size: 15
+
+  min_distance_between_poses: 0.1
+
 rgb_raw_topic: /camera_carmine_1/rgb/image_raw
 encoding:
   ir: "mono16"
