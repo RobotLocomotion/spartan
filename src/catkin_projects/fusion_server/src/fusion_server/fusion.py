@@ -19,8 +19,9 @@ import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
 
 # ros srv
+import fusion_server.srv
 from fusion_server.srv import *
-from numpy_pc2 import array_to_xyz_pointcloud2f
+from fusion_server.numpy_pc2 import array_to_xyz_pointcloud2f
 
 
 
