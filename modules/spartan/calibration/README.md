@@ -3,7 +3,12 @@
 ---
 
 ### Calibration Target
-There should already be a calibration target setup. If it looks like 
+There should already be a calibration target setup which looks like
+<p align="center">
+  <img src="./doc/checkerboard.jpg" width="450"/>
+</p>
+
+The pdf of this target is in `spartan/src/catkin_projects/camera_config/data/calibration_targets/check_7x6_108mm.pdf`. When sized to print on letter size paper the edge length of an individual square was measured to be 25.6 mm.
 
 ### Prepare to capture images
 
