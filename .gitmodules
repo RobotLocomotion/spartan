@@ -41,3 +41,6 @@
 [submodule "models/dish_models"]
 	path = models/dish_models
 	url = https://github.com/gizatt/dish_models
+[submodule "src/handical"]
+	path = src/handical
+	url = git@github.com:ToyotaResearchInstitute/handical.git
