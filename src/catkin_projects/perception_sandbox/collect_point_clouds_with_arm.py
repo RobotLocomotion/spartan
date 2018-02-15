@@ -32,7 +32,7 @@ class PointCloudObjectFittingServer(object):
     def __init__(self):
         # Subscribe to point clouds
         self.pc_subscriber = SimpleSubscriber("/camera_1112170110/depth_registered/points", sensor_msgs.msg.PointCloud2)
-        self.pc_subscriber.start()
+        self.pc_subscriber.start(queue_size=1)
         self.base_frame_id = "base"
         self.camera_frame_id = "camera_1112170110_rgb_optical_frame"
         self.timeout = 5
@@ -43,11 +43,22 @@ class PointCloudObjectFittingServer(object):
         s = rospy.ServiceProxy('/object_fitting/AddPointCloudAtPose', perception_sandbox.srv.AddPointCloudAtPose)
         pcpose = spartan_grasp_msgs.msg.PointCloudWithTransform()
 
+        # Force us to wait for a new pointcloud
+        self.pc_subscriber.lastMsg = None
         while self.pc_subscriber.lastMsg is None:
-            print "PC subscriber sees nothing! Waiting for one..."
+            print "Waiting for a new point cloud..."
             rospy.sleep(1)
 
-        trans, quat = self.tf.lookupTransform(self.base_frame_id, self.camera_frame_id, rospy.Time(0))
+        while self.pc_subscriber.lastMsg.header.stamp.to_sec() < rospy.Time.now().to_sec() - 5:
+            print "Timestamp on pointcloud: ", self.pc_subscriber.lastMsg.header.stamp.to_sec()
+            print "rospy now: ", rospy.Time.now().to_sec()
+            rospy.sleep(1)
+
+        print "Timestamp on pointcloud: ", self.pc_subscriber.lastMsg.header.stamp.to_sec()
+        print "rospy now: ", rospy.Time.now().to_sec()
+        
+        self.tf.waitForTransform(self.base_frame_id, self.camera_frame_id, self.pc_subscriber.lastMsg.header.stamp, rospy.Duration.from_sec(2.))
+        trans, quat = self.tf.lookupTransform(self.base_frame_id, self.camera_frame_id, self.pc_subscriber.lastMsg.header.stamp)
         # USing this to get to tF matrix because the ordering of quaterion is weird
         tf_matrix = self.tf.fromTranslationRotation(trans, quat)
 
@@ -105,6 +116,4 @@ if __name__=="__main__":
             print "robotService moveToCartesianPosition returned failure ", success
             cleanup_and_exit(1)
 
-        rospy.sleep(3)
-        rospy.sleep(3)
         pcserver.addPointCloud(minPt = [0.0, -0.5, -0.5], maxPt = [1.5, 0.5, 2.5])
