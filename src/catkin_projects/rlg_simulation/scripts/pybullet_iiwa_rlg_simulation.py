@@ -345,7 +345,12 @@ class IiwaRlgSimulator():
 
     def PublishIiwaStatus(self):
         status_msg = lcmt_iiwa_status()
-        status_msg.utime = time.time() * 1E6
+        # TODO(gizatt) Publish sim time.
+        # This would use the Rospy Clock feature,
+        # but requires every simulated node to be launched
+        # with a special use_sim_time flag.
+        # Lots of work...
+        status_msg.utime = rospy.Time.now().to_nsec() / 1000
         status_msg.num_joints = len(IIWA_CONTROLLED_JOINTS)
         # Get joint state info
         states = pybullet.getJointStates(self.kuka_id, self.iiwa_motor_id_list)
