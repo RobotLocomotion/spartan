@@ -2,6 +2,14 @@
 
 ---
 
+### Calibration Target
+There should already be a calibration target setup which looks like
+<p align="center">
+  <img src="./doc/checkerboard.jpg" width="450"/>
+</p>
+
+The pdf of this target is in `spartan/src/catkin_projects/camera_config/data/calibration_targets/check_7x6_108mm.pdf`. When sized to print on letter size paper the edge length of an individual square was measured to be 25.6 mm.
+
 ### Prepare to capture images
 
 - Decide the device's serial number or name
@@ -39,7 +47,7 @@ spartan/calibration_data/20180201-233350_rgb/
 - Set up the IR illuminators (see pic below)
 
 <p align="center">
-  <img src="./kuka_ir_illuminators.jpg" width="450"/>
+  <img src="./doc/kuka_ir_illuminators.jpg" width="450"/>
 </p>
 
 - View the IR images in rviz and make sure the IR illumination is good enough (it can be sensitive to the height and angle of the IR illuminator)

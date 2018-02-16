@@ -26,8 +26,8 @@ poses:
   min_distance_between_poses: 0.1
 calibration_target:
   width: 7
-  height: 9
-  square_edge_length: 0.025
+  height: 6
+  square_edge_length: 0.0256
 rgb_raw_topic: /camera_carmine_1/rgb/image_raw
 encoding:
   ir: "mono16"
