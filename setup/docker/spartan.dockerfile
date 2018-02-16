@@ -27,6 +27,8 @@ RUN yes "Y" | /tmp/install_dependencies.sh
 COPY ./setup/ubuntu/16.04/install_prereqs.sh /tmp/spartan_install_prereqs.sh
 RUN yes "Y" | /tmp/spartan_install_prereqs.sh
 
+COPY ./drake/setup/ubuntu/16.04/binary_distribution/install_prereqs.sh /tmp/binary_distribution/install_prereqs.sh
+
 COPY ./drake/setup/ubuntu/16.04/install_prereqs.sh /tmp/drake_install_prereqs.sh
 RUN yes "Y" | /tmp/drake_install_prereqs.sh
 
