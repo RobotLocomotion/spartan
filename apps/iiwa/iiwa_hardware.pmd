@@ -157,6 +157,11 @@ group "8.ROS" {
     host = "localhost";
   }
 
+  cmd "8.fusion_server" {
+    exec = "roslaunch fusion_server fusion_server.launch camera_serial_number:=carmine_1";
+    host = "localhost";
+  }
+
 }
 
 group "9.Calibration" {

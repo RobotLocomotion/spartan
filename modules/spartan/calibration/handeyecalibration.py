@@ -471,10 +471,11 @@ class HandEyeCalibration(object):
         # self.subscribers[topic].start()
 
 
-
-        for pose in poseDict['feasiblePoses']:
+        num_poses = len(poseDict['feasiblePoses'])
+        for index, pose in enumerate(poseDict['feasiblePoses']):
             # move robot to that joint position
-            rospy.loginfo("\n moving to pose")
+            info_msg = "\n moving to pose "+str(index)+" of "+str(num_poses)
+            rospy.loginfo(info_msg)
             self.robotService.moveToJointPosition(pose['joint_angles'])
 
             rospy.loginfo("capturing images and robot data")
@@ -491,12 +492,13 @@ class HandEyeCalibration(object):
         if self.passiveSubscriber:
             self.passiveSubscriber.stop()
 
+        self.moveHome()
+
         return calibrationRunData
 
-    def run(self, captureRGB=True, captureIR=False, cameraName="sr300", targetWidth=4,
-        targetHeight=5, targetSquareSize=0.05):
+    def run(self, captureRGB=True, captureIR=False):
 
-        if cameraName=="xtion pro" and captureRGB and captureIR:
+        if captureRGB and captureIR:
             print "you can't capture IR and RGB at the same time, returning"
             return
 
@@ -516,14 +518,14 @@ class HandEyeCalibration(object):
         
         # setup header information for storing along with the log
         calibrationHeaderData = dict()
-        calibrationHeaderData['camera'] = cameraName
+        calibrationHeaderData['camera'] = self.config['camera_type']
         
-        targetData = dict()
-        targetData['width'] = targetWidth
-        targetData['height'] = targetHeight
-        targetData['square_edge_length'] = targetSquareSize
+        # targetData = dict()
+        # targetData['width'] = targetWidth
+        # targetData['height'] = targetHeight
+        # targetData['square_edge_length'] = targetSquareSize
 
-        calibrationHeaderData['target'] = targetData
+        calibrationHeaderData['target'] = self.config['calibration_target']
 
         self.taskRunner.callOnThread(self.runROSCalibration, calibrationHeaderData)
 
@@ -532,7 +534,7 @@ class HandEyeCalibration(object):
         config = self.calibrationPosesConfig
 
         def arrayFromConfig(d):
-            n = int(np.ceil((d['max'] - d['min'])/d['step_size']))
+            n = int(np.ceil((d['max'] - d['min'])/d['step_size']) + 1)
             return np.linspace(d['min'], d['max'], n)
 
         # vector going from the target back towards the robot
@@ -552,6 +554,8 @@ class HandEyeCalibration(object):
         returnData['cameraLocations'] = []
         returnData['feasiblePoses'] = []
 
+        previousCameraLocation = None
+
         for dist in distances:
             for pitch in pitchAngles:
                 for yaw in yawAngles:
@@ -561,6 +565,15 @@ class HandEyeCalibration(object):
 
                     # cameraLocation = HandEyeCalibration.gripperPositionTarget(config['target_location'], yaw=yaw, pitch=pitch, radius=dist)
                     cameraLocation = HandEyeCalibration.gripperPositionTargetRadialFromCalibrationPlate(config['target_location'], yaw=yaw, pitch=pitch, radius=dist)
+
+
+                    # if it's too close to previous one, then skip it
+                    if previousCameraLocation is not None:
+                        if np.linalg.norm(previousCameraLocation - cameraLocation) < self.config['poses']['min_distance_between_poses']:
+                            print("skipping pose, too close to previous pose")
+                            continue
+
+                    previousCameraLocation = cameraLocation
 
                     ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation, targetLocationWorld=config['target_location'])
 
@@ -584,8 +597,6 @@ class HandEyeCalibration(object):
 
 
         return returnData
-
-
 
     def drawResult(self, result):
 
