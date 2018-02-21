@@ -1,4 +1,7 @@
 #include <ros/ros.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <unistd.h>
 #include <iostream>
 #include <mutex>
@@ -17,13 +20,16 @@
 #include <pcl/features/integral_image_normal.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/crop_box.h>
+#include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/io/obj_io.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/search/search.h>
+#include <pcl/segmentation/conditional_euclidean_clustering.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
@@ -66,6 +72,24 @@ DEFINE_double(test_object_scale, 1.0, "Object's scaling'");
 
 using namespace std;
 
+bool myRegionGrowing(const pcl::PointXYZRGBNormal& point_a,
+                     const pcl::PointXYZRGBNormal& point_b,
+                     float squared_distance) {
+  printf("Here\n");
+  Eigen::Map<const Eigen::Vector3f> point_a_normal =
+                                        point_a.getNormalVector3fMap(),
+                                    point_b_normal =
+                                        point_b.getNormalVector3fMap();
+  std::cout << "d " << squared_distance << ", " << point_a_normal << ", "
+            << point_b_normal << std::endl;
+  exit(1);
+  if (squared_distance > powf(0.02, 2.0)) return false;
+  if (fabs(point_a_normal.dot(point_b_normal)) < 0.5 &&
+      squared_distance > powf(0.02, 2.0))
+    return false;
+  return true;
+}
+
 class ObjectFittingServer {
   ros::NodeHandle nh_;
 
@@ -73,6 +97,7 @@ class ObjectFittingServer {
   double lastPublishTime_;
   ros::Publisher debug_cloud_pub_;
   ros::Publisher partial_cloud_pub_;
+  ros::Publisher segmented_cloud_pub_;
 
   ros::ServiceServer service_add_;
   ros::ServiceServer service_reset_;
@@ -91,6 +116,9 @@ class ObjectFittingServer {
         partial_cloud_pub_(
             nh_.advertise<pcl::PointCloud<pcl::PointXYZRGBNormal>>(
                 "/object_fitting/partial_cloud", 1)),
+        segmented_cloud_pub_(
+            nh_.advertise<pcl::PointCloud<pcl::PointXYZRGBNormal>>(
+                "/object_fitting/segmented_cloud", 1)),
         lastPublishTime_(getUnixTime() - 100.),
         service_add_(nh_.advertiseService(
             "/object_fitting/AddPointCloudAtPose",
@@ -191,9 +219,128 @@ class ObjectFittingServer {
     return true;
   }
 
+  std::vector<pcl::PointIndices> OversegmentPointCloud(
+      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud) {
+    std::vector<pcl::PointIndices> clusters;
+
+    // Pick 100 random points and take all points within a set
+    // distance
+    pcl::KdTreeFLANN<pcl::PointXYZRGBNormal> kdtree;
+    kdtree.setInputCloud(cloud);
+    std::vector<int> pointIndices(100);
+    std::vector<float> pointDistances(100);
+    for (int i = 0; i < 100; i++) {
+      const auto& searchPt = cloud->points[rand() % cloud->size()];
+      if (kdtree.radiusSearch(searchPt, 0.05, pointIndices, pointDistances) >
+          0) {
+        pcl::PointIndices new_cluster;
+        new_cluster.indices = pointIndices;
+        clusters.push_back(new_cluster);
+      }
+    }
+
+    // Not perfect because clusters may overlap, but meh
+    pcl::PointCloud<pcl::PointXYZRGBNormal> colored_segment_cloud;
+    colored_segment_cloud += *cloud;
+    for (int i = 0; i < clusters.size(); ++i) {
+      char r = rand() % 255;
+      char g = rand() % 255;
+      char b = rand() % 255;
+      for (int j = 0; j < clusters[i].indices.size(); ++j) {
+        colored_segment_cloud.points[clusters[i].indices[j]].r = r;
+        colored_segment_cloud.points[clusters[i].indices[j]].g = g;
+        colored_segment_cloud.points[clusters[i].indices[j]].b = b;
+      }
+    }
+
+    colored_segment_cloud.header.stamp = 0;
+    colored_segment_cloud.header.frame_id = cloud->header.frame_id;
+    segmented_cloud_pub_.publish(colored_segment_cloud);
+
+    // Also save them to "clusters" dir in PCD
+    struct stat st = {0};
+    if (stat("clusters", &st) == -1) {
+      mkdir("clusters", 0700);
+    }
+    for (int i = 0; i < clusters.size(); ++i) {
+      char namebuf[100];
+      sprintf(namebuf, "clusters/cluster_%03d.pcd", i);
+      pcl::PointCloud<pcl::PointXYZRGBNormal> cluster_cloud;
+      for (int j = 0; j < clusters[i].indices.size(); ++j) {
+        cluster_cloud.push_back(cloud->points[clusters[i].indices[j]]);
+      }
+      pcl::io::savePCDFileBinary(namebuf, cluster_cloud);
+    }
+    return clusters;
+  }
+
+  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr SubtractSceneCloud(
+      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud,
+      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr subtract) {
+    // Build scene cloud that doesn't include points near
+    // the currently fit objects.
+
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr reduced_scene_cloud(
+        new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    if (subtract->size() == 0) {
+      *reduced_scene_cloud += *cloud;
+    } else {
+      printf("Pruning scene cloud against %lu fit points...\n",
+             subtract->size());
+      pcl::KdTreeFLANN<pcl::PointXYZRGBNormal> kdtree;
+      std::vector<int> pointIdxNKNSearch(1);
+      std::vector<float> pointNKNSquaredDistance(1);
+      kdtree.setInputCloud(subtract);
+      for (const auto& searchPt : cloud->points) {
+        if (kdtree.nearestKSearch(searchPt, 1, pointIdxNKNSearch,
+                                  pointNKNSquaredDistance) > 0) {
+          if (pointNKNSquaredDistance[0] > powf(0.02, 2.)) {  // Prune distance
+            reduced_scene_cloud->push_back(searchPt);
+          }
+        }
+      }
+    }
+    reduced_scene_cloud->header.stamp = 0;
+    reduced_scene_cloud->header.frame_id = cloud->header.frame_id;
+    partial_cloud_pub_.publish(reduced_scene_cloud);
+    return reduced_scene_cloud;
+  }
+
+  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr LoadAndResampleMeshFromPath(
+      const std::string& path, double scale = 1.0) {
+    printf("Loading msg from %s\n", path.c_str());
+    vtkSmartPointer<vtkPolyData> cloudPolyData = ReadPolyData(path.c_str());
+    cout << "Loaded " << cloudPolyData->GetNumberOfPoints() << " points from "
+         << path << endl;
+    cloudPolyData = DownsampleAndCleanPolyData(cloudPolyData, 0.01 / scale);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr object_cloud =
+        PointCloudFromPolyDataWithNormals<pcl::PointXYZRGBNormal>(
+            cloudPolyData);
+
+    // Scale as requested
+    if (scale != 1.0) {
+      Eigen::Affine3d tf = Eigen::Affine3d::Identity();
+      tf.matrix().block<3, 3>(0, 0) *= scale;
+
+      pcl::transformPointCloud(*object_cloud, *object_cloud, tf);
+    }
+
+    return object_cloud;
+  }
+
   bool FitObjectsByIcp(perception_sandbox::FitObjectsByIcp::Request& req,
                        perception_sandbox::FitObjectsByIcp::Response& res) {
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr complete_cloud_local(
+        new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+
+    // Copy the scene cloud locally so we don't have to hold this
+    // lock open.
     data_update_lock_.lock();
+    *complete_cloud_local = complete_cloud_;
+    data_update_lock_.unlock();
+
+    // [Over]segment it
+    auto segments = OversegmentPointCloud(complete_cloud_local);
 
     pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr full_fit_objects_cloud(
         new pcl::PointCloud<pcl::PointXYZRGBNormal>);
@@ -201,38 +348,14 @@ class ObjectFittingServer {
     // For each mesh...
     int n_objects = req.mesh_paths.size();
     for (int i = 0; i < n_objects; i++) {
-      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr debug_cloud(
-          new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-
-      // Build scene cloud that doesn't include points near
-      // the currently fit objects
-      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr reduced_scene_cloud(
-          new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-      if (i == 0) {
-        *reduced_scene_cloud += complete_cloud_;
-      } else {
-        printf("Pruning scene cloud against %lu fit points...\n",
-               full_fit_objects_cloud->size());
-        pcl::KdTreeFLANN<pcl::PointXYZRGBNormal> kdtree;
-        std::vector<int> pointIdxNKNSearch(1);
-        std::vector<float> pointNKNSquaredDistance(1);
-        kdtree.setInputCloud(full_fit_objects_cloud);
-        for (const auto& searchPt : complete_cloud_.points) {
-          if (kdtree.nearestKSearch(searchPt, 1, pointIdxNKNSearch,
-                                    pointNKNSquaredDistance) > 0) {
-            if (pointNKNSquaredDistance[0] >
-                powf(0.02, 2.)) {  // Prune distance
-              reduced_scene_cloud->push_back(searchPt);
-            }
-          }
-        }
-      }
-      reduced_scene_cloud->header.stamp = 0;
-      reduced_scene_cloud->header.frame_id = complete_cloud_.header.frame_id;
-      partial_cloud_pub_.publish(reduced_scene_cloud);
+      // Fit it against the points we haven't dealt with yet.
+      auto reduced_scene_cloud =
+          SubtractSceneCloud(complete_cloud_local, full_fit_objects_cloud);
 
       double best_cost = std::numeric_limits<double>::infinity();
       Eigen::Affine3d best_tf = Eigen::Affine3d::Identity();
+      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr debug_cloud(
+          new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 
       if (reduced_scene_cloud->points.size() < 10) {
         printf(
@@ -240,32 +363,13 @@ class ObjectFittingServer {
             "pruning\n",
             reduced_scene_cloud->points.size());
       } else {
-        // Load an resample the specified object
-        printf("Loading msg from %s\n", req.mesh_paths[i].data.c_str());
-        vtkSmartPointer<vtkPolyData> cloudPolyData =
-            ReadPolyData(req.mesh_paths[i].data.c_str());
-        cout << "Loaded " << cloudPolyData->GetNumberOfPoints()
-             << " points from " << req.mesh_paths[i].data << endl;
-        cloudPolyData =
-            DownsampleAndCleanPolyData(cloudPolyData, 0.01 / req.scales[i]);
-        pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr object_cloud =
-            PointCloudFromPolyDataWithNormals<pcl::PointXYZRGBNormal>(
-                cloudPolyData);
-
-        // Scale as requested
-        if (req.scales[i] != 1.0) {
-          Eigen::Affine3d tf = Eigen::Affine3d::Identity();
-          tf.matrix().block<3, 3>(0, 0) *= req.scales[i];
-
-          pcl::transformPointCloud(*object_cloud, *object_cloud, tf);
-        }
+        // Load and resample the specified object
+        auto object_cloud =
+            LoadAndResampleMeshFromPath(req.mesh_paths[i].data, req.scales[i]);
 
         // Randomly seed transform at random reasonable locations,
         // and then refine with ICP. Take the best one in terms of
         // ICP residual error.
-        double best_cost = std::numeric_limits<double>::infinity();
-        Eigen::Affine3d best_tf = Eigen::Affine3d::Identity();
-
         pcl::PointXYZRGBNormal minPtPcl, maxPtPcl;
         pcl::getMinMax3D(*reduced_scene_cloud, minPtPcl, maxPtPcl);
         Eigen::Vector3d minPt = Vector3dFromPclPoint(minPtPcl);
@@ -333,7 +437,8 @@ class ObjectFittingServer {
               pcl::transformPointCloud(*object_cloud, *debug_cloud,
                                        est_tf_attempt);
               debug_cloud->header.stamp = 0;
-              debug_cloud->header.frame_id = complete_cloud_.header.frame_id;
+              debug_cloud->header.frame_id =
+                  complete_cloud_local->header.frame_id;
               debug_cloud_pub_.publish(debug_cloud);
             }
             iter++;
@@ -361,10 +466,10 @@ class ObjectFittingServer {
 
     // render all fits combined
     full_fit_objects_cloud->header.stamp = 0;
-    full_fit_objects_cloud->header.frame_id = complete_cloud_.header.frame_id;
+    full_fit_objects_cloud->header.frame_id =
+        complete_cloud_local->header.frame_id;
     debug_cloud_pub_.publish(full_fit_objects_cloud);
 
-    data_update_lock_.unlock();
     return true;
   }
 

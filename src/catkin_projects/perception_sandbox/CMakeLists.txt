@@ -6,7 +6,6 @@ find_package(GFlags MODULE REQUIRED COMPONENTS shared)
 
 # Must use VTK *6* in interaction with pcl_ros from system
 find_package(VTK 6 REQUIRED)
-include(${VTK_USE_FILE})
 
 find_package(Eigen 3.3.3 REQUIRED)
 include_directories(${EIGEN_INCLUDE_DIRS})
@@ -30,6 +29,8 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   std_srvs
   eigen_conversions
+  octomap_msgs
+  octomap_ros
 )
 
 add_message_files(
@@ -102,6 +103,10 @@ target_link_libraries(pointcloud2_capture_node
 add_executable(pointcloud_object_fitting_server src/pointcloud_object_fitting_server.cpp)
 target_include_directories(pointcloud_object_fitting_server SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
 target_include_directories(pointcloud_object_fitting_server SYSTEM PUBLIC ${PCL_INCLUDE_DIRS})
+set_property(TARGET pointcloud_object_fitting_server APPEND
+  PROPERTY COMPILE_DEFINITIONS "${VTK_DEFINITIONS}")
+set_property(TARGET pointcloud_object_fitting_server APPEND
+  PROPERTY INCLUDE_DIRECTORIES ${VTK_INCLUDE_DIRS})
 
 # target_compile_options(pointcloud_object_fitting_server PRIVATE -g)
 add_dependencies(pointcloud_object_fitting_server
@@ -114,6 +119,39 @@ target_link_libraries(pointcloud_object_fitting_server
    #${PCL_LIBRARIES}
 )
 
+# While this library relies on PCL and OpenCV, they are brought in
+# by catkin_LIBRARIES. I think this finds the ROS-supplied (system installed)
+# OpenCV and PCL. In the current configuration, these are close enough that
+# this doesn't pose an issue. If you want to involve Drake in a node
+# like this down the road, see
+# https://github.com/RobotLocomotion/drake-shambhala/issues/38
+# for some ideas of how to resolve the Eigen compatibility issues you'll have.
+add_executable(octomap_object_fitting_server src/octomap_object_fitting_server.cpp)
+target_include_directories(octomap_object_fitting_server SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
+target_include_directories(octomap_object_fitting_server SYSTEM PUBLIC ${PCL_INCLUDE_DIRS})
+set_property(TARGET octomap_object_fitting_server APPEND
+  PROPERTY COMPILE_DEFINITIONS "${VTK_DEFINITIONS}")
+set_property(TARGET octomap_object_fitting_server APPEND
+  PROPERTY INCLUDE_DIRECTORIES ${VTK_INCLUDE_DIRS})
+# target_compile_options(octomap_object_fitting_server PRIVATE -g)
+add_dependencies(octomap_object_fitting_server
+   perception_sandbox_gencpp)
+target_link_libraries(octomap_object_fitting_server
+   ${VTK_LIBRARIES}
+   ${catkin_LIBRARIES}
+   gflags_shared
+   ${OpenCV_LIBRARIES}
+)
+
+find_package(CUDA REQUIRED)
+include_directories(${CUDA_INCLUDE_DIRS})
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++11;")
+cuda_add_executable(volumetric_esdf src/volumetric_esdf.cu)
+target_include_directories(volumetric_esdf SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
+target_link_libraries(volumetric_esdf
+   ${catkin_LIBRARIES}
+)
+
 
 #############
 ## Install ##
@@ -124,14 +162,18 @@ target_link_libraries(pointcloud_object_fitting_server
 #  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 ## Mark executables and/or libraries for installation
-install(TARGETS opencv_view_node pointcloud2_capture_node pointcloud_object_fitting_server
+install(TARGETS opencv_view_node
+                pointcloud2_capture_node
+                pointcloud_object_fitting_server
+                octomap_object_fitting_server
+                volumetric_esdf
    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 # Mark other files for installation (e.g. launch and bag files, etc.)
-#install(FILES
-#   launch/realsense_camera_view.launch
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-#)
+install(FILES
+   launch/octomap.launch
+   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)

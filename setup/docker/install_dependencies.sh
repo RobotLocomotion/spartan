@@ -25,6 +25,11 @@ apt install --no-install-recommends \
   libsuitesparse-dev \
   libeigen3-dev
 
+# these following three are perception dependencies
+apt install --no-install-recommends \
+  ros-kinetic-octomap-server ros-kinetic-octomap-rviz-plugins ros-kinetic-octovis
+
+
 pip install -U pip setuptools
 
 # Dependencies of trimesh

@@ -29,7 +29,7 @@ if __name__=="__main__":
 	#meshes = ["${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/meshes/visual/companion_cube.stl"]
     #meshes = [os.path.expandvars(mesh) for mesh in meshes]
 
-    meshes = ["${SPARTAN_SOURCE_DIR}/models/dish_models/meshes/visual/dish_rack_simple.obj",
+    meshes = [#"${SPARTAN_SOURCE_DIR}/models/dish_models/meshes/visual/dish_rack_simple.obj",
     		 "${SPARTAN_SOURCE_DIR}/models/dish_models/meshes/visual/plate_11in.obj",
     		 "${SPARTAN_SOURCE_DIR}/models/dish_models/meshes/visual/plate_11in.obj",
     		 "${SPARTAN_SOURCE_DIR}/models/dish_models/meshes/visual/plate_8p5in.obj",
@@ -38,4 +38,4 @@ if __name__=="__main__":
     meshes = [os.path.expandvars(mesh) for mesh in meshes]
 
     pcserver = PointCloudObjectFittingServer()
-    print pcserver.FitObjectsByIcp(meshes, [0.001, 0.001, 0.001, 0.001, 0.001], num_attempts = 30, initial_max_correspondence_distance=0.5)
+    print pcserver.FitObjectsByIcp(meshes, [0.001, 0.001, 0.001, 0.001, 0.001], num_attempts = 100, initial_max_correspondence_distance=0.2)
