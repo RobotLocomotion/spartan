@@ -36,6 +36,15 @@ And for IR do:
 python intrinsics_calibration.py --ir --camera_name xtion_pro
 ```
 
+Make sure to rebuild!
+
+```
+cd spartan/build
+make catkin-projects/fast
+```
+
+You'll be sad if you don't rebuild.
+
 ### Prepare to capture images
 
 - Decide the device's serial number or name
