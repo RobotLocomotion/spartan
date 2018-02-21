@@ -209,6 +209,21 @@
       },
       "name": "backwards",
       "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.479037344455719,
+        "iiwa_joint_2": -0.383137583732605,
+        "iiwa_joint_3": -0.5073370337486267,
+        "iiwa_joint_4": -2.007446527481079,
+        "iiwa_joint_5": 0.06811095029115677,
+        "iiwa_joint_6": -0.051092587411403656,
+        "iiwa_joint_7": -2.9670159816741943
+      },
+      "name": "intrinsics calibration pose",
+      "nominal_handedness": "left"
     }
   ],
   "Elastic Fusion": [
