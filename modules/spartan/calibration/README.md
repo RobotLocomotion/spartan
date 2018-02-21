@@ -15,15 +15,25 @@ First we do intrinsics.
 - Open director, put the robot into the `Calibration - intrinsics calibtration pose`
 - Open rviz, view the rgb topic, make sure you can walk around with the calibration plate in it
 
-In order to calibration intrinsics for rgb camera, execute the following command
+In order to calibration intrinsics for rgb camera, execute the following command, replacing `xtion_pro` with the name of your camera.
 ```
-rosrun camera_calibration cameracalibrator.py --size 7x6 --square 0.0256 image:=/camera_xtion_pro/rgb/image_rect_color camera:=/camera_xtion_pro/rgb
+rosrun camera_calibration cameracalibrator.py --size 7x6 --square 0.0256 image:=/camera_xtion_pro/rgb/image_raw camera:=/camera_xtion_pro/rgb
+```
+
+To run the calibration for the ir camera execute
+```
+rosrun camera_calibration cameracalibrator.py --size 7x6 --square 0.0256 image:=/camera_xtion_pro/ir/image camera:=/camera_xtion_pro/ir
 ```
 - A window will pop out, you should move the calibration plate around until the `CALIBRATE` button gets colored.
 - Click the `CALIBRATE` button, the calibration process might take a few seconds, during which the window might gray out, but it is working
 - After the calibration is done. Click the `SAVE` button, the calibrated results will be saved to `/tmp/calibrationdata.tar.gz`. Run the following command to move the camera info file to the right place
 ```
 python intrinsics_calibration.py --rgb --camera_name xtion_pro
+```
+
+And for IR do:
+```
+python intrinsics_calibration.py --ir --camera_name xtion_pro
 ```
 
 ### Prepare to capture images
