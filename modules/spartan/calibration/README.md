@@ -10,6 +10,22 @@ There should already be a calibration target setup which looks like
 
 The pdf of this target is in `spartan/src/catkin_projects/camera_config/data/calibration_targets/check_7x6_108mm.pdf`. When sized to print on letter size paper the edge length of an individual square was measured to be 25.6 mm.
 
+### Intrinsics calibration with ROS Camera Calibration
+First we do intrinsics.
+- Open director, put the robot into the `Calibration - intrinsics calibtration pose`
+- Open rviz, view the rgb topic, make sure you can walk around with the calibration plate in it
+
+In order to calibration intrinsics for rgb camera, execute the following command
+```
+rosrun camera_calibration cameracalibrator.py --size 7x6 --square 0.0256 image:=/camera_xtion_pro/rgb/image_rect_color camera:=/camera_xtion_pro/rgb
+```
+- A window will pop out, you should move the calibration plate around until the `CALIBRATE` button gets colored.
+- Click the `CALIBRATE` button, the calibration process might take a few seconds, during which the window might gray out, but it is working
+- After the calibration is done. Click the `SAVE` button, the calibrated results will be saved to `/tmp/calibrationdata.tar.gz`. Run the following command to move the camera info file to the right place
+```
+python intrinsics_calibration.py --rgb --camera_name xtion_pro
+```
+
 ### Prepare to capture images
 
 - Decide the device's serial number or name
