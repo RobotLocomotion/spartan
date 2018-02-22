@@ -4,7 +4,7 @@ set -euxo pipefail
 root_dir=$(pwd)
 
 mkdir handical_dependencies
-workdir=root_dir/handical_dependencies
+workdir=$root_dir/handical_dependencies
 
 apt-get update
 apt install --no-install-recommends \
