@@ -30,13 +30,5 @@ install_gtsam()
     make install -j4
 
     echo export GTSAM_INSTALL_DIR=$(pwd) >> ~/.bashrc
-
-    # add install/bin to PATH
-    # add install/cython to PYTHONPATH
-
-    # use something like 
-    # 
-    # echo 'export PYTHONPATH=$PYTHONPATH:$(openrave-config --python-dir)' >> $root_dir/.bashrc
-
 }
 
