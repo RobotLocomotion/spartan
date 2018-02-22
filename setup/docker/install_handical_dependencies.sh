@@ -15,7 +15,8 @@ install_gtsam()
 {   cd $workdir
     git clone https://thduynguyen@bitbucket.org/thduynguyen/gtsam-duy.git
     cd gtsam-duy
-    gtsam_source_dir = $(pwd)
+    gtsam_source_dir=$(pwd)
+    echo $gtsam_source_dir
     git fetch && git checkout feature/wrap_cal3ds2
     pip install -r cython/requirements.txt # install cython requirements
 
