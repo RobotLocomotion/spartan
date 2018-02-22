@@ -1,6 +1,7 @@
 [submodule "director"]
 	path = director
-	url = https://github.com/RobotLocomotion/director.git
+    # PR DRAFT(eric.cousineau): Update this once upstream PR lands.
+	url = https://github.com/EricCousineau-TRI/director.git
 [submodule "drake"]
 	path = drake
 	url = https://github.com/RobotLocomotion/drake.git
