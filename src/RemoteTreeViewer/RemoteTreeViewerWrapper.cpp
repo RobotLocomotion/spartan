@@ -159,7 +159,7 @@ void RemoteTreeViewerWrapper::publishRawMesh(const Matrix3Xd& verts, const std::
 
 void RemoteTreeViewerWrapper::publishRigidBodyTree(const RigidBodyTree<double>& tree, const VectorXd& q, const Vector4d& color, const vector<string>& path, bool visual){
   auto kinematics_cache = tree.doKinematics(q);
-  for (const auto& body : tree.bodies) {
+  for (const auto& body : tree.get_bodies()) {
     if (visual){
       for (const auto& element : body->get_visual_elements()){
         if (element.hasGeometry()){

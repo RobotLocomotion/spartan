@@ -72,7 +72,7 @@ Eigen::Matrix3Xd PointCloudGenerator::samplePointCloudFromSurface(){
   vector<double> face_cumulative_area = {0.0};
 
   // Collect faces from all bodies in this configuration
-  for (auto iter = robot_.bodies.begin(); iter != robot_.bodies.end(); iter++) {
+  for (auto iter = robot_.get_bodies().begin(); iter != robot_.get_bodies().end(); iter++) {
     for (const auto& collision_elem : (*iter)->get_collision_element_ids()) {
       auto element = robot_.FindCollisionElement(collision_elem);
       if (element->hasGeometry()){
