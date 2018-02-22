@@ -1,0 +1,2 @@
+export PATH=$PATH:$GTSAM_INSTALL_DIR/install/bin
+export PYTHONPATH=$PYTHONPATH:$GTSAM_INSTALL_DIR/install/cython
