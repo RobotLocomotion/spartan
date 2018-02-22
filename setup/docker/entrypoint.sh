@@ -23,10 +23,16 @@ function use_handical()
 	export PYTHONPATH=$PYTHONPATH:$GTSAM_INSTALL_DIR/cython
 }
 
+function kip()
+{
+	use_ros && use_spartan && kuka_iiwa_procman
+}
+
 export -f use_spartan
 export -f use_ros
 export -f use_spartan_ros
 export -f use_handical
+export -f kip
 
 exec "$@"
 
