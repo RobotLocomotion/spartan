@@ -29,7 +29,7 @@ install_gtsam()
     make -j4
     make install -j4
 
-    echo export GTSAM_INSTALL_DIR=$(pwd) >> ~/.bashrc
+    echo export GTSAM_INSTALL_DIR=$gtsam_install_dir >> ~/.bashrc
 }
 
 install_gtsam()
