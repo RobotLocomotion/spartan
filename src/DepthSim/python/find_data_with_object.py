@@ -13,6 +13,7 @@ for f in os.listdir(path):
 		if "registration_result.yaml" in os.listdir(path+f):
 			with open(path+f+"/registration_result.yaml") as read:
 				transformYaml = yaml.load(read)
+				print transformYaml.keys()
 				if len(transformYaml.keys()) > 5:
 					paths.append((f,transformYaml.keys())) 
 for i in paths:
