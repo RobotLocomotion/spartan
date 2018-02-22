@@ -6,8 +6,6 @@ root_dir=$(pwd)
 mkdir handical_dependencies
 workdir=root_dir/handical_dependencies
 
-
-
 apt-get update
 apt install --no-install-recommends \
   libopencv-dev \
@@ -32,4 +30,4 @@ install_gtsam()
     echo export GTSAM_INSTALL_DIR=$gtsam_install_dir >> ~/.bashrc
 }
 
-install_gtsam()
+install_gtsam
