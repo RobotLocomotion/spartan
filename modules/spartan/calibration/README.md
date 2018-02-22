@@ -16,10 +16,10 @@ The pdf of this target is in `spartan/src/catkin_projects/camera_config/data/cal
 - Create a new folder in `src/catkin_projects/station_config/hand_eye_calibration` and create a new `.yaml` file.  Copy over the structure from another yaml file.
 - Specify in `iiwamanipdev.py` what the name of this `.yaml` file is within `station_config`
 - Create a new folder in `camera_config` and copy over the structure from other folders
-- Rebuild catkin_project/fast
+- Rebuild catkin-project/fast
 ```
 cd spartan/build
-make catkin_projects/fast
+make catkin-projects/fast
 ```
 - When you launch the sensor via `roslaunch camera_config openni2.launch`, pass the serial_number you chose
 
@@ -68,7 +68,7 @@ Remember to remove the projector-covering device!!
 - `./test_run_camera_calibration.py`
 - Calibration results will be stored in `spartan_grasp/sandbox/calibration_results`
 - Copy the calibration results over back into `spartan` directory world (under `camera_config` -- copy the other folder structures)
-- Remember to rebuild catkin_projects with `make catkin_projects/fast`
+- Remember to rebuild catkin_projects with `make catkin-projects/fast`
 
 ### Test the calibration quality
 
