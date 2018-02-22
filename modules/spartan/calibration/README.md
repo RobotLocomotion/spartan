@@ -2,6 +2,49 @@
 
 ---
 
+### Calibration Target
+There should already be a calibration target setup which looks like
+<p align="center">
+  <img src="./doc/checkerboard.jpg" width="450"/>
+</p>
+
+The pdf of this target is in `spartan/src/catkin_projects/camera_config/data/calibration_targets/check_7x6_108mm.pdf`. When sized to print on letter size paper the edge length of an individual square was measured to be 25.6 mm.
+
+### Intrinsics calibration with ROS Camera Calibration
+First we do intrinsics.
+- Open director, put the robot into the `Calibration - intrinsics calibtration pose`
+- Open rviz, view the rgb topic, make sure you can walk around with the calibration plate in it
+
+In order to calibration intrinsics for rgb camera, execute the following command, replacing `xtion_pro` with the name of your camera.
+```
+rosrun camera_calibration cameracalibrator.py --size 7x6 --square 0.0256 image:=/camera_xtion_pro/rgb/image_raw camera:=/camera_xtion_pro/rgb
+```
+
+To run the calibration for the ir camera execute
+```
+rosrun camera_calibration cameracalibrator.py --size 7x6 --square 0.0256 image:=/camera_xtion_pro/ir/image camera:=/camera_xtion_pro/ir
+```
+- A window will pop out, you should move the calibration plate around until the `CALIBRATE` button gets colored.
+- Click the `CALIBRATE` button, the calibration process might take a few seconds, during which the window might gray out, but it is working
+- After the calibration is done. Click the `SAVE` button, the calibrated results will be saved to `/tmp/calibrationdata.tar.gz`. Run the following command to move the camera info file to the right place
+```
+python intrinsics_calibration.py --rgb --camera_name xtion_pro
+```
+
+And for IR do:
+```
+python intrinsics_calibration.py --ir --camera_name xtion_pro
+```
+
+Make sure to rebuild!
+
+```
+cd spartan/build
+make catkin-projects/fast
+```
+
+You'll be sad if you don't rebuild.
+
 ### Prepare to capture images
 
 - Decide the device's serial number or name
@@ -39,7 +82,7 @@ spartan/calibration_data/20180201-233350_rgb/
 - Set up the IR illuminators (see pic below)
 
 <p align="center">
-  <img src="./kuka_ir_illuminators.jpg" width="450"/>
+  <img src="./doc/kuka_ir_illuminators.jpg" width="450"/>
 </p>
 
 - View the IR images in rviz and make sure the IR illumination is good enough (it can be sensitive to the height and angle of the IR illuminator)
@@ -64,13 +107,15 @@ Remember to remove the projector-covering device!!
 
 ### Test the calibration quality
 
-Here are a few good simple tests:
+DO THESE TESTS:
 
 1. Verify in rviz that the frames (rgb and depth) generally look in the right spot
 
 2. Point the depth sensor down at the table and verify it looks generally flat
 
 3. Can even point robot at itself and see if the point cloud matches the urdf
+
+4. In RVIZ open `image_rect_color` and verify that it doesn't look distorted. A good way to do that is to look at the checkerboard and edges of the table.
 
 
 TODO
