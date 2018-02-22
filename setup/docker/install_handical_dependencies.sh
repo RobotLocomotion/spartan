@@ -32,3 +32,4 @@ install_gtsam()
     echo export GTSAM_INSTALL_DIR=$(pwd) >> ~/.bashrc
 }
 
+install_gtsam()
