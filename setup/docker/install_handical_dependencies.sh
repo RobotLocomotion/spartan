@@ -27,8 +27,6 @@ install_gtsam()
     cmake -DGTSAM_INSTALL_CYTHON_TOOLBOX=ON -DCMAKE_INSTALL_PREFIX=$gtsam_install_dir ..
     make -j4
     make install -j4
-
-    echo export GTSAM_INSTALL_DIR=$gtsam_install_dir >> ~/.bashrc
 }
 
 install_gtsam
