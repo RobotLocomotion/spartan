@@ -290,7 +290,10 @@ class HandEyeCalibration(object):
         cmd = "%s -t %s -f %s -e %s" % (rosImageLoggerExecutable, topic, filename, encoding)
         os.system(cmd)
 
-    def captureCurrentRobotAndImageData(self, captureRGB=False, captureIR=False):
+    def captureCurrentRobotAndImageData(self, captureRGB=False, captureIR=False, prefix=None):
+
+        assert prefix is not None
+
         data = dict()
         data['joint_positions'] = self.robotService.getPose().tolist()
         data['hand_frame_name'] = self.handFrame
@@ -315,7 +318,7 @@ class HandEyeCalibration(object):
         
         for key, topic in imgTopics.iteritems():
 
-            imageFilename =str(data['ros_timestamp']) + "_" + key + "." + self.config['filename_extension']
+            imageFilename = str(prefix) + "_" + key + "." + self.config['filename_extension']
             fullImageFilename = os.path.join(self.calibrationFolderName, imageFilename)
 
             encoding = None
@@ -479,7 +482,7 @@ class HandEyeCalibration(object):
             self.robotService.moveToJointPosition(pose['joint_angles'])
 
             rospy.loginfo("capturing images and robot data")
-            data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB, captureIR=self.captureIR)
+            data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB, captureIR=self.captureIR, prefix=str(index))
             calibrationData.append(data)
 
         rospy.loginfo("finished calibration routine, saving data to file")
@@ -519,6 +522,12 @@ class HandEyeCalibration(object):
         # setup header information for storing along with the log
         calibrationHeaderData = dict()
         calibrationHeaderData['camera'] = self.config['camera_type']
+
+        if self.captureRGB:
+            calibrationHeaderData['image_type'] = 'rgb'
+        elif self.captureIR:
+            calibrationHeaderData['image_type'] = 'ir'
+
         
         # targetData = dict()
         # targetData['width'] = targetWidth
