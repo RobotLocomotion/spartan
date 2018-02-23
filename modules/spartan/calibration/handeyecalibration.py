@@ -290,6 +290,12 @@ class HandEyeCalibration(object):
         cmd = "%s -t %s -f %s -e %s" % (rosImageLoggerExecutable, topic, filename, encoding)
         os.system(cmd)
 
+    def displayChessboardDetection(self, filename, duration):
+        chessboardDetetctionVisualizerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
+                                                'calibration','chessboard_detection_visualizer.py')
+        cmd = "timeout %s %s -i %s" % (str(duration), chessboardDetetctionVisualizerExecutable, filename)
+        os.system(cmd)
+
     def captureCurrentRobotAndImageData(self, captureRGB=False, captureIR=False):
         data = dict()
         data['joint_positions'] = self.robotService.getPose().tolist()
@@ -329,6 +335,8 @@ class HandEyeCalibration(object):
 
 
             self.saveSingleImage(topic, fullImageFilename, encoding)
+            # todo: sync this timeout with some variable
+            self.displayChessboardDetection(fullImageFilename, duration=1.5)
 
             singleImgData = dict()
             singleImgData['filename'] = imageFilename
@@ -422,7 +430,10 @@ class HandEyeCalibration(object):
 
     def saveCalibrationData(self, filename=None):
         if filename is None:
-            filename = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'hand_eye_calibration_robot_data.yaml')
+            if self.calibrationFolderName is not None:
+                filename = os.path.join(self.calibrationFolderName, 'robot_data.yaml')
+            else:
+                filename = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'hand_eye_calibration_robot_data.yaml')
 
 
         spartanUtils.saveToYaml(self.calibrationData, filename)
@@ -434,7 +445,9 @@ class HandEyeCalibration(object):
     def runROSCalibration(self, headerData):
 
         headerData['target']['location_estimate_in_robot_base_frame'] = self.calibrationPosesConfig['target_location'] 
-        calibrationRunData = dict()
+        
+        self.calibrationData = dict()
+        calibrationRunData = self.calibrationData
         calibrationRunData['header'] = headerData
 
 
