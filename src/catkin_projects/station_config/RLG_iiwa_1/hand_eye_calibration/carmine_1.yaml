@@ -33,4 +33,4 @@ encoding:
   ir: "mono16"
   rgb: "bgr8"
 
-filename_extension: "bmp"
+filename_extension: "jpg"
