@@ -162,7 +162,7 @@ if __name__ == '__main__':
   num_im = int(sys.argv[2])
   mesh = sys.argv[3]
   out_dir = sys.argv[1]+"/images/" if len(sys.argv)==3 else sys.argv[4]
-
+  object_dir = "/home/drc/DATA/object-meshes"
   print "rendering Label Fusion data", data_dir_name
   use_mesh = False
 
@@ -177,8 +177,9 @@ if __name__ == '__main__':
   interactor.SetRenderWindow(renWin);
   common.set_up_camera_params(camera)
 
-  render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir,use_mesh,view_height,view_width)
-  #render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir,use_mesh,view_height,view_width)
+
+  render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir+"normal/",use_mesh,object_dir)
+  render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir+"gtdepth/",use_mesh,object_dir)
 
 
   renWin.Render();
