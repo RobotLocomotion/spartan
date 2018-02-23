@@ -87,6 +87,7 @@ def load_trained_model(weights_path="unet.hdf5"):
    return model
 
 def apply_mask(mask,depth):
+   depth = np.copy(depth)
    mask = np.reshape(mask,(480,640))
    depth[mask>0]=0
    return depth
