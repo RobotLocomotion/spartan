@@ -30,14 +30,14 @@ def display_all_detections_matching_regex(image_file_or_dir_regex):
         img = cv2.imread(fname)
         gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
-        print fname
+        print "Attempting to detect chessboard in img", fname
 
         # Find the chess board corners
         ret, corners = cv2.findChessboardCorners(gray, chessboard_size_tuple ,None)
 
-        print ret
         # If found, add object points, image points (after refining them)
         if ret == True:
+            print "True: detected chessboard, visualizing"
             objpoints.append(objp)
 
             cv2.cornerSubPix(gray,corners,(11,11),(-1,-1),criteria)
@@ -45,9 +45,12 @@ def display_all_detections_matching_regex(image_file_or_dir_regex):
 
             # Draw and display the corners
             cv2.drawChessboardCorners(img, chessboard_size_tuple, corners,ret)
-            cv2.imshow('img',img)
-            cv2.waitKey(100)
-            name = raw_input("continue? press enter\n")
+        else:
+            print "False: (could not detect chessboard)"
+        
+        cv2.imshow('img',img)
+        cv2.waitKey(200)
+        name = raw_input("continue? press enter\n")
         
 
     cv2.destroyAllWindows()
