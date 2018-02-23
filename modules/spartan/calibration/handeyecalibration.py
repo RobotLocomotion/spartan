@@ -578,9 +578,11 @@ class HandEyeCalibration(object):
 
         previousCameraLocation = None
 
+        counter = 0
         for dist in distances:
             for pitch in pitchAngles:
                 for yaw in yawAngles:
+                    counter += 1
                     # if (pitch > 70) and (dist < 0.8):
                     #     print "skipping pose"
                     #     continue
@@ -597,7 +599,12 @@ class HandEyeCalibration(object):
 
                     previousCameraLocation = cameraLocation
 
-                    ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation, targetLocationWorld=config['target_location'])
+                    if ((counter % 2) == 0):
+                        flip = True
+                    else:
+                        flip = False
+
+                    ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation, targetLocationWorld=config['target_location'], flip=flip)
 
                     returnData['cameraLocations'].append(cameraLocation)
 
@@ -774,7 +781,7 @@ class HandEyeCalibration(object):
 
         return p
 
-    def computeSingleCameraPose(self, targetLocationWorld=[1,0,0], cameraFrameLocation=[0.22, 0, 0.89]):
+    def computeSingleCameraPose(self, targetLocationWorld=[1,0,0], cameraFrameLocation=[0.22, 0, 0.89], flip=False):
         cameraAxis = [0,0,1]
 
         linkName = self.handFrame
@@ -788,6 +795,16 @@ class HandEyeCalibration(object):
         endPoseName = 'reach_end'
         seedPoseName = 'q_nom'
 
+        if flip:
+            print "FLIPPING startPoseName"
+            startPoseName = 'q_nom_invert_7th_joint'
+            seedPoseName  = 'q_nom_invert_7th_joint'
+            pose = np.asarray([ 0.    ,  0.    ,  0.    ,  0.    ,  0.    ,  0.    ,  0.    ,
+       -0.68  ,  1.0    , -1.688 ,  1.0    ,  -0.5635,  1.0    ])
+            ikPlanner.addPose(pose, startPoseName)
+        else:
+            print "NOT flipped"
+
         constraints = []
         constraints.append(ikPlanner.createPostureConstraint(startPoseName, robotstate.matchJoints('base_')))
 
@@ -799,8 +816,14 @@ class HandEyeCalibration(object):
         constraints.append(positionConstraint)
         constraints.append(cameraGazeConstraint)
 
+
         constraintSet = ConstraintSet(ikPlanner, constraints, 'reach_end',
                                       startPoseName)
+
+        if flip:
+            constraintSet.ikPlanner.addPose(pose, startPoseName)
+
+
         constraintSet.ikParameters = IkParameters()
 
         constraintSet.seedPoseName = seedPoseName
