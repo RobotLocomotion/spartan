@@ -83,8 +83,8 @@ class FusionServer(object):
 
 
         self.config['scan']['pose_group'] = 'Elastic Fusion'
-        self.config['scan']['pose_list'] = ['center', 'home', 'home_closer', 'center_right', 'right', 'right_low', 'right_low_closer', 'center_right', 'home_closer', 'center_left_closer', 'center_left_low_closer', 'left_low', 'left_mid', 'center_left_low', 'center_left_low_closer', 'center_left_closer', 'home_closer', 'top_down', 'top_down_right', 'top_down_left']
-
+        self.config['scan']['pose_list'] = ['home', 'home_closer', 'center_right', 'right', 'right_low', 'right_low_closer', 'center_right', 'home_closer', 'center_left_closer', 'center_left_low_closer', 'left_low', 'left_mid', 'center_left_low', 'center_left_low_closer', 'center_left_closer', 'home_closer', 'top_down', 'top_down_right', 'top_down_left']
+        self.config['scan']['pose_list_quick'] = ['home_closer', 'top_down', 'top_down_right', 'top_down_left', 'home']
 
         self.config['speed'] = dict()
         self.config['speed']['scan'] = 15
@@ -157,13 +157,13 @@ class FusionServer(object):
     def start_bagging(self):
         self.flushCache()
 
-        bagfile_directory = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'fusion')
+        bagfile_name = "fusion" + str(time.time())
+        bagfile_directory = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'fusion', bagfile_name)
         
 
-        # make sure bagfile_directory exists
+        # make bagfile directory with name
         os.system("mkdir -p " + bagfile_directory)
 
-         
         topics_to_bag = [
             "/tf",
             "/tf_static",
@@ -188,7 +188,6 @@ class FusionServer(object):
         
         # build up command string
         rosbag_cmd = "rosbag record"
-        bagfile_name = "fusion" + str(time.time())
         rosbag_cmd += " -O " + bagfile_name
         for i in topics_to_bag:
             rosbag_cmd += " " + i
@@ -282,7 +281,7 @@ class FusionServer(object):
             print "Service call failed: %s"%e
 
         # Move robot around
-        for poseName in self.config['scan']['pose_list']:
+        for poseName in self.config['scan']['pose_list_quick']:
             print "moving to", poseName
             joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
             self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['speed']['scan'])
