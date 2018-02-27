@@ -320,7 +320,7 @@ class FusionServer(object):
         print cmd
         os.system(cmd)
 
-        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/image_rect' 16UC1 False"
+        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/image_rect' passthrough False"
         print cmd
         os.system(cmd)
 

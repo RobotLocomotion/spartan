@@ -10,6 +10,7 @@ import os
 import argparse
 
 import cv2
+import numpy as np
 
 import rosbag
 from sensor_msgs.msg import Image
@@ -43,7 +44,16 @@ def main():
     count = 0
     for topic, msg, t in bag.read_messages(topics=[args.image_topic]):
         print topic
-        cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding=args.encoding)
+        if image_type == "rgb":
+            cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding=args.encoding)
+
+        elif image_type == "depth":
+            cv_img = bridge.imgmsg_to_cv2(msg, "32FC1")
+            cv_img = np.array(cv_img, dtype=np.float32)
+            cv_img = cv_img*1000
+            cv_img = cv_img.astype(np.uint16)
+            print cv_img[145:155,145:155] 
+
         cv2.imwrite(os.path.join(args.output_dir, "%06i_%s.png" % (count,image_type)), cv_img)
         print "Wrote image %i" % count
 
