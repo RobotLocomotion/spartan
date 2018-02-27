@@ -22,7 +22,8 @@ def main():
     parser.add_argument("bag_file", help="Input ROS bag.")
     parser.add_argument("output_dir", help="Output directory.")
     parser.add_argument("image_topic", help="Image topic.")
-    parser.add_argument("encoding", help="Encoding, for example bgr8.", default="passthrough")
+    parser.add_argument("encoding", help="Encoding, for example bgr8.")
+    parser.add_argument("save_time", help="Bool whether or not you want to save a file for the time")
 
     args = parser.parse_args()
 
@@ -45,6 +46,17 @@ def main():
         cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding=args.encoding)
         cv2.imwrite(os.path.join(args.output_dir, "%06i_%s.png" % (count,image_type)), cv_img)
         print "Wrote image %i" % count
+
+        if args.save_time:
+            #print "time is  ", msg.header.stamp#.to_nsec()*1.0/1e6
+            #print "to_sec is", msg.header.stamp.to_sec()
+            #print "to_nsc is", msg.header.stamp.to_nsec()
+            nano_secs =  msg.header.stamp.to_nsec()
+            milli_secs = int(str(nano_secs)[0:-6])
+            decimal    = int(str(nano_secs)[-6:])
+            time_out_file = "%06i_%s.txt" % (count,"millisecs")
+            time_out_file_fullpath = os.path.join(args.output_dir, time_out_file)
+            os.system("echo "+str(milli_secs)+"."+str(decimal)+" > "+time_out_file_fullpath)
 
         count += 1
 
