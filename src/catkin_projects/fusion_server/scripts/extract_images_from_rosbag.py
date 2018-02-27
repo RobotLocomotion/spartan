@@ -26,6 +26,13 @@ def main():
 
     args = parser.parse_args()
 
+    if "rgb" in args.image_topic:
+        image_type = "rgb"
+    elif "depth" in args.image_topic:
+        image_type = "depth"
+    else:
+        raise ValueError("I don't know this image type.")
+
     print "Extract images from %s on topic %s into %s" % (args.bag_file,
                                                           args.image_topic, args.output_dir)
 
@@ -36,8 +43,7 @@ def main():
     for topic, msg, t in bag.read_messages(topics=[args.image_topic]):
         print topic
         cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding=args.encoding)
-
-        cv2.imwrite(os.path.join(args.output_dir, "frame%06i.png" % count), cv_img)
+        cv2.imwrite(os.path.join(args.output_dir, "%06i_%s.png" % (count,image_type)), cv_img)
         print "Wrote image %i" % count
 
         count += 1

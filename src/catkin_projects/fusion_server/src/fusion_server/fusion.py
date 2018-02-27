@@ -315,7 +315,12 @@ class FusionServer(object):
         path_to_extract_script = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'fusion_server', 'scripts', 'extract_images_from_rosbag.py')
         destination_folder = os.path.join(os.path.dirname(resp1.bag_filepath), "images")
         os.system("mkdir -p " + destination_folder)
+        
         cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_carmine_1/rgb/image_rect_color' bgr8"
+        print cmd
+        os.system(cmd)
+
+        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_carmine_1/depth_registered/sw_registered/image_rect' 16UC1"
         print cmd
         os.system(cmd)
 
