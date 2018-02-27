@@ -22,6 +22,7 @@ def main():
     parser.add_argument("bag_file", help="Input ROS bag.")
     parser.add_argument("output_dir", help="Output directory.")
     parser.add_argument("image_topic", help="Image topic.")
+    parser.add_argument("encoding", help="Encoding, for example bgr8.", default="passthrough")
 
     args = parser.parse_args()
 
@@ -34,7 +35,7 @@ def main():
     count = 0
     for topic, msg, t in bag.read_messages(topics=[args.image_topic]):
         print topic
-        cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+        cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding=args.encoding)
 
         cv2.imwrite(os.path.join(args.output_dir, "frame%06i.png" % count), cv_img)
         print "Wrote image %i" % count
