@@ -311,6 +311,14 @@ class FusionServer(object):
         self.cache['fusion_output'] = elastic_fusion_output
         self.publish_pointcloud_to_rviz(elastic_fusion_output.point_cloud, self.cache['point_cloud_to_world_stamped'])
 
+        # extract all rgb and depth images, with timestamps
+        path_to_extract_script = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'fusion_server', 'scripts', 'extract_images_from_rosbag.py')
+        destination_folder = os.path.join(os.path.dirname(resp1.bag_filepath), "images")
+        os.system("mkdir -p " + destination_folder)
+        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_carmine_1/rgb/image_rect_color'"
+        print cmd
+        os.system(cmd)
+
         return CaptureSceneAndFuseResponse(elastic_fusion_output)
 
     def run_fusion_data_server(self):
