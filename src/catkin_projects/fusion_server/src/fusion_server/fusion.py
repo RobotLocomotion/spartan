@@ -316,11 +316,11 @@ class FusionServer(object):
         destination_folder = os.path.join(os.path.dirname(resp1.bag_filepath), "images")
         os.system("mkdir -p " + destination_folder)
         
-        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_carmine_1/rgb/image_rect_color' bgr8"
+        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/rgb/image_rect_color' bgr8 True"
         print cmd
         os.system(cmd)
 
-        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_carmine_1/depth_registered/sw_registered/image_rect' 16UC1"
+        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/image_rect' 16UC1 False"
         print cmd
         os.system(cmd)
 
