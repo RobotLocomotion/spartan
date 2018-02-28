@@ -27,7 +27,7 @@
 	url = git@github.com:matterport/Mask_RCNN.git
 [submodule "src/ElasticFusion"]
 	path = src/ElasticFusion
-	url = git@github.com:peteflorence/ElasticFusion.git
+	url = git@github.com:RobotLocomotion/ElasticFusion.git
 	branch = pf-rosbagreader
 [submodule "src/catkin_projects/drake_trajectory_planning_msgs"]
 	path = src/catkin_projects/drake_trajectory_planning_msgs
