@@ -44,3 +44,6 @@
 [submodule "src/handical"]
 	path = src/handical
 	url = git@github.com:ToyotaResearchInstitute/handical.git
+[submodule "src/Open3D"]
+	path = src/Open3D
+	url = git@github.com:IntelVCL/Open3D.git
