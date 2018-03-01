@@ -89,9 +89,8 @@ def load_trained_model(weights_path="unet.hdf5"):
 def apply_mask(mask,depth):
    depth = np.copy(depth)
    mask = np.reshape(mask,(480,640))
-   depth[mask>0]=0
+   depth[mask>.1]=0
    return depth
-
 
 def prob_map_to_mask(prob_map,width=2):
     prob_map = np.copy(prob_map)
@@ -117,11 +116,14 @@ def prob_map_to_mask(prob_map,dev=.1):
     prob_map[prob_map>.5] = 1
     return prob_map
 
-def decompose_training_stack(stack):
+def decompose_training_stack(stack,depth = False):
    gtdpeth = stack[:,:,:,0]
    normal = stack[:,:,:,1:4]
-   rgb = stack[:,:,:,4:]
-   return gtdpeth,normal,rgb
+   rgb = stack[:,:,:,4:7]
+   if depth:
+      return gtdpeth,normal,rgb,stack[:,:,:,7]
+   else:
+      return gtdpeth,normal,rgb
 
 
 

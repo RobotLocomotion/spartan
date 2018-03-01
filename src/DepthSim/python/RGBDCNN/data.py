@@ -34,6 +34,24 @@ def hot_vectorize(x):
     x[non_zero_mask] = 0
     return x
 
+def stack_frames(frames,img_height,img_width,channels):
+	stack  = np.zeros((1,img_height,img_width,channels))
+	index = 0
+	for i in frames:
+		num_chan = 1 if len(np.shape(i)) ==2 else np.shape(i)[2]
+		stack[0,:,:,index:index+num_chan] = np.reshape(i,(img_height,img_width,num_chan))
+		index += num_chan
+	return stack
+
+def grab_frame(files,i,path,func=None):
+    img = misc.imread(path+files[i])
+    if func:
+        return func(img)
+    return img
+
+def normalize(x):
+    return x/255.
+
 def combine_data_generators(depth,normal,rgb,mask):
     while True:
             d = depth.next()
@@ -42,8 +60,12 @@ def combine_data_generators(depth,normal,rgb,mask):
             m = mask.next()
             yield (np.concatenate((d,n,r),3),m)
 
-def generate_data(depth_as_mask=True,img_height=480,img_width=640,batch_size=2,rgb="/media/drc/DATA/CNN/rgb",depth="/media/drc/DATA/CNN/depth",normal="/media/drc/DATA/CNN/normal",gtdepth="/media/drc/DATA/CNN/gtdepth"):      
+def generate_data(depth_as_mask=True,img_height=480,img_width=640,batch_size=2,path="/media/drc/DATA/CNN/",dir_name =""):      
 	
+	rgb = path+"rgb/"+dir_name
+	depth = path+"depth/"+ dir_name
+	gtdepth = path+"gtdepth/" + dir_name
+	normal = path+"normal/" + dir_name
 
 	datagen = image.ImageDataGenerator(
 	        #preprocessing_function=applications.xception.preprocess_input,
@@ -87,3 +109,31 @@ def generate_data(depth_as_mask=True,img_height=480,img_width=640,batch_size=2,r
 	        **flow_from_directory_params_grey
 	    )
 	return combine_data_generators(gt_generator,normal_generator,rgb_generator,mask_generator)
+
+def generate_data_custom(img_height=480,img_width=640,batch_size=2,path="/media/drc/DATA/chris_labelfusion/CORL2017/test_data/",dir_name = "test/",filter_files = None,func=None):
+
+	rgb_path = path+"rgb/"+dir_name
+	depth_path = path+"depth/"+ dir_name
+	gtdepth_path = path+"gtdepth/" + dir_name
+	normal_path = path+"normal/" + dir_name
+
+	rgb = np.sort(os.listdir(rgb_path))
+	normal = np.sort(os.listdir(normal_path))
+	depth = np.sort(os.listdir(depth_path))
+	gtdepth = np.sort(os.listdir(gtdepth_path))
+
+	if filter_files:
+		rgb = np.sort(filter(lambda x: filter_files in x, rgb))
+		normal = np.sort(filter(lambda x: filter_files in x, normal))
+		depth = np.sort(filter(lambda x: filter_files in x, depth))
+		gtdepth = np.sort(filter(lambda x: filter_files in x, gtdepth))
+
+	i = -1
+	while True:
+		i+=1%len(rgb)
+		rgb_img = grab_frame(rgb,i,rgb_path,func)
+		normal_img = grab_frame(normal,i,normal_path,func)
+		gtdepth_img = grab_frame(gtdepth,i,gtdepth_path,func)
+		depth_img = grab_frame(depth,i,depth_path,func)
+		stack = stack_frames([gtdepth_img,normal_img,rgb_img,depth_img],img_height,img_width,8)
+		yield stack
