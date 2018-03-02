@@ -69,14 +69,28 @@ class ImageCapture(object):
     Class used to capture synchronized images. It can also read them from a log
     """
 
-    def __init__(self):
-        self.camera_frame = "camera_carmine_1_rgb_optical_frame"
-        self.world_frame = "base"
+    def __init__(self, rgb_topic, depth_topic, camera_info_topic,
+        camera_frame, world_frame, output_dir, rgb_encoding='bgr8'):
+
+
+        
+
+        self.camera_frame = camera_frame
+        self.world_frame = world_frame
         self.tfBuffer = None
+    
+
+        self.rgb_encoding = rgb_encoding
+        self.topics_dict = dict()
+        self.topics_dict['rgb'] = rgb_topic
+        self.topics_dict['depth'] = depth_topic
+        self.camera_info_topic = camera_info_topic
+
+
         self.cv_bridge = CvBridge()
         # self.rgb_topic = "/camera_carmine_1/rgb/image_rect_color"
         # self.depth_topic = "/camera_carmine_1/depth_registered/sw_registered/image_rect"
-        self.setupConfig()
+        # self.setupConfig()
         # self.setupTF()
         # self.resetCache()
         # self.setupSubscribers()
@@ -186,8 +200,6 @@ class ImageCapture(object):
             if counter % log_rate == 0:
                 print "processing image message %d" %(counter)
 
-            if counter > 100:
-                break
 
             data = None
             if "rgb" in topic:
