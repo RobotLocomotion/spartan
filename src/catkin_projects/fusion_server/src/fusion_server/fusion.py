@@ -8,12 +8,19 @@ import time
 import subprocess
 import copy
 import numpy as np
+import cv2
+
 
 # ply reader
 from plyfile import PlyData, PlyElement
 
 # ROS
+import tf
 import tf2_ros
+import rospy
+import rosbag
+from cv_bridge import CvBridge
+
 
 # spartan
 import spartan.utils.utils as spartanUtils
@@ -56,6 +63,228 @@ class TFWrapper(object):
         return self.tfBuffer
 
 
+
+class ImageCapture(object):
+    """
+    Class used to capture synchronized images. It can also read them from a log
+    """
+
+    def __init__(self):
+        self.camera_frame = "camera_carmine_1_rgb_optical_frame"
+        self.world_frame = "base"
+        self.tfBuffer = None
+        self.cv_bridge = CvBridge()
+        # self.rgb_topic = "/camera_carmine_1/rgb/image_rect_color"
+        # self.depth_topic = "/camera_carmine_1/depth_registered/sw_registered/image_rect"
+        self.setupConfig()
+        # self.setupTF()
+        # self.resetCache()
+        # self.setupSubscribers()
+
+    def setupConfig(self):
+        self.topics_dict = dict()
+        self.topics_dict['rgb'] = "/camera_carmine_1/rgb/image_rect_color"
+        self.topics_dict['depth'] = "/camera_carmine_1/depth_registered/sw_registered/image_rect"
+
+        self.camera_info_topic = "/camera_carmine_1/rgb/camera_info"
+        self.rgb_encoding = 'bgr8'
+
+    def resetCache(self):
+        self.depth_msgs = []
+        self.rgb_msgs = []
+        self.camera_to_base_transforms = []
+
+    def setupTF(self):
+        tfWrapper = TFWrapper()
+        tfBuffer = tfWrapper.getBuffer()
+        if self.tfBuffer is None:
+            self.tfBuffer = tfBuffer
+
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster()
+
+    def start(self):
+        self.resetCache()
+        self.subscribers['rgb'].start()
+        self.subscribers['depth'].start()
+
+    def getRGBOpticalFrameToWorldTransform(self, ros_time=None):
+        if ros_time is None:
+            ros_time = rospy.Time(0)
+        rgbOpticalFrameToWorld = self.tfBuffer.lookup_transform(self.world_frame, self.camera_frame, ros_time)
+        return rgbOpticalFrameToWorld
+
+    def setupSubscribers(self):
+        self.subscribers = {}
+        self.subscribers['rgb'] = rosUtils.SimpleSubscriber(self.topics_dict['rgb'], sensor_msgs.msg.Image, externalCallback=self.onRgbImage)
+
+        self.subscribers['depth'] = rosUtils.SimpleSubscriber(self.topics_dict['depth'], sensor_msgs.msg.Image, externalCallback=self.onDepthImage)
+
+    def onRgbImage(self, msg):
+        self.rgb_msgs.append(msg)
+
+    def onDepthImage(self, msg):
+        self.depth_msgs.append(msg)
+        camera_to_world = self.getRGBOpticalFrameToWorldTransform(ros_time = msg.header.stamp)
+        self.camera_to_base_transforms.append(camera_to_world)
+
+    def getTransforms(self):
+        for msg in self.depth_msgs:
+            stamp = msg.header.stamp
+            camera_to_world = self.getRGBOpticalFrameToWorldTransform(ros_time=stamp)
+            self.camera_to_base_transforms.append(camera_to_world)
+
+    def stop(self):
+        self.subscribers['rgb'].stop()
+        self.subscribers['depth'].stop()
+
+    def synchronize_rgb_and_depth_msgs(self):
+        self.rgb_timestamps = []
+        for msg in self.rgb_msgs:
+            stamp = msg.header.stamp
+            print type(stamp)
+            # self.rgb_timestamps.append()
+
+    def load_ros_bag(self, ros_bag_filename):
+        self.ros_bag = rosbag.Bag(ros_bag_filename, "r")
+
+    def process_ros_bag(self, bag, output_dir):
+
+        image_topics = []
+        for key, topic in self.topics_dict.iteritems():
+            image_topics.append(topic)
+
+
+        # load all the images
+        rgb_data = dict()
+        rgb_data['msgs'] = []
+        rgb_data['cv_img'] = []
+        rgb_data['timestamps'] = []
+
+
+
+        depth_data = dict()
+        depth_data['msgs'] = []
+        depth_data['cv_img'] = []
+        depth_data['timestamps'] = []
+        depth_data['camera_to_world'] = []
+
+        print "image_topics: ", image_topics
+
+        # extract TF information
+        tf_t = rosUtils.setup_tf_transformer_from_ros_bag(bag, cache_time_secs=3600)
+
+        log_rate = 100
+
+        counter = 0
+        for topic, msg, t in bag.read_messages(topics=image_topics):
+            counter += 1
+
+            # skip the first 30 images due to transform errors . . . 
+            # if counter < 30:
+            #     continue
+
+            if counter % log_rate == 0:
+                print "processing image message %d" %(counter)
+
+            if counter > 100:
+                break
+
+            data = None
+            if "rgb" in topic:
+                cv_img = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding=self.rgb_encoding)
+                data = rgb_data
+            elif "depth" in topic:
+                cv_img = rosUtils.depth_image_to_cv2_uint16(msg, bridge=self.cv_bridge)
+                data = depth_data
+
+                try:
+                    # rot ix (x,y,z,w)
+                    (trans, rot) = tf_t.lookupTransform(self.world_frame, self.camera_frame, msg.header.stamp)
+                except:
+                    print "wasn't able to get transform for image message %d, skipping" %(counter)
+                    continue
+
+
+                depth_data['camera_to_world'].append((trans, rot))
+                
+
+            # save the relevant data
+            data['msgs'].append(msg)
+            data['cv_img'].append(cv_img)
+            data['timestamps'].append(msg.header.stamp.to_nsec())
+
+        print "Extracted %d rgb images" %(len(rgb_data['msgs']))
+        print "Extracted %d depth images" %(len(depth_data['msgs']))
+        
+
+        rgb_data['timestamps'] = np.array(rgb_data['timestamps'])
+
+        # synchronize the images
+        synchronized_rgb_imgs = []
+        for idx, stamp in enumerate(depth_data['timestamps']):
+            rgb_idx = ImageCapture.lookup_synchronized_image(stamp, rgb_data['timestamps'])
+            synchronized_rgb_imgs.append(rgb_data['cv_img'][rgb_idx])
+            if idx % log_rate == 0:
+                print "depth image %d matched to rgb image %d" %(idx, rgb_idx)
+
+
+        # save to a file
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir)
+
+
+        pose_data = dict()
+
+        for idx, depth_img in enumerate(depth_data['cv_img']):
+            rgb_img = synchronized_rgb_imgs[idx]
+
+            rgb_filename = os.path.join(output_dir, "%06i_%s.png" % (idx, "rgb"))
+            depth_filename = os.path.join(output_dir, "%06i_%s.png" % (idx, "depth"))
+            if idx % log_rate == 0:
+                print "writing image %d to file %s" %(idx, rgb_filename)
+            
+            cv2.imwrite(rgb_filename, rgb_img)
+            cv2.imwrite(depth_filename, depth_img)
+
+            pose_data[idx] = dict()
+            d = pose_data[idx] 
+            trans, rot = depth_data['camera_to_world'][idx]
+            quat_wxyz = [rot[3], rot[0], rot[1], rot[2]]
+            transform_dict = spartanUtils.dictFromPosQuat(trans, quat_wxyz)
+            d['camera_to_world'] = transform_dict
+            d['timestamp'] = depth_data['timestamps'][idx]
+            d['rgb_image_filename'] = rgb_filename
+            d['depth_image_filename'] = depth_filename
+
+
+
+        spartanUtils.saveToYaml(pose_data, os.path.join(output_dir,'pose_data.yaml'))
+
+        # extract the camera info msg
+
+        camera_info_msg = None
+        for topic, msg, t in bag.read_messages(topics=self.camera_info_topic):
+            camera_info_msg = msg
+            break
+
+        camera_info_dict = rosUtils.camera_info_dict_from_camera_info_msg(camera_info_msg)
+        spartanUtils.saveToYaml(camera_info_dict, os.path.join(output_dir,'camera_info.yaml'))
+        
+
+
+    @staticmethod
+    def lookup_synchronized_image(query_time, timestamps):
+        """
+        Parameters:
+            query_time: int
+                the time you want to find closest match to
+            
+
+        """
+        idx = np.searchsorted(timestamps, query_time)
+        return min(idx, np.size(timestamps))
+
+         
 
 class FusionServer(object): 
 
