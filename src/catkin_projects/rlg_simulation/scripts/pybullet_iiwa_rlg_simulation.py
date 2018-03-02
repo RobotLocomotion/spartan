@@ -40,6 +40,7 @@ import lcm
 from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
 
 # Comms with hand
+import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
 import spartan.utils.cv_utils as cvUtils
 import wsg50_msgs.msg
@@ -207,10 +208,12 @@ class RgbdCameraMetaInfo():
         extrinsics_dict["pose_xyz"][0] = tf["translation"]["x"]
         extrinsics_dict["pose_xyz"][1] = tf["translation"]["y"]
         extrinsics_dict["pose_xyz"][2] = tf["translation"]["z"]
-        extrinsics_dict["pose_quat"][0] = tf["rotation"]["w"]
-        extrinsics_dict["pose_quat"][1] = tf["rotation"]["x"]
-        extrinsics_dict["pose_quat"][2] = tf["rotation"]["y"]
-        extrinsics_dict["pose_quat"][3] = tf["rotation"]["z"]
+        
+        quat = spartanUtils.getQuaternionFromDict(tf)
+        extrinsics_dict["pose_quat"][0] = quat["w"]
+        extrinsics_dict["pose_quat"][1] = quat["x"]
+        extrinsics_dict["pose_quat"][2] = quat["y"]
+        extrinsics_dict["pose_quat"][3] = quat["z"]
         return  extrinsics_dict
 
     @staticmethod
