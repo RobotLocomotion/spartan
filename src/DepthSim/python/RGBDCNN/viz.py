@@ -6,23 +6,24 @@ import numpy as np
 import data
 import network
 
-def viz_nn_stream_custom(sleep =.5,path = "/media/drc/DATA/chris_labelfusion/CORL2017/test_data/"):
+
+def viz_nn_stream_custom(sleep =.5,path = "/media/drc/DATA/chris_labelfusion/CORL2017/test_data/",filter_files= None):
 	img_height = 480
 	img_width = 640
-	model = network.load_trained_model()
-	data_gen = data.generate_data_custom(img_height=480,img_width=640,batch_size=2,path=path,dir_name = "test/",filter_files = None,func=data.normalize)
+	model = network.load_trained_model(weights_path = "unet_7channelfixed_batchsize4.hdf5")
+	data_gen = data.generate_data_custom(img_height=480,img_width=640,batch_size=1,path=path,dir_name = "test/",filter_files = filter_files,func=data.normalize)
 	
 	stack = data_gen.next()
-	gtdepth,normal,rgb,depth = network.decompose_training_stack(stack,depth= True)#do depth the same way as keras
+	gtdepth,normal,rgb,depth = network.decompose_training_stack(stack,rgb= True,depth= True)#do depth the same way as keras
 
 	depth = np.reshape(depth,(img_height,img_width))
 	rgb = np.reshape(rgb,(img_height,img_width,3))
 	gtdepth = np.reshape(gtdepth,(img_height,img_width))
 	normal = np.reshape(normal,(img_height,img_width,3))
 
-
-	predicted_prob_map = model.predict_on_batch(stack[:,:,:,:7])
-	predicted_depth = network.apply_mask(predicted_prob_map,gtdepth)
+	threshold = .5
+	predicted_prob_map = network.threshold_mask(model.predict_on_batch(stack[:,:,:,:7]),threshold)
+	predicted_depth = network.apply_mask(predicted_prob_map,gtdepth,threshold)
 	predicted_depth = np.reshape(predicted_depth,(img_height,img_width))
 
 	ax1 = plt.subplot(1,3,1)
@@ -45,8 +46,8 @@ def viz_nn_stream_custom(sleep =.5,path = "/media/drc/DATA/chris_labelfusion/COR
 		normal = np.reshape(normal,(img_height,img_width,3))
 
 
-		predicted_prob_map = model.predict_on_batch(stack[:,:,:,:7])
-		predicted_depth = network.apply_mask(predicted_prob_map,gtdepth)
+		predicted_prob_map = network.threshold_mask(model.predict_on_batch(stack[:,:,:,:7]),threshold)
+		predicted_depth = network.apply_mask(predicted_prob_map,gtdepth,threshold)
 		predicted_depth = np.reshape(predicted_depth,(img_height,img_width))
 
 	
@@ -59,57 +60,52 @@ def viz_nn_stream_custom(sleep =.5,path = "/media/drc/DATA/chris_labelfusion/COR
 	plt.ioff() # due to infinite loop, this gets never called.
 	plt.show()
 
-def viz_nn_stream_keras(sleep =.5,path = "/media/drc/DATA/chris_labelfusion/CORL2017/test_data/"):
-	img_height = 480
-	img_width = 640
-	model = network.load_trained_model()
-	data_gen = data.generate_data(depth_as_mask= False, batch_size = 1, path = path)
-	
+def viz_nn_stream_keras(sleep =.5,path = "/media/drc/DATA/chris_labelfusion/CORL2017/test_data/",filter_files = None):
+	img_height = 200
+	img_width = 200
+	model = network.load_trained_model(weights_path = "unet_depthandnormal_200_1background_batchsize4.hdf5")
+	data_gen = data.generate_data_custom3(img_height=200,img_width=200,batch_size=1,path=path,dir_name = "test/",filter_files = filter_files,func=data.normalize)
+	print "loaded"
+
 	test = data_gen.next()
 	stack,depth = test
-	gtdepth,normal,rgb = network.decompose_training_stack(stack)
-
+	gtdepth,normal,rgb1,depth1 = network.decompose_training_stack(stack,rgb=False,depth = False)
 	depth = np.reshape(depth,(img_height,img_width))
-	rgb = np.reshape(rgb,(img_height,img_width,3))
+	#rgb = np.reshape(rgb,(img_height,img_width,3))
 	gtdepth = np.reshape(gtdepth,(img_height,img_width))
 	normal = np.reshape(normal,(img_height,img_width,3))
 
 	predicted_prob_map = model.predict_on_batch(stack)
-	predicted_depth = network.apply_mask(predicted_prob_map,gtdepth)
+	predicted_depth = network.apply_mask(predicted_prob_map,gtdepth,threshold = .281)
 
 	predicted_depth = np.reshape(predicted_depth,(img_height,img_width))
-
-	plt.figure()
-	plt.imshow(predicted_depth)
-	plt.show()
 
 	ax1 = plt.subplot(1,2,1)
 	ax2 = plt.subplot(1,2,2)
 
-	im1 = ax1.imshow(rgb)
+	im1 = ax1.imshow(depth)
 	
-	im2 = ax2.imshow(np.reshape(predicted_prob_map,(img_height,img_width)))
+	im2 = ax2.imshow(predicted_depth)
 
 	plt.ion()
 
 	while True:
 		test = data_gen.next()
 		stack,depth = test
-		gtdepth,normal,rgb = network.decompose_training_stack(stack)
-		predicted_prob_map = model.predict_on_batch(stack)
-
+		gtdepth,normal,rgb1,depth1 = network.decompose_training_stack(stack,rgb=False,depth = False)
 		depth = np.reshape(depth,(img_height,img_width))
-		rgb = np.reshape(rgb,(img_height,img_width,3))
+		#rgb = np.reshape(rgb,(img_height,img_width,3))
 		gtdepth = np.reshape(gtdepth,(img_height,img_width))
 		normal = np.reshape(normal,(img_height,img_width,3))
 
-		predicted_depth = network.apply_mask(predicted_prob_map,depth)
+		predicted_prob_map = model.predict_on_batch(stack)
+		predicted_depth = network.apply_mask(predicted_prob_map,gtdepth,threshold = .281)
 
-		
 		predicted_depth = np.reshape(predicted_depth,(img_height,img_width))
+
 	
-		im1.set_data(rgb)
-		im2.set_data(np.reshape(predicted_prob_map,(480,640)))
+		im1.set_data(depth)
+		im2.set_data(predicted_depth)
 		plt.pause(sleep)
 
 	plt.ioff() # due to infinite loop, this gets never called.
@@ -187,4 +183,5 @@ def show_prob_map_dist(img):
 if __name__ == '__main__':
 	#viz_nn_stream()
 	#viz_stream(path = "/media/drc/DATA/CNN/",filter_files = "2017-06-16-06")
-	viz_nn_stream_custom()
+	viz_nn_stream_custom(filter_files = "2017-06-16-15",path = "/media/drc/DATA/CNN/",sleep = .1)
+	#viz_nn_stream_keras(filter_files = "2017-06-16-15",path = "/media/drc/DATA/CNN/",sleep = .1)

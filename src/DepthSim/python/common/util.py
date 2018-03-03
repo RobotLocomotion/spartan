@@ -64,11 +64,14 @@ def get_image_batch(generator):
 
         return img_batch
 
-def bounding_box(img,size = None):
+def bounding_box(img,size = 100):
+    h,w = np.shape(img)
     non_zeros = np.nonzero(img)
     x_min = np.min(non_zeros[0])
     x_max = np.max(non_zeros[0])
     y_min = np.min(non_zeros[1])
     y_max = np.max(non_zeros[1])
-    out = (x_min,x_min+100,y_min,y_min+100) if size else (x_min,x_max,y_min,y_max)
+    out = (x_min,x_min+size,y_min,y_min+size) if size else (x_min,x_max,y_min,y_max)#minuce or plus coordinates
+    if x_min< 0 or x_min+size > h or y_min<0 or y_min+size>w:
+        return None
     return out

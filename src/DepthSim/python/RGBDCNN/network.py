@@ -24,11 +24,53 @@ from keras import backend as K
 import cv2
 from sklearn.model_selection import train_test_split
 
+def create_model_2(img_height=480, img_width=640):
+   inputs = Input((img_height, img_width,4))
+   #crop = Cropping2D(cropping=((0, 0), (0, 0)), data_format=None)
+   conv1 = Conv2D(4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(inputs)
+   conv1 = Conv2D(4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv1)
+   pool1 = MaxPooling2D(pool_size=(2, 2),data_format='channels_last')(conv1)
+
+   conv2 = Conv2D(8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(pool1)
+   conv2 = Conv2D(8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv2)
+   pool2 = MaxPooling2D(pool_size=(2, 2),data_format='channels_last')(conv2)
+
+   conv3 = Conv2D(32, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(pool2)
+   conv3 = Conv2D(32, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv3)
+   pool3 = MaxPooling2D(pool_size=(2, 2),data_format='channels_last')(conv3)
+
+
+   conv5 = Conv2D(64, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(pool3)
+   conv5 = Conv2D(64, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv5)
+   drop5 = Dropout(0.5)(conv5)
+
+   up7 = Conv2D(32, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(UpSampling2D(size = (2,2),data_format='channels_last')(conv5))
+   merge7 = merge([conv3,up7], mode = 'concat', concat_axis = 3)
+   conv7 = Conv2D(32, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(merge7)
+   conv7 = Conv2D(32, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv7)
+
+   up8 = Conv2D(8, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(UpSampling2D(size = (2,2),data_format='channels_last')(conv7))
+   merge8 = merge([conv2,up8], mode = 'concat', concat_axis = 3)
+   conv8 = Conv2D(8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(merge8)
+   conv8 = Conv2D(8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv8)
+
+   up9 = Conv2D(4, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(UpSampling2D(size = (2,2),data_format='channels_last')(conv8))
+   merge9 = merge([conv1,up9], mode = 'concat', concat_axis = 3)
+   conv9 = Conv2D(4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(merge9)
+   conv9 = Conv2D(4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv9)
+   conv9 = Conv2D(2, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv9)
+   conv10 = Conv2D(1, 1, activation = 'sigmoid',data_format='channels_last')(conv9)
+
+   model = Model(input = inputs, output = conv10)
+
+   return model
+
 def create_model(img_height=480, img_width=640):
    #crop = Cropping2D(cropping=((0, 0), (0, 0)), data_format=None)
    inputs = Input((img_height, img_width,7))
-   conv1 = Conv2D(7, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(inputs)
-   conv1 = Conv2D(7, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv1)
+  #crop = Cropping2D(cropping=((0, 0), (0, 0)), data_format=None) #check with updated param in the middle weird???
+   conv1 = Conv2D(4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(inputs)
+   conv1 = Conv2D(4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv1)
    pool1 = MaxPooling2D(pool_size=(2, 2),data_format='channels_last')(conv1)
 
    conv2 = Conv2D(14, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(pool1)
@@ -44,7 +86,7 @@ def create_model(img_height=480, img_width=640):
    drop4 = Dropout(0.5)(conv4)
    pool4 = MaxPooling2D(pool_size=(2, 2),data_format='channels_last')(drop4)
 
-   conv5 = Conv2D(1, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(pool4)
+   conv5 = Conv2D(136, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(pool4)
    conv5 = Conv2D(136, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv5)
    drop5 = Dropout(0.5)(conv5)
 
@@ -86,11 +128,21 @@ def load_trained_model(weights_path="unet.hdf5"):
    model.load_weights(weights_path)
    return model
 
-def apply_mask(mask,depth):
+def apply_mask(mask,depth,threshold):
+   h,w = np.shape(depth)
    depth = np.copy(depth)
-   mask = np.reshape(mask,(480,640))
-   depth[mask>.1]=0
+   mask = np.reshape(mask,(h,w))
+   depth[mask>threshold]=0
    return depth
+
+def threshold_mask(mask,threshold):
+   l,h,w,r = np.shape(mask)
+   mask = np.copy(mask)
+   mask = np.reshape(mask,(h,w))
+   #mask[mask>threshold]=1
+   mask[mask<threshold]=0
+
+   return mask
 
 def prob_map_to_mask(prob_map,width=2):
     prob_map = np.copy(prob_map)
@@ -116,14 +168,17 @@ def prob_map_to_mask(prob_map,dev=.1):
     prob_map[prob_map>.5] = 1
     return prob_map
 
-def decompose_training_stack(stack,depth = False):
-   gtdpeth = stack[:,:,:,0]
-   normal = stack[:,:,:,1:4]
-   rgb = stack[:,:,:,4:7]
+def decompose_training_stack(stack,depth = False,rgb = True):
+   gtdpeth_img = stack[:,:,:,0]
+   normal_img = stack[:,:,:,1:4]
+   rgb_img = None
+   depth_img = None
+   if rgb:
+      rgb_img = stack[:,:,:,4:7]
    if depth:
-      return gtdpeth,normal,rgb,stack[:,:,:,7]
-   else:
-      return gtdpeth,normal,rgb
+      depth_img = stack[:,:,:,7]
+
+   return gtdpeth_img,normal_img,rgb_img,depth_img
 
 
 

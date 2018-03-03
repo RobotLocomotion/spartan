@@ -26,6 +26,9 @@ from sklearn.model_selection import train_test_split
 
 from keras.preprocessing import image
 from itertools import izip
+import sys
+sys.path.insert(0,'../')
+from common import util
 
 def hot_vectorize(x):
     zero_mask = x==0
@@ -35,13 +38,13 @@ def hot_vectorize(x):
     return x
 
 def stack_frames(frames,img_height,img_width,channels):
-	stack  = np.zeros((1,img_height,img_width,channels))
-	index = 0
-	for i in frames:
-		num_chan = 1 if len(np.shape(i)) ==2 else np.shape(i)[2]
-		stack[0,:,:,index:index+num_chan] = np.reshape(i,(img_height,img_width,num_chan))
-		index += num_chan
-	return stack
+    stack  = np.zeros((1,img_height,img_width,channels))
+    index = 0
+    for i in frames:
+        num_chan = 1 if len(np.shape(i)) == 2 else np.shape(i)[2]
+        stack[0,:,:,index:index+num_chan] = np.reshape(i,(img_height,img_width,num_chan))
+        index += num_chan
+    return stack
 
 def grab_frame(files,i,path,func=None):
     img = misc.imread(path+files[i])
@@ -51,6 +54,9 @@ def grab_frame(files,i,path,func=None):
 
 def normalize(x):
     return x/255.
+
+def normalize_depth(x):
+    return x/3000.
 
 def combine_data_generators(depth,normal,rgb,mask):
     while True:
@@ -112,10 +118,10 @@ def generate_data(depth_as_mask=True,img_height=480,img_width=640,batch_size=2,p
 
 def generate_data_custom(img_height=480,img_width=640,batch_size=2,path="/media/drc/DATA/chris_labelfusion/CORL2017/test_data/",dir_name = "test/",filter_files = None,func=None):
 
-	rgb_path = path+"rgb/"+dir_name
-	depth_path = path+"depth/"+ dir_name
-	gtdepth_path = path+"gtdepth/" + dir_name
-	normal_path = path+"normal/" + dir_name
+	rgb_path = path+"rgb/rgb/"
+	depth_path = path+"depth/depth/"
+	gtdepth_path = path+"gtdepth/gtdepth/" # change back to + dir_name
+	normal_path = path+"normal/normal/"
 
 	rgb = np.sort(os.listdir(rgb_path))
 	normal = np.sort(os.listdir(normal_path))
@@ -137,3 +143,93 @@ def generate_data_custom(img_height=480,img_width=640,batch_size=2,path="/media/
 		depth_img = grab_frame(depth,i,depth_path,func)
 		stack = stack_frames([gtdepth_img,normal_img,rgb_img,depth_img],img_height,img_width,8)
 		yield stack
+
+def generate_data_custom2(depth_as_mask=True,img_height=480,img_width=640,batch_size=4,path="/media/drc/DATA/CNN/",dir_name = "test/",filter_files = None,func=None):
+
+    #rgb_path = path+"rgb/"+"rgb/"
+    depth_path = path+"depth/"+ "depth/"
+    gtdepth_path = path+"gtdepth/" + "gtdepth/"
+    normal_path = path+"normal/" + "normal/"
+
+    #rgb = np.sort(os.listdir(rgb_path))
+    normal = np.sort(os.listdir(normal_path))
+    depth = np.sort(os.listdir(depth_path))
+    gtdepth = np.sort(os.listdir(gtdepth_path))
+
+    if filter_files:
+            #rgb = np.sort(filter(lambda x: filter_files in x, rgb))
+            normal = np.sort(filter(lambda x: filter_files in x, normal))
+            depth = np.sort(filter(lambda x: filter_files in x, depth))
+            gtdepth = np.sort(filter(lambda x: filter_files in x, gtdepth))
+
+    i = -1
+    while True:
+        stack1 = np.zeros((batch_size,img_height,img_width,4))
+        stack2 = np.zeros((batch_size,img_height,img_width,1))
+
+        for j in range(batch_size):
+            i= (i+1)%len(depth)
+            #rgb_img = grab_frame(rgb,i,rgb_path,func)
+            normal_img = grab_frame(normal,i,normal_path,normalize)
+            gtdepth_img = grab_frame(gtdepth,i,gtdepth_path,normalize_depth)
+            depth_img = grab_frame(depth,i,depth_path,hot_vectorize)
+            a = util.bounding_box(gtdepth_img,img_height)
+            while not a:
+            	print a
+                i= (i+1)%len(depth)
+                #rgb_img = grab_frame(rgb,i,rgb_path,func)
+                normal_img = grab_frame(normal,i,normal_path,normalize)
+                gtdepth_img = grab_frame(gtdepth,i,gtdepth_path,normalize_depth)
+                depth_img = grab_frame(depth,i,depth_path,hot_vectorize)
+                a = util.bounding_box(gtdepth_img,img_height)
+
+            x1,x2,y1,y2 = a
+            depth_img = depth_img[x1:x2,y1:y2] 
+            gtdepth_img = gtdepth_img[x1:x2,y1:y2]
+            normal_img = normal_img[x1:x2,y1:y2]
+            gtdepth_img[gtdepth_img==0]=1.
+
+            stack = stack_frames([gtdepth_img,normal_img],img_height,img_width,4)
+            stack1[j] = stack
+            stack2[j] = np.reshape(depth_img,(img_height,img_width,1))
+        yield (stack1,stack2)
+
+def generate_data_custom3(depth_as_mask=True,img_height=480,img_width=640,batch_size=4,path="/media/drc/DATA/CNN/",dir_name = "test/",filter_files = None,func=None):
+
+    #rgb_path = path+"rgb/"+"rgb/"
+    depth_path = path+"depth/"+ "depth/"
+    gtdepth_path = path+"gtdepth/" + "gtdepth/"
+    normal_path = path+"normal/" + "normal/"
+
+    #rgb = np.sort(os.listdir(rgb_path))
+    normal = np.sort(os.listdir(normal_path))
+    depth = np.sort(os.listdir(depth_path))
+    gtdepth = np.sort(os.listdir(gtdepth_path))
+
+    if filter_files:
+            #rgb = np.sort(filter(lambda x: filter_files in x, rgb))
+            normal = np.sort(filter(lambda x: filter_files in x, normal))
+            depth = np.sort(filter(lambda x: filter_files in x, depth))
+            gtdepth = np.sort(filter(lambda x: filter_files in x, gtdepth))
+
+    i = -1
+    while True:
+        stack1 = np.zeros((batch_size,img_height,img_width,4))
+        stack2 = np.zeros((batch_size,img_height,img_width,1))
+
+        for j in range(batch_size):
+            i= (i+1)%len(depth)
+            #rgb_img = grab_frame(rgb,i,rgb_path,func)
+            normal_img = grab_frame(normal,i,normal_path,normalize)
+            gtdepth_img = grab_frame(gtdepth,i,gtdepth_path,normalize_depth)
+            depth_img = grab_frame(depth,i,depth_path)
+
+            depth_img = depth_img[120:320,240:440] 
+            gtdepth_img = gtdepth_img[120:320,240:440]  
+            normal_img = normal_img[120:320,240:440]
+            gtdepth_img[gtdepth_img==0]=1.
+
+            stack = stack_frames([gtdepth_img,normal_img],img_height,img_width,4)
+            stack1[j] = stack
+            stack2[j] = np.reshape(depth_img,(img_height,img_width,1))
+        yield (stack1,stack2)
