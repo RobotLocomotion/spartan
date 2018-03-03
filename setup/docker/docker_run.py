@@ -62,6 +62,9 @@ if __name__=="__main__":
 
 	cmd += " --rm " # remove the image when you exit
 
+	# allow setting chrt priority by regular user inside container???
+	cmd += " --ulimit rtprio=30 "
+
 	if args.entrypoint and args.entrypoint != "":
 		cmd += "--entrypoint=\"%(entrypoint)s\" " % {"entrypoint": args.entrypoint}
 	else:

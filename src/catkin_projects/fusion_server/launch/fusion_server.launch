@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+    
+    <arg name="pkg_name" default="fusion_server" />
+    <arg name="camera_serial_number" default="carmine_1" />
+
+    <node name="fusion_server" pkg="$(arg pkg_name)" type="fusion_server_node.py" output="screen">
+        <param name="camera_serial_number" type="string" value="$(arg camera_serial_number)"/>
+    </node>
+
+</launch>

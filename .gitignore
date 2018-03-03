@@ -4,5 +4,7 @@
 /src/CorlDev/src/ply
 /src/CorlDev/automation/scp_config.yaml
 /src/calibration_data
+/sandbox/fusion/*
+/calibration_data
 *snopt.out
 

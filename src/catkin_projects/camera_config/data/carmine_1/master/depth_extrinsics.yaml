@@ -1,0 +1,11 @@
+reference_link_name: wsg_50_base_link
+transform_to_reference_link:
+  translation:
+    x: 0.04218740880091171
+    y: -0.06421884781488575
+    z: 0.0521650264983857
+  rotation:
+    w: 0.002202368307386821
+    x: 0.0007115481871161789
+    z: 0.9994752824354286
+    y: -0.0323079413401189

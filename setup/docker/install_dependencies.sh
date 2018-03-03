@@ -17,6 +17,7 @@ apt install --no-install-recommends \
   usbutils \
   dialog \
   python-pip \
+  libav-tools
 
 # these following three are ElasticFusion dependencies
 apt install --no-install-recommends \
@@ -27,4 +28,9 @@ apt install --no-install-recommends \
 pip install -U pip setuptools
 
 # Dependencies of trimesh
-pip install numpy scipy pyassimp pyglet
+pip install \
+  numpy \
+  scipy \
+  pyassimp \
+  pyglet \
+  plyfile

@@ -27,8 +27,8 @@ RUN yes "Y" | /tmp/install_dependencies.sh
 COPY ./setup/ubuntu/16.04/install_prereqs.sh /tmp/spartan_install_prereqs.sh
 RUN yes "Y" | /tmp/spartan_install_prereqs.sh
 
-COPY ./drake/setup/ubuntu/16.04/install_prereqs.sh /tmp/drake_install_prereqs.sh
-RUN yes "Y" | /tmp/drake_install_prereqs.sh
+COPY ./drake/setup/ubuntu/16.04/ /tmp/drake_install_prereqs
+RUN yes "Y" | /tmp/drake_install_prereqs/install_prereqs.sh
 
 COPY ./director/distro/travis/install_deps.sh /tmp/director_travis_install_prereqs.sh
 RUN yes "Y" | TRAVIS_OS_NAME=linux /tmp/director_travis_install_prereqs.sh

@@ -18,3 +18,13 @@ target_link_libraries(testRemoteTreeViewerWrapper
     pthread
     RemoteTreeViewerWrapper)
 install(TARGETS testRemoteTreeViewerWrapper DESTINATION bin)
+
+
+set(PYBIND11_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include")
+set(PYTHON_EXECUTABLE "python2.7")
+find_package(pybind11 REQUIRED)
+
+pybind11_add_module(RemoteTreeViewerWrapper_pybind MODULE RemoteTreeViewerWrapper_pybind.cpp)
+target_link_libraries(RemoteTreeViewerWrapper_pybind PRIVATE RemoteTreeViewerWrapper drake::drake z pthread)
+set_target_properties(RemoteTreeViewerWrapper_pybind PROPERTIES PREFIX "" SUFFIX ".so")
+INSTALL(TARGETS RemoteTreeViewerWrapper_pybind DESTINATION lib/python2.7/site-packages/)

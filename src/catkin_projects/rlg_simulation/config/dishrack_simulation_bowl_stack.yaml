@@ -1,0 +1,38 @@
+models:
+  plate_11in: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_11in_decomp/plate_11in_decomp.urdf"
+  plate_8p5in: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_8p5in_decomp/plate_8p5in_decomp.urdf"
+  bowl_6p25in: "${SPARTAN_SOURCE_DIR}/models/dish_models/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf"
+
+with_ground: true
+
+instances:
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.2,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.25,  1.6, 0.0, 0.0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.3,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.35,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.40,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.45,  1.6, 0.0, 0.0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.50,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.55,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.60,  1.6, 0.0, .0]
+    fixed: false
+  - model: "bowl_6p25in"
+    q0: [0.0, 0.0, 0.65,  1.6, 0.0, .0]
+    fixed: false

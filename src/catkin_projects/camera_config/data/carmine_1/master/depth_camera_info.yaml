@@ -1,0 +1,55 @@
+projection_matrix:
+  rows: 3
+  cols: 4
+  data:
+    - 570.6368949380911
+    - 0
+    - 322.1804987612532
+    - 0
+    - 0
+    - 571.0101464807564
+    - 242.8518556017149
+    - 0
+    - 0
+    - 0
+    - 1
+    - 0
+rectification_matrix:
+  cols: 3
+  rows: 3
+  data:
+    - 1
+    - 0
+    - 0
+    - 0
+    - 1
+    - 0
+    - 0
+    - 0
+    - 1
+camera_matrix:
+  rows: 3
+  cols: 3
+  data:
+    - 570.6368949380911
+    - 0
+    - 322.1804987612532
+    - 0
+    - 571.0101464807564
+    - 242.8518556017149
+    - 0
+    - 0
+    - 1
+distortion_model: plumb_bob
+distortion_coefficients:
+  data:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+  rows: 1
+  cols: 5
+image_width: 640
+image_height: 480
+camera_name: xtion_pro

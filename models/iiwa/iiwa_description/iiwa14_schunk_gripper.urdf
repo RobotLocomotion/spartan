@@ -525,7 +525,7 @@
         <mesh filename="package://wsg_50_description/meshes/GUIDE_WSG50_110.obj" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
-    <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    <contact_coefficients kd="1.0" kp="1000.0" mu="0.8"/>
   </link>
   <gazebo reference="wsg_50_gripper_left">
     <material>Gazebo/Blue</material>
@@ -561,7 +561,7 @@
         <mesh filename="package://wsg_50_description/meshes/WSG-FMF.obj" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
-    <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    <contact_coefficients kd="1.0" kp="1000.0" mu="0.8"/>
   </link>
   <gazebo reference="wsg_50_finger_left">
     <material>Gazebo/Blue</material>
@@ -604,7 +604,7 @@
         <mesh filename="package://wsg_50_description/meshes/GUIDE_WSG50_110.obj" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
-    <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    <contact_coefficients kd="1.0" kp="1000.0" mu="0.8"/>
   </link>
   <gazebo reference="gripper_right">
     <material>Gazebo/White</material>
@@ -640,7 +640,7 @@
         <mesh filename="package://wsg_50_description/meshes/WSG-FMF.obj" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
-    <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    <contact_coefficients kd="1.0" kp="1000.0" mu="0.8"/>
   </link>
   <gazebo reference="wsg_50_finger_right">
     <material>Gazebo/White</material>
