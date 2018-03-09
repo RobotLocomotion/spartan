@@ -1,4 +1,6 @@
-import os 
+import os,sys
+sys.path.insert(0, '../')
+
 import numpy as np
 from scipy import misc
 from common import common
@@ -6,7 +8,8 @@ import yaml
 from render import render_sim
 from director import vtkAll as vtk
 
-path  = "/home/drc/DATA/CORL2017/logs_test/"
+#
+path  = "/home/drc/DATA/chris_labelfusion/CORL2017/logs_test/"
 paths = []
 for f in os.listdir(path):
 	if "2017" in f:
@@ -39,23 +42,28 @@ renWin.AddRenderer(renderer);
 interactor.SetRenderWindow(renWin);
 common.set_up_camera_params(camera)
 
-use_mesh = False
-out_dir = "/home/drc/DATA/CORL2017/test_data/"
+use_mesh = True
+out_dir = "/home/drc/DATA/chris_labelfusion/RGBDCNN/"
 
 mesh = "None"
 for i,j in paths[1:]:
 
   data_dir = path+i
   data_dir_name =  os.path.basename(os.path.normpath(data_dir))
-  num_im = 4000
-  object_dir = "/home/drc/DATA/object-meshes"
+  num_im = 30
+  object_dir = "/home/drc/DATA/chris_labelfusion/object-meshes"
+
+  if not os.path.exists(directory):
+    os.makedirs(directory)
 
   print "rendering Label Fusion data", data_dir_name
-  render_sim.render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir,use_mesh,object_dir)
-  render_sim.render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir,use_mesh,object_dir)
-  os.system("cp "+data_dir+"/images/*rgb.png "+ out_dir+"/rgb")
-  os.system("cp "+data_dir+"/images/*depth.png "+ out_dir+"/depth")
-  break
+  render_sim.render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+"gtdepth/gtdepth/",use_mesh,object_dir)
+  render_sim.render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+"normal/normal/",use_mesh,object_dir)
+  os.system("cp "+data_dir+"/images/*rgb.png "+ out_dir+"/rgb/"+data_dir_name)
+  print "generated rgb images"
+  os.system("cp "+data_dir+"/images/*depth.png "+ out_dir+"/depth/"+data_dir_name)
+  print "generated real depth images"
+
 
 renWin.Render();
 interactor.Start();

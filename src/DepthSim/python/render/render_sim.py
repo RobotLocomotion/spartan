@@ -13,6 +13,8 @@ from director import objectmodel as om
 from director import vtkAll as vtk
 import Image
 from common import common
+import mesh_wrapper
+import glob
 import os
 
 #TODO:one shading lib for both depth and normal
@@ -35,13 +37,19 @@ def set_material_prop(actor):
   actor.GetProperty().SetSpecularPower(20.0);
   actor.GetProperty().SetOpacity(1.0);
 
-def render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir,use_mesh,object_dir,keyword=None):
+def render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir,use_mesh,object_dir,mesh ='meshed_scene.ply',keyword=None):
   actor = vtk.vtkActor()
   filter1= vtk.vtkWindowToImageFilter()
   imageWriter = vtk.vtkPNGWriter()
   scale =vtk.vtkImageShiftScale()
 
   if use_mesh: #use meshed version of scene
+    if not glob.glob(data_dir+"/"+mesh):
+      out  = "original_log.lcmlog.ply" if glob.glob(data_dir+"/original_log.lcmlog.ply") else "trimmed_log.lcmlog.ply"
+      mesher = mesh_wrapper.Mesh(out_dir = data_dir)
+      status = mesher.mesh_cloud(out)
+      print status
+      #blocks until done
     mapper = vtk.vtkPolyDataMapper()
     fileReader = vtk.vtkPLYReader()
     fileReader.SetFileName(data_dir+"/"+mesh)
@@ -97,7 +105,7 @@ def render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_d
   renderer.RemoveAllViewProps();
   renWin.Render();
 
-def render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out_dir,use_mesh,object_dir,keyword=None):
+def render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir,use_mesh,object_dir,mesh ='meshed_scene.ply',keyword=None):
   #setup rendering enviornment
   actor = vtk.vtkActor()
   filter1= vtk.vtkWindowToImageFilter()
@@ -105,6 +113,12 @@ def render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,mesh,out
   scale =vtk.vtkImageShiftScale()
 
   if use_mesh: #use meshed version of scene
+    if not glob.glob(data_dir+"/"+mesh):
+      out  = "original_log.lcmlog.ply" if glob.glob(data_dir+"/original_log.lcmlog.ply") else "trimmed_log.lcmlog.ply"
+      mesher = mesh_wrapper.Mesh(out_dir = data_dir)
+      status = mesher.mesh_cloud(out)
+      print status
+      #blocks until done
     mapper = vtk.vtkPolyDataMapper()
     #shading
     #set_material_prop(actor)
