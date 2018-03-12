@@ -76,12 +76,15 @@ class FusionServer(object):
     def setupConfig(self):
         self.config = dict()
         self.config['scan'] = dict()
-        # self.config['scan']['pose_list'] = ['scan_back', 'scan_left', 'scan_top', 'scan_right', 'scan_back']
+        #self.config['scan']['pose_list'] = ['scan_back', 'scan_left', 'scan_top', 'scan_right', 'scan_back']
+        # with the Grasping group
+        #self.config['scan']['pose_group'] = 'Grasping'
+        #self.config['scan']['pose_list'] = ['scan_left_close', 'scan_left', 'scan_left_center', 'scan_above_table_far', 'scan_right_center', 'scan_right', 'scan_right_close']
 
-        self.config['scan']['pose_list'] = ['scan_left_close', 'scan_left_center', 'scan_above_table_far', 'scan_right_center', 'scan_right_close']
 
-        # self.config['scan']['pose_list'] = ['scan_above_table_far']
-        
+        self.config['scan']['pose_group'] = 'Elastic Fusion'
+        self.config['scan']['pose_list'] = ['home', 'home_closer', 'center_right', 'right', 'right_low', 'right_low_closer', 'center_right', 'home_closer', 'center_left_closer', 'center_left_low_closer', 'left_low', 'left_mid', 'center_left_low', 'center_left_low_closer', 'center_left_closer', 'home_closer', 'top_down', 'top_down_right', 'top_down_left']
+        self.config['scan']['pose_list_quick'] = ['home_closer', 'top_down', 'top_down_right', 'top_down_left', 'home']
 
         self.config['speed'] = dict()
         self.config['speed']['scan'] = 15
@@ -90,7 +93,7 @@ class FusionServer(object):
         self.config['spin_rate'] = 1
 
         
-        self.config['home_pose_name'] = 'scan_above_table_far'
+        self.config['home_pose_name'] = 'home'
         self.config['sleep_time_before_bagging'] = 2.0
         self.config['world_frame'] = 'base'
         self.config['sleep_time_at_each_pose'] = 0.5
@@ -154,13 +157,13 @@ class FusionServer(object):
     def start_bagging(self):
         self.flushCache()
 
-        bagfile_directory = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'fusion')
+        bagfile_name = "fusion" + str(time.time())
+        bagfile_directory = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'fusion', bagfile_name)
         
 
-        # make sure bagfile_directory exists
+        # make bagfile directory with name
         os.system("mkdir -p " + bagfile_directory)
 
-         
         topics_to_bag = [
             "/tf",
             "/tf_static",
@@ -185,7 +188,6 @@ class FusionServer(object):
         
         # build up command string
         rosbag_cmd = "rosbag record"
-        bagfile_name = "fusion" + str(time.time())
         rosbag_cmd += " -O " + bagfile_name
         for i in topics_to_bag:
             rosbag_cmd += " " + i
@@ -267,7 +269,8 @@ class FusionServer(object):
         # Start bagging with own srv call
 
         # first move home
-        home_pose_joint_positions = self.storedPoses[self.config['home_pose_name']]
+        home_pose_joint_positions = self.storedPoses[self.config['scan']['pose_group']][self.config['home_pose_name']]
+        print home_pose_joint_positions
         self.robotService.moveToJointPosition(home_pose_joint_positions, maxJointDegreesPerSecond=self.config['speed']['fast'])
 
         try:
@@ -278,8 +281,9 @@ class FusionServer(object):
             print "Service call failed: %s"%e
 
         # Move robot around
-        for poseName in self.config['scan']['pose_list']:
-            joint_positions = self.storedPoses[poseName]
+        for poseName in self.config['scan']['pose_list_quick']:
+            print "moving to", poseName
+            joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
             self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['speed']['scan'])
             rospy.sleep(self.config['sleep_time_at_each_pose'])
 
@@ -306,6 +310,19 @@ class FusionServer(object):
         elastic_fusion_output = resp3.elastic_fusion_output
         self.cache['fusion_output'] = elastic_fusion_output
         self.publish_pointcloud_to_rviz(elastic_fusion_output.point_cloud, self.cache['point_cloud_to_world_stamped'])
+
+        # extract all rgb and depth images, with timestamps
+        path_to_extract_script = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'fusion_server', 'scripts', 'extract_images_from_rosbag.py')
+        destination_folder = os.path.join(os.path.dirname(resp1.bag_filepath), "images")
+        os.system("mkdir -p " + destination_folder)
+        
+        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/rgb/image_rect_color' bgr8 True"
+        print cmd
+        os.system(cmd)
+
+        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/image_rect' passthrough False"
+        print cmd
+        os.system(cmd)
 
         return CaptureSceneAndFuseResponse(elastic_fusion_output)
 

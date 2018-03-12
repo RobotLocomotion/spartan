@@ -1,55 +1,55 @@
-projection_matrix:
+camera_matrix:
+  cols: 3
+  data:
+  - 571.823804
+  - 0.0
+  - 327.767065
+  - 0.0
+  - 572.101606
+  - 242.542267
+  - 0.0
+  - 0.0
+  - 1.0
   rows: 3
+camera_name: carmine_1
+distortion_coefficients:
+  cols: 5
+  data:
+  - -0.028292
+  - 0.024988
+  - -5.3e-05
+  - -0.001328
+  - 0.0
+  rows: 1
+distortion_model: plumb_bob
+image_height: 480
+image_width: 640
+projection_matrix:
   cols: 4
   data:
-    - 570.6368949380911
-    - 0
-    - 322.1804987612532
-    - 0
-    - 0
-    - 571.0101464807564
-    - 242.8518556017149
-    - 0
-    - 0
-    - 0
-    - 1
-    - 0
+  - 568.186523
+  - 0.0
+  - 327.101417
+  - 0.0
+  - 0.0
+  - 569.698059
+  - 242.543763
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  rows: 3
 rectification_matrix:
   cols: 3
+  data:
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
   rows: 3
-  data:
-    - 1
-    - 0
-    - 0
-    - 0
-    - 1
-    - 0
-    - 0
-    - 0
-    - 1
-camera_matrix:
-  rows: 3
-  cols: 3
-  data:
-    - 570.6368949380911
-    - 0
-    - 322.1804987612532
-    - 0
-    - 571.0101464807564
-    - 242.8518556017149
-    - 0
-    - 0
-    - 1
-distortion_model: plumb_bob
-distortion_coefficients:
-  data:
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-  rows: 1
-  cols: 5
-image_width: 640
-image_height: 480
-camera_name: xtion_pro
