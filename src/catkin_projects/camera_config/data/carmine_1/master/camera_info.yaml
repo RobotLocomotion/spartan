@@ -2,29 +2,29 @@ depth:
   extrinsics:
     reference_link_name: wsg_50_base_link
     transform_to_reference_link:
-      rotation:
-        w: 0.002202368307386821
-        x: 0.0007115481871161789
-        y: -0.0323079413401189
-        z: 0.9994752824354286
+      quaternion:
+        w: 0.003120422877553472
+        x: -0.004474892928722832
+        y: -0.033441526906883005
+        z: 0.9994257864256242
       translation:
-        x: 0.04218740880091171
-        y: -0.06421884781488575
-        z: 0.0521650264983857
+        x: 0.04188847996126277
+        y: -0.06005248919751252
+        z: 0.049200560492642556
 header:
-  calibration_date: 20180213-152550
-  camera_name: carmine
-  serial_number: 1
+  calibration_date: ignored
+  camera_name: carmine_1
+  serial_number: 0
 rgb:
   extrinsics:
     reference_link_name: wsg_50_base_link
     transform_to_reference_link:
-      rotation:
-        w: 0.005257389076676519
-        x: 0.001164467697768688
-        y: -0.03003684588991719
-        z: 0.999534287437936
+      quaternion:
+        w: 0.007786067816581549
+        x: 0.0010012811869830765
+        y: -0.031446879258489706
+        z: 0.9994745961598238
       translation:
-        x: 0.0145602348818737
-        y: -0.06573258113469113
-        z: 0.05521086774830911
+        x: 0.014819967828323797
+        y: -0.05968869260174448
+        z: 0.04692579594511947

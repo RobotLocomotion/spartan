@@ -11,8 +11,8 @@ poses:
     min: 0.5
     step_size: 0.15
   pitch:
-    max: 60
-    min: 10
+    max: 45
+    min: 0
     step_size: 15
   target_location:
   - 0.6
@@ -33,4 +33,4 @@ encoding:
   ir: "mono16"
   rgb: "bgr8"
 
-filename_extension: "bmp"
+filename_extension: "jpg"
