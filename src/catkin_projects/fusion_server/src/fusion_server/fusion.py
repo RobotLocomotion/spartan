@@ -574,7 +574,7 @@ class FusionServer(object):
         image_capture.load_ros_bag(bag_filepath)
         image_capture.process_ros_bag(image_capture.ros_bag, output_dir)
 
-
+        rospy.loginfo("Finished writing images to disk")
 
         return CaptureSceneAndFuseResponse(elastic_fusion_output)
 
