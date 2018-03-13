@@ -72,9 +72,6 @@ class ImageCapture(object):
     def __init__(self, rgb_topic, depth_topic, camera_info_topic,
         camera_frame, world_frame, output_dir, rgb_encoding='bgr8'):
 
-
-        
-
         self.camera_frame = camera_frame
         self.world_frame = world_frame
         self.tfBuffer = None
@@ -86,14 +83,7 @@ class ImageCapture(object):
         self.topics_dict['depth'] = depth_topic
         self.camera_info_topic = camera_info_topic
 
-
         self.cv_bridge = CvBridge()
-        # self.rgb_topic = "/camera_carmine_1/rgb/image_rect_color"
-        # self.depth_topic = "/camera_carmine_1/depth_registered/sw_registered/image_rect"
-        # self.setupConfig()
-        # self.setupTF()
-        # self.resetCache()
-        # self.setupSubscribers()
 
     def setupConfig(self):
         self.topics_dict = dict()
@@ -250,13 +240,17 @@ class ImageCapture(object):
         for idx, depth_img in enumerate(depth_data['cv_img']):
             rgb_img = synchronized_rgb_imgs[idx]
 
-            rgb_filename = os.path.join(output_dir, "%06i_%s.png" % (idx, "rgb"))
-            depth_filename = os.path.join(output_dir, "%06i_%s.png" % (idx, "depth"))
+            rgb_filename = "%06i_%s.png" % (idx, "rgb")
+            rgb_filename_full = os.path.join(output_dir, rgb_filename)
+
+            depth_filename = "%06i_%s.png" % (idx, "depth")
+            depth_filename_full = os.path.join(output_dir, depth_filename)
+
             if idx % log_rate == 0:
                 print "writing image %d to file %s" %(idx, rgb_filename)
             
-            cv2.imwrite(rgb_filename, rgb_img)
-            cv2.imwrite(depth_filename, depth_img)
+            cv2.imwrite(rgb_filename_full, rgb_img)
+            cv2.imwrite(depth_filename_full, depth_img)
 
             pose_data[idx] = dict()
             d = pose_data[idx] 
@@ -417,7 +411,7 @@ class FusionServer(object):
         # add simple subscribers to fix xtion driver issues
         self.startImageSubscribers()
 
-        rospy.loginfo("started image subscribers, sleeping for %d seconds", self.config['sleep_time_before_bagging'])
+        
         # sleep for two seconds to allow for xtion driver compression issues to be resolved
         
         # rospy.sleep(self.config['sleep_time_before_bagging'])
@@ -439,8 +433,8 @@ class FusionServer(object):
         # start bagging
         rosbag_proc = subprocess.Popen(rosbag_cmd, stdin=subprocess.PIPE, shell=True, cwd=bagfile_directory)
 
-        rospy.loginfo("sleeping while waiting for bagging to start")
-        rospy.sleep(2.0)
+        rospy.loginfo("started image subscribers, sleeping for %d seconds", self.config['sleep_time_before_bagging'])
+        rospy.sleep(self.config['sleep_time_before_bagging'])
         return os.path.join(bagfile_directory, bagfile_name+".bag"), rosbag_proc
 
     def handle_start_bagging_fusion_data(self, req):
@@ -522,7 +516,7 @@ class FusionServer(object):
             print "Service call failed: %s"%e
 
         # Move robot around
-        for poseName in self.config['scan']['pose_list_quick']:
+        for poseName in self.config['scan']['pose_list_test']:
             print "moving to", poseName
             joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
             self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['speed']['scan'])
@@ -553,17 +547,28 @@ class FusionServer(object):
         self.publish_pointcloud_to_rviz(elastic_fusion_output.point_cloud, self.cache['point_cloud_to_world_stamped'])
 
         # extract all rgb and depth images, with timestamps
-        path_to_extract_script = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'fusion_server', 'scripts', 'extract_images_from_rosbag.py')
-        destination_folder = os.path.join(os.path.dirname(resp1.bag_filepath), "images")
-        os.system("mkdir -p " + destination_folder)
+        # path_to_extract_script = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'fusion_server', 'scripts', 'extract_images_from_rosbag.py')
+        # destination_folder = os.path.join(os.path.dirname(resp1.bag_filepath), "images")
+        # os.system("mkdir -p " + destination_folder)
         
-        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/rgb/image_rect_color' bgr8 True"
-        print cmd
-        os.system(cmd)
+        # cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/rgb/image_rect_color' bgr8 True"
+        # print cmd
+        # os.system(cmd)
 
-        cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/image_rect' passthrough False"
-        print cmd
-        os.system(cmd)
+        # cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/image_rect' passthrough False"
+        # print cmd
+        # os.system(cmd)
+
+        # extract RGB and Depth images from Rosbag
+        rgb_topic = self.topics_dict['rgb']
+        depth_topic = self.topics_dict['depth']
+        camera_info_topic = self.topics_dict['camear_info']
+        image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
+        self.config['camera_frame'], self.config['world_frame'], output_dir, rgb_encoding='bgr8')
+
+        output_dir = os.path.join(os.path.dirname(bag_filepath), 'images')
+        image_capture.load_ros_bag(ros_bag_filename)
+        image_capture.process_ros_bag(image_capture.ros_bag, output_dir)
 
         return CaptureSceneAndFuseResponse(elastic_fusion_output)
 
