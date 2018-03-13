@@ -70,7 +70,7 @@ class ImageCapture(object):
     """
 
     def __init__(self, rgb_topic, depth_topic, camera_info_topic,
-        camera_frame, world_frame, output_dir, rgb_encoding='bgr8'):
+        camera_frame, world_frame, rgb_encoding='bgr8'):
 
         self.camera_frame = camera_frame
         self.world_frame = world_frame
@@ -319,7 +319,9 @@ class FusionServer(object):
 
         self.config['scan']['pose_group'] = 'Elastic Fusion'
         self.config['scan']['pose_list'] = ['home', 'home_closer', 'center_right', 'right', 'right_low', 'right_low_closer', 'center_right', 'home_closer', 'center_left_closer', 'center_left_low_closer', 'left_low', 'left_mid', 'center_left_low', 'center_left_low_closer', 'center_left_closer', 'home_closer', 'top_down', 'top_down_right', 'top_down_left']
+
         self.config['scan']['pose_list_quick'] = ['home_closer', 'top_down', 'top_down_right', 'top_down_left', 'home']
+
 
         self.config['speed'] = dict()
         self.config['speed']['scan'] = 15
@@ -331,6 +333,8 @@ class FusionServer(object):
         self.config['home_pose_name'] = 'home'
         self.config['sleep_time_before_bagging'] = 2.0
         self.config['world_frame'] = 'base'
+        self.config['camera_frame'] = "camera_" + self.camera_serial_number + "_rgb_optical_frame"
+
         self.config['sleep_time_at_each_pose'] = 0.5
 
         self.config["reconstruction_frame_id"] = "fusion_reconstruction"
@@ -392,7 +396,7 @@ class FusionServer(object):
     def start_bagging(self):
         self.flushCache()
 
-        bagfile_name = "fusion" + str(time.time())
+        bagfile_name = "fusion_" + str(time.time())
         bagfile_directory = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'fusion', bagfile_name)
         
 
@@ -516,7 +520,7 @@ class FusionServer(object):
             print "Service call failed: %s"%e
 
         # Move robot around
-        for poseName in self.config['scan']['pose_list_test']:
+        for poseName in self.config['scan']['pose_list']:
             print "moving to", poseName
             joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
             self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['speed']['scan'])
@@ -562,13 +566,15 @@ class FusionServer(object):
         # extract RGB and Depth images from Rosbag
         rgb_topic = self.topics_dict['rgb']
         depth_topic = self.topics_dict['depth']
-        camera_info_topic = self.topics_dict['camear_info']
-        image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
-        self.config['camera_frame'], self.config['world_frame'], output_dir, rgb_encoding='bgr8')
-
+        camera_info_topic = self.topics_dict['camera_info']
+        
         output_dir = os.path.join(os.path.dirname(bag_filepath), 'images')
-        image_capture.load_ros_bag(ros_bag_filename)
+        image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
+        self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
+        image_capture.load_ros_bag(bag_filepath)
         image_capture.process_ros_bag(image_capture.ros_bag, output_dir)
+
+
 
         return CaptureSceneAndFuseResponse(elastic_fusion_output)
 

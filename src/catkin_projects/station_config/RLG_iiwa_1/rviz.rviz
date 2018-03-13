@@ -33,7 +33,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
 Visualization Manager:
   Class: ""
   Displays:
@@ -173,8 +173,6 @@ Visualization Manager:
           Value: false
         camera_carmine_1_rgb_optical_frame:
           Value: true
-        fusion_reconstruction:
-          Value: true
         iiwa_link_0:
           Value: false
         iiwa_link_1:
@@ -216,8 +214,6 @@ Visualization Manager:
       Show Names: true
       Tree:
         base:
-          fusion_reconstruction:
-            {}
           iiwa_link_0:
             iiwa_link_1:
               iiwa_link_2:
@@ -330,7 +326,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -347,7 +343,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -403,7 +399,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 7.96879053
+      Distance: 7.36132526
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
@@ -418,10 +414,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.744797349
+      Pitch: 0.249797404
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 6.24069643
+      Yaw: 4.98569441
     Saved: ~
 Window Geometry:
   Displays:
