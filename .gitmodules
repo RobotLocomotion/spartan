@@ -43,7 +43,7 @@
 	url = https://github.com/gizatt/dish_models
 [submodule "src/handical"]
 	path = src/handical
-	url = git@github.com:ToyotaResearchInstitute/handical.git
+	url = git@github.com:RobotLocomotion/handical.git
 [submodule "src/Open3D"]
 	path = src/Open3D
 	url = git@github.com:IntelVCL/Open3D.git
