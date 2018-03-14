@@ -48,11 +48,11 @@ RUN chown $USER_NAME:$USER_NAME -R .config
 
 
 # setup bazel bashrc
-RUN echo "startup --output_base=/home/$USER_NAME/.spartan-build" >> .bazelrc
+# RUN echo "startup --output_base=/home/$USER_NAME/.spartan-build" >> .bazelrc
+RUN echo "startup --output_base=/home/$USER_NAME/.spartan-build" >> /etc/bazel.bazelrc
 
 # change ownership of everything to our user
 RUN cd /home/$USER_NAME && chown $USER_NAME:$USER_NAME -R .
-
 
 
 ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh && /bin/bash"
