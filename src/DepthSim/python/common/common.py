@@ -106,7 +106,7 @@ def set_up_camera_params(camera):
   setCameraInstrinsicsAsus(camera)
   setCameraTransform(camera, vtk.vtkTransform())
   camera.SetWindowCenter(0,0)
-  kClippingPlaneFar = 3.
+  kClippingPlaneFar = 3.5
   kClippingPlaneNear = .2
   camera.SetClippingRange(kClippingPlaneNear, kClippingPlaneFar)
   camera.SetViewAngle(48.8879)

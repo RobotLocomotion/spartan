@@ -45,7 +45,15 @@ def render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir,us
 
   if use_mesh: #use meshed version of scene
     if not glob.glob(data_dir+"/"+mesh):
-      out  = "original_log.lcmlog.ply" if glob.glob(data_dir+"/original_log.lcmlog.ply") else "trimmed_log.lcmlog.ply"
+      out  = None
+      if glob.glob(data_dir+"/original_log.lcmlog.ply"):
+        out = "original_log.lcmlog.ply"
+      elif glob.glob(data_dir+"/trimmed_log.lcmlog.ply"):
+        out = "trimmed_log.lcmlog.ply"
+      elif glob.glob('*.ply'):
+        out = glob.glob('*.ply')[0]
+      else:
+         return
       mesher = mesh_wrapper.Mesh(out_dir = data_dir)
       status = mesher.mesh_cloud(out)
       print status

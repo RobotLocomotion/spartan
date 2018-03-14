@@ -6,6 +6,59 @@ import numpy as np
 import data
 import network
 
+def viz_predicted_depth(sleep =.2,path = "/media/drc/DATA/chris_labelfusion/RGBDCNN/",filter_files= None):
+	img_height = 480
+	img_width = 640
+	model = network.load_trained_model(weights_path = "../notebooks/net_depth_seg_v1.hdf5")
+	
+
+	stack = data_gen.next()
+	gtdepth,normal,rgb,depth = network.decompose_training_stack(stack,rgb= True,depth= True)#do depth the same way as keras
+
+	depth = np.reshape(depth,(img_height,img_width))
+	rgb = np.reshape(rgb,(img_height,img_width,3))
+	gtdepth = np.reshape(gtdepth,(img_height,img_width))
+	normal = np.reshape(normal,(img_height,img_width,3))
+
+	threshold = .5
+	predicted_prob_map = network.threshold_mask(model.predict_on_batch(stack[:,:,:,:7]),threshold)
+	predicted_depth = network.apply_mask(predicted_prob_map,gtdepth,threshold)
+	predicted_depth = np.reshape(predicted_depth,(img_height,img_width))
+
+	ax1 = plt.subplot(1,3,1)
+	ax2 = plt.subplot(1,3,2)
+	ax3 = plt.subplot(1,3,3)
+
+	im1 = ax1.imshow(rgb)
+	im2 = ax2.imshow(np.reshape(predicted_prob_map,(img_height,img_width)))
+	im3 = ax3.imshow(depth)
+
+	plt.ion()
+
+	while True:
+		stack = data_gen.next()
+		gtdepth,normal,rgb,depth = network.decompose_training_stack(stack,depth= True)
+
+		depth = np.reshape(depth,(img_height,img_width))
+		rgb = np.reshape(rgb,(img_height,img_width,3))
+		gtdepth = np.reshape(gtdepth,(img_height,img_width))
+		normal = np.reshape(normal,(img_height,img_width,3))
+
+
+		predicted_prob_map = network.threshold_mask(model.predict_on_batch(stack[:,:,:,:7]),threshold)
+		predicted_depth = network.apply_mask(predicted_prob_map,gtdepth,threshold)
+		predicted_depth = np.reshape(predicted_depth,(img_height,img_width))
+
+	
+		im1.set_data(rgb)
+		im2.set_data(np.reshape(predicted_prob_map,(img_height,img_width)))
+		im3.set_data(depth)
+
+		plt.pause(sleep)
+
+	plt.ioff() # due to infinite loop, this gets never called.
+	plt.show()
+
 
 def viz_nn_stream_custom(sleep =.5,path = "/media/drc/DATA/chris_labelfusion/CORL2017/test_data/",filter_files= None):
 	img_height = 480

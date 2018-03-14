@@ -16,7 +16,7 @@ for f in os.listdir(path):
 		if "registration_result.yaml" in os.listdir(path+f):
 			with open(path+f+"/registration_result.yaml") as read:
 				transformYaml = yaml.load(read)
-				if len(transformYaml.keys()) ==3:
+				if len(transformYaml.keys()) ==3 or True:
 					paths.append((f,transformYaml.keys())) 
 for i in paths:
 	print i[0]
@@ -46,22 +46,22 @@ use_mesh = True
 out_dir = "/home/drc/DATA/chris_labelfusion/RGBDCNN/"
 
 mesh = "None"
-for i,j in paths[1:]:
+for i,j in paths:
 
   data_dir = path+i
   data_dir_name =  os.path.basename(os.path.normpath(data_dir))
-  num_im = 30
+  num_im = 4000
   object_dir = "/home/drc/DATA/chris_labelfusion/object-meshes"
 
-  if not os.path.exists(directory):
-    os.makedirs(directory)
+  if not os.path.exists(out_dir+data_dir_name):
+    os.makedirs(out_dir+data_dir_name)
 
   print "rendering Label Fusion data", data_dir_name
-  render_sim.render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+"gtdepth/gtdepth/",use_mesh,object_dir)
-  render_sim.render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+"normal/normal/",use_mesh,object_dir)
-  os.system("cp "+data_dir+"/images/*rgb.png "+ out_dir+"/rgb/"+data_dir_name)
+  render_sim.render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+data_dir_name+"/",use_mesh,object_dir)
+  #render_sim.render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+out_dir+data_dir_name+"/",use_mesh,object_dir)
+  #os.system("cp "+data_dir+"/images/*rgb.png "+ out_dir+data_dir_name)
   print "generated rgb images"
-  os.system("cp "+data_dir+"/images/*depth.png "+ out_dir+"/depth/"+data_dir_name)
+  #os.system("cp "+data_dir+"/images/*depth.png "+ out_dir+data_dir_name)
   print "generated real depth images"
 
 
