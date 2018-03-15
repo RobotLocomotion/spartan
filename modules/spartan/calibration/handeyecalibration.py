@@ -290,7 +290,16 @@ class HandEyeCalibration(object):
         cmd = "%s -t %s -f %s -e %s" % (rosImageLoggerExecutable, topic, filename, encoding)
         os.system(cmd)
 
-    def captureCurrentRobotAndImageData(self, captureRGB=False, captureIR=False):
+    def displayChessboardDetection(self, filename, duration):
+        chessboardDetetctionVisualizerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
+                                                'calibration','chessboard_detection_visualizer.py')
+        cmd = "timeout %s %s -i %s" % (str(duration), chessboardDetetctionVisualizerExecutable, filename)
+        os.system(cmd)
+
+    def captureCurrentRobotAndImageData(self, captureRGB=False, captureIR=False, prefix=None):
+
+        assert prefix is not None
+
         data = dict()
         data['joint_positions'] = self.robotService.getPose().tolist()
         data['hand_frame_name'] = self.handFrame
@@ -315,7 +324,7 @@ class HandEyeCalibration(object):
         
         for key, topic in imgTopics.iteritems():
 
-            imageFilename =str(data['ros_timestamp']) + "_" + key + "." + self.config['filename_extension']
+            imageFilename = str(prefix) + "_" + key + "." + self.config['filename_extension']
             fullImageFilename = os.path.join(self.calibrationFolderName, imageFilename)
 
             encoding = None
@@ -329,6 +338,8 @@ class HandEyeCalibration(object):
 
 
             self.saveSingleImage(topic, fullImageFilename, encoding)
+            # todo: sync this timeout with some variable
+            self.displayChessboardDetection(fullImageFilename, duration=1.5)
 
             singleImgData = dict()
             singleImgData['filename'] = imageFilename
@@ -422,7 +433,10 @@ class HandEyeCalibration(object):
 
     def saveCalibrationData(self, filename=None):
         if filename is None:
-            filename = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'hand_eye_calibration_robot_data.yaml')
+            if self.calibrationFolderName is not None:
+                filename = os.path.join(self.calibrationFolderName, 'robot_data.yaml')
+            else:
+                filename = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'hand_eye_calibration_robot_data.yaml')
 
 
         spartanUtils.saveToYaml(self.calibrationData, filename)
@@ -434,7 +448,9 @@ class HandEyeCalibration(object):
     def runROSCalibration(self, headerData):
 
         headerData['target']['location_estimate_in_robot_base_frame'] = self.calibrationPosesConfig['target_location'] 
-        calibrationRunData = dict()
+        
+        self.calibrationData = dict()
+        calibrationRunData = self.calibrationData
         calibrationRunData['header'] = headerData
 
 
@@ -479,7 +495,7 @@ class HandEyeCalibration(object):
             self.robotService.moveToJointPosition(pose['joint_angles'])
 
             rospy.loginfo("capturing images and robot data")
-            data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB, captureIR=self.captureIR)
+            data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB, captureIR=self.captureIR, prefix=str(index))
             calibrationData.append(data)
 
         rospy.loginfo("finished calibration routine, saving data to file")
@@ -519,6 +535,12 @@ class HandEyeCalibration(object):
         # setup header information for storing along with the log
         calibrationHeaderData = dict()
         calibrationHeaderData['camera'] = self.config['camera_type']
+
+        if self.captureRGB:
+            calibrationHeaderData['image_type'] = 'rgb'
+        elif self.captureIR:
+            calibrationHeaderData['image_type'] = 'ir'
+
         
         # targetData = dict()
         # targetData['width'] = targetWidth
@@ -556,9 +578,11 @@ class HandEyeCalibration(object):
 
         previousCameraLocation = None
 
+        counter = 0
         for dist in distances:
             for pitch in pitchAngles:
                 for yaw in yawAngles:
+                    counter += 1
                     # if (pitch > 70) and (dist < 0.8):
                     #     print "skipping pose"
                     #     continue
@@ -575,7 +599,12 @@ class HandEyeCalibration(object):
 
                     previousCameraLocation = cameraLocation
 
-                    ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation, targetLocationWorld=config['target_location'])
+                    if ((counter % 2) == 0):
+                        flip = True
+                    else:
+                        flip = False
+
+                    ikResult = self.computeSingleCameraPose(cameraFrameLocation=cameraLocation, targetLocationWorld=config['target_location'], flip=flip)
 
                     returnData['cameraLocations'].append(cameraLocation)
 
@@ -752,7 +781,7 @@ class HandEyeCalibration(object):
 
         return p
 
-    def computeSingleCameraPose(self, targetLocationWorld=[1,0,0], cameraFrameLocation=[0.22, 0, 0.89]):
+    def computeSingleCameraPose(self, targetLocationWorld=[1,0,0], cameraFrameLocation=[0.22, 0, 0.89], flip=False):
         cameraAxis = [0,0,1]
 
         linkName = self.handFrame
@@ -766,6 +795,16 @@ class HandEyeCalibration(object):
         endPoseName = 'reach_end'
         seedPoseName = 'q_nom'
 
+        if flip:
+            print "FLIPPING startPoseName"
+            startPoseName = 'q_nom_invert_7th_joint'
+            seedPoseName  = 'q_nom_invert_7th_joint'
+            pose = np.asarray([ 0.    ,  0.    ,  0.    ,  0.    ,  0.    ,  0.    ,  0.    ,
+       -0.68  ,  1.0    , -1.688 ,  1.0    ,  -0.5635,  1.0    ])
+            ikPlanner.addPose(pose, startPoseName)
+        else:
+            print "NOT flipped"
+
         constraints = []
         constraints.append(ikPlanner.createPostureConstraint(startPoseName, robotstate.matchJoints('base_')))
 
@@ -777,8 +816,14 @@ class HandEyeCalibration(object):
         constraints.append(positionConstraint)
         constraints.append(cameraGazeConstraint)
 
+
         constraintSet = ConstraintSet(ikPlanner, constraints, 'reach_end',
                                       startPoseName)
+
+        if flip:
+            constraintSet.ikPlanner.addPose(pose, startPoseName)
+
+
         constraintSet.ikParameters = IkParameters()
 
         constraintSet.seedPoseName = seedPoseName

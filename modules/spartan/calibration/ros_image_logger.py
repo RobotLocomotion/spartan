@@ -21,7 +21,6 @@ def getSingleImage(topic, encoding=None):
     d = dict()
     msg = rospy.wait_for_message(topic, msgType)
     rospy.loginfo("received message on topic %s", topic)
-    print "type(msg) ", type(msg)
     print "encoding ", msg.encoding
 
     if encoding is None:
