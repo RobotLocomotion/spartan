@@ -28,7 +28,7 @@
 [submodule "src/ElasticFusion"]
 	path = src/ElasticFusion
 	url = git@github.com:RobotLocomotion/ElasticFusion.git
-	branch = pf-rosbagreader
+	branch = master
 [submodule "src/catkin_projects/drake_trajectory_planning_msgs"]
 	path = src/catkin_projects/drake_trajectory_planning_msgs
 	url = git@github.com:manuelli/drake_trajectory_planning_msgs.git
