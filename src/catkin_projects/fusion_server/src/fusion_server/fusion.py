@@ -416,9 +416,8 @@ class FusionServer(object):
         self.startImageSubscribers()
 
         
-        # sleep for two seconds to allow for xtion driver compression issues to be resolved
-        
-        # rospy.sleep(self.config['sleep_time_before_bagging'])
+        # sleep to allow for xtion driver compression issues to be resolved        
+        rospy.sleep(self.config['sleep_time_before_bagging'])
 
 
         # get camera to world transform
@@ -438,7 +437,7 @@ class FusionServer(object):
         rosbag_proc = subprocess.Popen(rosbag_cmd, stdin=subprocess.PIPE, shell=True, cwd=bagfile_directory)
 
         rospy.loginfo("started image subscribers, sleeping for %d seconds", self.config['sleep_time_before_bagging'])
-        rospy.sleep(self.config['sleep_time_before_bagging'])
+        
         return os.path.join(bagfile_directory, bagfile_name+".bag"), rosbag_proc
 
     def handle_start_bagging_fusion_data(self, req):
@@ -478,6 +477,7 @@ class FusionServer(object):
         cl_args += " --ros_cam_info_topic " + self.topics_dict['camera_info']
 
         cmd += cl_args
+        print cmd
 
         rospy.loginfo("elastic fusion cmd = %s", cmd)
 
@@ -520,7 +520,7 @@ class FusionServer(object):
             print "Service call failed: %s"%e
 
         # Move robot around
-        for poseName in self.config['scan']['pose_list']:
+        for poseName in self.config['scan']['pose_list_quick']:
             print "moving to", poseName
             joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
             self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['speed']['scan'])
