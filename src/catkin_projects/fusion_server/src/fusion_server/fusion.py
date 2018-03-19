@@ -468,22 +468,14 @@ class FusionServer(object):
 
     def handle_perform_elastic_fusion(self, req):
         ## call executable for filename
-        cmd = ". /opt/ros/kinetic/setup.sh && $SPARTAN_SOURCE_DIR/src/ElasticFusion/GUI/build/ElasticFusion -q -t 900 -d 2 -l " + req.bag_filepath
+        fusion_folder = os.path.join(os.path.dirname(req.bag_filepath),"images")
 
-        cl_args = ""
-        cl_args += " --ros_bag_filename " + req.bag_filepath
-        cl_args += " --ros_image_depth_topic " + self.topics_dict['depth']
-        cl_args += " --ros_image_rgb_topic " + self.topics_dict['rgb']
-        cl_args += " --ros_cam_info_topic " + self.topics_dict['camera_info']
-
-        cmd += cl_args
-        print cmd
+        cmd = ". /opt/ros/kinetic/setup.sh && $SPARTAN_SOURCE_DIR/src/ElasticFusion/GUI/build/ElasticFusion -f -q -t 900 -d 2 -l " + fusion_folder 
 
         rospy.loginfo("elastic fusion cmd = %s", cmd)
-
         os.system(cmd)
 
-        ply_filename = req.bag_filepath + ".ply"
+        ply_filename = fusion_folder + ".ply"
 
         # of type sensor_msgs.msg.PointCloud2
         point_cloud = self.convert_ply_to_pointcloud2(PlyData.read(ply_filename))
@@ -506,11 +498,14 @@ class FusionServer(object):
 
     def handle_capture_scene_and_fuse(self, req):
         # Start bagging with own srv call
+        print "handling capture_scene_and_fuse"
 
         # first move home
         home_pose_joint_positions = self.storedPoses[self.config['scan']['pose_group']][self.config['home_pose_name']]
         print home_pose_joint_positions
         self.robotService.moveToJointPosition(home_pose_joint_positions, maxJointDegreesPerSecond=self.config['speed']['fast'])
+
+        print "moved to home"
 
         try:
             start_bagging_fusion_data = rospy.ServiceProxy('start_bagging_fusion_data', StartBaggingFusionData)
@@ -537,8 +532,21 @@ class FusionServer(object):
         # move home, now send stuff off to fusion server
         self.robotService.moveToJointPosition(home_pose_joint_positions, maxJointDegreesPerSecond=self.config['speed']['fast'])
 
-        # Perform fusion
 
+        # extract RGB and Depth images from Rosbag
+        rgb_topic = self.topics_dict['rgb']
+        depth_topic = self.topics_dict['depth']
+        camera_info_topic = self.topics_dict['camera_info']
+        
+        output_dir = os.path.join(os.path.dirname(bag_filepath), 'images')
+        image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
+        self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
+        image_capture.load_ros_bag(bag_filepath)
+        image_capture.process_ros_bag(image_capture.ros_bag, output_dir)
+
+        rospy.loginfo("Finished writing images to disk")
+
+        # Perform fusion
         try:
             perform_elastic_fusion = rospy.ServiceProxy('perform_elastic_fusion', PerformElasticFusion)
             resp3 = perform_elastic_fusion(resp1.bag_filepath)           
@@ -563,18 +571,6 @@ class FusionServer(object):
         # print cmd
         # os.system(cmd)
 
-        # extract RGB and Depth images from Rosbag
-        rgb_topic = self.topics_dict['rgb']
-        depth_topic = self.topics_dict['depth']
-        camera_info_topic = self.topics_dict['camera_info']
-        
-        output_dir = os.path.join(os.path.dirname(bag_filepath), 'images')
-        image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
-        self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
-        image_capture.load_ros_bag(bag_filepath)
-        image_capture.process_ros_bag(image_capture.ros_bag, output_dir)
-
-        rospy.loginfo("Finished writing images to disk")
 
         return CaptureSceneAndFuseResponse(elastic_fusion_output)
 
