@@ -515,7 +515,7 @@ class FusionServer(object):
             print "Service call failed: %s"%e
 
         # Move robot around
-        for poseName in self.config['scan']['pose_list_quick']:
+        for poseName in self.config['scan']['pose_list']:
             print "moving to", poseName
             joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
             self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['speed']['scan'])
