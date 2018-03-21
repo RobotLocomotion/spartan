@@ -534,18 +534,18 @@ class FusionServer(object):
                 # delete pose from forward kinematics
                 del pose_dict[i]
 
-                # delete pose from posegraph
-                del posegraph_list[i-num_deleted_images]
-                num_deleted_images += 1
+                # # delete pose from posegraph
+                # del posegraph_list[i-num_deleted_images]
+                # num_deleted_images += 1
 
         
         # write downsamples pose_data.yaml (forward kinematics)
         spartanUtils.saveToYaml(pose_dict, os.path.join(images_dir_full_path,'pose_data.yaml'))
 
-        # write downsampled posegraph file
-        posegraph_file = open(posegraph_filename, 'w')
-        for item in posegraph_list:
-            posegraph_file.write("%s" % item)
+        # # write downsampled posegraph file
+        # posegraph_file = open(posegraph_filename, 'w')
+        # for item in posegraph_list:
+        #     posegraph_file.write("%s" % item)
 
         print "After: ", num_kept_images, " images"
 
