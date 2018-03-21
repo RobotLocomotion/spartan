@@ -496,6 +496,60 @@ class FusionServer(object):
 
         return array_to_xyz_pointcloud2f(cloud_arr)
 
+    def get_numpy_position_from_pose(self, pose):
+        x = pose["camera_to_world"]["translation"]["x"]
+        y = pose["camera_to_world"]["translation"]["y"]
+        z = pose["camera_to_world"]["translation"]["z"]
+        return np.asarray([x,y,z])
+
+    def downsample_by_pose_difference_threshold(self, images_dir_full_path, threshold):
+        pose_yaml = os.path.join(images_dir_full_path, "pose_data.yaml")
+        pose_dict = spartanUtils.getDictFromYamlFilename(pose_yaml)
+
+        posegraph_filename = images_dir_full_path+".posegraph"
+        with open(posegraph_filename) as f:
+            posegraph_list = f.readlines()
+        
+        previous_pose = self.get_numpy_position_from_pose(pose_dict[0])
+
+        print "Using downsampling by pose difference threshold... "
+        print "Previously: ", len(pose_dict), " images"
+
+        num_kept_images    = 1
+        num_deleted_images = 0
+
+        for i in range(1,len(pose_dict)):
+            this_pose = self.get_numpy_position_from_pose(pose_dict[i])
+            if np.linalg.norm(previous_pose - this_pose) > threshold:
+                previous_pose = this_pose
+                num_kept_images += 1
+            else:
+                # delete image
+
+                cmd = "rm "+images_dir_full_path+"/"+str(i).zfill(6)+"_rgb.png"
+                os.system(cmd)
+                cmd = "rm "+images_dir_full_path+"/"+str(i).zfill(6)+"_depth.png"
+                os.system(cmd)
+
+                # delete pose from forward kinematics
+                del pose_dict[i]
+
+                # delete pose from posegraph
+                del posegraph_list[i-num_deleted_images]
+                num_deleted_images += 1
+
+        
+        # write downsamples pose_data.yaml (forward kinematics)
+        spartanUtils.saveToYaml(pose_dict, os.path.join(images_dir_full_path,'pose_data.yaml'))
+
+        # write downsampled posegraph file
+        posegraph_file = open(posegraph_filename, 'w')
+        for item in posegraph_list:
+            posegraph_file.write("%s" % item)
+
+        print "After: ", num_kept_images, " images"
+
+
     def handle_capture_scene_and_fuse(self, req):
         # Start bagging with own srv call
         print "handling capture_scene_and_fuse"
@@ -515,7 +569,7 @@ class FusionServer(object):
             print "Service call failed: %s"%e
 
         # Move robot around
-        for poseName in self.config['scan']['pose_list']:
+        for poseName in self.config['scan']['pose_list_quick']:
             print "moving to", poseName
             joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
             self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['speed']['scan'])
@@ -553,24 +607,14 @@ class FusionServer(object):
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
 
+        # downsample data (this should be specifiable by an arg)
+        print "output_dir is", output_dir  
+        self.downsample_by_pose_difference_threshold(output_dir, threshold=0.02)
+
         # publish the pointcloud to RVIZ
         elastic_fusion_output = resp3.elastic_fusion_output
         self.cache['fusion_output'] = elastic_fusion_output
         self.publish_pointcloud_to_rviz(elastic_fusion_output.point_cloud, self.cache['point_cloud_to_world_stamped'])
-
-        # extract all rgb and depth images, with timestamps
-        # path_to_extract_script = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'fusion_server', 'scripts', 'extract_images_from_rosbag.py')
-        # destination_folder = os.path.join(os.path.dirname(resp1.bag_filepath), "images")
-        # os.system("mkdir -p " + destination_folder)
-        
-        # cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/rgb/image_rect_color' bgr8 True"
-        # print cmd
-        # os.system(cmd)
-
-        # cmd = "python " + path_to_extract_script + " " + resp1.bag_filepath + " " + destination_folder + " '/camera_"+self.camera_serial_number+"/depth_registered/sw_registered/image_rect' passthrough False"
-        # print cmd
-        # os.system(cmd)
-
 
         return CaptureSceneAndFuseResponse(elastic_fusion_output)
 
