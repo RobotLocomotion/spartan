@@ -569,7 +569,7 @@ class FusionServer(object):
             print "Service call failed: %s"%e
 
         # Move robot around
-        for poseName in self.config['scan']['pose_list_quick']:
+        for poseName in self.config['scan']['pose_list']:
             print "moving to", poseName
             joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
             self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['speed']['scan'])
@@ -609,7 +609,7 @@ class FusionServer(object):
 
         # downsample data (this should be specifiable by an arg)
         print "output_dir is", output_dir  
-        self.downsample_by_pose_difference_threshold(output_dir, threshold=0.02)
+        self.downsample_by_pose_difference_threshold(output_dir, threshold=0.03)
 
         # publish the pointcloud to RVIZ
         elastic_fusion_output = resp3.elastic_fusion_output
