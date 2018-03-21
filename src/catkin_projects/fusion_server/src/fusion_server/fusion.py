@@ -9,6 +9,7 @@ import subprocess
 import copy
 import numpy as np
 import cv2
+import shutil
 
 
 # ply reader
@@ -506,6 +507,11 @@ class FusionServer(object):
         pose_yaml = os.path.join(images_dir_full_path, "pose_data.yaml")
         pose_dict = spartanUtils.getDictFromYamlFilename(pose_yaml)
 
+        images_dir_temp_path = os.path.join(os.path.dirname(images_dir_full_path), 'images_temp')
+        if not os.path.isdir(images_dir_temp_path):
+            os.makedirs(images_dir_temp_path)
+
+
         posegraph_filename = images_dir_full_path+".posegraph"
         with open(posegraph_filename) as f:
             posegraph_list = f.readlines()
@@ -515,37 +521,50 @@ class FusionServer(object):
         print "Using downsampling by pose difference threshold... "
         print "Previously: ", len(pose_dict), " images"
 
-        num_kept_images    = 1
+        num_kept_images    = 0
         num_deleted_images = 0
 
-        for i in range(1,len(pose_dict)):
+        for i in range(0,len(pose_dict)):
+            single_frame_data = pose_dict[i]
             this_pose = self.get_numpy_position_from_pose(pose_dict[i])
-            if np.linalg.norm(previous_pose - this_pose) > threshold:
+
+            if i == 0:
+                keep_image = True
+                num_kept_images += 1
+            elif np.linalg.norm(previous_pose - this_pose) > threshold:
                 previous_pose = this_pose
                 num_kept_images += 1
             else:
-                # delete image
-
-                cmd = "rm "+images_dir_full_path+"/"+str(i).zfill(6)+"_rgb.png"
-                os.system(cmd)
-                cmd = "rm "+images_dir_full_path+"/"+str(i).zfill(6)+"_depth.png"
-                os.system(cmd)
-
                 # delete pose from forward kinematics
                 del pose_dict[i]
+                continue
 
+            # if we have gotten here, then move the images over to the new directory
+
+            rgb_filename = os.path.join(images_dir_full_path, single_frame_data['rgb_image_filename'])
+            rgb_filename_temp = os.path.join(images_dir_temp_path, single_frame_data['rgb_image_filename'])
+
+            shutil.move(rgb_filename, rgb_filename_temp)
+
+            depth_filename = os.path.join(images_dir_full_path, single_frame_data['depth_image_filename'])
+            depth_filename_temp = os.path.join(images_dir_temp_path, single_frame_data['depth_image_filename'])
+            shutil.move(depth_filename, depth_filename_temp)
                 # # delete pose from posegraph
                 # del posegraph_list[i-num_deleted_images]
                 # num_deleted_images += 1
 
         
         # write downsamples pose_data.yaml (forward kinematics)
-        spartanUtils.saveToYaml(pose_dict, os.path.join(images_dir_full_path,'pose_data.yaml'))
+        spartanUtils.saveToYaml(pose_dict, os.path.join(images_dir_temp_path,'pose_data.yaml'))
 
-        # # write downsampled posegraph file
-        # posegraph_file = open(posegraph_filename, 'w')
-        # for item in posegraph_list:
-        #     posegraph_file.write("%s" % item)
+        # remove old images
+        shutil.move(os.path.join(images_dir_full_path, 'camera_info.yaml'), os.path.join(images_dir_temp_path, 'camera_info.yaml'))
+        shutil.rmtree(images_dir_full_path)
+
+        print "renaming %s to %s " %(images_dir_temp_path, images_dir_full_path)
+
+        # rename temp images to images
+        os.rename(images_dir_temp_path, images_dir_full_path)
 
         print "After: ", num_kept_images, " images"
 
