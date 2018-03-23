@@ -24,8 +24,8 @@ from keras import backend as K
 import cv2
 from sklearn.model_selection import train_test_split
 
-def create_model_2(img_height=480, img_width=640):
-   inputs = Input((img_height, img_width,4))
+def create_model_2(img_height=480, img_width=640,channels=1):
+   inputs = Input((img_height, img_width,channels))
    #crop = Cropping2D(cropping=((0, 0), (0, 0)), data_format=None)
    conv1 = Conv2D(4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(inputs)
    conv1 = Conv2D(4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal',data_format='channels_last')(conv1)
@@ -62,6 +62,7 @@ def create_model_2(img_height=480, img_width=640):
    conv10 = Conv2D(1, 1, activation = 'sigmoid',data_format='channels_last')(conv9)
 
    model = Model(input = inputs, output = conv10)
+   print model.summary()
 
    return model
 
@@ -124,25 +125,20 @@ def train():
    model.fit_generator(train_generator, nb_epoch=100,steps_per_epoch=100, verbose=1, shuffle=True, callbacks=[model_checkpoint])
 
 def load_trained_model(weights_path="unet.hdf5"):
-   model = create_model()
+   model = create_model_2(channels=1)
    model.load_weights(weights_path)
    return model
 
 def apply_mask(mask,depth,threshold):
    h,w = np.shape(depth)
-   depth = np.copy(depth)
    mask = np.reshape(mask,(h,w))
    depth[mask>threshold]=0
-   return depth
 
 def threshold_mask(mask,threshold):
    l,h,w,r = np.shape(mask)
-   mask = np.copy(mask)
    mask = np.reshape(mask,(h,w))
    #mask[mask>threshold]=1
    mask[mask<threshold]=0
-
-   return mask
 
 def prob_map_to_mask(prob_map,width=2):
     prob_map = np.copy(prob_map)

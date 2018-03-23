@@ -23,6 +23,7 @@ from keras.utils import np_utils
 from keras import backend as K
 import cv2
 from sklearn.model_selection import train_test_split
+import glob
 
 from keras.preprocessing import image
 from itertools import izip
@@ -56,7 +57,7 @@ def normalize(x):
     return x/255.
 
 def normalize_depth(x):
-    return x/3000.
+    return x/3500.
 
 def combine_data_generators(depth,normal,rgb,mask):
     while True:
@@ -233,3 +234,43 @@ def generate_data_custom3(depth_as_mask=True,img_height=480,img_width=640,batch_
             stack1[j] = stack
             stack2[j] = np.reshape(depth_img,(img_height,img_width,1))
         yield (stack1,stack2)
+
+def gen_samples(directory,shuffle = True):
+    samples = []
+    dirs = os.listdir(directory)
+    for i in dirs:
+        path = os.path.join(directory, i)+"/"
+        if os.access(path, os.R_OK):
+            gt_depth = sorted(glob.glob(path+"*_truth.png"))
+            depth = sorted(glob.glob(path+"*_depth.png"))
+            samples.extend(zip(gt_depth,depth))
+    if shuffle:
+        random.shuffle(samples)
+    return samples                
+
+def generate_data_custom_depth(samples,img_height=480,img_width=640,batch_size=8,mask_depth = False):
+    i = 0
+    while True:
+        stack1 = np.zeros((batch_size,img_height,img_width,1))
+        stack2 = np.zeros((batch_size,img_height,img_width,1))
+        j=0
+        while j<batch_size:
+            try:
+                rgb = samples[i][0]
+                depth = samples[i][1]
+                rgb_img = grab_frame1(rgb,normalize_depth)
+                depth_img = grab_frame1(depth,hot_vectorize) if mask_depth else grab_frame1(depth)
+                stack1[j] = np.reshape(rgb_img,(img_height,img_width,1))
+                stack2[j] = np.reshape(depth_img,(img_height,img_width,1))
+                j+=1
+                i= (i+1)%len(samples)
+            except(IOError,TypeError,ValueError):
+                i= (i+1)%len(samples)
+                continue
+        yield (stack1,stack2)
+
+def grab_frame1(path,func=None):
+    img = misc.imread(path)
+    if func:
+        return func(img)
+    return img
