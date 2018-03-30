@@ -47,7 +47,7 @@ class GraspSupervisorState(object):
 
 class GraspSupervisor(object):
 
-    def __init__(self, graspingParamsFile=None, cameraSerialNumber=1112170110, tfBuffer=None):
+    def __init__(self, graspingParamsFile=None, cameraSerialNumber="carmine_1", tfBuffer=None):
         self.graspingParamsFile = graspingParamsFile
         self.reloadParams()
         self.cameraSerialNumber = cameraSerialNumber
@@ -96,8 +96,8 @@ class GraspSupervisor(object):
         self.config['end_effector_frame_id'] = "iiwa_link_ee"
         self.config['pick_up_distance'] = 0.15 # distance to move above the table after grabbing the object
         self.config['scan'] = dict()
-        self.config['scan']['pose_list'] = ['scan_left', 'scan_right']
-        self.config['scan']['joint_speed'] = 60
+        self.config['scan']['pose_list'] = ['scan_left_close', 'scan_above_table', 'scan_right']
+        self.config['scan']['joint_speed'] = 30
         self.config['grasp_speed'] = 20
 
         normal_speed = 30
