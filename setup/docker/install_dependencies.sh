@@ -33,4 +33,5 @@ pip install \
   scipy \
   pyassimp \
   pyglet \
-  plyfile
+  plyfile \
+  scikit-image
