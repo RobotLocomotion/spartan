@@ -49,4 +49,4 @@
 	url = git@github.com:IntelVCL/Open3D.git
 [submodule "src/tsdf-fusion"]
 	path = src/tsdf-fusion
-	url = git@github.com:peteflorence/tsdf-fusion.git
+	url = git@github.com:RobotLocomotion/tsdf-fusion.git
