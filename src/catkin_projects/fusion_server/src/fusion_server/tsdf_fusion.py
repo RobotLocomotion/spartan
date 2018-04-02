@@ -132,20 +132,22 @@ def convert_tsdf_to_ply(tsdf_bin_filename, tsdf_mesh_filename):
 
     print "type(verts): ", type(verts)
     print "verts.shape: ", verts.shape
+    print "faces.shape:", faces.shape
 
     print "np.max(verts[:,0]): ", np.max(verts[:,0])
     print "np.min(verts[:,0]): ", np.min(verts[:, 0])
 
 
     print "verts[0,:] = ", verts[0,:]
+    print "faces[0,:]:", faces[0,:]
 
     # transform from voxel coordinates to camera coordinates
     # note x and y are flipped in the output of marching_cubes
     mesh_points = np.zeros_like(verts)
-    mesh_points = verts
-    # mesh_points[:,0] = voxelGridOrigin[0] + verts[:,2]
-    # mesh_points[:,1] = voxelGridOrigin[1] + verts[:,1]
-    # mesh_points[:,2] = voxelGridOrigin[2] + verts[:,0]
+    # mesh_points = verts
+    mesh_points[:,0] = voxelGridOrigin[2] + verts[:,2]
+    mesh_points[:,1] = voxelGridOrigin[1] + verts[:,1]
+    mesh_points[:,2] = voxelGridOrigin[0] + verts[:,0]
 
 
 
