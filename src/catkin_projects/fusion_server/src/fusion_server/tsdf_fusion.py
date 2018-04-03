@@ -65,7 +65,9 @@ def format_data_for_tsdf(image_folder):
 
 
 
-def run_tsdf_fusion_cuda(image_folder, output_dir=None):
+def run_tsdf_fusion_cuda(image_folder, output_dir=None, voxel_grid_origin_x=0.4,
+    voxel_grid_origin_y=-0.3, voxel_grid_origin_z=-0.2, voxel_size=0.0025,
+    voxel_grid_dim_x=240, voxel_grid_dim_y=320, voxel_grid_dim_z=280, fast_tsdf_settings=False):
     """
     Simple wrapper to call the tsdf-fusion executable with the desired args
     """
@@ -80,7 +82,24 @@ def run_tsdf_fusion_cuda(image_folder, output_dir=None):
     tsdf_executable = os.path.join(tsdf_fusion_dir, 'demo')
     cmd = "cd %s && %s %s %s" %(tsdf_fusion_dir, tsdf_executable, image_folder, camera_intrinsics_file)
 
+
+    if fast_tsdf_settings:
+        voxel_size = 0.005
+        voxel_grid_dim_x = 200
+        voxel_grid_dim_y = 200
+        voxel_grid_dim_z = 150
+    
+    cmd += " " + str(voxel_size)
+    cmd += " " + str(voxel_grid_dim_x)
+    cmd += " " + str(voxel_grid_dim_y)
+    cmd += " " + str(voxel_grid_dim_z)
+
+    cmd += " " + str(voxel_grid_origin_x)
+    cmd += " " + str(voxel_grid_origin_y)
+    cmd += " " + str(voxel_grid_origin_z)
+
     print "cmd:\n", cmd
+
     start_time = time.time()
     os.system(cmd)
     elapsed = time.time() - start_time
@@ -101,7 +120,11 @@ def run_tsdf_fusion_cuda(image_folder, output_dir=None):
 def convert_tsdf_to_ply(tsdf_bin_filename, tsdf_mesh_filename):
     """
     Converts the tsdf binary file to a mesh file in ply format
+
+    The indexing in the tsdf is
+    (x,y,z) <--> (x + y * dim_x + z * dim_x * dim_y)
     """
+    start_time = time.time()
     fin = open(tsdf_bin_filename, "rb")
 
     tsdfHeader = array.array("f")  # L is the typecode for uint32
@@ -110,25 +133,41 @@ def convert_tsdf_to_ply(tsdf_bin_filename, tsdf_mesh_filename):
     # print type(tsdfHeader)
 
     voxelGridDim = tsdfHeader[0:3]
+    voxelGridDim = np.asarray(voxelGridDim, dtype=np.int)
     voxelGridOrigin = tsdfHeader[3:6]
     voxelSize = tsdfHeader[6]
     truncMargin = tsdfHeader[7]
 
+    dim_x = voxelGridDim[0]
+    dim_y = voxelGridDim[1]
+    dim_z = voxelGridDim[2]
+
 
     headerSize = 8
-    tsdf = np.fromfile(tsdf_bin_filename, np.float32)
-    tsdf = tsdf[headerSize:]
+    tsdf_vec = np.fromfile(tsdf_bin_filename, np.float32)
+    tsdf_vec = tsdf_vec[headerSize:]
+
+    tsdf = np.reshape(tsdf_vec, voxelGridDim, order='A')
+    
+
+    tsdf = np.zeros(voxelGridDim)
+    tsdf = np.reshape(tsdf_vec, voxelGridDim, order='F') # reshape using Fortran order
+
+    # for loop version of the above reshape operation
+    # for x in xrange(0, dim_x):
+    #     for y in xrange(0, dim_y):
+    #         for z in xrange(0, dim_z):
+    #             idx = x + y * dim_x + z * dim_x * dim_y
+    #             tsdf[x,y,z] = tsdf_vec[idx]
+
+
     print "tsdf.shape:", tsdf.shape
-
-
-    voxelGridDim = np.asarray(voxelGridDim, dtype=np.int)
     print "voxelGridDim: ", voxelGridDim
     print "voxeGridOrigin: ", voxelGridOrigin
-
-    tsdf = np.reshape(tsdf, voxelGridDim)
     print "tsdf.shape:", tsdf.shape
 
     verts, faces, normals, values = measure.marching_cubes_lewiner(tsdf, spacing=[voxelSize]*3)
+
 
     print "type(verts): ", type(verts)
     print "verts.shape: ", verts.shape
@@ -139,16 +178,18 @@ def convert_tsdf_to_ply(tsdf_bin_filename, tsdf_mesh_filename):
 
 
     print "verts[0,:] = ", verts[0,:]
-    print "faces[0,:]:", faces[0,:]
+    print "faces[0,:] = ", faces[0,:]
 
     # transform from voxel coordinates to camera coordinates
     # note x and y are flipped in the output of marching_cubes
     mesh_points = np.zeros_like(verts)
     # mesh_points = verts
-    mesh_points[:,0] = voxelGridOrigin[2] + verts[:,2]
+    mesh_points[:,0] = voxelGridOrigin[0] + verts[:,0]
     mesh_points[:,1] = voxelGridOrigin[1] + verts[:,1]
-    mesh_points[:,2] = voxelGridOrigin[0] + verts[:,0]
+    mesh_points[:,2] = voxelGridOrigin[2] + verts[:,2]
 
+    # permute faces to get visualization
+    # faces = np.flip(faces, 1)
 
 
     # try writing to the ply file
@@ -179,4 +220,4 @@ def convert_tsdf_to_ply(tsdf_bin_filename, tsdf_mesh_filename):
     print "saving mesh to %s" %(tsdf_mesh_filename)
     ply = ply_data.write(tsdf_mesh_filename)
 
-    print "converting to ply format and writing to file took", time.time() - ply_conversion_start_time
+    print "converting to ply format and writing to file took", time.time() - start_time
