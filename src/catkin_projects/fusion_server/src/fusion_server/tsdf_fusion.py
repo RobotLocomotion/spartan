@@ -127,7 +127,7 @@ def convert_tsdf_to_ply(tsdf_bin_filename, tsdf_mesh_filename):
     start_time = time.time()
     fin = open(tsdf_bin_filename, "rb")
 
-    tsdfHeader = array.array("f")  # L is the typecode for uint32
+    tsdfHeader = array.array("f")  # f is the typecode for float32
     tsdfHeader.fromfile(fin, 8)
     # print tsdfHeader
     # print type(tsdfHeader)
