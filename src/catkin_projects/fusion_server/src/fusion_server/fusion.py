@@ -607,7 +607,7 @@ class FusionServer(object):
             response = CaptureSceneAndFuseResponse()
 
         else:
-            raise ValueError('uknown fusion type')
+            raise ValueError('unknown fusion type')
 
 
         # downsample data (this should be specifiable by an arg)
