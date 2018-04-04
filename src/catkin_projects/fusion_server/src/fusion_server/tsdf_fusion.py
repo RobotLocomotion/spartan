@@ -146,11 +146,6 @@ def convert_tsdf_to_ply(tsdf_bin_filename, tsdf_mesh_filename):
     headerSize = 8
     tsdf_vec = np.fromfile(tsdf_bin_filename, np.float32)
     tsdf_vec = tsdf_vec[headerSize:]
-
-    tsdf = np.reshape(tsdf_vec, voxelGridDim, order='A')
-    
-
-    tsdf = np.zeros(voxelGridDim)
     tsdf = np.reshape(tsdf_vec, voxelGridDim, order='F') # reshape using Fortran order
 
     # for loop version of the above reshape operation
