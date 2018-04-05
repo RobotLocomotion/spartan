@@ -28,6 +28,7 @@ if __name__=="__main__":
 
 	image_name = args.image
 	home_directory = '/home/' + user_name
+	spartan_source_dir = os.path.join(home_directory, 'spartan')
 
 	cmd = "xhost +local:root \n"
 	cmd += "nvidia-docker run "
@@ -48,6 +49,11 @@ if __name__=="__main__":
 	cmd += " -v %(bazel_artifact_dir)s:%(home_directory)s/.spartan-build " \
 	% {'bazel_artifact_dir': bazel_artifact_dir, 'home_directory': home_directory}   # mount bazel build artifact dirs
 	cmd += " --user %s " % user_name                                                    # login as current user
+
+	# mount the data volume
+	# if True:
+	# 	data_directory_host_machine = '/home/manuelli/data/spartan'
+     #    cmd += " -v %s:%s/data_volume " %(data_directory_host_machine, spartan_source_dir)
 
 	# expose UDP ports
 	if not args.no_udp:

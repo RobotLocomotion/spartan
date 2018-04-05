@@ -33,4 +33,6 @@ pip install \
   scipy \
   pyassimp \
   pyglet \
-  plyfile
+  plyfile \
+  matplotlib==1.5.3 \
+  scikit-image

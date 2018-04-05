@@ -7,6 +7,8 @@ import os
 # director
 from director import transformUtils
 
+import spartan.utils.transformations as transformations
+
 
 def getSpartanSourceDir():
     return os.getenv("SPARTAN_SOURCE_DIR")
@@ -95,4 +97,35 @@ def getQuaternionFromDict(d):
 
     return quat
 
+def get_current_time_unique_name():
+    """
+    Converts current date to a unique name
+    :return:
+    :rtype: str
+    """
 
+    unique_name = time.strftime("%Y%m%d-%H%M%S")
+    return unique_name
+
+def homogenous_transform_from_dict(d):
+    """
+    Returns a transform from a standard encoding in dict format
+    :param d:
+    :return:
+    """
+    pos = [0]*3
+    pos[0] = d['translation']['x']
+    pos[1] = d['translation']['y']
+    pos[2] = d['translation']['z']
+
+    quatDict = getQuaternionFromDict(d)
+    quat = [0]*4
+    quat[0] = quatDict['w']
+    quat[1] = quatDict['x']
+    quat[2] = quatDict['y']
+    quat[3] = quatDict['z']
+
+    transform_matrix = transformations.quaternion_matrix(quat)
+    transform_matrix[0:3,3] = np.array(pos)
+
+    return transform_matrix
