@@ -6,10 +6,10 @@ import numpy as np
 import data
 import network
 
-def viz_predicted_depth(sleep =.1,path = "/media/drc/DATA/chris_labelfusion/RGBDCNN/",filter_files= None):#add file filter for specific logs
+def viz_predicted_depth(sleep =.1,path = "/media/drc/DATA/chris_labelfusion/RGBDCNN/",filter_files= None): #add file filter for specific logs
 	img_height = 480
 	img_width = 640
-	model = network.load_trained_model(weights_path = "../notebooks/net_depth_seg_v1.hdf5")
+	model = network.load_trained_model(weights_path = "../models/net_depth_seg_v1.hdf5")
 	samples = data.gen_samples("/media/drc/DATA/chris_labelfusion/RGBDCNN/",False)
 	print "generarting samples"
 	train = data.generate_data_custom_depth(samples,batch_size = 1)
