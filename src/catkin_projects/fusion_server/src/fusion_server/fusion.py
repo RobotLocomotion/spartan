@@ -539,7 +539,7 @@ class FusionServer(object):
 
         This is not a service handler itself, but intended to be modularly called by service handlers.
 
-        :return: bag_full_filepath, the full path to where the rosbag (fusion-*.bag) was saved
+        :return: bag_filepath, the full path to where the rosbag (fusion-*.bag) was saved
         :rtype: string
 
         """
@@ -575,6 +575,34 @@ class FusionServer(object):
 
         return bag_filepath
 
+    def extract_data_from_rosbag(self, bag_filepath):
+        """
+        This wraps the ImageCapture calls to load and process the raw rosbags, to prepare for fusion.
+
+        :param: bag_filepath, the full path to where the rosbag (fusion-*.bag) was saved
+        :ptype: string
+
+        :return: data dir, images_dir the full path to the directory where all the extracted data is saved
+                            and its images subdirectory
+        :rtype: two strings, separated by commas
+        """
+
+        # extract RGB and Depth images from Rosbag
+        rgb_topic = self.topics_dict['rgb']
+        depth_topic = self.topics_dict['depth']
+        camera_info_topic = self.topics_dict['camera_info']
+
+        data_dir = os.path.dirname(bag_filepath)
+        images_dir = os.path.join(data_dir, 'images')
+        image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
+        self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
+        image_capture.load_ros_bag(bag_filepath)
+        image_capture.process_ros_bag(image_capture.ros_bag, images_dir)
+
+        rospy.loginfo("Finished writing images to disk")
+
+        return data_dir, images_dir
+
     def handle_capture_scene_and_fuse(self, req):
         # Start bagging with own srv call
         print "handling capture_scene_and_fuse"
@@ -582,25 +610,14 @@ class FusionServer(object):
         # Capture scene
         bag_filepath = self.capture_scene()
 
-        # extract RGB and Depth images from Rosbag
-        rgb_topic = self.topics_dict['rgb']
-        depth_topic = self.topics_dict['depth']
-        camera_info_topic = self.topics_dict['camera_info']
-
-        data_folder = os.path.dirname(bag_filepath)
-        output_dir = os.path.join(data_folder, 'images')
-        image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
-        self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
-        image_capture.load_ros_bag(bag_filepath)
-        image_capture.process_ros_bag(image_capture.ros_bag, output_dir)
-
-        rospy.loginfo("Finished writing images to disk")
+        # Extract images from bag
+        data_dir, images_dir = self.extract_data_from_rosbag(bag_filepath)
 
         if self.config['fusion_type'] == FusionType.ELASTIC_FUSION:
             # Perform fusion
             try:
                 perform_elastic_fusion = rospy.ServiceProxy('perform_elastic_fusion', PerformElasticFusion)
-                resp3 = perform_elastic_fusion(resp1.bag_filepath)
+                resp3 = perform_elastic_fusion(bag_filepath)
             except rospy.ServiceException, e:
                 print "Service call failed: %s" % e
 
@@ -613,17 +630,16 @@ class FusionServer(object):
             response = CaptureSceneAndFuseResponse(elastic_fusion_output)
             
         elif self.config['fusion_type'] == FusionType.TSDF_FUSION:
-            image_folder = output_dir
 
             print "formatting data for tsdf fusion"
-            tsdf_fusion.format_data_for_tsdf(image_folder)
+            tsdf_fusion.format_data_for_tsdf(images_dir)
 
             print "running tsdf fusion"
-            tsdf_fusion.run_tsdf_fusion_cuda(image_folder)
+            tsdf_fusion.run_tsdf_fusion_cuda(images_dir)
 
             print "converting tsdf to ply"
-            tsdf_bin_filename = os.path.join(data_folder, 'tsdf.bin')
-            tsdf_mesh_filename = os.path.join(data_folder, 'fusion_mesh.ply')
+            tsdf_bin_filename = os.path.join(data_dir, 'tsdf.bin')
+            tsdf_mesh_filename = os.path.join(data_dir, 'fusion_mesh.ply')
             tsdf_fusion.convert_tsdf_to_ply(tsdf_bin_filename, tsdf_mesh_filename)
 
             # the response is not meaningful right now
@@ -635,11 +651,11 @@ class FusionServer(object):
 
         # downsample data (this should be specifiable by an arg)
         print "downsampling image folder"
-        FusionServer.downsample_by_pose_difference_threshold(output_dir, threshold=0.03)
+        FusionServer.downsample_by_pose_difference_threshold(images_dir, threshold=0.03)
 
 
         rospy.loginfo("handle_capture_scene_and_fuse finished!")
-        response.elastic_fusion_output.data_folder = data_folder
+        response.elastic_fusion_output.data_dir = data_dir
         return response
 
     def run_fusion_data_server(self):
