@@ -527,10 +527,22 @@ class FusionServer(object):
                                                   maxJointDegreesPerSecond=self.config['speed']['scan'])
             rospy.sleep(self.config['sleep_time_at_each_pose'])
 
+    def capture_scene(self):
+        """
+        This "moves around and captures all of the data needed for fusion". I.e., it:
 
-    def handle_capture_scene_and_fuse(self, req):
-        # Start bagging with own srv call
-        print "handling capture_scene_and_fuse"
+        1. Moves the robot "home"
+        2. Starts bagging all data needed for fusion
+        3. Moves the robot around
+        4. Stops bagging data
+        5. Moves the robot back home
+
+        This is not a service handler itself, but intended to be modularly called by service handlers.
+
+        :return: bag_full_filepath, the full path to where the rosbag (fusion-*.bag) was saved
+        :rtype: string
+
+        """
 
         # first move home
         home_pose_joint_positions = self.storedPoses[self.config['scan']['pose_group']][self.config['home_pose_name']]
@@ -539,6 +551,7 @@ class FusionServer(object):
 
         print "moved to home"
 
+        # Start bagging with own srv call
         try:
             start_bagging_fusion_data = rospy.ServiceProxy('start_bagging_fusion_data', StartBaggingFusionData)
             resp1 = start_bagging_fusion_data()
@@ -546,6 +559,7 @@ class FusionServer(object):
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
 
+        # Move robot
         self.move_robot_through_scan_poses()
 
         # Stop bagging with own srv call
@@ -556,9 +570,17 @@ class FusionServer(object):
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
 
-        # move home, now send stuff off to fusion server
+        # move back home
         self.robotService.moveToJointPosition(home_pose_joint_positions, maxJointDegreesPerSecond=self.config['speed']['fast'])
 
+        return bag_filepath
+
+    def handle_capture_scene_and_fuse(self, req):
+        # Start bagging with own srv call
+        print "handling capture_scene_and_fuse"
+
+        # Capture scene
+        bag_filepath = self.capture_scene()
 
         # extract RGB and Depth images from Rosbag
         rgb_topic = self.topics_dict['rgb']
@@ -589,6 +611,7 @@ class FusionServer(object):
                                             self.cache['point_cloud_to_world_stamped'])
 
             response = CaptureSceneAndFuseResponse(elastic_fusion_output)
+            
         elif self.config['fusion_type'] == FusionType.TSDF_FUSION:
             image_folder = output_dir
 
