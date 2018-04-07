@@ -328,7 +328,7 @@ class FusionServer(object):
 
         self.config['speed'] = dict()
         self.config['speed']['scan'] = 25
-        self.config['speed']['fast'] = 40
+        self.config['speed']['fast'] = 30
 
         self.config['spin_rate'] = 1
 
