@@ -595,16 +595,17 @@ class FusionServer(object):
         depth_topic = self.topics_dict['depth']
         camera_info_topic = self.topics_dict['camera_info']
 
-        data_dir = os.path.dirname(bag_filepath)
-        images_dir = os.path.join(data_dir, 'images')
+        log_dir = os.path.dirname(os.path.dirname(bag_filepath))
+        processed_dir = os.path.join(log_dir, 'processed')
+        images_dir = os.path.join(processed_dir, 'images')
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
-        self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
+            self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
         image_capture.load_ros_bag(bag_filepath)
         image_capture.process_ros_bag(image_capture.ros_bag, images_dir)
 
         rospy.loginfo("Finished writing images to disk")
 
-        return data_dir, images_dir
+        return processed_dir, images_dir
 
     def handle_capture_scene(self, req):
         print "handling capture_scene"
@@ -625,7 +626,7 @@ class FusionServer(object):
         bag_filepath = self.capture_scene()
 
         # Extract images from bag
-        data_dir, images_dir = self.extract_data_from_rosbag(bag_filepath)
+        processed_dir, images_dir = self.extract_data_from_rosbag(bag_filepath)
 
         if self.config['fusion_type'] == FusionType.ELASTIC_FUSION:
             # Perform fusion
@@ -652,8 +653,8 @@ class FusionServer(object):
             tsdf_fusion.run_tsdf_fusion_cuda(images_dir)
 
             print "converting tsdf to ply"
-            tsdf_bin_filename = os.path.join(data_dir, 'tsdf.bin')
-            tsdf_mesh_filename = os.path.join(data_dir, 'fusion_mesh.ply')
+            tsdf_bin_filename = os.path.join(processed_dir, 'tsdf.bin')
+            tsdf_mesh_filename = os.path.join(processed_dir, 'fusion_mesh.ply')
             tsdf_fusion.convert_tsdf_to_ply(tsdf_bin_filename, tsdf_mesh_filename)
 
             # the response is not meaningful right now
@@ -669,7 +670,7 @@ class FusionServer(object):
 
 
         rospy.loginfo("handle_capture_scene_and_fuse finished!")
-        response.fusion_output.data_folder = data_dir
+        response.fusion_output.data_folder = processed_dir
         return response
 
     def run_fusion_data_server(self):
