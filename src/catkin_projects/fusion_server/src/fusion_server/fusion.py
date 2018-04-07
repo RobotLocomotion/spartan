@@ -655,7 +655,7 @@ class FusionServer(object):
 
 
         rospy.loginfo("handle_capture_scene_and_fuse finished!")
-        response.elastic_fusion_output = data_dir
+        response.elastic_fusion_output.data_folder = data_dir
         return response
 
     def run_fusion_data_server(self):
