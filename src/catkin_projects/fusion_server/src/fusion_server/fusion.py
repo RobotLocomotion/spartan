@@ -492,9 +492,9 @@ class FusionServer(object):
         point_cloud = self.convert_ply_to_pointcloud2(PlyData.read(ply_filename))
         
         res = PerformElasticFusionResponse()
-        res.elastic_fusion_output.pointcloud_filepath = ply_filename
-        res.elastic_fusion_output.point_cloud = point_cloud
-        res.elastic_fusion_output.point_cloud_to_world_stamped = self.cache['point_cloud_to_world_stamped']
+        res.fusion_output.pointcloud_filepath = ply_filename
+        res.fusion_output.point_cloud = point_cloud
+        res.fusion_output.point_cloud_to_world_stamped = self.cache['point_cloud_to_world_stamped']
 
 
         return res
@@ -522,8 +522,8 @@ class FusionServer(object):
         """
 
         # Move robot around
-        pose_list = self.config['scan']['pose_list']
-        # pose_list = self.config['scan']['pose_list_quick']
+        #pose_list = self.config['scan']['pose_list']
+        pose_list = self.config['scan']['pose_list_quick']
         for poseName in pose_list:
             print "moving to", poseName
             joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
@@ -637,7 +637,7 @@ class FusionServer(object):
                 print "Service call failed: %s" % e
 
             # publish the pointcloud to RVIZ
-            elastic_fusion_output = resp3.elastic_fusion_output
+            elastic_fusion_output = resp3.fusion_output
             self.cache['fusion_output'] = elastic_fusion_output
             self.publish_pointcloud_to_rviz(elastic_fusion_output.point_cloud,
                                             self.cache['point_cloud_to_world_stamped'])
@@ -670,7 +670,7 @@ class FusionServer(object):
 
 
         rospy.loginfo("handle_capture_scene_and_fuse finished!")
-        response.elastic_fusion_output.data_folder = data_dir
+        response.fusion_output.data_folder = data_dir
         return response
 
     def run_fusion_data_server(self):

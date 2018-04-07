@@ -13,8 +13,8 @@ def capture_scene_client():
     try:
         capture_scene = rospy.ServiceProxy('capture_scene', CaptureScene)
         resp = capture_scene()
-        print "pointcloud_filepath = %s" % resp.fusion_output.pointcloud_filepath
-        rospy.loginfo("pointcloud_filepath = %s", resp.fusion_output.pointcloud_filepath)
+        print "bag_filepath = %s" % resp.bag_filepath
+        rospy.loginfo("bag_filepath = %s", resp.bag_filepath)
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
 
