@@ -324,23 +324,21 @@ class FusionServer(object):
 
         self.config['scan']['pose_group'] = 'Elastic Fusion'
         self.config['scan']['pose_list'] = ['home', 'home_closer', 'center_right', 'right', 'right_low', 'right_low_closer', 'center_right', 'home_closer', 'center_left_closer', 'center_left_low_closer', 'left_low', 'left_mid', 'center_left_low', 'center_left_low_closer', 'center_left_closer', 'home_closer', 'top_down', 'top_down_right', 'top_down_left']
-
         self.config['scan']['pose_list_quick'] = ['home_closer', 'top_down', 'top_down_right', 'top_down_left', 'home']
 
-
         self.config['speed'] = dict()
-        self.config['speed']['scan'] = 30
+        self.config['speed']['scan'] = 25
         self.config['speed']['fast'] = 40
 
         self.config['spin_rate'] = 1
 
         
         self.config['home_pose_name'] = 'home'
-        self.config['sleep_time_before_bagging'] = 2.0
+        self.config['sleep_time_before_bagging'] = 3.0
         self.config['world_frame'] = 'base'
         self.config['camera_frame'] = "camera_" + self.camera_serial_number + "_rgb_optical_frame"
 
-        self.config['sleep_time_at_each_pose'] = 0.2
+        self.config['sleep_time_at_each_pose'] = 0.01
 
         self.config["reconstruction_frame_id"] = "fusion_reconstruction"
 
@@ -523,8 +521,8 @@ class FusionServer(object):
         """
 
         # Move robot around
-        #pose_list = self.config['scan']['pose_list']
-        pose_list = self.config['scan']['pose_list_quick']
+        pose_list = self.config['scan']['pose_list']
+        #pose_list = self.config['scan']['pose_list_quick']
         for poseName in pose_list:
             print "moving to", poseName
             joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
