@@ -329,8 +329,8 @@ class FusionServer(object):
 
 
         self.config['speed'] = dict()
-        self.config['speed']['scan'] = 15
-        self.config['speed']['fast'] = 30
+        self.config['speed']['scan'] = 30
+        self.config['speed']['fast'] = 40
 
         self.config['spin_rate'] = 1
 
@@ -340,7 +340,7 @@ class FusionServer(object):
         self.config['world_frame'] = 'base'
         self.config['camera_frame'] = "camera_" + self.camera_serial_number + "_rgb_optical_frame"
 
-        self.config['sleep_time_at_each_pose'] = 0.5
+        self.config['sleep_time_at_each_pose'] = 0.2
 
         self.config["reconstruction_frame_id"] = "fusion_reconstruction"
 
@@ -404,9 +404,10 @@ class FusionServer(object):
     def start_bagging(self):
         self.flushCache()
 
-        base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_proto', 'raw')
+        base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_proto')
         log_id_name = spartanUtils.get_current_YYYY_MM_DD_hh_mm_ss()
-        bagfile_directory = os.path.join(base_path, log_id_name)
+        log_subdir = "raw"
+        bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
 
         # make bagfile directory with name
         os.system("mkdir -p " + bagfile_directory)
@@ -616,7 +617,7 @@ class FusionServer(object):
         response = CaptureSceneResponse()
         response.bag_filepath = bag_filepath
 
-        rospy.loginfo("handle_capture_scene_and_fuse finished!")
+        rospy.loginfo("handle_capture_scene finished!")
         return response
 
     def handle_capture_scene_and_fuse(self, req):
