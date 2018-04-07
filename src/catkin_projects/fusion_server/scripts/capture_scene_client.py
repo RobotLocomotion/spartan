@@ -12,7 +12,7 @@ def capture_scene_client():
     print "Found it!, starting capture..."
     try:
         capture_scene = rospy.ServiceProxy('capture_scene', CaptureScene)
-        resp = capture_scene_and_fuse()
+        resp = capture_scene()
         print "pointcloud_filepath = %s" % resp.fusion_output.pointcloud_filepath
         rospy.loginfo("pointcloud_filepath = %s", resp.fusion_output.pointcloud_filepath)
     except rospy.ServiceException, e:
@@ -28,5 +28,5 @@ if __name__ == "__main__":
         print usage()
         sys.exit(1)
     
-    capture_scene_and_fuse_client()
+    capture_scene_client()
     

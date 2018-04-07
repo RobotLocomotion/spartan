@@ -603,8 +603,19 @@ class FusionServer(object):
 
         return data_dir, images_dir
 
+    def handle_capture_scene(self, req):
+        print "handling capture_scene"
+
+        # Capture scene
+        bag_filepath = self.capture_scene()
+
+        response = CaptureSceneResponse()
+        response.bag_filepath = bag_filepath
+
+        rospy.loginfo("handle_capture_scene_and_fuse finished!")
+        return response
+
     def handle_capture_scene_and_fuse(self, req):
-        # Start bagging with own srv call
         print "handling capture_scene_and_fuse"
 
         # Capture scene
@@ -662,6 +673,7 @@ class FusionServer(object):
         s = rospy.Service('start_bagging_fusion_data', StartBaggingFusionData, self.handle_start_bagging_fusion_data)
         s = rospy.Service('stop_bagging_fusion_data', StopBaggingFusionData, self.handle_stop_bagging_fusion_data)
         s = rospy.Service('perform_elastic_fusion', PerformElasticFusion, self.handle_perform_elastic_fusion)
+        s = rospy.Service('capture_scene', CaptureScene, self.handle_capture_scene)
         s = rospy.Service('capture_scene_and_fuse', CaptureSceneAndFuse, self.handle_capture_scene_and_fuse)
         print "Ready to capture fusion data."
 

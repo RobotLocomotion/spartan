@@ -60,6 +60,7 @@ add_service_files(
   StartBaggingFusionData.srv
   StopBaggingFusionData.srv
   CaptureSceneAndFuse.srv
+  CaptureScene.srv
   PerformElasticFusion.srv
 )
 
