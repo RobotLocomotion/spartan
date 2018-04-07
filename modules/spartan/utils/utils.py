@@ -144,7 +144,7 @@ def get_current_YYYY_MM_DD_hh_mm_ss():
 
     YYYY-MM-DD-hh-mm-ss
 
-    Fore example:
+    For example:
 
     2018-04-07-19-02-50
 
