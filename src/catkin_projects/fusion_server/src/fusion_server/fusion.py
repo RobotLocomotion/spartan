@@ -400,15 +400,19 @@ class FusionServer(object):
         rgbOpticalFrameToWorld = self.tfBuffer.lookup_transform(self.config['world_frame'], rosUtils.getRGBOpticalFrameName(self.camera_serial_number), rospy.Time(0))
         return rgbOpticalFrameToWorld
 
+
     def start_bagging(self):
         self.flushCache()
 
-        bagfile_name = "fusion_" + str(time.time())
-        bagfile_directory = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'fusion', bagfile_name)
-        
+        base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'logs_proto')
+        log_id_name = spartanUtils.get_current_YYYY_MM_DD_hh_mm_ss()
+        bagfile_directory = os.path.join(base_path, log_id_name)
 
         # make bagfile directory with name
         os.system("mkdir -p " + bagfile_directory)
+
+        # redundantly tag on the string name, so we have extra defense on tracking its ID
+        bagfile_name = "fusion_" + log_id_name
 
         topics_to_bag = [
             "/tf",
