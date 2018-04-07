@@ -275,7 +275,13 @@ class ImageCapture(object):
             camera_info_msg = msg
             break
 
+        
         camera_info_dict = rosUtils.camera_info_dict_from_camera_info_msg(camera_info_msg)
+        
+        # NOTE: currently the batch_extract_and_fuse_all_scenes.py
+        # script checks for the existence of this file (camera_info.yaml) 
+        # to determine if the extraction process was completed.
+
         spartanUtils.saveToYaml(camera_info_dict, os.path.join(output_dir,'camera_info.yaml'))
         
 
