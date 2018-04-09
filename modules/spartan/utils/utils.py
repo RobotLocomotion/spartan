@@ -3,6 +3,7 @@ import numpy as np
 import collections
 import yaml
 import os
+import datetime
 
 # director
 from director import transformUtils
@@ -100,6 +101,9 @@ def getQuaternionFromDict(d):
 def get_current_time_unique_name():
     """
     Converts current date to a unique name
+
+    Note: this function will return variable-length strings.
+
     :return:
     :rtype: str
     """
@@ -129,3 +133,28 @@ def homogenous_transform_from_dict(d):
     transform_matrix[0:3,3] = np.array(pos)
 
     return transform_matrix
+
+
+def get_current_YYYY_MM_DD_hh_mm_ss():
+    """
+    Returns a string identifying the current:
+    - year, month, day, hour, minute, second
+
+    Using this format:
+
+    YYYY-MM-DD-hh-mm-ss
+
+    For example:
+
+    2018-04-07-19-02-50
+
+    Note: this function will always return strings of the same length.
+
+    :return: current time formatted as a string
+    :rtype: string
+
+    """
+
+    now = datetime.datetime.now()
+    string =  "%0.4d-%0.2d-%0.2d-%0.2d-%0.2d-%0.2d" % (now.year, now.month, now.day, now.hour, now.minute, now.second)
+    return string

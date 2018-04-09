@@ -13,8 +13,8 @@ def capture_scene_and_fuse_client():
     try:
         capture_scene_and_fuse = rospy.ServiceProxy('capture_scene_and_fuse', CaptureSceneAndFuse)
         resp = capture_scene_and_fuse()
-        print "pointcloud_filepath = %s" %resp.elastic_fusion_output.pointcloud_filepath
-        rospy.loginfo("pointcloud_filepath = %s", resp.elastic_fusion_output.pointcloud_filepath)
+        print "pointcloud_filepath = %s" %resp.fusion_output.pointcloud_filepath
+        rospy.loginfo("pointcloud_filepath = %s", resp.fusion_output.pointcloud_filepath)
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
 
