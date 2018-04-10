@@ -235,15 +235,16 @@ def generate_data_custom3(depth_as_mask=True,img_height=480,img_width=640,batch_
             stack2[j] = np.reshape(depth_img,(img_height,img_width,1))
         yield (stack1,stack2)
 
-def gen_samples(directory,shuffle = True):
+def gen_samples(directory,shuffle = True,filter_files=None):
     samples = []
     dirs = os.listdir(directory)
     for i in dirs:
-        path = os.path.join(directory, i)+"/"
-        if os.access(path, os.R_OK):
-            gt_depth = sorted(glob.glob(path+"*_truth.png"))
-            depth = sorted(glob.glob(path+"*_depth.png"))
-            samples.extend(zip(gt_depth,depth))
+    	if filter_files and i in filter_files:
+	        path = os.path.join(directory, i)+"/"
+	        if os.access(path, os.R_OK):
+	            gt_depth = sorted(glob.glob(path+"*_truth.png"))
+	            depth = sorted(glob.glob(path+"*_depth.png"))
+	            samples.extend(zip(gt_depth,depth))
     if shuffle:
         random.shuffle(samples)
     return samples                
