@@ -61,12 +61,12 @@ group "1.vision-drivers" {
 group "2.iiwa-drivers" {
 
   cmd "0.kuka-driver" {
-    exec = "chrt -r 30 kuka_driver";
+    exec = "kuka_driver";
     host = "localhost";
   }
 
   cmd "1.plan-runner" {
-    exec = "chrt -r 20 $SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/kuka_plan_runner";
+    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/kuka_plan_runner";
     host = "localhost";
   }
 
