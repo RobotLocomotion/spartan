@@ -270,10 +270,11 @@ class GraspSupervisor(object):
     	poseStamped = self.makePoseStampedFromGraspFrame(graspFrame)
     	return self.robotService.moveToCartesianPosition(poseStamped, speed)
 
-    """
-    Make PoseStamped message from a given grasp frame
-    """
+    
     def makePoseStampedFromGraspFrame(self, graspFrame):
+        """
+        Make PoseStamped message from a given grasp frame
+        """
         iiwaLinkEEFrame = self.getIiwaLinkEEFrameFromGraspFrame(graspFrame)
         poseDict = spartanUtils.poseFromTransform(iiwaLinkEEFrame)
         poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
@@ -284,11 +285,12 @@ class GraspSupervisor(object):
         return poseStamped
 
 
-    """
-    Attempt a grasp
-    return: boolean if it was successful or not
-    """
+    
     def attemptGrasp(self, graspFrame):
+        """
+        Attempt a grasp
+        return: boolean if it was successful or not
+        """
 
     	preGraspFrame = transformUtils.concatenateTransforms([self.preGraspToGraspTransform, self.graspFrame])
 
@@ -447,6 +449,10 @@ class GraspSupervisor(object):
         bag.close()
 
     def requestGrasp(self):
+        """
+        Requests a grasp from the SpartanGrasp ROS service
+        Doesn't collect new sensor data
+        """
         # request the grasp via a ROS Action
         rospy.loginfo("waiting for spartan grasp server")
         self.generate_grasps_client.wait_for_server()
@@ -485,9 +491,18 @@ class GraspSupervisor(object):
         return result
 
     def testInThread(self):
+        """
+        Runs the grasping pipeline
+        1. Move the robot to collect sensor data
+        2. Request the grasp (via  a Ros Action)
+        3. Move Home
+        4. Wait for the response from SpartanGrasp
+        5. Process the result
+        """
+
         self.collectSensorData()
-        self.requestGrasp()
         self.moveHome()
+        self.requestGrasp()
         result = self.waitForGenerateGraspsResult()
         graspFound = self.processGenerateGraspsResult(result)
 

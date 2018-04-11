@@ -48,7 +48,7 @@ front:
     grasp_nominal_direction: [1,0,0]
 
   grasp_volume:
-    min_pt: [0.38, -0.357198029757,-0.02]
+    min_pt: [0.4, -0.357198029757,-0.005]
     max_pt: [0.822621226311, 0.3723, 0.5]
     quaternion:
       w: 1
@@ -61,7 +61,7 @@ front:
       z: 0
 
   collision_volume:
-    min_pt: [0.382815, -0.357198029757,-0.02]
+    min_pt: [0.382815, -0.357198029757,-0.01]
     max_pt: [0.822621226311, 0.3723, 0.5]
     quaternion:
       w: 1
@@ -76,7 +76,7 @@ front:
   collision_objects:
     table:
       min_pt: [0.382815,  -0.3571980, -0.04]
-      max_pt: [0.822621226311, 0.3723, -0.02]
+      max_pt: [0.822621226311, 0.3723, -0.01]
       quaternion:
         w: 1
         x: 0
