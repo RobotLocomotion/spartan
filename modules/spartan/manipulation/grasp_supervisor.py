@@ -47,7 +47,7 @@ class GraspSupervisorState(object):
 
 class GraspSupervisor(object):
 
-    def __init__(self, graspingParamsFile=None, cameraSerialNumber=1112170110, tfBuffer=None):
+    def __init__(self, graspingParamsFile=None, cameraSerialNumber="carmine_1", tfBuffer=None):
         self.graspingParamsFile = graspingParamsFile
         self.reloadParams()
         self.cameraSerialNumber = cameraSerialNumber
@@ -96,8 +96,8 @@ class GraspSupervisor(object):
         self.config['end_effector_frame_id'] = "iiwa_link_ee"
         self.config['pick_up_distance'] = 0.15 # distance to move above the table after grabbing the object
         self.config['scan'] = dict()
-        self.config['scan']['pose_list'] = ['scan_left', 'scan_right']
-        self.config['scan']['joint_speed'] = 60
+        self.config['scan']['pose_list'] = ['scan_left_close', 'scan_above_table', 'scan_right']
+        self.config['scan']['joint_speed'] = 30
         self.config['grasp_speed'] = 20
 
         normal_speed = 30
@@ -270,10 +270,11 @@ class GraspSupervisor(object):
     	poseStamped = self.makePoseStampedFromGraspFrame(graspFrame)
     	return self.robotService.moveToCartesianPosition(poseStamped, speed)
 
-    """
-    Make PoseStamped message from a given grasp frame
-    """
+    
     def makePoseStampedFromGraspFrame(self, graspFrame):
+        """
+        Make PoseStamped message from a given grasp frame
+        """
         iiwaLinkEEFrame = self.getIiwaLinkEEFrameFromGraspFrame(graspFrame)
         poseDict = spartanUtils.poseFromTransform(iiwaLinkEEFrame)
         poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
@@ -284,11 +285,12 @@ class GraspSupervisor(object):
         return poseStamped
 
 
-    """
-    Attempt a grasp
-    return: boolean if it was successful or not
-    """
+    
     def attemptGrasp(self, graspFrame):
+        """
+        Attempt a grasp
+        return: boolean if it was successful or not
+        """
 
     	preGraspFrame = transformUtils.concatenateTransforms([self.preGraspToGraspTransform, self.graspFrame])
 
@@ -447,6 +449,10 @@ class GraspSupervisor(object):
         bag.close()
 
     def requestGrasp(self):
+        """
+        Requests a grasp from the SpartanGrasp ROS service
+        Doesn't collect new sensor data
+        """
         # request the grasp via a ROS Action
         rospy.loginfo("waiting for spartan grasp server")
         self.generate_grasps_client.wait_for_server()
@@ -485,9 +491,18 @@ class GraspSupervisor(object):
         return result
 
     def testInThread(self):
+        """
+        Runs the grasping pipeline
+        1. Move the robot to collect sensor data
+        2. Request the grasp (via  a Ros Action)
+        3. Move Home
+        4. Wait for the response from SpartanGrasp
+        5. Process the result
+        """
+
         self.collectSensorData()
-        self.requestGrasp()
         self.moveHome()
+        self.requestGrasp()
         result = self.waitForGenerateGraspsResult()
         graspFound = self.processGenerateGraspsResult(result)
 
