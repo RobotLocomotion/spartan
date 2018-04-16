@@ -519,19 +519,27 @@ class FusionServer(object):
         z = pose["camera_to_world"]["translation"]["z"]
         return np.asarray([x,y,z])
 
-    def move_robot_through_scan_poses(self):
+    def move_robot_through_scan_poses(self, with_randomize_wrist=True):
         """
         Moves the robot to the different scan poses
         :return:
         :rtype:
         """
 
+        joint_limit_safety_factor = 0.9
+        wrist_joint_limit_degrees = 175.0
+        safe_wrist_joint_limit_radians = (wrist_joint_limit_degrees * np.pi/180.0) * joint_limit_safety_factor
+
         # Move robot around
         pose_list = self.config['scan']['pose_list']
         #pose_list = self.config['scan']['pose_list_quick']
         for poseName in pose_list:
             print "moving to", poseName
-            joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
+            joint_positions = copy.copy(self.storedPoses[self.config['scan']['pose_group']][poseName])
+            if with_randomize_wrist:
+                print "before randomize wrist", joint_positions
+                joint_positions[-1] = np.random.uniform(-safe_wrist_joint_limit_radians, safe_wrist_joint_limit_radians)
+                print "after randomize wrist", joint_positions
             self.robotService.moveToJointPosition(joint_positions,
                                                   maxJointDegreesPerSecond=self.config['speed']['scan'])
             rospy.sleep(self.config['sleep_time_at_each_pose'])
