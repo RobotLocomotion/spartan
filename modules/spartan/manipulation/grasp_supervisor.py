@@ -14,6 +14,8 @@ import actionlib
 # spartan ROS
 import spartan_grasp_msgs.msg
 import spartan_grasp_msgs.srv
+import fusion_server.msg
+import fusion_server.srv
 
 # spartan
 import spartan.utils.utils as spartanUtils
@@ -184,9 +186,9 @@ class GraspSupervisor(object):
         return msg
 
     def moveHome(self):
-    	rospy.loginfo("moving home")
+        rospy.loginfo("moving home")
         homePose = self.graspingParams[self.state.graspingLocation]['poses']['above_table_pre_grasp']
-    	self.robotService.moveToJointPosition(homePose, maxJointDegreesPerSecond=self.graspingParams['speed']['nominal'])
+        self.robotService.moveToJointPosition(homePose, maxJointDegreesPerSecond=self.graspingParams['speed']['nominal'])
 
     def getStowPose(self):
         stow_location = self.state.stowLocation
@@ -196,7 +198,7 @@ class GraspSupervisor(object):
     # scans to several positions
     def collectSensorData(self, saveToBagFile=False, **kwargs):
 
-    	rospy.loginfo("collecting sensor data")
+        rospy.loginfo("collecting sensor data")
         graspLocationData = self.graspingParams[self.state.graspingLocation]
 
         pointCloudListMsg = spartan_grasp_msgs.msg.PointCloudList()
@@ -224,6 +226,20 @@ class GraspSupervisor(object):
             self.saveSensorDataToBagFile(**kwargs)
 
         return pointCloudListMsg
+
+    
+    # From: https://www.programcreek.com/python/example/99841/sensor_msgs.msg.PointCloud2
+    
+    def pointcloud2_to_array(self, cloud_msg):
+        ''' 
+        Converts a rospy PointCloud2 message to a numpy recordarray 
+        
+        Assumes all fields 32 bit floats, and there is no padding.
+        '''
+        dtype_list = [(f.name, np.float32) for f in cloud_msg.fields]
+        cloud_arr = np.fromstring(cloud_msg.data, dtype_list)
+        return cloud_arr
+        return np.reshape(cloud_arr, (cloud_msg.height, cloud_msg.width)) 
 
     """
     Returns true if a grasp was found
@@ -338,7 +354,7 @@ class GraspSupervisor(object):
     """
     Moves the gripper up 15cm then moves home
     """
-    def pickupObject(self):
+    def pickupObject(self, stow=True):
         endEffectorFrame = self.tfBuffer.lookup_transform(self.config['base_frame_id'], self.config['end_effector_frame_id'], rospy.Time(0))
 
         eeFrameVtk = spartanUtils.transformFromROSTransformMsg(endEffectorFrame.transform)
@@ -364,7 +380,10 @@ class GraspSupervisor(object):
         self.robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=self.graspingParams['speed']['stow'])
 
         # move to stow_pose
-        self.robotService.moveToJointPosition(stow_pose, maxJointDegreesPerSecond=self.graspingParams['speed']['stow'])
+        if stow:
+            self.robotService.moveToJointPosition(stow_pose, maxJointDegreesPerSecond=self.graspingParams['speed']['stow'])
+        
+        # release object
         self.gripperDriver.sendOpenGripperCommand()
         rospy.sleep(0.5)
 
@@ -372,7 +391,7 @@ class GraspSupervisor(object):
         self.robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=self.graspingParams['speed']['fast'])
         
 
-    def planGraspAndPickupObject(self):
+    def planGraspAndPickupObject(self, stow=True):
         self.collectSensorData()
         self.requestGrasp()
         self.moveHome()
@@ -389,7 +408,46 @@ class GraspSupervisor(object):
             return False
 
 
-        self.pickupObject()
+        self.pickupObject(stow)
+
+
+    def askForCaptureScene(self):
+        """
+        This function just waits for, then asks for the capture_scene service
+        provided by fusion_server.
+
+        This only collects fusion data without performing fusion, so it's
+        fast.  See fusion_server for documentation.
+        """
+        rospy.wait_for_service('capture_scene')
+        print "Found it!, starting capture..."
+        try:
+            capture_scene = rospy.ServiceProxy('capture_scene', fusion_server.srv.CaptureScene)
+            resp = capture_scene()
+            print "bag_filepath = %s" % resp.bag_filepath
+            rospy.loginfo("bag_filepath = %s", resp.bag_filepath)
+        except rospy.ServiceException, e:
+            print "Service call failed: %s"%e
+
+
+    def interactAndCollectFusionDataLoop(self, num_interactions):
+
+        for i in range(num_interactions):
+
+            success_grasp_object = self.planGraspAndPickupObject(stow=False)
+
+            if not success_grasp_object:
+                print "Human, please go move the object? \n"
+                print "If you don't want to keep doing this,"
+                print "then go implement a 'smack-the-object' primitive."
+                # in future:
+                # self.smackObject()
+                rospy.sleep(4.0)
+                
+            
+            rospy.sleep(1.0)
+            self.askForCaptureScene()
+
 
     def testMoveToFrame(self):
     	pos = [ 0.51148583,  0.0152224 ,  0.50182436]
@@ -527,6 +585,9 @@ class GraspSupervisor(object):
 
     def testRequestGrasp(self):
         self.taskRunner.callOnThread(self.requestGrasp)
+
+    def testInteractionLoop(self, num_interactions=3):
+        self.taskRunner.callOnThread(self.interactAndCollectFusionDataLoop, num_interactions)
 
     def loadDefaultPointCloud(self):
         self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
