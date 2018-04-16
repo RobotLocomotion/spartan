@@ -73,7 +73,9 @@ if __name__ == "__main__":
 
         if not already_downsampled(log_full_path):
             print "downsampling image folder"
-            fs.downsample_by_pose_difference_threshold(images_dir, threshold=0.03)
+            linear_distance_threshold = 0.03
+            angle_distance_threshold = 10 # in degrees
+            fs.downsample_by_pose_difference_threshold(images_dir, linear_distance_threshold, angle_distance_threshold)
             counter_new_downsampled += 1
         else:
             print "already downsampled for", log_full_path

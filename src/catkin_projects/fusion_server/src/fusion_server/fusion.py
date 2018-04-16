@@ -519,6 +519,16 @@ class FusionServer(object):
         z = pose["camera_to_world"]["translation"]["z"]
         return np.asarray([x,y,z])
 
+    @staticmethod
+    def get_quaternion_from_pose(pose):
+        quat = spartanUtils.getQuaternionFromDict(pose["camera_to_world"])
+        x = quat["x"]
+        y = quat["y"]
+        z = quat["z"]
+        w = quat["w"]
+        return np.asarray([w,x,y,z])
+
+
     def move_robot_through_scan_poses(self, with_randomize_wrist=True):
         """
         Moves the robot to the different scan poses
@@ -762,7 +772,9 @@ class FusionServer(object):
         if not os.path.isdir(images_dir_temp_path):
             os.makedirs(images_dir_temp_path)
         
-        previous_pose = FusionServer.get_numpy_position_from_pose(pose_dict[0])
+        
+        previous_pose_pos = FusionServer.get_numpy_position_from_pose(pose_dict[0])
+        previous_pose_quat = FusionServer.get_quaternion_from_pose(pose_dict[0])
 
         print "Using downsampling by pose difference threshold... "
         print "Previously: ", len(pose_dict), " images"
@@ -772,20 +784,21 @@ class FusionServer(object):
 
         for i in range(0,len(pose_dict)):
             single_frame_data = pose_dict[i]
-            this_pose = FusionServer.get_numpy_position_from_pose(pose_dict[i])
+            this_pose_pos = FusionServer.get_numpy_position_from_pose(pose_dict[i])
+            this_pose_quat = FusionServer.get_quaternion_from_pose(pose_dict[i])
 
-            linear_distance = spartanUtils.compute_translation_distance_between_poses(this_pose,
-                                                                               previous_pose)
+            linear_distance = np.linalg.norm(this_pose_pos - previous_pose_pos)
 
-            rotation_distance = spartanUtils.compute_rotation_distance_between_poses(this_pose,
-                                                                              previous_pose)
+            rotation_distance = spartanUtils.compute_angle_between_quaternions(this_pose_quat,
+                previous_pose_quat)
 
 
             if i == 0:
                 keep_image = True
                 num_kept_images += 1
             elif (linear_distance > linear_distance_threshold) or (np.rad2deg(rotation_distance) > rotation_angle_threshold):
-                previous_pose = this_pose
+                previous_pose_pos = this_pose_pos
+                previous_pose_quat = this_pose_quat
                 num_kept_images += 1
             else:
                 # delete pose from forward kinematics
