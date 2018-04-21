@@ -57,8 +57,8 @@ for i,j in paths:
     os.makedirs(out_dir+data_dir_name)
 
   print "rendering Label Fusion data", data_dir_name
-  render_sim.render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+data_dir_name+"/",use_mesh,object_dir)
-  #render_sim.render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+out_dir+data_dir_name+"/",use_mesh,object_dir)
+  #render_sim.render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+data_dir_name+"/",use_mesh,object_dir)
+  render_sim.render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+data_dir_name+"/",use_mesh,object_dir)
   #os.system("cp "+data_dir+"/images/*rgb.png "+ out_dir+data_dir_name)
   print "generated rgb images"
   #os.system("cp "+data_dir+"/images/*depth.png "+ out_dir+data_dir_name)

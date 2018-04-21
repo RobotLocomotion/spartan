@@ -4,86 +4,30 @@ sys.path.insert(0, '../')
 import numpy as np
 from scipy import misc
 from common import common
-import yaml
 from render import render_sim
 from director import vtkAll as vtk
+import yaml
+import time
 
-def render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir,use_mesh,object_dir,mesh ='meshed_scene.ply',keyword=None):
-  actor = vtk.vtkActor()
-  filter1= vtk.vtkWindowToImageFilter()
-  imageWriter = vtk.vtkPNGWriter()
-  scale =vtk.vtkImageShiftScale()
 
-  if use_mesh: #use meshed version of scene
-    if not glob.glob(data_dir+"/"+mesh):
-      out  = None
-      if glob.glob(data_dir+"/original_log.lcmlog.ply"):
-        out = "original_log.lcmlog.ply"
-      elif glob.glob(data_dir+"/trimmed_log.lcmlog.ply"):
-        out = "trimmed_log.lcmlog.ply"
-      elif glob.glob('*.ply'):
-        out = glob.glob('*.ply')[0]
-      else:
-         return
-      mesher = mesh_wrapper.Mesh(out_dir = data_dir)
-      status = mesher.mesh_cloud(out)
-      print status
-      #blocks until done
-    mapper = vtk.vtkPolyDataMapper()
-    fileReader = vtk.vtkPLYReader()
-    fileReader.SetFileName(data_dir+"/"+mesh)
-    mapper.SetInputConnection(fileReader.GetOutputPort())
-    actor.SetMapper(mapper)
-    renderer.AddActor(actor)
-  else: #import just the objects
-    objects = common.Objects(data_dir,object_dir)
-    objects.loadObjectMeshes("/registration_result.yaml",renderer,keyword=keyword)
+def vtkICP(model,scene):
+		icp = vtk.vtkIterativeClosestPointTransform()
+		icp.SetMaximumNumberOfIterations(100)
+		#need to shift centroid to center of abject after clicking on it
+		icp.StartByMatchingCentroidsOn()
+		icp.SetSource(model)
+		icp.SetTarget(scene)
+		icp.GetLandmarkTransform().SetModeToRigidBody()
+		icp.Modified()
+		icp.Update()
+		t = vtk.vtkTransformPolyDataFilter()
+		t.SetInput(model)
+		t.SetTransform(icp)
+		t.Update()
+		transformedObject = t.GetOutput()
+		print transformedObject
 
-  #setup filters
-  filter1.SetInput(renWin)
-  filter1.SetMagnification(1)
-  filter1.SetInputBufferTypeToZBuffer()
-  windowToColorBuffer = vtk.vtkWindowToImageFilter()
-  windowToColorBuffer.SetInput(renWin)
-  windowToColorBuffer.SetInputBufferTypeToRGB()     
-  scale.SetOutputScalarTypeToUnsignedShort()
-  scale.SetScale(1000);
-
-  poses = common.CameraPoses(data_dir+"/posegraph.posegraph")
-  for i in range(1,num_im+1):
-      try:
-        utimeFile = open(data_dir+"/images/"+ str(i).zfill(10) + "_utime.txt", 'r')
-        utime = int(utimeFile.read())    
-
-        #update camera transform
-        cameraToCameraStart = poses.getCameraPoseAtUTime(utime)
-        t = cameraToCameraStart
-        common.setCameraTransform(camera, t)
-        renWin.Render()
-
-        #update filters
-        filter1.Modified()
-        filter1.Update()
-        windowToColorBuffer.Modified()
-        windowToColorBuffer.Update()
-
-        #extract depth image
-        depthImage = vtk.vtkImageData()
-        pts = vtk.vtkPoints()
-        ptColors = vtk.vtkUnsignedCharArray()
-        vtk.vtkDepthImageUtils.DepthBufferToDepthImage(filter1.GetOutput(), windowToColorBuffer.GetOutput(), camera, depthImage, pts, ptColors)
-        scale.SetInputData(depthImage)
-        scale.Update()
-
-        #write out depth image
-        imageWriter.SetFileName(out_dir+str(i).zfill(10)+"_"+data_dir_name+"_depth_ground_truth.png");
-        imageWriter.SetInputConnection(scale.GetOutputPort());
-        imageWriter.Write();  
-      except(IOError):
-        break
-  renderer.RemoveAllViewProps();
-  renWin.Render();
-#
+### enumerate tests
 path  = "/home/drc/DATA/chris_labelfusion/CORL2017/logs_test/"
 paths = []
 for f in os.listdir(path):
@@ -95,50 +39,197 @@ for f in os.listdir(path):
 					paths.append((f,transformYaml.keys())) 
 for i in paths:
 	print i[0]
-	'''
-	name = os.path.basename(os.path.normpath(path+i[0]))
-	for j in os.listdir(path+i[0]+"/images/"):
-		#os.system("cp "+ path+i+"/images/"+j "/home/drc/DATA/CORL2017/object_database/" j.split("_")[0]+"_"+name+"_normal_ground_truth.png")
-		if "rgb" in j:
-			os.system("cp " + path+i[0]+"/images/"+j +" /home/drc/DATA/CORL2017/object_real/" + j.split("_")[0]+"_"+name+"_rgb.png")
-		elif "depth" in j:
-			os.system("cp " +  path+i[0]+"/images/"+j +" /home/drc/DATA/CORL2017/object_real/" + j.split("_")[0]+"_"+name+"_depth.png")
-'''
 
+## setup rendering enviornment for mesh
 view_height = 480
 view_width = 640
 renderer = vtk.vtkRenderer()
+renderer.SetViewport(0,0,0.5,1)
 renWin = vtk.vtkRenderWindow()
 interactor = vtk.vtkRenderWindowInteractor()
-renWin.SetSize(view_width,view_height)
+renWin.SetSize(2*view_width,view_height)
 camera = vtk.vtkCamera()
 renderer.SetActiveCamera(camera);
 renWin.AddRenderer(renderer);
 interactor.SetRenderWindow(renWin);
 common.set_up_camera_params(camera)
 
-use_mesh = True
-out_dir = "/home/drc/DATA/chris_labelfusion/RGBDCNN/"
+### setup rendering enviornment for point cloud
+renderer1 = vtk.vtkRenderer()
+renderer1.SetViewport(0.5,0,1,1)
+camera1 = vtk.vtkCamera()
+renderer1.SetActiveCamera(camera1);
+renWin.AddRenderer(renderer1);
+common.set_up_camera_params(camera1)
 
-mesh = "None"
-for i,j in paths:
+renSource = vtk.vtkRendererSource()
+renSource.SetInput(renderer)
+renSource.WholeWindowOff()
+renSource.DepthValuesOnlyOn()
+renSource.Update()
+
+out_dir = "/home/drc/DATA/chris_labelfusion/RGBDCNN/"
+object_dir = "/home/drc/DATA/chris_labelfusion/object-meshes"
+
+samples_per_run = 1
+###run through scenes
+for i,j in paths[:1]:
 
   data_dir = path+i
+  print data_dir
   data_dir_name =  os.path.basename(os.path.normpath(data_dir))
-  num_im = 4000
   object_dir = "/home/drc/DATA/chris_labelfusion/object-meshes"
+  mesh ='meshed_scene.ply'
 
-  if not os.path.exists(out_dir+data_dir_name):
-    os.makedirs(out_dir+data_dir_name)
+  #set up mesh
+  actor = vtk.vtkActor()
+  mapper = vtk.vtkPolyDataMapper()
+  fileReader = vtk.vtkPLYReader()
+  fileReader.SetFileName(data_dir+"/"+mesh)
+  mapper.SetInputConnection(fileReader.GetOutputPort())
+  actor.SetMapper(mapper)
+  renderer.AddActor(actor)
 
-  print "rendering Label Fusion data", data_dir_name
-  render_sim.render_depth(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+data_dir_name+"/",use_mesh,object_dir)
-  #render_sim.render_normals(renWin,renderer,camera,data_dir,data_dir_name,num_im,out_dir+out_dir+data_dir_name+"/",use_mesh,object_dir)
-  #os.system("cp "+data_dir+"/images/*rgb.png "+ out_dir+data_dir_name)
-  print "generated rgb images"
-  #os.system("cp "+data_dir+"/images/*depth.png "+ out_dir+data_dir_name)
-  print "generated real depth images"
+  #add objects
+  objects = common.Objects(data_dir,object_dir)
+  objects.loadObjectMeshes("/registration_result.yaml",renderer1,keyword=None)
 
 
+  poses = common.CameraPoses(data_dir+"/posegraph.posegraph")
+  for i in np.random.choice(range(1,500),samples_per_run):
+      # try:
+		utimeFile = open(data_dir+"/images/"+ str(i).zfill(10) + "_utime.txt", 'r')
+		utime = int(utimeFile.read())    
+
+		#update camera transform
+		cameraToCameraStart = poses.getCameraPoseAtUTime(utime)
+		t = cameraToCameraStart
+		common.setCameraTransform(camera, t)
+		common.setCameraTransform(camera1, t)
+
+		renSource.Update()
+
+		# Note that the vtkPointGaussianMapper does not require vertex cells
+		pc = vtk.vtkDepthImageToPointCloud()
+		pc.SetInputConnection(0,renSource.GetOutputPort())
+		pc.SetCamera(renderer.GetActiveCamera())
+		pc.CullNearPointsOn()
+		#pc.CullFarPointsOn()
+		pc.ProduceVertexCellArrayOff()
+
+		pc.Update()
+		pcMapper = vtk.vtkPointGaussianMapper()
+		pcMapper.SetInputConnection(pc.GetOutputPort())
+		pcMapper.EmissiveOff()
+		pcMapper.SetScaleFactor(0.0)
+
+		pcActor = vtk.vtkActor()
+		pcActor.SetMapper(pcMapper)
+
+		renderer1.AddActor(pcActor)
+
+		renWin.Render()
+
+		scene = pcActor.GetMapper().GetInput()
+		model = objects.objects.values()[0].GetMapper().GetInput()
+		renderer1.RemoveActor(objects.objects.values()[0])
+		vtkICP(model,scene)
+		break
+
+  #renderer.RemoveAllViewProps();
+  #renderer1.RemoveAllViewProps();
+
+  renWin.Render();
 renWin.Render();
 interactor.Start();
+
+# !/usr/bin/env python
+# import vtk
+# from vtk.test import Testing
+# from vtk.util.misc import vtkGetDataRoot
+# VTK_DATA_ROOT = vtkGetDataRoot()
+
+# # Parameters for testing
+# sze = 300
+
+# # Graphics stuff
+# ren0 = vtk.vtkRenderer()
+# ren0.SetViewport(0,0,0.5,1)
+# ren1 = vtk.vtkRenderer()
+# ren1.SetViewport(0.5,0,1,1)
+# renWin = vtk.vtkRenderWindow()
+# renWin.SetSize(2*sze+100,sze)
+# renWin.AddRenderer(ren0)
+# renWin.AddRenderer(ren1)
+# iren = vtk.vtkRenderWindowInteractor()
+# iren.SetRenderWindow(renWin)
+
+# # Create pipeline, render simple object. We'll also color
+# # the sphere to generate color scalars.
+# sphere = vtk.vtkSphereSource()
+# sphere.SetCenter(0,0,0)
+# sphere.SetRadius(1)
+
+# ele = vtk.vtkElevationFilter()
+# ele.SetInputConnection(sphere.GetOutputPort())
+# ele.SetLowPoint(0,-1,0)
+# ele.SetHighPoint(0,1,0)
+
+# sphereMapper = vtk.vtkPolyDataMapper()
+# sphereMapper.SetInputConnection(ele.GetOutputPort())
+
+# sphereActor = vtk.vtkActor()
+# sphereActor.SetMapper(sphereMapper)
+
+# ren0.AddActor(sphereActor)
+# ren0.SetBackground(0,0,0)
+
+# iren.Initialize()
+# ren0.ResetCamera()
+# ren0.GetActiveCamera().SetClippingRange(6,9)
+# renWin.Render()
+
+# # Extract rendered geometry, convert to point cloud
+# # Grab just z-values
+# renSource = vtk.vtkRendererSource()
+# renSource.SetInput(ren0)
+# renSource.WholeWindowOff()
+# renSource.DepthValuesOnlyOn()
+# renSource.Update()
+
+
+# pc = vtk.vtkDepthImageToPointCloud()
+# pc.SetInputConnection(0,renSource.GetOutputPort())
+# #pc.SetInputConnection(1,renSource1.GetOutputPort())
+# pc.SetCamera(ren0.GetActiveCamera())
+# pc.CullNearPointsOn()
+# pc.CullFarPointsOn()
+# pc.ProduceVertexCellArrayOff()
+# print(pc)
+
+# timer = vtk.vtkTimerLog()
+# timer.StartTimer()
+# pc.Update()
+# timer.StopTimer()
+# time = timer.GetElapsedTime()
+# print("Generate point cloud: {0}".format(time))
+
+# pcMapper = vtk.vtkPointGaussianMapper()
+# pcMapper.SetInputConnection(pc.GetOutputPort())
+# pcMapper.EmissiveOff()
+# pcMapper.SetScaleFactor(0.0)
+
+# pcActor = vtk.vtkActor()
+# pcActor.SetMapper(pcMapper)
+
+# ren1.AddActor(pcActor)
+# ren1.SetBackground(0,0,0)
+# cam = ren1.GetActiveCamera()
+# cam.SetFocalPoint(0,0,0)
+# cam.SetPosition(1,1,1)
+# ren1.ResetCamera()
+
+# renWin.Render()
+# iren.Start()
+
+

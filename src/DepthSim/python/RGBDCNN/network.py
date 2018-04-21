@@ -23,6 +23,10 @@ from keras.utils import np_utils
 from keras import backend as K
 import cv2
 from sklearn.model_selection import train_test_split
+import noise
+from scipy.misc import toimage
+
+
 
 def create_model_2(img_height=480, img_width=640,channels=1):
    inputs = Input((img_height, img_width,channels))
@@ -130,9 +134,35 @@ def load_trained_model(weights_path="unet.hdf5"):
    return model
 
 def apply_mask(mask,depth,threshold):
+   epsilon = .05
    h,w = np.shape(depth)
    mask = np.reshape(mask,(h,w))
+   # plt.figure()
+   # plt.imshow(mask)
+   # plt.show()
    depth[mask>threshold]=0
+   #img = np.random.random((480,640))
+   img = sigmoid(perlin_map(scale=20.0,octaves = 7,base= np.random.randint(1000),lacunarity = 6.0))
+   stochastic_mask = mask>=img
+   #stochastic_mask = np.logical_and(np.logical_and((mask<=threshold), mask>epsilon), img<threshold)
+   depth[stochastic_mask] = 0
+
+def perlin_map(shape = (480,640),scale = 10.0,octaves = 6,persistence = 0.5,lacunarity = 2.0,base = 0):
+    img = np.zeros(shape)
+    for i in range(shape[0]):
+        for j in range(shape[1]):
+            img[i][j] = noise.pnoise2(i/scale, 
+                                       j/scale, 
+                                       octaves=octaves, 
+                                       persistence=persistence, 
+                                       lacunarity=lacunarity, 
+                                       repeatx=shape[1], 
+                                       repeaty=shape[0], 
+                                       base=base)
+    return img
+
+def sigmoid(x):
+    return 1. / (1 + np.exp(-10*x))
 
 def threshold_mask(mask,threshold):
    l,h,w,r = np.shape(mask)
