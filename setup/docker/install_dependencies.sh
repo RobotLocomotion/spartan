@@ -25,6 +25,7 @@ apt install --no-install-recommends \
   libsuitesparse-dev \
   libeigen3-dev
 
+pip install --upgrade pip==9.0.3
 pip install -U pip setuptools
 
 # Dependencies of trimesh
