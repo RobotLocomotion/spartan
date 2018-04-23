@@ -26,7 +26,7 @@ apt install --no-install-recommends \
   libeigen3-dev
 
 pip install --upgrade pip==9.0.3
-pip install -U pip setuptools
+pip install -U setuptools
 
 # Dependencies of trimesh
 pip install \
