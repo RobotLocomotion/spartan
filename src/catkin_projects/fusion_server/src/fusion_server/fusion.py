@@ -672,7 +672,9 @@ class FusionServer(object):
 
         # downsample data (this should be specifiable by an arg)
         print "downsampling image folder"
-        FusionServer.downsample_by_pose_difference_threshold(images_dir, threshold=0.03)
+        linear_distance_threshold = 0.03
+        angle_distance_threshold = 10 # in degrees
+        FusionServer.downsample_by_pose_difference_threshold(images_dir, linear_distance_threshold, angle_distance_threshold)
 
 
         rospy.loginfo("handle_capture_scene_and_fuse finished!")
@@ -733,7 +735,18 @@ class FusionServer(object):
 
 
     @staticmethod
-    def downsample_by_pose_difference_threshold(images_dir_full_path, threshold):
+    def downsample_by_pose_difference_threshold(images_dir_full_path, linear_distance_threshold, rotation_angle_threshold):
+        """
+        Downsamples poses and keeps only those that are sufficiently apart
+        :param images_dir_full_path:
+        :type images_dir_full_path:
+        :param linear_distance_threshold: threshold on the translation, in meters
+        :type linear_distance_threshold:
+        :param rotation_angle_threshold: threshold on the angle between the rotations, in degrees
+        :type rotation_angle_threshold:
+        :return:
+        :rtype:
+        """
         pose_yaml = os.path.join(images_dir_full_path, "pose_data.yaml")
         pose_dict = spartanUtils.getDictFromYamlFilename(pose_yaml)
 
@@ -753,10 +766,17 @@ class FusionServer(object):
             single_frame_data = pose_dict[i]
             this_pose = FusionServer.get_numpy_position_from_pose(pose_dict[i])
 
+            linear_distance = spartanUtils.compute_translation_distance_between_poses(this_pose,
+                                                                               previous_pose)
+
+            rotation_distance = spartanUtils.compute_rotation_distance_between_poses(this_pose,
+                                                                              previous_pose)
+
+
             if i == 0:
                 keep_image = True
                 num_kept_images += 1
-            elif np.linalg.norm(previous_pose - this_pose) > threshold:
+            elif (linear_distance > linear_distance_threshold) or (np.rad2deg(rotation_distance) > rotation_angle_threshold):
                 previous_pose = this_pose
                 num_kept_images += 1
             else:
