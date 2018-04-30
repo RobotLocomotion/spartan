@@ -153,7 +153,7 @@ class ImageCapture(object):
     def load_ros_bag(self, ros_bag_filename):
         self.ros_bag = rosbag.Bag(ros_bag_filename, "r")
 
-    def process_ros_bag(self, bag, output_dir):
+    def process_ros_bag(self, bag, output_dir, rgb_only=False):
 
         image_topics = []
         for key, topic in self.topics_dict.iteritems():
@@ -252,7 +252,8 @@ class ImageCapture(object):
                 print "writing image %d to file %s" %(idx, rgb_filename)
             
             cv2.imwrite(rgb_filename_full, rgb_img)
-            cv2.imwrite(depth_filename_full, depth_img)
+            if not rgb_only:
+                cv2.imwrite(depth_filename_full, depth_img)
 
             pose_data[idx] = dict()
             d = pose_data[idx] 
@@ -602,7 +603,7 @@ class FusionServer(object):
 
         return bag_filepath
 
-    def extract_data_from_rosbag(self, bag_filepath):
+    def extract_data_from_rosbag(self, bag_filepath, rgb_only=False):
         """
         This wraps the ImageCapture calls to load and process the raw rosbags, to prepare for fusion.
 
@@ -622,10 +623,14 @@ class FusionServer(object):
         log_dir = os.path.dirname(os.path.dirname(bag_filepath))
         processed_dir = os.path.join(log_dir, 'processed')
         images_dir = os.path.join(processed_dir, 'images')
+
+        if rgb_only:
+            images_dir = os.path.join(processed_dir, 'rgb_only')
+
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
             self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
         image_capture.load_ros_bag(bag_filepath)
-        image_capture.process_ros_bag(image_capture.ros_bag, images_dir)
+        image_capture.process_ros_bag(image_capture.ros_bag, images_dir, rgb_only=True)
 
         rospy.loginfo("Finished writing images to disk")
 
