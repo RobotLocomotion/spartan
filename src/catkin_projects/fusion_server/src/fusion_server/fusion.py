@@ -798,6 +798,13 @@ class FusionServer(object):
                 previous_pose_quat)
 
 
+            linear_distance = spartanUtils.compute_translation_distance_between_poses(this_pose,
+                                                                               previous_pose)
+
+            rotation_distance = spartanUtils.compute_rotation_distance_between_poses(this_pose,
+                                                                              previous_pose)
+
+
             if i == 0:
                 keep_image = True
                 num_kept_images += 1
