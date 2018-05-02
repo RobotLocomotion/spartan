@@ -118,6 +118,8 @@ class Objects():
         self.path= path
         self.objects_file = objects_file
         self.objects = {} # dict of Actors
+        self.poses = {} # dict of Actors
+
 
     def loadObjectMeshes(self,registrationResultFilename,renderer,shader=None,keyword=None):
       stream = file(self.path+registrationResultFilename)
@@ -136,6 +138,7 @@ class Objects():
             actor.SetMapper(mapper)
             renderer.AddActor(actor)
             self.objects[objectMeshFilename] = actor
+            self.poses[objectMeshFilename] = data['pose']
 
 
 '''
