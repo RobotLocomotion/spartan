@@ -6,6 +6,7 @@ import numpy as np
 import rospy
 import sensor_msgs.msg
 import geometry_msgs.msg
+import visualization_msgs.msg
 import tf2_ros
 import rosbag
 import actionlib
@@ -63,6 +64,7 @@ class GraspSupervisor(object):
         self.usingDirector = True
         self.tfBuffer = tfBuffer # don't create a new one if it is passed in
         self.setupConfig()
+        self._grasp_point = None # stores the grasp point to be used in grasp3DLocation
 
         if USING_DIRECTOR:
             self.taskRunner = TaskRunner()
@@ -81,6 +83,7 @@ class GraspSupervisor(object):
 
     def setup(self):
         self.setupSubscribers()
+        self.setupPublishers()
         self.setupTF()
         self.setupROSActions()
         self.gripperDriver = SchunkDriver()
@@ -134,21 +137,75 @@ class GraspSupervisor(object):
 
         self.pointCloudSubscriber.start()
 
+        self.clicked_point_subscriber = rosUtils.SimpleSubscriber("/clicked_point", geometry_msgs.msg.PointStamped, self.on_clicked_point)
+        self.clicked_point_subscriber.start()
+
+    def setupPublishers(self):
+        """
+        Sets up some ROS publishers
+        """
+
+        self.rviz_marker_publisher = rospy.Publisher("/spartan_grasp/visualization_marker", visualization_msgs.msg.Marker, queue_size=1)
+
+
+    def on_clicked_point(self, clicked_point_msg):
+        """
+        Visualizes the clicked point in rviz
+        """
+
+        print "received a /clicked_point message . . . visualizing"
+        pos = clicked_point_msg.point
+        x,y,z = pos.x, pos.y, pos.z
+
+        marker = visualization_msgs.msg.Marker()
+        marker.header.frame_id = "base"
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "clicked_point"
+        marker.id = 0
+        marker.type = visualization_msgs.msg.Marker.SPHERE
+        marker.action = visualization_msgs.msg.Marker.ADD
+        marker.pose.position.x = x
+        marker.pose.position.y = y
+        marker.pose.position.z = z
+
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = 0.03
+        marker.scale.y = 0.03
+        marker.scale.z = 0.03
+        marker.color.a = 1.0
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+
+        # hack to get around director funny business
+        for i in xrange(0,5):
+            self.rviz_marker_publisher.publish(marker)
+            rospy.sleep(0.02)
+
+    def get_clicked_point(self):
+        """
+        Returns the stored clicked point. If there is none it raises and error
+
+        rtype: geometry_msgs.Point
+        """
+        lastMsg = self.clicked_point_subscriber.lastMsg
+        if lastMsg is None:
+            raise ValueError("No /clicked_point messages found.")
+
+        return lastMsg.point
+
+
+
     def setupROSActions(self):
 
         actionName = '/spartan_grasp/GenerateGraspsFromPointCloudList'
         self.generate_grasps_client = actionlib.SimpleActionClient(actionName, spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListAction)
-        # self.generate_grasps_client.wait_for_server()
 
-        # goal = spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListGoal(pointCloudListMsg)
-        # client.send_goal(goal)
-        # client.wait_for_result()
-
-        # result = client.get_result()
-        # print "num scored_grasps = ", len(result.scored_grasps)
-
-        # print "result ", result
-
+        actionName = '/spartan_grasp/Grasp3DLocation'
+        self.grasp_3D_location_client = actionlib.SimpleActionClient(actionName, spartan_grasp_msgs.msg.Grasp3DLocationAction)
 
     def setupTF(self):
         if self.tfBuffer is None:
@@ -490,6 +547,68 @@ class GraspSupervisor(object):
 
         return result
 
+    def wait_for_grasp_3D_location_result(self):
+        """
+        Waits for the result of the Grasp3DLocation action
+        :return:
+        """
+        rospy.loginfo("waiting for result")
+        self.grasp_3D_location_client.wait_for_result()
+        result = self.grasp_3D_location_client.get_result()
+        self.grasp_3D_location_result = result # debugging
+        rospy.loginfo("received result")
+
+        return result
+
+    def request_grasp_3D_location(self):
+        """
+        Requests a grasp3DLocation from the SpartanGrasp ROS service
+        Doesn't collect new sensor data
+        """
+        # request the grasp via a ROS Action
+        rospy.loginfo("waiting for spartan grasp server")
+        self.grasp_3D_location_client.wait_for_server()
+        rospy.loginfo("requsting grasps spartan grasp server")
+
+        params = self.getParamsForCurrentLocation()
+        goal = spartan_grasp_msgs.msg.Grasp3DLocationGoal()
+        goal.point_clouds = self.pointCloudListMsg
+        goal.grasp_point = self.get_clicked_point()
+
+        if 'grasp_volume' in params:
+            node = params['grasp_volume']
+            rectangle = GraspSupervisor.rectangleMessageFromYamlNode(node)
+            goal.params.grasp_volume.append(rectangle)
+
+        if 'collision_volume' in params:
+            node = params['collision_volume']
+            rectangle = GraspSupervisor.rectangleMessageFromYamlNode(node)
+            goal.params.collision_volume.append(rectangle)
+
+        if 'collision_objects' in params:
+            for key, val in params['collision_objects'].iteritems():
+                rectangle = GraspSupervisor.rectangleMessageFromYamlNode(val)
+                goal.params.collision_objects.append(rectangle)
+
+
+        self.grasp_3D_location_client.send_goal(goal)
+
+    def grasp_3D_location(self):
+        """
+        Runs the grasping_3D_location pipeline
+        1. Checks to make sure there is a clicked_point
+        2. Collects sensor data
+        3. Sends off the request to spartan_grasp server
+        :return: None
+        """
+
+        self.get_clicked_point()
+        self.collectSensorData()
+        self.request_grasp_3D_location()
+        self.moveHome()
+        result = self.wait_for_grasp_3D_location_result()
+        grasp_found = self.processGenerateGraspsResult(result)
+
     def testInThread(self):
         """
         Runs the grasping pipeline
@@ -513,6 +632,13 @@ class GraspSupervisor(object):
     def test(self):
         self.taskRunner.callOnThread(self.testInThread)
 
+    def test_grasp_3D_location(self):
+        """
+        Calls grasp_3D_location in a thread
+        :return:
+        """
+        self.taskRunner.callOnThread(self.grasp_3D_location)
+
     def testAttemptGrasp(self):
     	self.taskRunner.callOnThread(self.attemptGrasp, self.graspFrame)
 
@@ -527,6 +653,9 @@ class GraspSupervisor(object):
 
     def testRequestGrasp(self):
         self.taskRunner.callOnThread(self.requestGrasp)
+
+    def test_on_clicked_point(self):
+        self.taskRunner.callOnThread(self.on_clicked_point)        
 
     def loadDefaultPointCloud(self):
         self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
