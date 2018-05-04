@@ -153,7 +153,7 @@ class ImageCapture(object):
     def load_ros_bag(self, ros_bag_filename):
         self.ros_bag = rosbag.Bag(ros_bag_filename, "r")
 
-    def process_ros_bag(self, bag, output_dir):
+    def process_ros_bag(self, bag, output_dir, rgb_only=False):
 
         image_topics = []
         for key, topic in self.topics_dict.iteritems():
@@ -252,7 +252,8 @@ class ImageCapture(object):
                 print "writing image %d to file %s" %(idx, rgb_filename)
             
             cv2.imwrite(rgb_filename_full, rgb_img)
-            cv2.imwrite(depth_filename_full, depth_img)
+            if not rgb_only:
+                cv2.imwrite(depth_filename_full, depth_img)
 
             pose_data[idx] = dict()
             d = pose_data[idx] 
@@ -519,19 +520,37 @@ class FusionServer(object):
         z = pose["camera_to_world"]["translation"]["z"]
         return np.asarray([x,y,z])
 
-    def move_robot_through_scan_poses(self):
+    @staticmethod
+    def get_quaternion_from_pose(pose):
+        quat = spartanUtils.getQuaternionFromDict(pose["camera_to_world"])
+        x = quat["x"]
+        y = quat["y"]
+        z = quat["z"]
+        w = quat["w"]
+        return np.asarray([w,x,y,z])
+
+
+    def move_robot_through_scan_poses(self, with_randomize_wrist=True):
         """
         Moves the robot to the different scan poses
         :return:
         :rtype:
         """
 
+        joint_limit_safety_factor = 0.9
+        wrist_joint_limit_degrees = 175.0
+        safe_wrist_joint_limit_radians = (wrist_joint_limit_degrees * np.pi/180.0) * joint_limit_safety_factor
+
         # Move robot around
         pose_list = self.config['scan']['pose_list']
         #pose_list = self.config['scan']['pose_list_quick']
         for poseName in pose_list:
             print "moving to", poseName
-            joint_positions = self.storedPoses[self.config['scan']['pose_group']][poseName]
+            joint_positions = copy.copy(self.storedPoses[self.config['scan']['pose_group']][poseName])
+            if with_randomize_wrist:
+                print "before randomize wrist", joint_positions
+                joint_positions[-1] = np.random.uniform(-safe_wrist_joint_limit_radians, safe_wrist_joint_limit_radians)
+                print "after randomize wrist", joint_positions
             self.robotService.moveToJointPosition(joint_positions,
                                                   maxJointDegreesPerSecond=self.config['speed']['scan'])
             rospy.sleep(self.config['sleep_time_at_each_pose'])
@@ -584,7 +603,7 @@ class FusionServer(object):
 
         return bag_filepath
 
-    def extract_data_from_rosbag(self, bag_filepath):
+    def extract_data_from_rosbag(self, bag_filepath, rgb_only=False):
         """
         This wraps the ImageCapture calls to load and process the raw rosbags, to prepare for fusion.
 
@@ -604,10 +623,14 @@ class FusionServer(object):
         log_dir = os.path.dirname(os.path.dirname(bag_filepath))
         processed_dir = os.path.join(log_dir, 'processed')
         images_dir = os.path.join(processed_dir, 'images')
+
+        if rgb_only:
+            images_dir = os.path.join(processed_dir, 'rgb_only')
+
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
             self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
         image_capture.load_ros_bag(bag_filepath)
-        image_capture.process_ros_bag(image_capture.ros_bag, images_dir)
+        image_capture.process_ros_bag(image_capture.ros_bag, images_dir, rgb_only=True)
 
         rospy.loginfo("Finished writing images to disk")
 
@@ -754,7 +777,9 @@ class FusionServer(object):
         if not os.path.isdir(images_dir_temp_path):
             os.makedirs(images_dir_temp_path)
         
-        previous_pose = FusionServer.get_numpy_position_from_pose(pose_dict[0])
+        
+        previous_pose_pos = FusionServer.get_numpy_position_from_pose(pose_dict[0])
+        previous_pose_quat = FusionServer.get_quaternion_from_pose(pose_dict[0])
 
         print "Using downsampling by pose difference threshold... "
         print "Previously: ", len(pose_dict), " images"
@@ -764,7 +789,14 @@ class FusionServer(object):
 
         for i in range(0,len(pose_dict)):
             single_frame_data = pose_dict[i]
-            this_pose = FusionServer.get_numpy_position_from_pose(pose_dict[i])
+            this_pose_pos = FusionServer.get_numpy_position_from_pose(pose_dict[i])
+            this_pose_quat = FusionServer.get_quaternion_from_pose(pose_dict[i])
+
+            linear_distance = np.linalg.norm(this_pose_pos - previous_pose_pos)
+
+            rotation_distance = spartanUtils.compute_angle_between_quaternions(this_pose_quat,
+                previous_pose_quat)
+
 
             linear_distance = spartanUtils.compute_translation_distance_between_poses(this_pose,
                                                                                previous_pose)
@@ -777,7 +809,8 @@ class FusionServer(object):
                 keep_image = True
                 num_kept_images += 1
             elif (linear_distance > linear_distance_threshold) or (np.rad2deg(rotation_distance) > rotation_angle_threshold):
-                previous_pose = this_pose
+                previous_pose_pos = this_pose_pos
+                previous_pose_quat = this_pose_quat
                 num_kept_images += 1
             else:
                 # delete pose from forward kinematics
