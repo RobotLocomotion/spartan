@@ -630,7 +630,7 @@ class FusionServer(object):
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
             self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
         image_capture.load_ros_bag(bag_filepath)
-        image_capture.process_ros_bag(image_capture.ros_bag, images_dir, rgb_only=True)
+        image_capture.process_ros_bag(image_capture.ros_bag, images_dir, rgb_only=rgb_only)
 
         rospy.loginfo("Finished writing images to disk")
 
