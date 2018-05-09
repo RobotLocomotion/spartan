@@ -50,3 +50,6 @@
 [submodule "src/tsdf-fusion"]
 	path = src/tsdf-fusion
 	url = git@github.com:RobotLocomotion/tsdf-fusion.git
+[submodule "src/catkin_projects/pdc-ros-msgs"]
+	path = src/catkin_projects/pdc-ros-msgs
+	url = git@github.com:RobotLocomotion/pdc-ros-msgs.git
