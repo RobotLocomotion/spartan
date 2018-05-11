@@ -14,6 +14,9 @@ import actionlib
 # spartan ROS
 import spartan_grasp_msgs.msg
 import spartan_grasp_msgs.srv
+
+import pdc_ros_msgs.msg
+
 import fusion_server.msg
 import fusion_server.srv
 
@@ -56,8 +59,11 @@ class GraspSupervisor(object):
 
         self.cameraName = 'camera_' + str(cameraSerialNumber)
         self.pointCloudTopic = '/' + str(self.cameraName) + '/depth/points'
+        self.rgbImageTopic   = '/' + str(self.cameraName) + '/rgb/image_rect_color'
+        self.depthImageTopic = '/' + str(self.cameraName) + '/depth_registered/sw_registered/image_rect'
         self.graspFrameName = 'base'
         self.depthOpticalFrameName = self.cameraName + "_depth_optical_frame"
+        self.rgbOpticalFrameName = self.cameraName + "_rgb_optical_frame"
 
         self.state = GraspSupervisorState()
 
@@ -133,13 +139,21 @@ class GraspSupervisor(object):
 
     def setupSubscribers(self):
         self.pointCloudSubscriber = rosUtils.SimpleSubscriber(self.pointCloudTopic, sensor_msgs.msg.PointCloud2)
+        self.rgbImageSubscriber   = rosUtils.SimpleSubscriber(self.rgbImageTopic,   sensor_msgs.msg.Image)
+        self.depthImageSubscriber = rosUtils.SimpleSubscriber(self.depthImageTopic, sensor_msgs.msg.Image)
 
         self.pointCloudSubscriber.start()
+        self.rgbImageSubscriber.start()
+        self.depthImageSubscriber.start()
 
     def setupROSActions(self):
 
         actionName = '/spartan_grasp/GenerateGraspsFromPointCloudList'
         self.generate_grasps_client = actionlib.SimpleActionClient(actionName, spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListAction)
+
+        findBestBatchActionName = '/FindBestMatch'
+        self.find_best_match_client = actionlib.SimpleActionClient(findBestBatchActionName, pdc_ros_msgs.msg.FindBestMatchAction)
+
         # self.generate_grasps_client.wait_for_server()
 
         # goal = spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListGoal(pointCloudListMsg)
@@ -164,6 +178,12 @@ class GraspSupervisor(object):
         print depthOpticalFrameToGraspFrame
         return depthOpticalFrameToGraspFrame
 
+    def getRgbOpticalFrameToGraspFrameTransform(self):
+        rgbOpticalFrameToGraspFrame = self.tfBuffer.lookup_transform(self.graspFrameName, self.rgbOpticalFrameName, rospy.Time(0))
+
+        print  rgbOpticalFrameToGraspFrame
+        return rgbOpticalFrameToGraspFrame
+
 
     """
     Captures the current PointCloud2 from the sensor. Also records the pose of camera frame.
@@ -183,6 +203,19 @@ class GraspSupervisor(object):
         msg.point_cloud = self.pointCloudSubscriber.waitForNextMessage()
 
         self.testData = msg # for debugging
+        return msg
+
+    def captureRgbdAndCameraTransform(self, cameraOrigin = [0,0,0]):
+        # sleep to transforms can update
+        rospy.sleep(0.5)
+        msg = pdc_ros_msgs.msg.RGBDWithPose()
+        msg.header.stamp = rospy.Time.now()
+
+        msg.camera_pose = self.getRgbOpticalFrameToGraspFrameTransform()
+
+        msg.rgb_image   = self.rgbImageSubscriber.waitForNextMessage()
+        msg.depth_image = self.depthImageSubscriber.waitForNextMessage()
+
         return msg
 
     def moveHome(self):
@@ -226,6 +259,61 @@ class GraspSupervisor(object):
             self.saveSensorDataToBagFile(**kwargs)
 
         return pointCloudListMsg
+
+    # scans to several positions
+    def collectRgbdData(self, saveToBagFile=False, **kwargs):
+
+        rospy.loginfo("collecting rgbd sensor data")
+        graspLocationData = self.graspingParams[self.state.graspingLocation]
+
+        listOfRgbdWithPoseMsg = []
+
+        for poseName in graspLocationData['scan_pose_list']:
+            rospy.loginfo("moving to pose = " + poseName)
+            joint_positions = graspLocationData['poses'][poseName]
+            self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
+
+            if self.debugMode:
+                continue
+
+            rgbdWithPoseMsg = self.captureRgbdAndCameraTransform()
+
+            listOfRgbdWithPoseMsg.append(rgbdWithPoseMsg)
+
+        print "return listOfRgbdWithPoseMsg"
+        print len(listOfRgbdWithPoseMsg)
+        print type(listOfRgbdWithPoseMsg[0])
+        return listOfRgbdWithPoseMsg
+
+
+    def findBestBatch(self):
+        """
+        This function will:
+        - collect a small handful of RGBDWithPose msgs
+        - call the FindBestMatch service (a service of pdc-ros)
+        - return what was found from FindBestMatch
+        """
+        self.moveHome()
+        listOfRgbdWithPoseMsg = self.collectRgbdData()
+
+        # request via a ROS Action
+        rospy.loginfo("waiting for find best match server")
+        self.find_best_match_client.wait_for_server()
+        rospy.loginfo("requsting best match from server")
+
+        goal = pdc_ros_msgs.msg.FindBestMatchGoal()
+        goal.rgbd_with_pose_list = listOfRgbdWithPoseMsg
+
+        self.find_best_match_client.send_goal(goal)
+        self.moveHome()
+
+        rospy.loginfo("waiting for find best match result")
+        self.find_best_match_client.wait_for_result()
+        result = self.find_best_match_client.get_result()
+        rospy.loginfo("received best match result")
+
+        print "here is result!"
+        print result
 
     
     # From: https://www.programcreek.com/python/example/99841/sensor_msgs.msg.PointCloud2
@@ -588,6 +676,13 @@ class GraspSupervisor(object):
 
     def testInteractionLoop(self, num_interactions=3):
         self.taskRunner.callOnThread(self.interactAndCollectFusionDataLoop, num_interactions)
+
+    def testCollectRgbdData(self):
+        self.taskRunner.callOnThread(self.collectRgbdData)
+
+
+    def testFindBestMatch(self):
+        self.taskRunner.callOnThread(self.findBestBatch)
 
     def loadDefaultPointCloud(self):
         self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
