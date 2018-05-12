@@ -329,39 +329,39 @@ class GraspSupervisor(object):
         return cloud_arr
         return np.reshape(cloud_arr, (cloud_msg.height, cloud_msg.width)) 
 
-    """
-    Returns true if a grasp was found
-    """
+
     def processGenerateGraspsResult(self, result):
-        print "num scored_grasps = ", len(result.scored_grasps)
-        if len(result.scored_grasps) == 0:
+        """
+        Takes the result of spartan_grasp and parses it into a usable form
+        :param result:
+        :return:
+        """
+        print "num antipodal grasps = ", len(result.antipodal_grasps)
+        print "num volume grasps = ", len(result.volume_grasps)
+
+
+        if (len(result.antipodal_grasps) == 0) and (len(result.volume_grasps) == 0):
+            self.topGrasp = None
+            self._grasp_found = False
             rospy.loginfo("no valid grasps found")
             return False
 
-        self.topGrasp = result.scored_grasps[0]
+        if len(result.antipodal_grasps) > 0:
+            self._grasp_found = True
+            grasp_msg = result.antipodal_grasps[0]
+            print "top grasp was ANTIPODAL"
+            
+        elif len(result.volume_grasps) > 0:
+            self._grasp_found = True
+            grasp_msg = result.volume_grasps[0]
+            print "top grasp was VOLUME"
+
+        self.topGrasp = grasp_msg
         rospy.loginfo("-------- top grasp score = %.3f", self.topGrasp.score)
         self.graspFrame = spartanUtils.transformFromROSPoseMsg(self.topGrasp.pose.pose)
         self.rotateGraspFrameToAlignWithNominal(self.graspFrame)
         return True
 
-    # def requestGrasp(self, pointCloudListMsg):
-
-    # 	rospy.loginfo("requesting grasp from spartan_grasp")
-
-    #     serviceName = 'spartan_grasp/GenerateGraspsFromPointCloudList'
-    #     rospy.wait_for_service(serviceName)
-    #     s = rospy.ServiceProxy(serviceName, spartan_grasp_msgs.srv.GenerateGraspsFromPointCloudList)
-    #     response = s(pointCloudListMsg)
-
-    #     print "num scored_grasps = ", len(response.scored_grasps)
-    #     if len(response.scored_grasps) == 0:
-    #     	rospy.loginfo("no valid grasps found")
-    #     	return False
-
-    #     self.topGrasp = response.scored_grasps[0]
-    #     rospy.loginfo("-------- top grasp score = %.3f", self.topGrasp.score)
-    #     self.graspFrame = spartanUtils.transformFromROSPoseMsg(self.topGrasp.pose.pose)
-    #     self.rotateGraspFrameToAlignWithNominal(self.graspFrame)
 
     def getIiwaLinkEEFrameFromGraspFrame(self, graspFrame):
     	return transformUtils.concatenateTransforms([self.iiwaLinkEEToGraspFrame, graspFrame])
@@ -519,6 +519,12 @@ class GraspSupervisor(object):
 
 
     def interactAndCollectFusionDataLoop(self, num_interactions):
+        """
+        Attempts to pickup the object and move it around
+
+        :param num_interactions:
+        :return:
+        """
 
         for i in range(num_interactions):
 
@@ -651,6 +657,7 @@ class GraspSupervisor(object):
         self.requestGrasp()
         result = self.waitForGenerateGraspsResult()
         graspFound = self.processGenerateGraspsResult(result)
+        return graspFound
 
 
     def testMoveHome(self):
