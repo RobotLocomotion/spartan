@@ -716,6 +716,10 @@ class GraspSupervisor(object):
             print "Service call failed: %s"%e
 
     def interact_with_object(self):
+        """
+        Runs one iteration of picking up the object re-orienting it
+        and then placing it back on the table
+        """
         self.collectSensorData()
         self.moveHome()
         self.requestGrasp()
