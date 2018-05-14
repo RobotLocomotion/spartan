@@ -64,6 +64,7 @@ class GraspSupervisor(object):
         self.pointCloudTopic = '/' + str(self.cameraName) + '/depth/points'
         self.rgbImageTopic   = '/' + str(self.cameraName) + '/rgb/image_rect_color'
         self.depthImageTopic = '/' + str(self.cameraName) + '/depth_registered/sw_registered/image_rect'
+        self.camera_info_topic = '/' + str(self.cameraName) + '/rgb/camera_info'
         self.graspFrameName = 'base'
         self.depthOpticalFrameName = self.cameraName + "_depth_optical_frame"
         self.rgbOpticalFrameName = self.cameraName + "_rgb_optical_frame"
@@ -162,9 +163,12 @@ class GraspSupervisor(object):
         self.rgbImageSubscriber   = rosUtils.SimpleSubscriber(self.rgbImageTopic,   sensor_msgs.msg.Image)
         self.depthImageSubscriber = rosUtils.SimpleSubscriber(self.depthImageTopic, sensor_msgs.msg.Image)
 
+        self.camera_info_subscriber = rosUtils.SimpleSubscriber(self.camera_info_topic, sensor_msgs.msg.CameraInfo)
+
         self.pointCloudSubscriber.start()
         self.rgbImageSubscriber.start()
         self.depthImageSubscriber.start()
+        self.camera_info_subscriber.start()
 
         self.clicked_point_subscriber = rosUtils.SimpleSubscriber("/clicked_point", geometry_msgs.msg.PointStamped, self.on_clicked_point)
         self.clicked_point_subscriber.start()
@@ -366,14 +370,18 @@ class GraspSupervisor(object):
         """
         self.moveHome()
         listOfRgbdWithPoseMsg = self.collectRgbdData()
+        self.list_rgbd_with_pose_msg = listOfRgbdWithPoseMsg
 
         # request via a ROS Action
         rospy.loginfo("waiting for find best match server")
         self.find_best_match_client.wait_for_server()
-        rospy.loginfo("requsting best match from server")
+        
 
         goal = pdc_ros_msgs.msg.FindBestMatchGoal()
         goal.rgbd_with_pose_list = listOfRgbdWithPoseMsg
+        goal.camera_info = self.camera_info_subscriber.waitForNextMessage()
+
+        rospy.loginfo("requesting best match from server")
 
         self.find_best_match_client.send_goal(goal)
         self.moveHome()
@@ -386,6 +394,14 @@ class GraspSupervisor(object):
         print "here is result!"
         print result
 
+
+    def request_best_match(self):
+        goal = pdc_ros_msgs.msg.FindBestMatchGoal()
+        goal.rgbd_with_pose_list = self.list_rgbd_with_pose_msg
+        goal.camera_info = self.camera_info_subscriber.waitForNextMessage()
+
+        self.find_best_match_client.send_goal(goal)
+        self.moveHome()
     
     # From: https://www.programcreek.com/python/example/99841/sensor_msgs.msg.PointCloud2
     
@@ -989,6 +1005,9 @@ class GraspSupervisor(object):
 
     def testFindBestMatch(self):
         self.taskRunner.callOnThread(self.findBestBatch)
+
+    def test_best_match_no_data(self):
+        self.taskRunner.callOnThread(self.request_best_match)
 
     def test_reorient(self):
         self.taskRunner.callOnThread(self.pickup_object_and_reorient_on_table)
