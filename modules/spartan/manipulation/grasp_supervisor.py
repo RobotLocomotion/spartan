@@ -116,7 +116,7 @@ class GraspSupervisor(object):
         self.config = dict()
         self.config['base_frame_id'] = "base"
         self.config['end_effector_frame_id'] = "iiwa_link_ee"
-        self.config['pick_up_distance'] = 0.15 # distance to move above the table after grabbing the object
+        self.config['pick_up_distance'] = 0.25 # distance to move above the table after grabbing the object
         self.config['scan'] = dict()
         self.config['scan']['pose_list'] = ['scan_left_close', 'scan_above_table', 'scan_right']
         self.config['scan']['joint_speed'] = 30
@@ -148,7 +148,8 @@ class GraspSupervisor(object):
         self.config["object_interaction"]["speed"] = 10
         self.config["object_interaction"]["rotate_speed"] = 30
         self.config["object_interaction"]["pickup_distance"] = 0.15
-        self.config["object_interaction"]["drop_distance_above_grasp"] = 0.01
+        # self.config["object_interaction"]["drop_distance_above_grasp"] = 0.035 # good for shoes
+        self.config["object_interaction"]["drop_distance_above_grasp"] = 0.002 # good for mugs
         self.config["object_interaction"]["drop_location"] = [0.65, 0, 0.5] # z coordinate is overwritten later
 
         self.graspToIiwaLinkEE = spartanUtils.transformFromPose(self.config['grasp_to_ee'])
@@ -343,7 +344,10 @@ class GraspSupervisor(object):
 
         listOfRgbdWithPoseMsg = []
 
-        for poseName in graspLocationData['scan_pose_list']:
+        pointCloudListMsg = spartan_grasp_msgs.msg.PointCloudList()
+        pointCloudListMsg.header.stamp = rospy.Time.now()
+
+        for poseName in graspLocationData['find_best_match_pose_list']:
             rospy.loginfo("moving to pose = " + poseName)
             joint_positions = graspLocationData['poses'][poseName]
             self.robotService.moveToJointPosition(joint_positions, maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
@@ -351,9 +355,18 @@ class GraspSupervisor(object):
             if self.debugMode:
                 continue
 
+            # capture RGB
             rgbdWithPoseMsg = self.captureRgbdAndCameraTransform()
 
+            # capture Depth
+            pointCloudWithTransformMsg = self.capturePointCloudAndCameraTransform()
+            pointCloudListMsg.point_cloud_list.append(pointCloudWithTransformMsg)
+
             listOfRgbdWithPoseMsg.append(rgbdWithPoseMsg)
+
+        
+        self.pointCloudListMsg = pointCloudListMsg
+        self.listOfRgbdWithPoseMsg = listOfRgbdWithPoseMsg
 
         print "return listOfRgbdWithPoseMsg"
         print len(listOfRgbdWithPoseMsg)
@@ -391,8 +404,73 @@ class GraspSupervisor(object):
         result = self.find_best_match_client.get_result()
         rospy.loginfo("received best match result")
 
-        print "here is result!"
-        print result
+        self.best_match_result = result
+
+        if result.match_found:
+            print "match found"
+            print "location:", result.best_match_location
+        else:
+            print "NO MATCH FOUND"
+
+        return result
+
+    def grasp_best_match(self):
+        assert self.best_match_result.match_found
+
+        best_match_location_msg = self.best_match_result.best_match_location
+        best_match_location = np.zeros(3)
+        best_match_location[0] = best_match_location_msg.x
+        best_match_location[1] = best_match_location_msg.y
+        best_match_location[2] = best_match_location_msg.z
+
+        # check that it is above table
+        min_pt = np.array([0.4, -0.357198029757, 0.0])
+        max_pt = np.array([0.822621226311, 0.3723, 0.5])
+
+        greater_than_min = (best_match_location > min_pt).all()
+        less_than_max = (best_match_location < max_pt).all()
+
+        if not (greater_than_min and less_than_max):
+            print "best match location is outside of workspace bounds"
+            print "best_match_location:", best_match_location
+            return False
+
+
+        print "requesting Grasp 3D location"
+        self.grasp_3D_location_request(best_match_location)
+        result = self.wait_for_grasp_3D_location_result()
+        print "received Grasp 3D Location Response"
+
+        print "result:\n" , result
+        grasp_found = self.processGenerateGraspsResult(result)
+
+        if not grasp_found:
+            print "no grasp found, returning"
+            return False
+
+        print "attempting grasp"
+        return self.attemptGrasp(self.graspFrame)
+
+
+    def find_best_match_and_grasp_and_stow(self):
+        
+        # find best match
+        result = self.findBestBatch()
+        
+        if not result.match_found:
+            return False
+
+        # attempt grasp best match
+        grasp_successful = self.grasp_best_match()
+        if not grasp_successful:
+            self.gripperDriver.sendOpenGripperCommand()
+            self.moveHome()
+
+            print "grasp attempt failed, resetting"
+            return False
+
+        # stow
+        self.pickupObject(stow=True)
 
 
     def request_best_match(self):
@@ -487,7 +565,7 @@ class GraspSupervisor(object):
         """
 
         self._clear_cache()
-        self._cache["grasp_frame"] = self.graspFrame
+        self._cache["grasp_frame"] = graspFrame
 
     	preGraspFrame = transformUtils.concatenateTransforms([self.preGraspToGraspTransform, self.graspFrame])
 
@@ -628,8 +706,8 @@ class GraspSupervisor(object):
         
         
         rotate_x_angle = random.uniform(45, 90)
-        if random.random() < 0.5:
-            rotate_x_angle *= -1
+        # if random.random() < 0.5:
+        #     rotate_x_angle *= -1
 
 
         
@@ -749,6 +827,7 @@ class GraspSupervisor(object):
         grasp_successful = self.attemptGrasp(self.graspFrame)
         if not grasp_successful:
             print "grasp attemp was not successful"
+            return False
         else:
             print "grasped object"
 
@@ -756,7 +835,6 @@ class GraspSupervisor(object):
         if not reoriented_object:
             print "didn't manage to reorient object"
             return False
-
 
         return True
 
@@ -771,9 +849,9 @@ class GraspSupervisor(object):
 
         for i in range(num_interactions):
 
-            success_grasp_object = self.planGraspAndPickupObject(stow=False)
+            success = self.interact_with_object()
 
-            if not success_grasp_object:
+            if not success:
                 print "Human, please go move the object? \n"
                 print "If you don't want to keep doing this,"
                 print "then go implement a 'smack-the-object' primitive."
@@ -931,6 +1009,41 @@ class GraspSupervisor(object):
 
         self.grasp_3D_location_client.send_goal(goal)
 
+    def grasp_3D_location_request(self, grasp_point, pointCloudListMsg=None):
+        """
+        Sends a request to grasp a specific 3D location
+        :param : grasp_point is numpy array or list of size [3]
+        """
+        params = self.getParamsForCurrentLocation()
+        goal = spartan_grasp_msgs.msg.Grasp3DLocationGoal()
+
+        if pointCloudListMsg is None:
+            goal.point_clouds = self.pointCloudListMsg
+        
+
+        goal.grasp_point.x = grasp_point[0]
+        goal.grasp_point.y = grasp_point[1]
+        goal.grasp_point.z = grasp_point[2]
+
+        if 'grasp_volume' in params:
+            node = params['grasp_volume']
+            rectangle = GraspSupervisor.rectangleMessageFromYamlNode(node)
+            goal.params.grasp_volume.append(rectangle)
+
+        if 'collision_volume' in params:
+            node = params['collision_volume']
+            rectangle = GraspSupervisor.rectangleMessageFromYamlNode(node)
+            goal.params.collision_volume.append(rectangle)
+
+        if 'collision_objects' in params:
+            for key, val in params['collision_objects'].iteritems():
+                rectangle = GraspSupervisor.rectangleMessageFromYamlNode(val)
+                goal.params.collision_objects.append(rectangle)
+
+
+        self.grasp_3D_location_client.send_goal(goal)
+
+
     def grasp_3D_location(self):
         """
         Runs the grasping_3D_location pipeline
@@ -1005,6 +1118,12 @@ class GraspSupervisor(object):
 
     def testFindBestMatch(self):
         self.taskRunner.callOnThread(self.findBestBatch)
+
+    def test_grasp_best_match(self):
+        self.taskRunner.callOnThread(self.grasp_best_match)
+
+    def test_find_best_match_and_grasp_and_stow(self):
+        self.taskRunner.callOnThread(self.find_best_match_and_grasp_and_stow)
 
     def test_best_match_no_data(self):
         self.taskRunner.callOnThread(self.request_best_match)

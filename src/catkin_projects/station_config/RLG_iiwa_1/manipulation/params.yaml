@@ -47,6 +47,7 @@ front:
 
 
   scan_pose_list: ['scan_left_close', 'scan_left_center_2', 'scan_above_table', 'scan_right_center', 'scan_right_close']
+  find_best_match_pose_list: ['scan_left_center_2', 'scan_above_table', 'scan_right_center']
 
   grasp:
     grasp_nominal_direction: [1,0,0]
