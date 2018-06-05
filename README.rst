@@ -5,11 +5,12 @@ Spartan
    :target: http://spartan-jenkins.csail.mit.edu:8080/job/spartan-master
 
 This is a project repository for robotics research and applications using
-Drake_ and Director_. This repository is meant as an internal tool for the Robot Locomotion Group and **is not supported for external use**. Documentation on how to operate the Kuka robot hardware can be found here_.
+Drake_ and Director_. This repository is meant as an internal tool for the Robot Locomotion Group and **is not supported for external use**. Documentation on how to operate the Kuka robot hardware `can be found here`_.
 
 .. _Drake: https://www.github.com/RobotLocomotion/drake
 .. _Director: https://www.github.com/RobotLocomotion/director
-.. _here: https://github.com/RobotLocomotion/KukaHardware
+.. _can be found here: https://github.com/RobotLocomotion/KukaHardware
+
 
 
 
