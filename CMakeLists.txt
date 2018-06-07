@@ -147,6 +147,7 @@ ExternalProject_Add(pybind11
     ${CMAKE_ARGS_FOR_EXTERNALS}
     -DPYBIND11_INSTALL:BOOL=ON
     -DPYBIND11_TEST:BOOL=OFF
+    -DPYBIND11_PYTHON_VERSION:STRING=2.7
 )
 
 ExternalProject_Add(common_utils
