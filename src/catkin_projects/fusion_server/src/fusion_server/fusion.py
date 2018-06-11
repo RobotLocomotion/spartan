@@ -406,10 +406,11 @@ class FusionServer(object):
         return rgbOpticalFrameToWorld
 
 
-    def start_bagging(self):
+    def start_bagging(self, bag_folder='logs_special'):
         self.flushCache()
 
-        base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_proto')
+        base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', bag_folder)
+
         log_id_name = spartanUtils.get_current_YYYY_MM_DD_hh_mm_ss()
         log_subdir = "raw"
         bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
@@ -622,10 +623,10 @@ class FusionServer(object):
 
         log_dir = os.path.dirname(os.path.dirname(bag_filepath))
         processed_dir = os.path.join(log_dir, 'processed')
-        images_dir = os.path.join(processed_dir, 'images')
+        images_dir = os.path.join(processed_dir, save_folder_name)
 
         if rgb_only:
-            images_dir = os.path.join(processed_dir, 'rgb_only')
+            images_dir = os.path.join(processed_dir, 'images')
 
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
             self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
