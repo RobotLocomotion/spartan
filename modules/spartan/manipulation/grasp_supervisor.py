@@ -27,6 +27,8 @@ import fusion_server.srv
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
 from spartan.manipulation.schunk_driver import SchunkDriver
+import fusion_server
+from fusion_server.srv import *
 
 # director
 from director import transformUtils
@@ -117,9 +119,11 @@ class GraspSupervisor(object):
         self.config['base_frame_id'] = "base"
         self.config['end_effector_frame_id'] = "iiwa_link_ee"
         self.config['pick_up_distance'] = 0.25 # distance to move above the table after grabbing the object
+
+        self.config["sleep_time_for_sensor_collect"] = 0.1
         self.config['scan'] = dict()
         self.config['scan']['pose_list'] = ['scan_left_close', 'scan_above_table', 'scan_right']
-        self.config['scan']['joint_speed'] = 30
+        self.config['scan']['joint_speed'] = 45
         self.config['grasp_speed'] = 20
 
         normal_speed = 30
@@ -231,6 +235,7 @@ class GraspSupervisor(object):
 
         return lastMsg.point
 
+
     def setupROSActions(self):
 
         actionName = '/spartan_grasp/GenerateGraspsFromPointCloudList'
@@ -266,7 +271,7 @@ class GraspSupervisor(object):
     """
     def capturePointCloudAndCameraTransform(self, cameraOrigin = [0,0,0]):
     	# sleep to transforms can update
-    	rospy.sleep(0.5)
+    	
         msg = spartan_grasp_msgs.msg.PointCloudWithTransform()
         msg.header.stamp = rospy.Time.now()
 
@@ -283,7 +288,7 @@ class GraspSupervisor(object):
 
     def captureRgbdAndCameraTransform(self, cameraOrigin = [0,0,0]):
         # sleep to transforms can update
-        rospy.sleep(0.5)
+        
         msg = pdc_ros_msgs.msg.RGBDWithPose()
         msg.header.stamp = rospy.Time.now()
 
@@ -296,7 +301,7 @@ class GraspSupervisor(object):
 
     def moveHome(self):
         rospy.loginfo("moving home")
-        homePose = self.graspingParams[self.state.graspingLocation]['poses']['above_table_pre_grasp']
+        homePose = self.graspingParams[self.state.graspingLocation]['poses']['scan_above_table']
         self.robotService.moveToJointPosition(homePose, maxJointDegreesPerSecond=self.graspingParams['speed']['nominal'])
 
     def getStowPose(self):
@@ -323,7 +328,7 @@ class GraspSupervisor(object):
             if self.debugMode:
                 continue
 
-            
+            rospy.sleep(self.config["sleep_time_for_sensor_collect"])
             pointCloudWithTransformMsg = self.capturePointCloudAndCameraTransform()
             pointCloudListMsg.point_cloud_list.append(pointCloudWithTransformMsg)
             data[poseName] = pointCloudWithTransformMsg
@@ -355,6 +360,7 @@ class GraspSupervisor(object):
             if self.debugMode:
                 continue
 
+            rospy.sleep(self.config["sleep_time_for_sensor_collect"])
             # capture RGB
             rgbdWithPoseMsg = self.captureRgbdAndCameraTransform()
 
@@ -470,7 +476,9 @@ class GraspSupervisor(object):
             return False
 
         # stow
-        self.pickupObject(stow=True)
+        stow_pose = self.graspingParams["poses"]["hand_to_human_right"]
+        #stow_pose = self.graspingParams["poses"]["stow_in_bin"]
+        self.pickupObject(stow=True, stow_pose=stow_pose)
 
 
     def request_best_match(self):
@@ -618,7 +626,7 @@ class GraspSupervisor(object):
     """
     Moves the gripper up 15cm then moves home
     """
-    def pickupObject(self, stow=True):
+    def pickupObject(self, stow=True, stow_pose=None):
 
         endEffectorFrame = self.tfBuffer.lookup_transform(self.config['base_frame_id'], self.config['end_effector_frame_id'], rospy.Time(0))
 
@@ -641,10 +649,11 @@ class GraspSupervisor(object):
             self.robotService.moveToJointPosition(ik_response.joint_state.position, maxJointDegreesPerSecond=self.graspingParams['speed']['slow'])
 
 
-        stow_pose = self.getStowPose()
+        if stow_pose is None:
+            stow_pose = self.getStowPose()
 
         # move to above_table_pre_grasp
-        self.robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=self.graspingParams['speed']['stow'])
+        # self.robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=self.graspingParams['speed']['stow'])
 
         # move to stow_pose
         if stow:
@@ -654,8 +663,8 @@ class GraspSupervisor(object):
         self.gripperDriver.sendOpenGripperCommand()
         rospy.sleep(0.5)
 
-        # move to above_table_pre_grasp
-        self.robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=self.graspingParams['speed']['fast'])
+        # move Home
+        self.moveHome()
 
     def pickup_object_and_reorient_on_table(self):
         """
@@ -788,6 +797,15 @@ class GraspSupervisor(object):
             return False
 
 
+        self.pickupObject(stow)
+
+    def graspAndStowObject(self):
+        graspSuccessful = self.attemptGrasp(self.graspFrame)
+        if not graspSuccessful:
+            rospy.loginfo("grasp not successful returning")
+            return False
+
+        stow=True
         self.pickupObject(stow)
 
 
@@ -1060,6 +1078,28 @@ class GraspSupervisor(object):
         result = self.wait_for_grasp_3D_location_result()
         grasp_found = self.processGenerateGraspsResult(result)
 
+    def start_bagging(self):
+        print "Waiting for 'start_bagging_fusion_data' service..."
+        rospy.wait_for_service('start_bagging_fusion_data')
+        print "Found it!, starting bagging..."
+        try:
+            start_bagging_fusion_data = rospy.ServiceProxy('start_bagging_fusion_data', StartBaggingFusionData)
+            resp1 = start_bagging_fusion_data()
+            # return resp1.data_filepath
+        except rospy.ServiceException, e:
+            print "Service call failed: %s"%e
+
+    def stop_bagging(self):
+        print "Waiting for 'stop_bagging_fusion_data' service..."
+        rospy.wait_for_service('stop_bagging_fusion_data')
+        print "Found it!, stopping bagging..."
+        try:
+            stop_bagging_fusion_data = rospy.ServiceProxy('stop_bagging_fusion_data', StopBaggingFusionData)
+            resp1 = stop_bagging_fusion_data()
+            return resp1.status
+        except rospy.ServiceException, e:
+            print "Service call failed: %s"%e
+
     def testInThread(self):
         """
         Runs the grasping pipeline
@@ -1097,6 +1137,9 @@ class GraspSupervisor(object):
     def testPickupObject(self):
         self.taskRunner.callOnThread(self.pickupObject)
 
+    def testGraspAndStowObject(self):
+        self.taskRunner.callOnThread(self.graspAndStowObject)
+
     def testPipeline(self):
         self.taskRunner.callOnThread(self.planGraspAndPickupObject)
 
@@ -1133,6 +1176,12 @@ class GraspSupervisor(object):
 
     def test_interact_with_object(self):
         self.taskRunner.callOnThread(self.interact_with_object)
+
+    def test_start_bagging(self):
+        self.taskRunner.callOnThread(self.start_bagging)
+
+    def test_stop_bagging(self):
+        self.taskRunner.callOnThread(self.stop_bagging)
 
     def loadDefaultPointCloud(self):
         self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
