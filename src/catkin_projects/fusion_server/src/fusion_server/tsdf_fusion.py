@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import os
+import subprocess
 import shutil
 import numpy as np
 import math
@@ -101,7 +102,9 @@ def run_tsdf_fusion_cuda(image_folder, output_dir=None, voxel_grid_origin_x=0.4,
     print "cmd:\n", cmd
 
     start_time = time.time()
-    os.system(cmd)
+    process = subprocess.Popen(cmd, shell=True)
+    print "started subprocess, waiting for it to finish"
+    process.wait()
     elapsed = time.time() - start_time
 
     tsdf_bin = os.path.join(image_folder, 'tsdf.bin')
