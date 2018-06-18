@@ -44,9 +44,6 @@
 [submodule "src/handical"]
 	path = src/handical
 	url = git@github.com:RobotLocomotion/handical.git
-[submodule "src/Open3D"]
-	path = src/Open3D
-	url = git@github.com:IntelVCL/Open3D.git
 [submodule "src/tsdf-fusion"]
 	path = src/tsdf-fusion
 	url = git@github.com:RobotLocomotion/tsdf-fusion.git
