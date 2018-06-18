@@ -15,7 +15,7 @@ Drake_ and Director_. This repository is meant as an internal tool for the Robot
 Docker Build instructions
 ==================
 
-The only way to build Spartan is with Docker.  See `build with Docker instructions here`_.
+The only supported way to build Spartan is with Docker.  See `build with Docker instructions here`_.
 
 .. _`build with Docker instructions here`: ./setup/docker/README.md
 
