@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     fs = FusionServer()
     
-    processed_dir, images_dir = fs.extract_data_from_rosbag(bag_filepath, rgb_only=True)
+    processed_dir, images_dir = fs.extract_data_from_rosbag(bag_filepath, rgb_only=True, save_folder_name='rgb_images_only')
 
     end = time.time()
     hours, rem = divmod(end-start, 3600)
