@@ -27,12 +27,12 @@ RUN yes "Y" | /tmp/install_dependencies.sh
 COPY ./setup/ubuntu/16.04/install_prereqs.sh /tmp/spartan_install_prereqs.sh
 RUN yes "Y" | /tmp/spartan_install_prereqs.sh
 
-#COPY ./drake/setup/ubuntu/16.04/install_prereqs.sh /tmp/drake_install_prereqs.sh
-#RUN yes "Y" | /tmp/drake_install_prereqs.sh
+COPY ./drake/setup/ubuntu/16.04 /tmp/drake_setup_16.04
+RUN yes "Y" | /tmp/drake_setup_16.04/install_prereqs.sh
 
 # Hack needed to deal with bazel issue, see https://github.com/bazelbuild/bazel/issues/4483
-COPY ./setup/docker/install_dependencies_drake.sh /tmp/drake_install_prereqs.sh
-RUN yes "Y" | /tmp/drake_install_prereqs.sh
+#COPY ./setup/docker/install_dependencies_drake.sh /tmp/drake_install_prereqs.sh
+#RUN yes "Y" | /tmp/drake_install_prereqs.sh
 
 COPY ./director/distro/travis/install_deps.sh /tmp/director_travis_install_prereqs.sh
 RUN yes "Y" | TRAVIS_OS_NAME=linux /tmp/director_travis_install_prereqs.sh
@@ -41,9 +41,6 @@ RUN yes "Y" | TRAVIS_OS_NAME=linux /tmp/director_travis_install_prereqs.sh
 COPY ./setup/docker/install_handical_dependencies.sh /tmp/install_handical_dependencies.sh
 RUN yes "Y" | /tmp/install_handical_dependencies.sh
 
-#install Open3D
-COPY ./src/Open3D/scripts/install-deps-ubuntu.sh /tmp/open3d-install-deps-ubuntu.sh
-RUN yes "Y" | /tmp/open3d-install-deps-ubuntu.sh
 
 # set the terminator inside the docker container to be a different color
 RUN mkdir -p .config/terminator
