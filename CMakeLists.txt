@@ -31,8 +31,7 @@ option(WITH_MOSEK "Build with support for MOSEK" OFF)
 # write that kind of bazel query).
 option(WITH_BULLET3 "Build a complete version of Bullet, and install pybullet support." OFF)
 
-option(WITH_IIWA_DRIVER_RLG "Build drake-iiwa-driver, RLG version." ON)
-option(WITH_IIWA_DRIVER_TRI "Build drake-iiwa-driver, TRI version." OFF)
+
 option(WITH_ROS "Build the catkin-workspace projects." ON)
 option(WITH_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 option(WITH_TRIMESH "Build trimesh, a python utility for working with triangle meshes" OFF)
@@ -300,44 +299,6 @@ endif()
 #   )
 
 # endif()
-
-if (WITH_IIWA_DRIVER_RLG OR WITH_IIWA_DRIVER_TRI)
-  set(IIWA_DRIVER_GIT_REPOSITORY
-	"git@github.com:RobotLocomotion/drake-iiwa-driver.git"
-	CACHE STRING
-	"Location of drake-iiwa-driver repo including kuka-fri sources")
-
-  # initialize IIWA_DRIVER_GIT_TAG to be empty
-  # then set it based on if we are using RLG or TRI driver
-  set(IIWA_DRIVER_GIT_TAG "")
-
-  if (WITH_IIWA_DRIVER_RLG)
-    set(IIWA_DRIVER_GIT_TAG
-    "cfc11b90fef6a97b7f06566f11970d31556ad3cc"
-    )
-  endif()
-
-  if (WITH_IIWA_DRIVER_TRI)
-    set(IIWA_DRIVER_GIT_TAG
-    "1b11832"
-    )
-  endif()
-
- #message("IIWA_DRIVER_GIT_TAG ${IIWA_DRIVER_GIT_TAG}")
-
-
-  ExternalProject_Add(drake-iiwa-driver
-    SOURCE_DIR ${build_dir}/externals/drake-iiwa-driver
-    BINARY_DIR ${build_dir}/drake-iiwa-driver
-    GIT_REPOSITORY "${IIWA_DRIVER_GIT_REPOSITORY}"
-    GIT_TAG "${IIWA_DRIVER_GIT_TAG}"
-    BUILD_ALWAYS 1
-    CMAKE_CACHE_ARGS
-      ${CMAKE_ARGS_FOR_EXTERNALS}
-    DEPENDS drake
-  )
-
-endif()
 
 
 if (WITH_ROS)
