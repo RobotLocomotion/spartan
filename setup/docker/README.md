@@ -70,6 +70,14 @@ use_spartan
 make -j
 ```
 
+## Environment setup
+
+
+After you configure the build you will find a file named ``setup_environment.sh``
+inside the build folder. The alias `use_spartan` in your docker environment sources this file. You should read the contents of ``setup_environment.sh`` to see what it does.
+In addition to modifying your PATH and other variables, it also defines some
+useful aliases for developers.
+
 ## Docker Cheatsheet
 
 Handling images
