@@ -66,7 +66,7 @@ group "2.iiwa-drivers" {
   }
 
   cmd "1.plan-runner" {
-    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/kuka_plan_runner";
+    exec = "$SPARTAN_INSTALL_DIR/share/drake/examples/kuka_iiwa_arm/kuka_plan_runner";
     host = "localhost";
   }
 
