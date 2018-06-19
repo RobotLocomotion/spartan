@@ -103,8 +103,8 @@ if(APPLE)
   # VTK version used by drake
   set(VTK_INSTALL_DIR /usr/local/opt/vtk@8.0)
   # To configure `director`
-  set(VTK_ARGS
-    -DVTK_DIR:PATH=${VTK_INSTALL_DIR}/lib/cmake/vtk-8.0
+  set(VTK_ARG
+S    -DVTK_DIR:PATH=${VTK_INSTALL_DIR}/lib/cmake/vtk-8.0
     -DPYTHON_CONFIG_EXECUTABLE:FILEPATH=/usr/local/bin/python2.7-config
   )
   # To configure `config/setup_environment.sh.in`
@@ -197,16 +197,16 @@ ExternalProject_Add(spartan_lcmtypes
 #   DEPENDS drake
 # )
 
-if (WITH_REACHABILITY_ANALYZER)
-  ExternalProject_Add(ReachabilityAnalyzer
-  SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
-  BINARY_DIR ${build_dir}/ReachabilityAnalyzer
-  BUILD_ALWAYS 1
-  CMAKE_CACHE_ARGS
-    ${CMAKE_ARGS_FOR_EXTERNALS}
-  DEPENDS drake director RemoteTreeViewer common_utils
-  )
-endif()
+# if (WITH_REACHABILITY_ANALYZER)
+#   ExternalProject_Add(ReachabilityAnalyzer
+#   SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
+#   BINARY_DIR ${build_dir}/ReachabilityAnalyzer
+#   BUILD_ALWAYS 1
+#   CMAKE_CACHE_ARGS
+#     ${CMAKE_ARGS_FOR_EXTERNALS}
+#   DEPENDS drake director RemoteTreeViewer common_utils
+#   )
+# endif()
 
 if (WITH_BULLET3)
   set(BULLET3_GIT_REPOSITORY
