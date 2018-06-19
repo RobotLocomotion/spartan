@@ -5,6 +5,7 @@ mkdir build
 cd build
 
 . /opt/ros/kinetic/setup.bash
+
 cmake -DWITH_PERCEPTION:BOOL=ON -DWITH_BULLET3:BOOL=ON -DWITH_TRIMESH:BOOL=OFF -DWITH_SCHUNK_DRIVER:BOOL=ON -DWITH_ROS:BOOL=ON -DWITH_REACHABILITY_ANALYZER:BOOL=OFF ..
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
