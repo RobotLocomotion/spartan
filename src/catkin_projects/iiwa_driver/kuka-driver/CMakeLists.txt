@@ -22,8 +22,6 @@ find_package(catkin REQUIRED COMPONENTS
 # add custom commands to copy the kuka-fri source code over to the
 # build dir and compile it
 # PROJECT_SOURCE_DIR should be the directory of iiwa_driver
-message(STATUS "cmake source dir" ${CMAKE_SOURCE_DIR})
-message(STATUS "cmake binary dir" ${CMAKE_BINARY_DIR})
 set(fri_client_source ${PROJECT_SOURCE_DIR}/kuka-fri)
 set(fri_client_build ${CMAKE_BINARY_DIR}/kuka-fri-build)
 set(fri_client_makefile ${fri_client_build}/build/GNUMake/Makefile)
