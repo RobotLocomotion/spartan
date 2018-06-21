@@ -164,27 +164,18 @@ group "8.ROS" {
 
 }
 
-group "9.Calibration" {
+group "9.iiwa_sim" {
 
-  cmd "0.static_transform_publisher" {
-    exec = "rosrun tf static_transform_publisher 0 -0.07073 -0.025 0 0 0 1 iiwa_link_ee_gripper_aligned cross_tip 100";
+  cmd "0.drake_iiwa_sim" {
+    exec = "$SPARTAN_INSTALL_DIR/lib/drake_iiwa_sim/iiwa_sim";
     host = "localhost";
   }
 
-  cmd "1.check_webcam_vs_robot.py" {
-    exec = "$SPARTAN_SOURCE_DIR/modules/spartan/mcubeUROP/find_apriltag_corners/check_webcam_vs_robot.py /camera_xtion_ebay/ir/image ";
+  cmd "1.ROS-state-translator" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_ros_state_translator.py";
     host = "localhost";
   }
 
-  cmd "2.extract_corners_from_apriltage" {
-    exec = "$SPARTAN_SOURCE_DIR/modules/spartan/mcubeUROP/find_apriltag_corners/extract_corners_from_apriltag.py";
-    host = "localhost";
-  }
-
-  cmd "3.calib3d2d" {
-    exec = "$SPARTAN_SOURCE_DIR/modules/spartan/mcubeUROP/find_apriltag_corners/calib3d2d.py";
-    host = "localhost";
-  }
 }
 
 script "1.robot_startup" {
