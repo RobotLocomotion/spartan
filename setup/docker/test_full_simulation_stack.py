@@ -35,7 +35,7 @@ def try_launch_deputy_and_sheriff():
     sheriff = launch_process_and_test(["/usr/bin/env", "bot-procman-sheriff", 
         "--no-gui", "--on-script-complete", "exit", 
         os.path.expandvars("${SPARTAN_SOURCE_DIR}/apps/iiwa/iiwa_hardware.pmd"),
-        "4.sim_pybullet_startup_for_ci"])
+        "6.start_drake_iiwa_sim"])
 
     sheriff.wait()
     if sheriff.returncode != 0:
@@ -43,7 +43,7 @@ def try_launch_deputy_and_sheriff():
         cleanup_and_exit(1)
 
 
-def try_to_move_arm_and_hand():
+def try_to_move_arm_and_hand(move_hand=False):
     import rospy
     import rosgraph
     import socket
@@ -101,24 +101,25 @@ def try_to_move_arm_and_hand():
 
 
     # Close the gripper
-    from spartan.manipulation.schunk_driver import SchunkDriver
-    schunkDriver = SchunkDriver()
+    if move_hand:
+        from spartan.manipulation.schunk_driver import SchunkDriver
+        schunkDriver = SchunkDriver()
 
-    rospy.sleep(1.0)
+        rospy.sleep(1.0)
 
-    if schunkDriver.lastStatusMsg is None:
-        print "Got no starting gripper position. Is sim running?"
-        cleanup_and_exit(1)
-    startingGripperPosition = schunkDriver.lastStatusMsg.position_mm
-    
-    schunkDriver.sendCloseGripperCommand()
-    
-    rospy.sleep(1.0)
+        if schunkDriver.lastStatusMsg is None:
+            print "Got no starting gripper position. Is sim running?"
+            cleanup_and_exit(1)
+        startingGripperPosition = schunkDriver.lastStatusMsg.position_mm
+        
+        schunkDriver.sendCloseGripperCommand()
+        
+        rospy.sleep(1.0)
 
-    if schunkDriver.lastStatusMsg.position_mm >= 10.0:
-        print "After trying to close gripper, gripper position was %f (started at %f)." % (schunkDriver.lastStatusMsg.position_mm, startingGripperPosition)
-        print "sendCloseGripperCommand appears ineffectual"
-        cleanup_and_exit(1)
+        if schunkDriver.lastStatusMsg.position_mm >= 10.0:
+            print "After trying to close gripper, gripper position was %f (started at %f)." % (schunkDriver.lastStatusMsg.position_mm, startingGripperPosition)
+            print "sendCloseGripperCommand appears ineffectual"
+            cleanup_and_exit(1)
 
 
 if __name__=="__main__":
