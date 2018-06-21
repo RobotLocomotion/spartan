@@ -226,3 +226,15 @@ script "5.start_ROS" {
   wait ms 3000;
   start group "8.ROS";
 }
+
+script "6.start_drake_iiwa_sim"
+{
+  start cmd "0.roscore";
+  wait ms 3000;
+  start group "8.ROS";
+
+  start group "9.iiwa_sim";
+  start cmd "1.plan-runner";
+  start cmd "2.state-translator";
+  start cmd "4.director";
+}
