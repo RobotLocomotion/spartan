@@ -36,3 +36,16 @@ target_link_libraries(iiwa_lcm drake::drake)
 
 add_executable(iiwa_sim kuka_simulation.cc)
 target_link_libraries(iiwa_sim iiwa_lcm drake::drake gflags_shared)
+
+# install library
+install(TARGETS iiwa_lcm
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+# install executable
+install(TARGETS iiwa_sim
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
