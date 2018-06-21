@@ -4,7 +4,9 @@ rm -rf build
 mkdir build
 cd build
 
-# . /opt/ros/kinetic/setup.bash
+. ~/spartan/setup/docker/entrypoint.sh
+
+
 use_ros
 
 cmake -DWITH_PERCEPTION:BOOL=ON -DWITH_BULLET3:BOOL=ON -DWITH_TRIMESH:BOOL=OFF -DWITH_SCHUNK_DRIVER:BOOL=ON -DWITH_ROS:BOOL=ON -DWITH_REACHABILITY_ANALYZER:BOOL=OFF ..
