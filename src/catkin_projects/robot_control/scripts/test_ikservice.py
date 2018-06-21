@@ -5,6 +5,7 @@ import sys
 # ROS
 import rospy
 import sensor_msgs.msg
+import tf2_ros
 
 
 # ROS custom
@@ -47,11 +48,20 @@ def testIkService():
 
     
     print "IK solution found ", response.success
+    
 
     if response.success:
+        print "moving to joint position", response.joint_state.position
         robotService.moveToJointPosition(response.joint_state.position)
-        
 
+    tfBuffer = tf2_ros.Buffer()
+    tfListener = tf2_ros.TransformListener(tfBuffer)
+
+    ee_frame_name = "iiwa_link_ee"
+    world_frame_name = "base"
+    iiwa_link_ee_to_world = tfBuffer.lookup_transform(world_frame_name, ee_frame_name, rospy.Time(0), rospy.Duration(1.0))
+
+    print "iiwa_link_ee_to_world", iiwa_link_ee_to_world
 
 if __name__ == "__main__":
 	rospy.init_node('TestMovementService')

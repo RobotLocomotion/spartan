@@ -9,12 +9,16 @@ import socket
 # ROS
 import rospy
 import sensor_msgs.msg
+import geometry_msgs.msg
 import rosgraph
+import tf2_ros
 
 
 # spartan
 from spartan.utils.ros_utils import SimpleSubscriber
 from spartan.utils.ros_utils import RobotService
+import spartan.utils.ros_utils as rosUtils
+
 
 
 class IiwaSimulationTest(unittest.TestCase):
@@ -146,6 +150,11 @@ class IiwaSimulationTest(unittest.TestCase):
         self.assertTrue(self._robotSubscriber.hasNewMessage, "Never received robot joint positions on /joint_states topic")
 
 
+    def setupTF(self):
+
+        self.tfBuffer = tf2_ros.Buffer()
+        self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
+
 
     def test_simulator_startup(self):
         """
@@ -184,6 +193,69 @@ class IiwaSimulationTest(unittest.TestCase):
 
         self.assertTrue(reached_target_position, "Robot didn't reach target position")
 
+    def test_ik_service(self):
+        """
+        Test the ik service
+
+        :return:
+        :rtype:
+        """
+        self._start_ros_node_and_wait_for_sim()
+
+        above_table_pre_grasp = [0.04486168762069299, 0.3256606458812486, -0.033502080520812445, -1.5769091802934694,
+                                 0.05899249087322813, 1.246379583616529, 0.38912999977004026]
+
+        poseStamped = geometry_msgs.msg.PoseStamped()
+
+        pos = [0.51003723, 0.02411757, 0.30524811]
+        quat = [0.68763689, 0.15390449, 0.69872774, -0.12348466]
+
+        poseStamped.pose.position.x = pos[0]
+        poseStamped.pose.position.y = pos[1]
+        poseStamped.pose.position.z = pos[2]
+
+        poseStamped.pose.orientation.w = quat[0]
+        poseStamped.pose.orientation.x = quat[1]
+        poseStamped.pose.orientation.y = quat[2]
+        poseStamped.pose.orientation.z = quat[3]
+
+        robotService = rosUtils.RobotService.makeKukaRobotService()
+        response = robotService.runIK(poseStamped, seedPose=above_table_pre_grasp, nominalPose=above_table_pre_grasp)
+
+        print "IK solution found ", response.success
+
+        if response.success:
+            print "moving to joint position", response.joint_state.position
+            robotService.moveToJointPosition(response.joint_state.position)
+
+        self.assertTrue(response.success)
+
+
+        # check that desired position matches actual
+        self.setupTF()
+        ee_frame_name = "iiwa_link_ee"
+        world_frame_name = "base"
+        iiwa_link_ee_to_world = self.tfBuffer.lookup_transform(world_frame_name, ee_frame_name, rospy.Time(0), rospy.Duration(1))
+
+        pos_actual_xyz = iiwa_link_ee_to_world.transform.translation
+        pos_actual = [0]*3
+        pos_actual[0] = pos_actual_xyz.x
+        pos_actual[1] = pos_actual_xyz.y
+        pos_actual[2] = pos_actual_xyz.z
+
+
+        eps = 0.01
+        pos_achieved = np.linalg.norm(np.array(pos) - np.array(pos_actual) ) < eps
+        self.assertTrue(pos_achieved, "Didn't achieve desired end-effector position")
+
+
+def dev():
+    o = IiwaSimulationTest()
+    # o.setUp()
+    o.test_ik_service()
+    # o.tearDown()
+
 
 if __name__ == '__main__':
     unittest.main()
+
