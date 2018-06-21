@@ -1,11 +1,11 @@
 #! /bin/bash
-cd /home/jenkins/spartan
+. ~/spartan/setup/docker/entrypoint.sh
+use_ros
+
+cd ~/spartan
 rm -rf build
 mkdir build
 cd build
-
-. ~/spartan/setup/docker/entrypoint.sh
-use_ros
 
 cmake -DWITH_PERCEPTION:BOOL=ON -DWITH_BULLET3:BOOL=ON -DWITH_TRIMESH:BOOL=OFF -DWITH_SCHUNK_DRIVER:BOOL=ON -DWITH_ROS:BOOL=ON -DWITH_REACHABILITY_ANALYZER:BOOL=OFF ..
 exit_status=$?
