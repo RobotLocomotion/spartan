@@ -226,7 +226,6 @@ class HandEyeCalibration(object):
         self.poseList = ['center', 'left', 'right', 'forwards', 'backwards']
         self.groupName = 'Calibration'
         poseNamesInCalibrationGroup = RobotPoseGUIWrapper.getPoseNamesInGroup(self.groupName)
-        print "names in calibration group ", poseNamesInCalibrationGroup
         self.poseDict = dict()
 
         for poseName in self.poseList:
