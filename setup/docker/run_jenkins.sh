@@ -43,10 +43,10 @@ use_spartan
 # Launch a fake X-server in the background
 Xvfb :100 -ac &
 
-# Launch a complete robot context and execute some canned movement.
-DISPLAY=:100 python ${SPARTAN_SOURCE_DIR}/setup/docker/test_full_simulation_stack.py
+# Run Spartan modules test.
+DISPLAY=:100 py.test --junitxml results.xml /home/jenkins/spartan/modules/spartan/test/
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
-  echo "Error code in test_full_simulation_stack.py: " $exit_status
+  echo "Error code when running tests: " $exit_status
   exit $exit_status
 fi
