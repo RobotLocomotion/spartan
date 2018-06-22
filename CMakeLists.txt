@@ -101,8 +101,8 @@ if(APPLE)
   # VTK version used by drake
   set(VTK_INSTALL_DIR /usr/local/opt/vtk@8.0)
   # To configure `director`
-  set(VTK_ARG
-S    -DVTK_DIR:PATH=${VTK_INSTALL_DIR}/lib/cmake/vtk-8.0
+  set(VTK_ARGS
+    -DVTK_DIR:PATH=${VTK_INSTALL_DIR}/lib/cmake/vtk-8.0
     -DPYTHON_CONFIG_EXECUTABLE:FILEPATH=/usr/local/bin/python2.7-config
   )
   # To configure `config/setup_environment.sh.in`
