@@ -1,11 +1,13 @@
 #! /bin/bash
-cd /home/jenkins/spartan
+. ~/spartan/setup/docker/entrypoint.sh
+use_ros
+
+cd ~/spartan
 rm -rf build
 mkdir build
 cd build
 
-. /opt/ros/kinetic/setup.bash
-cmake -DWITH_PERCEPTION:BOOL=ON -DWITH_BULLET3:BOOL=ON -DWITH_TRIMESH:BOOL=OFF -DWITH_SCHUNK_DRIVER:BOOL=ON -DWITH_ROS:BOOL=ON -DWITH_REACHABILITY_ANALYZER:BOOL=ON ..
+cmake -DWITH_PERCEPTION:BOOL=ON -DWITH_BULLET3:BOOL=ON -DWITH_TRIMESH:BOOL=OFF -DWITH_SCHUNK_DRIVER:BOOL=ON -DWITH_ROS:BOOL=ON -DWITH_REACHABILITY_ANALYZER:BOOL=OFF ..
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code in CMake: " $exit_status
@@ -15,7 +17,8 @@ fi
 # That CMake build generates this environment configuration
 # script, which includes some definitions the compilation requires
 # to work.
-. setup_environment.sh
+# . setup_environment.sh
+use_spartan
 
 make -j8 --output-sync=target
 exit_status=$?
@@ -34,7 +37,8 @@ if [ ! $exit_status -eq 0 ]; then
 fi
 
 # See if we can source everything OK.
-. setup_environment.sh
+# . setup_environment.sh
+use_spartan
 
 # Launch a fake X-server in the background
 Xvfb :100 -ac &

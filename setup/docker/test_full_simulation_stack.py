@@ -3,7 +3,9 @@ import subprocess
 import sys
 import os
 import sensor_msgs.msg
+import spartan.utils.ros_utils as rosUtils
 
+import tf2_ros
 
 all_processes = []
 
@@ -35,7 +37,7 @@ def try_launch_deputy_and_sheriff():
     sheriff = launch_process_and_test(["/usr/bin/env", "bot-procman-sheriff", 
         "--no-gui", "--on-script-complete", "exit", 
         os.path.expandvars("${SPARTAN_SOURCE_DIR}/apps/iiwa/iiwa_hardware.pmd"),
-        "4.sim_pybullet_startup_for_ci"])
+        "6.start_drake_iiwa_sim"])
 
     sheriff.wait()
     if sheriff.returncode != 0:
@@ -43,7 +45,7 @@ def try_launch_deputy_and_sheriff():
         cleanup_and_exit(1)
 
 
-def try_to_move_arm_and_hand():
+def try_to_move_arm_and_hand(move_hand=False):
     import rospy
     import rosgraph
     import socket
@@ -84,41 +86,81 @@ def try_to_move_arm_and_hand():
     # Test IK utilities, which go into pydrake
     import geometry_msgs
     import robot_msgs.srv
+    above_table_pre_grasp = [0.04486168762069299, 0.3256606458812486, -0.033502080520812445, -1.5769091802934694,
+                             0.05899249087322813, 1.246379583616529, 0.38912999977004026]
+
     poseStamped = geometry_msgs.msg.PoseStamped()
-    poseStamped.pose.position.x = 0.5
-    poseStamped.pose.position.y = 0.0
-    poseStamped.pose.position.z = 1.5
-    poseStamped.pose.orientation.w = 1.0
-    poseStamped.pose.orientation.x = 0.0
-    poseStamped.pose.orientation.y = 0.0
-    poseStamped.pose.orientation.z = 0.0
-    srvRequest = robot_msgs.srv.RunIKRequest()
-    srvRequest.pose_stamped = poseStamped
-    success = robotService.moveToCartesianPosition(srvRequest, timeout=5)
-    if not success:
+
+    pos = [0.51003723, 0.02411757, 0.30524811]
+    quat = [0.68763689, 0.15390449, 0.69872774, -0.12348466]
+
+    poseStamped.pose.position.x = pos[0]
+    poseStamped.pose.position.y = pos[1]
+    poseStamped.pose.position.z = pos[2]
+
+    poseStamped.pose.orientation.w = quat[0]
+    poseStamped.pose.orientation.x = quat[1]
+    poseStamped.pose.orientation.y = quat[2]
+    poseStamped.pose.orientation.z = quat[3]
+
+    robotService = rosUtils.RobotService.makeKukaRobotService()
+    response = robotService.runIK(poseStamped, seedPose=above_table_pre_grasp, nominalPose=above_table_pre_grasp)
+
+    print "IK solution found ", response.success
+
+    if response.success:
+        print "moving to joint position", response.joint_state.position
+        robotService.moveToJointPosition(response.joint_state.position)
+
+
+
+    # check that desired position matches actual
+
+    tfBuffer = tf2_ros.Buffer()
+    tfListener = tf2_ros.TransformListener(tfBuffer)
+    ee_frame_name = "iiwa_link_ee"
+    world_frame_name = "base"
+    iiwa_link_ee_to_world = tfBuffer.lookup_transform(world_frame_name, ee_frame_name, rospy.Time(0),
+                                                           rospy.Duration(1))
+
+    pos_actual_xyz = iiwa_link_ee_to_world.transform.translation
+    pos_actual = [0] * 3
+    pos_actual[0] = pos_actual_xyz.x
+    pos_actual[1] = pos_actual_xyz.y
+    pos_actual[2] = pos_actual_xyz.z
+
+    eps = 0.01
+    pos_achieved = np.linalg.norm(np.array(pos) - np.array(pos_actual)) < eps
+
+    if not response.success:
         print "robotService moveToCartesianPosition returned failure ", success
+        cleanup_and_exit(1)
+
+    if not pos_achieved:
+        print "Didn't achieve desired end-effector position"
         cleanup_and_exit(1)
 
 
     # Close the gripper
-    from spartan.manipulation.schunk_driver import SchunkDriver
-    schunkDriver = SchunkDriver()
+    if move_hand:
+        from spartan.manipulation.schunk_driver import SchunkDriver
+        schunkDriver = SchunkDriver()
 
-    rospy.sleep(1.0)
+        rospy.sleep(1.0)
 
-    if schunkDriver.lastStatusMsg is None:
-        print "Got no starting gripper position. Is sim running?"
-        cleanup_and_exit(1)
-    startingGripperPosition = schunkDriver.lastStatusMsg.position_mm
-    
-    schunkDriver.sendCloseGripperCommand()
-    
-    rospy.sleep(1.0)
+        if schunkDriver.lastStatusMsg is None:
+            print "Got no starting gripper position. Is sim running?"
+            cleanup_and_exit(1)
+        startingGripperPosition = schunkDriver.lastStatusMsg.position_mm
+        
+        schunkDriver.sendCloseGripperCommand()
+        
+        rospy.sleep(1.0)
 
-    if schunkDriver.lastStatusMsg.position_mm >= 10.0:
-        print "After trying to close gripper, gripper position was %f (started at %f)." % (schunkDriver.lastStatusMsg.position_mm, startingGripperPosition)
-        print "sendCloseGripperCommand appears ineffectual"
-        cleanup_and_exit(1)
+        if schunkDriver.lastStatusMsg.position_mm >= 10.0:
+            print "After trying to close gripper, gripper position was %f (started at %f)." % (schunkDriver.lastStatusMsg.position_mm, startingGripperPosition)
+            print "sendCloseGripperCommand appears ineffectual"
+            cleanup_and_exit(1)
 
 
 if __name__=="__main__":

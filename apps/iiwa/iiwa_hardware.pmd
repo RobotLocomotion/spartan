@@ -66,7 +66,7 @@ group "2.iiwa-drivers" {
   }
 
   cmd "1.plan-runner" {
-    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/kuka_plan_runner";
+    exec = "$SPARTAN_INSTALL_DIR/share/drake/examples/kuka_iiwa_arm/kuka_plan_runner";
     host = "localhost";
   }
 
@@ -164,27 +164,18 @@ group "8.ROS" {
 
 }
 
-group "9.Calibration" {
+group "9.iiwa_sim" {
 
-  cmd "0.static_transform_publisher" {
-    exec = "rosrun tf static_transform_publisher 0 -0.07073 -0.025 0 0 0 1 iiwa_link_ee_gripper_aligned cross_tip 100";
+  cmd "0.drake_iiwa_sim" {
+    exec = "$SPARTAN_INSTALL_DIR/lib/drake_iiwa_sim/iiwa_sim";
     host = "localhost";
   }
 
-  cmd "1.check_webcam_vs_robot.py" {
-    exec = "$SPARTAN_SOURCE_DIR/modules/spartan/mcubeUROP/find_apriltag_corners/check_webcam_vs_robot.py /camera_xtion_ebay/ir/image ";
+  cmd "1.ROS-state-translator" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_ros_state_translator.py";
     host = "localhost";
   }
 
-  cmd "2.extract_corners_from_apriltage" {
-    exec = "$SPARTAN_SOURCE_DIR/modules/spartan/mcubeUROP/find_apriltag_corners/extract_corners_from_apriltag.py";
-    host = "localhost";
-  }
-
-  cmd "3.calib3d2d" {
-    exec = "$SPARTAN_SOURCE_DIR/modules/spartan/mcubeUROP/find_apriltag_corners/calib3d2d.py";
-    host = "localhost";
-  }
 }
 
 script "1.robot_startup" {
@@ -234,4 +225,16 @@ script "5.start_ROS" {
   start cmd "0.roscore";
   wait ms 3000;
   start group "8.ROS";
+}
+
+script "6.start_drake_iiwa_sim"
+{
+  start cmd "0.roscore";
+  wait ms 3000;
+  start group "8.ROS";
+
+  start group "9.iiwa_sim";
+  start cmd "1.plan-runner";
+  start cmd "2.state-translator";
+  start cmd "4.director";
 }
