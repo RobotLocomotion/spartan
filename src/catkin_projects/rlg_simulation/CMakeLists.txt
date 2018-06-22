@@ -16,7 +16,6 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_msgs
     roscpp
     image_transport
-    drake_ros_systems
     wsg50_msgs
 )
 
