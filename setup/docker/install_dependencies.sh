@@ -17,6 +17,7 @@ apt install --no-install-recommends \
   usbutils \
   dialog \
   python-pip \
+  python-pytest \
   libav-tools
 
 # these following three are ElasticFusion dependencies
