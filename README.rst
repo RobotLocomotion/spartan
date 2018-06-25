@@ -1,8 +1,16 @@
 Spartan
 =======
 
+*Build status on master branch:*
+
 .. image:: http://spartan-jenkins.csail.mit.edu:8080/buildStatus/icon?job=spartan-master
    :target: http://spartan-jenkins.csail.mit.edu:8080/job/spartan-master
+
+*Build status on master branch, using* Drake_ *and* Director_ *master branches:*
+
+.. image:: http://spartan-jenkins.csail.mit.edu:8080/buildStatus/icon?job=spartan-master-on-drake-and-director-master
+   :target: http://spartan-jenkins.csail.mit.edu:8080/job/spartan-master-on-drake-and-director-master
+
 
 This is a project repository for robotics research and applications using
 Drake_ and Director_. This repository is meant as an internal tool for the Robot Locomotion Group and **is not supported for external use**. Documentation on how to operate the Kuka robot hardware `can be found here`_.
