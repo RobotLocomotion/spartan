@@ -47,7 +47,8 @@ target_link_libraries(iiwa_sim
 	gflags_shared)
 
 # install library
-install(TARGETS iiwa_lcm iiwa_qp_inverse_dynamics_controller
+install(TARGETS iiwa_lcm
+ iiwa_qp_inverse_dynamics_controller
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
