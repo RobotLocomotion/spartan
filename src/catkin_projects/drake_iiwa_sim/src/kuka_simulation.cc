@@ -10,7 +10,6 @@
 #include <gflags/gflags.h>
 
 #include "drake_iiwa_sim/iiwa_lcm.h"
-#include "drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h"
 
 #include <drake/common/drake_assert.h>
 #include <drake/common/find_resource.h>
@@ -21,7 +20,6 @@
 #include <drake/lcmt_iiwa_status.hpp>
 #include <drake/manipulation/util/sim_diagram_builder.h>
 #include <drake/multibody/parsers/urdf_parser.h>
-#include <drake/multibody/rigid_body_plant/drake_visualizer.h>
 #include <drake/multibody/rigid_body_plant/frame_visualizer.h>
 #include <drake/multibody/rigid_body_plant/rigid_body_plant.h>
 #include <drake/multibody/rigid_body_tree_construction.h>
@@ -55,12 +53,13 @@ using systems::FrameVisualizer;
 using systems::RigidBodyPlant;
 using systems::Simulator;
 
-void SetPositionControlledIiwaGains(Eigen::VectorXd* Kp, Eigen::VectorXd* Ki,
+void SetPositionControlledIiwaGains(Eigen::VectorXd* Kp,
+                                    Eigen::VectorXd* Ki,
                                     Eigen::VectorXd* Kd) {
   // All the gains are for acceleration, not directly responsible for generating
   // torques. These are set to high values to ensure good tracking. These gains
   // are picked arbitrarily.
-  Kp->resize(kIiwaArmNumJoints);
+  Kp->resize(7);
   *Kp << 100, 100, 100, 100, 100, 100, 100;
   Kd->resize(Kp->size());
   for (int i = 0; i < Kp->size(); i++) {
@@ -72,7 +71,7 @@ void SetPositionControlledIiwaGains(Eigen::VectorXd* Kp, Eigen::VectorXd* Ki,
 
 int DoMain() {
   drake::lcm::DrakeLcm lcm;
-  DiagramBuilder<double> builder;
+  SimDiagramBuilder<double> builder;
 
   // Adds a plant.
   RigidBodyPlant<double>* plant = nullptr;
@@ -86,14 +85,13 @@ int DoMain() {
     parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
         urdf, multibody::joints::kFixed, tree.get());
     multibody::AddFlatTerrainToWorld(tree.get(), 100., 10.);
-    plant = builder.template AddSystem<systems::RigidBodyPlant<double>>(
-        std::move(tree));
+    plant = builder.AddPlant(std::move(tree));
   }
-  const RigidBodyTree<double>& tree = plant->get_rigid_body_tree();
-
   // Creates and adds LCM publisher for visualization.
-  auto vis = builder.template AddSystem<systems::DrakeVisualizer>(tree, &lcm);
-  vis->set_publish_period(kIiwaLcmStatusPeriod);
+  builder.AddVisualizer(&lcm);
+  builder.get_visualizer()->set_publish_period(kIiwaLcmStatusPeriod);
+
+  const RigidBodyTree<double>& tree = plant->get_rigid_body_tree();
   const int num_joints = tree.get_num_positions();
 
   // Adds a iiwa controller
@@ -115,55 +113,51 @@ int DoMain() {
         iiwa_kd.head(kIiwaArmNumJoints);
   }
 
-  auto controller = builder.template AddSystem<IiwaQpInverseDynamicsController>(
-      tree.Clone(), iiwa_kp, iiwa_kd);
+  auto controller = builder.AddController<
+      systems::controllers::InverseDynamicsController<double>>(
+      RigidBodyTreeConstants::kFirstNonWorldModelInstanceId, tree.Clone(),
+      iiwa_kp, iiwa_ki, iiwa_kd, false /* without feedforward acceleration */);
 
   // Create the command subscriber and status publisher.
-  auto command_sub = builder.AddSystem(
+  systems::DiagramBuilder<double>* base_builder = builder.get_mutable_builder();
+  auto command_sub = base_builder->AddSystem(
       systems::lcm::LcmSubscriberSystem::Make<lcmt_iiwa_command>("IIWA_COMMAND",
                                                                  &lcm));
   command_sub->set_name("command_subscriber");
-  auto command_receiver = builder.AddSystem<IiwaCommandReceiver>(num_joints);
+  auto command_receiver =
+      base_builder->AddSystem<IiwaCommandReceiver>(num_joints);
   command_receiver->set_name("command_receiver");
-  std::vector<int> iiwa_instances = {
-      RigidBodyTreeConstants::kFirstNonWorldModelInstanceId};
+  std::vector<int> iiwa_instances =
+      {RigidBodyTreeConstants::kFirstNonWorldModelInstanceId};
   auto external_torque_converter =
-      builder.AddSystem<IiwaContactResultsToExternalTorque>(tree,
-                                                            iiwa_instances);
-  auto status_pub = builder.AddSystem(
+      base_builder->AddSystem<IiwaContactResultsToExternalTorque>(
+          tree, iiwa_instances);
+  auto status_pub = base_builder->AddSystem(
       systems::lcm::LcmPublisherSystem::Make<lcmt_iiwa_status>("IIWA_STATUS",
                                                                &lcm));
   status_pub->set_name("status_publisher");
   status_pub->set_publish_period(kIiwaLcmStatusPeriod);
-  auto status_sender = builder.AddSystem<IiwaStatusSender>(num_joints);
+  auto status_sender = base_builder->AddSystem<IiwaStatusSender>(num_joints);
   status_sender->set_name("status_sender");
 
-  builder.Connect(command_sub->get_output_port(),
-                  command_receiver->get_input_port(0));
-  builder.Connect(command_receiver->get_commanded_state_output_port(),
-                  controller->get_input_port_state_reference());
-  builder.Connect(plant->get_output_port(0),
-                  status_sender->get_state_input_port());
-  builder.Connect(command_receiver->get_output_port(0),
-                  status_sender->get_command_input_port());
-  builder.Connect(controller->get_output_port_torque_commanded(),
-                  status_sender->get_commanded_torque_input_port());
-  builder.Connect(plant->torque_output_port(),
-                  status_sender->get_measured_torque_input_port());
-  builder.Connect(plant->contact_results_output_port(),
-                  external_torque_converter->get_input_port(0));
-  builder.Connect(external_torque_converter->get_output_port(0),
-                  status_sender->get_external_torque_input_port());
-  builder.Connect(status_sender->get_output_port(0),
-                  status_pub->get_input_port());
-  //-------------------
-  builder.Connect(plant->state_output_port(), vis->get_input_port(0));
-  builder.Connect(plant->state_output_port(),
-                  controller->get_input_port_estimated_state());
-  builder.Connect(command_receiver->get_commanded_torque_output_port(),
-                  controller->get_input_port_torque_reference());
-  builder.Connect(controller->get_output_port_torque_commanded(),
-                  plant->actuator_command_input_port());
+  base_builder->Connect(command_sub->get_output_port(),
+                        command_receiver->get_input_port(0));
+  base_builder->Connect(command_receiver->get_commanded_state_output_port(),
+                        controller->get_input_port_desired_state());
+  base_builder->Connect(plant->get_output_port(0),
+                        status_sender->get_state_input_port());
+  base_builder->Connect(command_receiver->get_output_port(0),
+                        status_sender->get_command_input_port());
+  base_builder->Connect(controller->get_output_port_control(),
+                        status_sender->get_commanded_torque_input_port());
+  base_builder->Connect(plant->torque_output_port(),
+                        status_sender->get_measured_torque_input_port());
+  base_builder->Connect(plant->contact_results_output_port(),
+                        external_torque_converter->get_input_port(0));
+  base_builder->Connect(external_torque_converter->get_output_port(0),
+                        status_sender->get_external_torque_input_port());
+  base_builder->Connect(status_sender->get_output_port(0),
+                        status_pub->get_input_port());
 
   if (FLAGS_visualize_frames) {
     // TODO(sam.creasey) This try/catch block is here because even
@@ -173,7 +167,7 @@ int DoMain() {
     // happens (for example) when loading
     // dual_iiwa14_polytope_collision.urdf.
     try {
-      // Visualizes the end effector frame and 7th body's frame.
+    // Visualizes the end effector frame and 7th body's frame.
       std::vector<RigidBodyFrame<double>> local_transforms;
       local_transforms.push_back(
           RigidBodyFrame<double>("iiwa_link_ee", tree.FindBody("iiwa_link_ee"),
@@ -181,15 +175,15 @@ int DoMain() {
       local_transforms.push_back(
           RigidBodyFrame<double>("iiwa_link_7", tree.FindBody("iiwa_link_7"),
                                  Isometry3<double>::Identity()));
-      auto frame_viz = builder.AddSystem<systems::FrameVisualizer>(
+      auto frame_viz = base_builder->AddSystem<systems::FrameVisualizer>(
           &tree, local_transforms, &lcm);
-      builder.Connect(plant->get_output_port(0), frame_viz->get_input_port(0));
+      base_builder->Connect(plant->get_output_port(0),
+                            frame_viz->get_input_port(0));
       frame_viz->set_publish_period(kIiwaLcmStatusPeriod);
     } catch (std::logic_error& ex) {
-      drake::log()->error(
-          "Unable to visualize end effector frames:\n{}\n"
-          "Maybe use --novisualize_frames?",
-          ex.what());
+      drake::log()->error("Unable to visualize end effector frames:\n{}\n"
+                          "Maybe use --novisualize_frames?",
+                          ex.what());
       return 1;
     }
   }
@@ -209,7 +203,6 @@ int DoMain() {
       VectorX<double>::Zero(tree.get_num_positions()));
 
   // Simulate for a very long time.
-  simulator.get_mutable_integrator()->set_maximum_step_size(0.005);
   simulator.StepTo(FLAGS_simulation_sec);
 
   return 0;

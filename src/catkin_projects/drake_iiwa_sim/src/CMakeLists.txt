@@ -34,20 +34,11 @@
 add_library(iiwa_lcm iiwa_lcm.cc)
 target_link_libraries(iiwa_lcm drake::drake)
 
-add_library(iiwa_qp_inverse_dynamics_controller
-        iiwa_qp_inverse_dynamics_controller.cc)
-
-target_link_libraries(iiwa_qp_inverse_dynamics_controller drake::drake)
-
 add_executable(iiwa_sim kuka_simulation.cc)
-target_link_libraries(iiwa_sim 
-	iiwa_lcm 
-	iiwa_qp_inverse_dynamics_controller
-	drake::drake 
-	gflags_shared)
+target_link_libraries(iiwa_sim iiwa_lcm drake::drake gflags_shared)
 
 # install library
-install(TARGETS iiwa_lcm iiwa_qp_inverse_dynamics_controller
+install(TARGETS iiwa_lcm
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
