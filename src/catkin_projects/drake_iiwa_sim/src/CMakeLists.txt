@@ -30,21 +30,24 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include/drake_iiwa_sim/)
 
-add_library(iiwa_lcm iiwa_lcm.cc)
+add_library(iiwa_lcm
+        ${PROJECT_INCLUDE_DIR}/iiwa_lcm.h
+        iiwa_lcm.cc)
 target_link_libraries(iiwa_lcm drake::drake)
 
 add_library(iiwa_qp_inverse_dynamics_controller
+        ${PROJECT_INCLUDE_DIR}/iiwa_qp_inverse_dynamics_controller.h
         iiwa_qp_inverse_dynamics_controller.cc)
-
 target_link_libraries(iiwa_qp_inverse_dynamics_controller drake::drake)
 
 add_executable(iiwa_sim kuka_simulation.cc)
-target_link_libraries(iiwa_sim 
-	iiwa_lcm 
-	iiwa_qp_inverse_dynamics_controller
-	drake::drake 
-	gflags_shared)
+target_link_libraries(iiwa_sim
+        iiwa_lcm
+        iiwa_qp_inverse_dynamics_controller
+        drake::drake
+        gflags_shared)
 
 # install library
 install(TARGETS iiwa_lcm

@@ -21,19 +21,19 @@ class IiwaQpInverseDynamicsController : public systems::LeafSystem<double> {
                                   double control_period = 0.005);
 
   const systems::OutputPort<double>& get_output_port_torque_commanded() const {
-    return this->get_output_port(0);
+    return this->get_output_port(idx_output_port_commanded_torque_);
   }
 
   const systems::InputPortDescriptor<double>& get_input_port_estimated_state() const {
-    return this->get_input_port(0);
+    return this->get_input_port(idx_input_port_estimated_state_);
   }
 
   const systems::InputPortDescriptor<double>& get_input_port_state_reference() const {
-    return this->get_input_port(1);
+    return this->get_input_port(idx_input_port_state_reference_);
   }
 
   const systems::InputPortDescriptor<double>& get_input_port_torque_reference() const {
-    return this->get_input_port(2);
+    return this->get_input_port(idx_input_port_reference_torque_);
   }
 
   void CopyStateOut(const systems::Context<double>& context,
@@ -52,6 +52,10 @@ class IiwaQpInverseDynamicsController : public systems::LeafSystem<double> {
   Eigen::VectorXd kp_;
   Eigen::VectorXd kd_;
   std::unique_ptr<RigidBodyTreed> tree_{nullptr};
+  int idx_input_port_estimated_state_{-1};
+  int idx_input_port_state_reference_{-1};
+  int idx_input_port_reference_torque_{-1};
+  int idx_output_port_commanded_torque_{-1};
 };
 
 }  // namespace kuka_iiwa_arm

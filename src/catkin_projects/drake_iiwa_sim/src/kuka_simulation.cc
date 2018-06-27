@@ -46,7 +46,6 @@ namespace drake {
 namespace examples {
 namespace kuka_iiwa_arm {
 namespace {
-using manipulation::util::SimDiagramBuilder;
 using systems::ConstantVectorSource;
 using systems::Context;
 using systems::Diagram;
