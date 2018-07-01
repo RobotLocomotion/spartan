@@ -35,19 +35,39 @@ set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include/drake_iiwa_sim/)
 add_library(iiwa_lcm
         ${PROJECT_INCLUDE_DIR}/iiwa_lcm.h
         iiwa_lcm.cc)
-target_link_libraries(iiwa_lcm drake::drake)
+target_link_libraries(iiwa_lcm
+        drake::drake)
 
 add_library(iiwa_qp_inverse_dynamics_controller
         ${PROJECT_INCLUDE_DIR}/iiwa_qp_inverse_dynamics_controller.h
         iiwa_qp_inverse_dynamics_controller.cc)
-target_link_libraries(iiwa_qp_inverse_dynamics_controller drake::drake)
+target_link_libraries(iiwa_qp_inverse_dynamics_controller
+        drake::drake)
 
-add_executable(iiwa_sim kuka_simulation.cc)
+add_executable(iiwa_sim
+        kuka_simulation.cc)
 target_link_libraries(iiwa_sim
         iiwa_lcm
         iiwa_qp_inverse_dynamics_controller
         drake::drake
         gflags_shared)
+
+add_executable(plan_runner
+        plan_runner.cc)
+target_link_libraries(plan_runner
+        drake::drake)
+
+add_library(plan_types
+        plan_types.h
+        plan_types.cc)
+target_link_libraries(plan_types
+        drake::drake)
+
+add_executable(plan_types_test
+        plan_types_test.cc)
+target_link_libraries(plan_types_test
+        plan_types
+        drake::drake)
 
 # install library
 install(TARGETS iiwa_lcm
