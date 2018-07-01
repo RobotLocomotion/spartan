@@ -208,7 +208,6 @@ int DoMain() {
       VectorX<double>::Zero(tree.get_num_positions()));
 
   // Simulate for a very long time.
-  simulator.get_mutable_integrator()->set_maximum_step_size(0.005);
   simulator.StepTo(FLAGS_simulation_sec);
 
   return 0;
