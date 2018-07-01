@@ -37,12 +37,12 @@ typedef PiecewisePolynomial<double> PPType;
 class PlanRunner {
  public:
   /// tree is aliased
-  explicit PlanRunner(const RigidBodyTree<double> &tree)
-      : tree_(tree), plan_number_(0), has_plan_(false) {
-    DRAKE_DEMAND(kNumJoints == tree_.get_num_positions());
-    DRAKE_DEMAND(kNumJoints == tree_.get_num_actuators());
+  explicit PlanRunner(const std::shared_ptr<const RigidBodyTreed> tree)
+      : tree_(tree), plan_number_(0) {
+    DRAKE_DEMAND(kNumJoints == tree_->get_num_positions());
+    DRAKE_DEMAND(kNumJoints == tree_->get_num_actuators());
     lcm_.subscribe(kLcmStatusChannel, &PlanRunner::HandleStatus, this);
-
+    plan_ = nullptr;
     // for testing only. creates a BlankPlan that cannot be changed.
   }
 
@@ -66,6 +66,9 @@ class PlanRunner {
     iiwa_command.num_torques = 0;
     iiwa_command.joint_torque.resize(kNumJoints, 0.);
 
+    VectorXd x(kNumJoints*2);
+    VectorXd q_commanded(kNumJoints), v_commanded(kNumJoints);
+
     while (true) {
       // Call lcm handle until at least one status message is
       // processed.
@@ -74,25 +77,38 @@ class PlanRunner {
 
       cur_time_us = iiwa_status_.utime;
 
-      if (plan_) {
-        if (plan_number_ != cur_plan_number) {
-          std::cout << "Starting new plan." << std::endl;
-          start_time_us = cur_time_us;
-          cur_plan_number = plan_number_;
-        }
-
-        const double cur_traj_time_s =
-            static_cast<double>(cur_time_us - start_time_us) / 1e6;
-        const auto desired_next = plan_->value(cur_traj_time_s);
-
-        iiwa_command.utime = iiwa_status_.utime;
-
-        for (int joint = 0; joint < kNumJoints; joint++) {
-          iiwa_command.joint_position[joint] = desired_next(joint);
-        }
-
-        lcm_.publish(kLcmCommandChannel, &iiwa_command);
+      for (int i = 0; i < kNumJoints; i++) {
+        x[i] = iiwa_status_.joint_position_measured[i];
+        x[i+kNumJoints] = iiwa_status_.joint_velocity_estimated[i];
       }
+
+      if (!plan_) {
+        // This block should only run once after the infinite while loop starts.
+        std::cout << "Starting PlanRunner..." << std::endl;
+        plan_ = std::make_unique<Plan>();
+        plan_ = JointSpaceTrajectoryPlan::MakeBlankPlan(tree_, x.head(kNumJoints));
+        plan_number_++;
+      }
+
+      if (plan_number_ != cur_plan_number) {
+        std::cout << "Starting new plan." << std::endl;
+        start_time_us = cur_time_us;
+        cur_plan_number = plan_number_;
+      }
+
+      const double cur_traj_time_s =
+          static_cast<double>(cur_time_us - start_time_us) / 1e6;
+
+      plan_->Step(x, cur_traj_time_s, &q_commanded, &v_commanded);
+
+      iiwa_command.utime = iiwa_status_.utime;
+
+      for (int i = 0; i < kNumJoints; i++) {
+        iiwa_command.joint_position[i] = q_commanded(i);
+      }
+
+      lcm_.publish(kLcmCommandChannel, &iiwa_command);
+
     }
   }
 
@@ -102,57 +118,6 @@ class PlanRunner {
     iiwa_status_ = *status;
   }
 
-  void HandlePlan(const lcm::ReceiveBuffer *, const std::string &,
-                  const robotlocomotion::robot_plan_t *plan) {
-    std::cout << "New plan received." << std::endl;
-    if (iiwa_status_.utime == -1) {
-      std::cout << "Discarding plan, no status message received yet"
-                << std::endl;
-      return;
-    } else if (plan->num_states < 2) {
-      std::cout << "Discarding plan, Not enough knot points." << std::endl;
-      return;
-    }
-
-    std::vector<Eigen::MatrixXd> knots(plan->num_states,
-                                       Eigen::MatrixXd::Zero(kNumJoints, 1));
-    std::map<std::string, int> name_to_idx =
-        tree_.computePositionNameToIndexMap();
-    for (int i = 0; i < plan->num_states; ++i) {
-      const auto &state = plan->plan[i];
-      for (int j = 0; j < state.num_joints; ++j) {
-        if (name_to_idx.count(state.joint_name[j]) == 0) {
-          continue;
-        }
-        // Treat the matrix at knots[i] as a column vector.
-        if (i == 0) {
-          // Always start moving from the position which we're
-          // currently commanding.
-          DRAKE_DEMAND(iiwa_status_.utime != -1);
-          knots[0](name_to_idx[state.joint_name[j]], 0) =
-              iiwa_status_.joint_position_commanded[j];
-        } else {
-          knots[i](name_to_idx[state.joint_name[j]], 0) =
-              state.joint_position[j];
-        }
-      }
-    }
-
-    for (int i = 0; i < plan->num_states; ++i) {
-      std::cout << knots[i] << std::endl;
-    }
-
-    std::vector<double> input_time;
-    for (int k = 0; k < static_cast<int>(plan->plan.size()); ++k) {
-      input_time.push_back(plan->plan[k].utime / 1e6);
-    }
-    const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(kNumJoints, 1);
-    plan_.reset(
-        new PiecewisePolynomial<double>(PiecewisePolynomial<double>::Cubic(
-            input_time, knots, knot_dot, knot_dot)));
-    ++plan_number_;
-  }
-
   void HandleStop(const lcm::ReceiveBuffer *, const std::string &,
                   const robotlocomotion::robot_plan_t *) {
     std::cout << "Received stop command. Discarding plan." << std::endl;
@@ -160,27 +125,26 @@ class PlanRunner {
   }
 
   lcm::LCM lcm_;
-  const RigidBodyTree<double> &tree_;
+  const std::shared_ptr<const RigidBodyTreed> tree_;
   int plan_number_{};
-  std::unique_ptr<PiecewisePolynomial<double>> plan_;
+  // std::unique_ptr<PiecewisePolynomial<double>> plan_;
   lcmt_iiwa_status iiwa_status_;
 
   // added by PT
   // This variable is false when PlanRunner is constructed. And is set true
   // after receiving the first IIWA_STATUS message and contructing an empty
   // Plan.
-  bool has_plan_;
-  std::unique_ptr<Plan> plan_ptr;
+  std::unique_ptr<Plan> plan_;
 };
 
 int do_main() {
-  auto tree = std::make_unique<RigidBodyTree<double>>();
+  auto tree = std::make_shared<RigidBodyTree<double>>();
   parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
       FindResourceOrThrow("drake/manipulation/models/iiwa_description/urdf/"
                           "iiwa14_primitive_collision.urdf"),
       multibody::joints::kFixed, tree.get());
 
-  PlanRunner runner(*tree);
+  PlanRunner runner(tree);
   runner.Run();
   return 0;
 }

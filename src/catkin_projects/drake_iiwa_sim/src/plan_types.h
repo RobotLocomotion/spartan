@@ -16,23 +16,36 @@ typedef trajectories::PiecewisePolynomial<double> PPType;
 // commanded state/torque.
 class Plan {
 public:
-  Plan(): nq_(-1) {}
+  Plan() : nq_(-1) {}
   Plan(std::shared_ptr<const RigidBodyTreed> tree, PlanType p_type)
       : tree_(tree), p_type_(p_type), nq_(tree->get_num_positions()) {}
 
   PlanType get_plan_type() { return p_type_; }
   int get_num_dofs() { return nq_; }
 
-  // every subclass should override the Step method with a concrete implementation.
+  // every subclass should override the Step method with a concrete
+  // implementation.
   virtual void Step(const Eigen::Ref<const Eigen::VectorXd> &x, double t,
-                   Eigen::VectorXd *const q_commanded,
-                   Eigen::VectorXd *const v_commanded) const {
+                    Eigen::VectorXd *const q_commanded,
+                    Eigen::VectorXd *const v_commanded) const {
     throw std::runtime_error("Step() in the base class Plan has been called.");
   }
 
-private:
-  const int nq_{-1};
+  double duration() {
+    if (q_traj_.get_number_of_segments() > 0) {
+      return q_traj_.end_time() - q_traj_.start_time();
+    } else {
+      return 0.;
+    }
+  }
+
+protected:
+  PPType q_traj_;
+  PPType v_traj_;
   std::shared_ptr<const RigidBodyTreed> tree_;
+
+ private:
+  const int nq_{-1};
   PlanType p_type_;
 };
 
@@ -40,17 +53,18 @@ class JointSpaceTrajectoryPlan : public Plan {
 public:
   JointSpaceTrajectoryPlan(std::shared_ptr<const RigidBodyTreed> tree,
                            const PPType &q_traj)
-      : Plan(tree, JointSpaceTrajectoryPlanType), q_traj_(q_traj) {
-    DRAKE_ASSERT(q_traj_.cols() == 1);
-    DRAKE_ASSERT(q_traj_.rows() == this->get_num_dofs());
+      : Plan(tree, JointSpaceTrajectoryPlanType) {
+    DRAKE_ASSERT(q_traj.cols() == 1);
+    DRAKE_ASSERT(q_traj.rows() == this->get_num_dofs());
+    q_traj_ = q_traj;
     v_traj_ = q_traj_.derivative(1);
   }
 
   // Current robot state x = [q,v]
   // Current time t
   void Step(const Eigen::Ref<const Eigen::VectorXd> &x, double t,
-           Eigen::VectorXd *const q_commanded,
-           Eigen::VectorXd *const v_commanded) const override {
+            Eigen::VectorXd *const q_commanded,
+            Eigen::VectorXd *const v_commanded) const override {
     DRAKE_ASSERT(t >= 0);
     *q_commanded = q_traj_.value(t);
     *v_commanded = v_traj_.value(t);
@@ -72,10 +86,6 @@ public:
         tree, PPType::ZeroOrderHold(times, knots));
     return std::move(ptr);
   }
-
-private:
-  PPType q_traj_;
-  PPType v_traj_;
 };
 
 } // namespace kuka_iiwa_arm
