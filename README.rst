@@ -239,6 +239,12 @@ FAQ
 - If you get an error related to an ``LCM Self Test`` (e.g. in a director test), then it is likely your network is not allowing LCM packets to return via loopback. See https://lcm-proj.github.io/multicast_setup.html.
 - If you get an error related to being unable to find a shared library ``liblcm.so`` after calling ``make``, you may not have called ``. build/setup_environment.sh`` (or, equivalently, ``use_spartan``). These commands work only after calling ``cmake``, so run the CMake configuration -- then source the environment setup file -- then run ``make``.
 
+Code Style
+=======
+- C++ code should follow the Google style guide https://google.github.io/styleguide/cppguide.html
+- Python code should follow the Google style guide https://github.com/google/styleguide/blob/gh-pages/pyguide.md
+
+
 CI with Jenkins
 =======
 CI is provided by Jenkins, presently running on a DRC laptop running Ubuntu
