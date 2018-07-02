@@ -1,4 +1,5 @@
 #pragma once
+
 #include <stdexcept>
 
 #include <drake/common/trajectories/piecewise_polynomial.h>
@@ -44,7 +45,7 @@ protected:
   PPType v_traj_;
   std::shared_ptr<const RigidBodyTreed> tree_;
 
- private:
+private:
   const int nq_{-1};
   PlanType p_type_;
 };
@@ -86,6 +87,7 @@ public:
         tree, PPType::ZeroOrderHold(times, knots));
     return std::move(ptr);
   }
+
 };
 
 } // namespace kuka_iiwa_arm

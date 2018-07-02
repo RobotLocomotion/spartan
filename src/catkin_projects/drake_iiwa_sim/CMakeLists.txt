@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(drake_iiwa_sim)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -18,7 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
 # find_package(Boost REQUIRED COMPONENTS system)
 find_package(drake REQUIRED)
 find_package(GFlags MODULE REQUIRED COMPONENTS shared)
-
+find_package(Threads REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures

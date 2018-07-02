@@ -49,6 +49,15 @@ int do_main() {
     cout << "v\n" << v_commanded << endl;
   }
 
+  std::unique_ptr<Plan> plan2;
+  plan2 = std::move(plan);
+
+  if(plan) {
+    cout << "plan is not false." << endl;
+  } else {
+    cout << "plan is false." << endl;
+  }
+
   return 0;
 }
 } // namespace

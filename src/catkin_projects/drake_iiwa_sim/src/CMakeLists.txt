@@ -44,6 +44,16 @@ add_library(iiwa_qp_inverse_dynamics_controller
 target_link_libraries(iiwa_qp_inverse_dynamics_controller
         drake::drake)
 
+add_library(iiwa_plan_runner
+        plan_types.h
+        plan_runner.h
+        plan_types.cc
+        plan_runner.cc)
+target_link_libraries(iiwa_plan_runner
+        drake::drake
+        ${CMAKE_THREAD_LIBS_INIT})
+
+
 add_executable(iiwa_sim
         kuka_simulation.cc)
 target_link_libraries(iiwa_sim
@@ -52,21 +62,16 @@ target_link_libraries(iiwa_sim
         drake::drake
         gflags_shared)
 
-add_executable(plan_runner
-        plan_runner.cc)
-target_link_libraries(plan_runner
-        drake::drake)
-
-add_library(plan_types
-        plan_types.h
-        plan_types.cc)
-target_link_libraries(plan_types
-        drake::drake)
-
 add_executable(plan_types_test
         plan_types_test.cc)
 target_link_libraries(plan_types_test
-        plan_types
+        iiwa_plan_runner
+        drake::drake)
+
+add_executable(run_plan_runner
+        run_plan_runner.cc)
+target_link_libraries(run_plan_runner
+        iiwa_plan_runner
         drake::drake)
 
 # install library
