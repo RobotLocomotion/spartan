@@ -18,8 +18,14 @@ typedef trajectories::PiecewisePolynomial<double> PPType;
 class Plan {
 public:
   Plan() : nq_(-1) {}
-  Plan(std::shared_ptr<const RigidBodyTreed> tree, PlanType p_type)
-      : tree_(tree), p_type_(p_type), nq_(tree->get_num_positions()) {}
+  Plan(std::shared_ptr<const RigidBodyTreed> tree, const PPType &q_traj,
+       PlanType p_type)
+      : tree_(tree), p_type_(p_type), nq_(tree->get_num_positions()),
+        traj_(q_traj) {
+    DRAKE_ASSERT(q_traj.cols() == 1);
+    DRAKE_ASSERT(q_traj.rows() == nq_);
+    traj_d_ = traj_.derivative(1);
+  }
 
   PlanType get_plan_type() { return p_type_; }
   int get_num_dofs() { return nq_; }
@@ -33,16 +39,16 @@ public:
   }
 
   double duration() {
-    if (q_traj_.get_number_of_segments() > 0) {
-      return q_traj_.end_time() - q_traj_.start_time();
+    if (traj_.get_number_of_segments() > 0) {
+      return traj_.end_time() - traj_.start_time();
     } else {
       return 0.;
     }
   }
 
 protected:
-  PPType q_traj_;
-  PPType v_traj_;
+  PPType traj_;
+  PPType traj_d_; // 1st order derivative of traj_
   std::shared_ptr<const RigidBodyTreed> tree_;
 
 private:
@@ -54,12 +60,7 @@ class JointSpaceTrajectoryPlan : public Plan {
 public:
   JointSpaceTrajectoryPlan(std::shared_ptr<const RigidBodyTreed> tree,
                            const PPType &q_traj)
-      : Plan(tree, JointSpaceTrajectoryPlanType) {
-    DRAKE_ASSERT(q_traj.cols() == 1);
-    DRAKE_ASSERT(q_traj.rows() == this->get_num_dofs());
-    q_traj_ = q_traj;
-    v_traj_ = q_traj_.derivative(1);
-  }
+      : Plan(tree, q_traj, JointSpaceTrajectoryPlanType) {}
 
   // Current robot state x = [q,v]
   // Current time t
@@ -67,8 +68,8 @@ public:
             Eigen::VectorXd *const q_commanded,
             Eigen::VectorXd *const v_commanded) const override {
     DRAKE_ASSERT(t >= 0);
-    *q_commanded = q_traj_.value(t);
-    *v_commanded = v_traj_.value(t);
+    *q_commanded = traj_.value(t);
+    *v_commanded = traj_d_.value(t);
   }
 
   static std::unique_ptr<JointSpaceTrajectoryPlan>
@@ -87,7 +88,12 @@ public:
         tree, PPType::ZeroOrderHold(times, knots));
     return std::move(ptr);
   }
+};
 
+class TaskSpaceTrajectoryPlan : public Plan {
+  TaskSpaceTrajectoryPlan(std::shared_ptr<const RigidBodyTreed> tree,
+                          const PPType &x_ee_traj)
+      : Plan(tree, x_ee_traj, TaskSpaceTrajectoryPlanType) {}
 };
 
 } // namespace kuka_iiwa_arm
