@@ -33,13 +33,11 @@ int do_main() {
 
   runner.MoveToJointPosition(q1);
   std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-  cout << "Is current plan finished? " << runner.is_cur_plan_finished() << endl;
   std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-  cout << "Is current plan finished? " << runner.is_cur_plan_finished() << endl;
 
   runner.MoveToJointPosition(q0);
 
-  //  auto plan = JointSpaceTrajectoryPlan::MakeBlankPlan(runner.get_tree(),
+  //  auto plan = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(runner.get_tree(),
   //  q0);
   //  runner.QueueNewPlan(std::move(plan));
 

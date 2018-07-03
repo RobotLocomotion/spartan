@@ -59,9 +59,6 @@ public:
     }
   }
 
-  bool is_cur_plan_finished() {
-    return (cur_plan_time_s_ > plan_->duration()) || is_cur_plan_terminated_;
-  }
 
   Eigen::VectorXd get_current_robot_state() {
     return current_robot_state_;
@@ -97,11 +94,12 @@ public:
       // Call lcm handle until at least one status message is
       // processed.
       while (0 == lcm_.handleTimeout(10) || !has_received_new_status_) {
+        // Print something here so users know no LCM message has been received.
       }
     }
   }
 
-  // This method is used by the condition_variable to prevent spurious wakeup.
+  // This method is used by the condition_variable to prevent spurious wakeups.
   bool has_received_new_status() { return has_received_new_status_; }
 
   void PublishCommand() {
@@ -131,7 +129,7 @@ public:
       iiwa_status = iiwa_status_;
       has_received_new_status_ = false;
       // Calling unlock is necessary because when cv_.wait() returns, this
-      // process acquires the mutex lock, preventing the subscriber thread from
+      // thread acquires the mutex lock, preventing the receiver thread from
       // executing.
       lock.unlock();
 
@@ -147,7 +145,7 @@ public:
         // starts.
         std::cout << "Generating first plan(holding current position)..."
                   << std::endl;
-        new_plan_ = JointSpaceTrajectoryPlan::MakeBlankPlan(
+        new_plan_ = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(
             tree_, current_robot_state_.head(kNumJoints));
       }
 
@@ -183,7 +181,7 @@ public:
                   << cur_plan_number << " and starting a new blank plan."
                   << std::endl;
         std::lock_guard<std::mutex> lock(mutex_);
-        new_plan_ = JointSpaceTrajectoryPlan::MakeBlankPlan(
+        new_plan_ = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(
             tree_, current_robot_state_.head(kNumJoints));
         continue;
       }

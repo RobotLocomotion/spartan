@@ -30,17 +30,10 @@ int do_main() {
   Eigen::VectorXd q_commanded, v_commanded;
   std::vector<double> t{0, 1, 10, 1e80};
 
-  auto plan = std::make_unique<Plan>();
+  std::unique_ptr<Plan> plan;
 
-  // An exception should be thrown if the Step method in the base class is called.
-  try {
-    plan->Step(x, t[0], &q_commanded, &v_commanded);
-  }
-  catch(std::runtime_error& e) {
-    std::cerr << e.what() << endl;
-  }
 
-  plan = JointSpaceTrajectoryPlan::MakeBlankPlan(tree, q);
+  plan = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(tree, q);
   cout << "hello world!" << endl;
   for(auto & ti:t) {
     plan->Step(x, ti, &q_commanded, &v_commanded);
