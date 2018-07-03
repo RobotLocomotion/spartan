@@ -13,7 +13,7 @@ enum PlanType { JointSpaceTrajectoryPlanType, TaskSpaceTrajectoryPlanType };
 typedef trajectories::PiecewisePolynomial<double> PPType;
 
 // abstract class
-// Every Plan subclass should have a concrete Run method which generates the
+// Every Plan subclass should have a concrete Step() method which generates the
 // commanded state/torque.
 class Plan {
 public:
