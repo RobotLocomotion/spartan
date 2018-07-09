@@ -13,13 +13,13 @@ enum PlanType { JointSpaceTrajectoryPlanType, TaskSpaceTrajectoryPlanType };
 typedef trajectories::PiecewisePolynomial<double> PPType;
 
 // abstract class
-// Every Plan subclass should have a concrete Step() method which generates the
+// Every PlanBase subclass should have a concrete Step() method which generates the
 // commanded state/torque.
-class Plan {
+class PlanBase {
 public:
-  Plan(std::shared_ptr<const RigidBodyTreed> tree, PlanType p_type):
+  PlanBase(std::shared_ptr<const RigidBodyTreed> tree, PlanType p_type):
       tree_(tree), p_type_(p_type) {}
-  ~Plan() {}
+  ~PlanBase() {}
   virtual void Step(const Eigen::Ref<const Eigen::VectorXd> &x, double t,
                     Eigen::VectorXd *const q_commanded,
                     Eigen::VectorXd *const v_commanded) const = 0;
@@ -31,11 +31,11 @@ protected:
   std::shared_ptr<const RigidBodyTreed> tree_;
 };
 
-class TrajectoryPlan : public Plan {
+class TrajectoryPlan : public PlanBase {
 public:
   TrajectoryPlan(std::shared_ptr<const RigidBodyTreed> tree,
                   PlanType p_type, const PPType &q_traj)
-      : Plan(tree, p_type), traj_(q_traj) {
+      : PlanBase(tree, p_type), traj_(q_traj) {
     DRAKE_ASSERT(q_traj.cols() == 1);
     DRAKE_ASSERT(q_traj.rows() == get_num_positions());
     traj_d_ = traj_.derivative(1);
@@ -71,7 +71,7 @@ public:
     *v_commanded = traj_d_.value(t);
   }
 
-  static std::unique_ptr<Plan>
+  static std::unique_ptr<PlanBase>
   MakeHoldCurrentPositionPlan(std::shared_ptr<const RigidBodyTreed> tree,
                               const Eigen::Ref<const Eigen::VectorXd> &q) {
     // creates a zero-order hold around current robot configuration q.

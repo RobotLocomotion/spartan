@@ -37,10 +37,6 @@ int do_main() {
 
   runner.MoveToJointPosition(q0);
 
-  //  auto plan = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(runner.get_tree(),
-  //  q0);
-  //  runner.QueueNewPlan(std::move(plan));
-
   return 0;
 }
 

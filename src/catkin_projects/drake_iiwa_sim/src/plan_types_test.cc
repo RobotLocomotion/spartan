@@ -30,7 +30,7 @@ int do_main() {
   Eigen::VectorXd q_commanded, v_commanded;
   std::vector<double> t{0, 1, 10, 1e80};
 
-  std::unique_ptr<Plan> plan;
+  std::unique_ptr<PlanBase> plan;
 
 
   plan = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(tree, q);
@@ -42,7 +42,7 @@ int do_main() {
     cout << "v\n" << v_commanded << endl;
   }
 
-  std::unique_ptr<Plan> plan2;
+  std::unique_ptr<PlanBase> plan2;
   plan2 = std::move(plan);
 
   if(plan) {

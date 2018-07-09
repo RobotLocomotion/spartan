@@ -50,10 +50,10 @@ add_library(plan_types
 target_link_libraries(plan_types
         drake::drake)
 
-add_library(iiwa_plan_runner
+add_library(plan_runner
         plan_runner.h
         plan_runner.cc)
-target_link_libraries(iiwa_plan_runner
+target_link_libraries(plan_runner
         plan_types
         drake::drake
         ${CMAKE_THREAD_LIBS_INIT})
