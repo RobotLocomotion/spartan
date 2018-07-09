@@ -18,11 +18,12 @@ typedef trajectories::PiecewisePolynomial<double> PPType;
 class Plan {
 public:
   Plan(std::shared_ptr<const RigidBodyTreed> tree, PlanType p_type):
-      tree_(tree), p_type_(p_type) {};
+      tree_(tree), p_type_(p_type) {}
+  ~Plan() {}
   virtual void Step(const Eigen::Ref<const Eigen::VectorXd> &x, double t,
                     Eigen::VectorXd *const q_commanded,
                     Eigen::VectorXd *const v_commanded) const = 0;
-  int get_num_positions() { return tree_->get_num_positions(); };
+  int get_num_positions() { return tree_->get_num_positions(); }
   PlanType get_plan_type() { return p_type_; }
 
 protected:
@@ -30,7 +31,7 @@ protected:
   std::shared_ptr<const RigidBodyTreed> tree_;
 };
 
-class TrajectoryPlan : Plan {
+class TrajectoryPlan : public Plan {
 public:
   TrajectoryPlan(std::shared_ptr<const RigidBodyTreed> tree,
                   PlanType p_type, const PPType &q_traj)
@@ -39,6 +40,7 @@ public:
     DRAKE_ASSERT(q_traj.rows() == get_num_positions());
     traj_d_ = traj_.derivative(1);
   }
+  ~TrajectoryPlan() {}
 
   double duration() {
     if (traj_.get_number_of_segments() > 0) {
@@ -69,7 +71,7 @@ public:
     *v_commanded = traj_d_.value(t);
   }
 
-  static std::unique_ptr<JointSpaceTrajectoryPlan>
+  static std::unique_ptr<Plan>
   MakeHoldCurrentPositionPlan(std::shared_ptr<const RigidBodyTreed> tree,
                               const Eigen::Ref<const Eigen::VectorXd> &q) {
     // creates a zero-order hold around current robot configuration q.

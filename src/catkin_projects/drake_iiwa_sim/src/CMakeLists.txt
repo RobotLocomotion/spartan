@@ -47,7 +47,7 @@ target_link_libraries(iiwa_qp_inverse_dynamics_controller
 add_library(plan_types
         plan_types.h
         plan_types.cc)
-target_link_libraries(plan_types 
+target_link_libraries(plan_types
         drake::drake)
 
 add_library(iiwa_plan_runner
