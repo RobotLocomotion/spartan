@@ -75,6 +75,7 @@ void RobotPlanRunner::PublishCommand() {
   int64_t start_time_us = -1;
   int64_t cur_time_us = -1;
   double cur_plan_time_s = -1;
+  bool has_new_plan = false;
 
   // Allocate and initialize stuff used in the loop.
   lcmt_iiwa_command iiwa_command;
@@ -101,23 +102,26 @@ void RobotPlanRunner::PublishCommand() {
     // executing.
     status_lock.unlock();
 
-    if (plan_number_ == 0) {
-      // This block should only run once, right after the infinite while loop
-      // starts.
-      std::cout << "Generating first plan(holding current position)..."
+    if (!plan_) {
+      std::cout << "plan_ == nullptr, holding current position..."
                 << std::endl;
-      new_plan_ = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(
-          tree_, current_robot_state_.head(kNumJoints));
+      plan_ = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(
+          tree_, current_robot_state.head(kNumJoints));
     }
 
+    // Lock plan_mutex when checking for new plans.
+    robot_plan_mutex_.lock();
     if (new_plan_) {
-      robot_plan_mutex_.lock();
       plan_ = std::move(new_plan_);
-      robot_plan_mutex_.unlock();
+      has_new_plan = true;
+    }
+    robot_plan_mutex_.unlock();
 
+    // Make local changes after receiving a new plan.
+    if (has_new_plan) {
+      has_new_plan = false;
       plan_number_++;
       start_time_us = cur_time_us;
-      is_cur_plan_terminated_ = false;
       std::cout << "Starting plan No. " << plan_number_ << std::endl;
     }
 
@@ -129,7 +133,7 @@ void RobotPlanRunner::PublishCommand() {
     // place for it.
     // Stop if commanded q is "too different" from current q.
     //      Eigen::VectorXd dq = q_commanded -
-    //      current_robot_state_.head(kNumJoints);
+    //      current_robot_state.head(kNumJoints);
     //      for (int i = 0; i < kNumJoints; i++) {
     //        if (std::abs(dq[i]) > 0.1) {
     //          is_cur_plan_terminated_ = true;
@@ -146,7 +150,7 @@ void RobotPlanRunner::PublishCommand() {
     //        std::lock_guard<std::mutex> lock(robot_plan_mutex_);
     //        new_plan_ =
     //        JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(
-    //            tree_, current_robot_state_.head(kNumJoints));
+    //            tree_, current_robot_state.head(kNumJoints));
     //        continue;
     //      }
 

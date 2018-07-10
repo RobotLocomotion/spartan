@@ -90,10 +90,6 @@ private:
 
   std::shared_ptr<RigidBodyTreed> tree_;
   int plan_number_{};
-  std::unique_ptr<PlanBase> plan_;
-  std::unique_ptr<PlanBase> new_plan_;
-
-  bool is_cur_plan_terminated_;
 
   // threading
   std::mutex robot_status_mutex_;
@@ -108,12 +104,15 @@ private:
 
   // publisher thread
   lcm::LCM publihser_lcm_;
+  std::unique_ptr<PlanBase> plan_;
 
   // shared
   lcmt_iiwa_status iiwa_status_;
   bool has_received_new_status_;
   Eigen::VectorXd current_robot_state_;
   int64_t cur_time_us_ = -1;
+  std::unique_ptr<PlanBase> new_plan_;
+
 };
 
 } // namespace examples

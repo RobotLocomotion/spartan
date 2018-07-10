@@ -1,5 +1,5 @@
 #pragma once
-#include "robot_plan_runner/plan_base.h"
+#include <robot_plan_runner/plan_base.h>
 #include <drake/common/trajectories/piecewise_polynomial.h>
 
 namespace drake {
@@ -8,8 +8,7 @@ namespace robot_plan_runner {
 typedef trajectories::PiecewisePolynomial<double> PPType;
 
 // Base class for all plans that track some sort of trajectory, e.g. joint
-// space/
-// task space trajectories.
+// space/task space trajectories.
 class TrajectoryPlanBase : public PlanBase {
 public:
   TrajectoryPlanBase(std::shared_ptr<const RigidBodyTreed> tree,
