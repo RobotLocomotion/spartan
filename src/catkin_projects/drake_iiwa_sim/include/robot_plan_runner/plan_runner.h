@@ -7,10 +7,12 @@
 #include <mutex>
 #include <thread>
 
-#include "plan_types.h"
+#include <robot_plan_runner/plan_base.h>
+#include <robot_plan_runner/task_space_trajectory_plan.h>
+#include <robot_plan_runner/joint_space_trajectory_plan.h>
 
-#include "lcm/lcm-cpp.hpp"
-#include "robotlocomotion/robot_plan_t.hpp"
+#include <lcm/lcm-cpp.hpp>
+#include <robotlocomotion/robot_plan_t.hpp>
 
 #include <drake/common/drake_assert.h>
 #include <drake/common/find_resource.h>

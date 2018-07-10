@@ -9,8 +9,8 @@
 
 #include <gflags/gflags.h>
 
-#include "drake_iiwa_sim/iiwa_lcm.h"
-#include "drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h"
+#include <drake_iiwa_sim/iiwa_lcm.h>
+#include <drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h>
 
 #include <drake/common/drake_assert.h>
 #include <drake/common/find_resource.h>

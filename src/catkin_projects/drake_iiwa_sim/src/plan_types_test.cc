@@ -1,4 +1,5 @@
-#include "plan_types.h"
+#include <robot_plan_runner/joint_space_trajectory_plan.h>
+#include <robot_plan_runner/task_space_trajectory_plan.h>
 #include <stdexcept>
 
 #include <drake/common/find_resource.h>
@@ -7,8 +8,7 @@ using std::cout;
 using std::endl;
 
 namespace drake {
-namespace examples {
-namespace kuka_iiwa_arm {
+namespace robot_plan_runner {
 namespace {
 
 int do_main() {
@@ -68,8 +68,7 @@ int do_main() {
   return 0;
 }
 } // namespace
-} // namespace kuka_iiwa_arm
-} // namespace examples
+} // namespace robot_plan_runner
 } // namespace drake
 
-int main() { return drake::examples::kuka_iiwa_arm::do_main(); }
+int main() { return drake::robot_plan_runner::do_main(); }

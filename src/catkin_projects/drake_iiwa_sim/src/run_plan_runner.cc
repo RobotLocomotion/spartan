@@ -1,7 +1,7 @@
 #include <chrono>
 
-#include "plan_runner.h"
-#include "plan_types.h"
+#include <robot_plan_runner/plan_runner.h>
+
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;

@@ -1,4 +1,4 @@
-#include "drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h"
+#include <drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h>
 
 #include <drake/multibody/kinematics_cache.h>
 #include <drake/solvers/mathematical_program.h>

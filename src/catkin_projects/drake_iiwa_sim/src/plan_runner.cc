@@ -1,4 +1,4 @@
-#include "plan_runner.h"
+#include <robot_plan_runner/plan_runner.h>
 
 namespace drake {
 namespace robot_plan_runner {

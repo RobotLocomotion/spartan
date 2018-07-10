@@ -30,28 +30,32 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include/drake_iiwa_sim/)
+set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 
 add_library(iiwa_lcm
-        ${PROJECT_INCLUDE_DIR}/iiwa_lcm.h
+        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/iiwa_lcm.h
         iiwa_lcm.cc)
 target_link_libraries(iiwa_lcm
         drake::drake)
 
 add_library(iiwa_qp_inverse_dynamics_controller
-        ${PROJECT_INCLUDE_DIR}/iiwa_qp_inverse_dynamics_controller.h
+        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h
         iiwa_qp_inverse_dynamics_controller.cc)
 target_link_libraries(iiwa_qp_inverse_dynamics_controller
         drake::drake)
 
 add_library(plan_types
-        plan_types.h
-        plan_types.cc)
+        ${PROJECT_INCLUDE_DIR}/robot_plan_runner/plan_base.h
+        ${PROJECT_INCLUDE_DIR}/robot_plan_runner/trajectory_plan_base.h
+        ${PROJECT_INCLUDE_DIR}/robot_plan_runner/joint_space_trajectory_plan.h
+        ${PROJECT_INCLUDE_DIR}/robot_plan_runner/task_space_trajectory_plan.h
+        joint_space_trajectory_plan.cc
+        task_space_trajectory_plan.cc)
 target_link_libraries(plan_types
         drake::drake)
 
 add_library(plan_runner
-        plan_runner.h
+        ${PROJECT_INCLUDE_DIR}/robot_plan_runner/plan_runner.h
         plan_runner.cc)
 target_link_libraries(plan_runner
         plan_types
