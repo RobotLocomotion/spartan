@@ -33,7 +33,7 @@ int do_main() {
   std::unique_ptr<PlanBase> plan;
 
 
-  plan = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(tree, q);
+  plan = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(tree->Clone(), q);
   cout << "hello world!" << endl;
   for(auto & ti:t) {
     plan->Step(x, ti, &q_commanded, &v_commanded);
@@ -51,6 +51,20 @@ int do_main() {
     cout << "plan is false." << endl;
   }
 
+  Eigen::Vector3d x_ee(0,0,0);
+  std::vector<double> times{0, 2};
+  std::vector<Eigen::MatrixXd> knots;
+  knots.push_back(x_ee);
+  knots.push_back(x_ee);
+  plan =
+      std::make_unique<EndEffectorOriginTrajectoryPlan>(
+          tree->Clone(), PPType::FirstOrderHold(times, knots));
+  for(auto & ti:t) {
+    plan->Step(x, ti, &q_commanded, &v_commanded);
+    cout << "ti:" << ti << endl;
+    cout << "q\n" << q_commanded << endl;
+    cout << "v\n" << v_commanded << endl;
+  }
   return 0;
 }
 } // namespace

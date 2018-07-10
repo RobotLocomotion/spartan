@@ -5,6 +5,7 @@
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using Eigen::Vector3d;
 using std::cout;
 using std::endl;
 
@@ -31,9 +32,31 @@ int do_main() {
   runner.MoveToJointPosition(q0, 2.0);
   std::this_thread::sleep_for(std::chrono::milliseconds(2500));
 
-  runner.MoveToJointPosition(q1);
+  runner.MoveToJointPosition(q1, 2.0);
   std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-  std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+
+  const Vector3d delta_x1(0.2, 0, 0);
+  const Vector3d delta_x2(0, -0.2, 0);
+  const Vector3d delta_x3(0, 0, -0.2);
+
+  Eigen::Isometry3d T_ee;
+
+  T_ee = runner.get_ee_pose_in_world_frame();
+  cout << "EE_pose\n" << T_ee.matrix() << endl;
+  runner.MoveRelativeToCurrentEeCartesianPosition(delta_x3, 5.0);
+  std::this_thread::sleep_for(std::chrono::milliseconds(5500));
+  T_ee = runner.get_ee_pose_in_world_frame();
+  cout << "EE_pose\n" << T_ee.matrix() << endl;
+
+  runner.MoveRelativeToCurrentEeCartesianPosition(delta_x1, 5.0);
+  std::this_thread::sleep_for(std::chrono::milliseconds(5500));
+  T_ee = runner.get_ee_pose_in_world_frame();
+  cout << "EE_pose\n" << T_ee.matrix() << endl;
+
+  runner.MoveRelativeToCurrentEeCartesianPosition(delta_x2, 5.0);
+  std::this_thread::sleep_for(std::chrono::milliseconds(5500));
+  T_ee = runner.get_ee_pose_in_world_frame();
+  cout << "EE_pose\n" << T_ee.matrix() << endl;
 
   runner.MoveToJointPosition(q0);
 

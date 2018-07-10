@@ -32,14 +32,15 @@ const int kNumJoints = 7;
 class IiwaPlanRunner {
 public:
   IiwaPlanRunner() : plan_number_(0), plan_(nullptr), new_plan_(nullptr) {
-    tree_ = std::make_shared<RigidBodyTreed>();
+    tree_ = std::make_unique<RigidBodyTreed>();
     parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
         FindResourceOrThrow("drake/manipulation/models/iiwa_description/urdf/"
-                            "iiwa14_primitive_collision.urdf"),
+                            "iiwa14_no_collision.urdf"),
         multibody::joints::kFixed, tree_.get());
     DRAKE_DEMAND(kNumJoints == tree_->get_num_positions());
     DRAKE_DEMAND(kNumJoints == tree_->get_num_actuators());
-    receiver_lcm_.subscribe(kLcmStatusChannel, &IiwaPlanRunner::HandleStatus, this);
+    receiver_lcm_.subscribe(kLcmStatusChannel, &IiwaPlanRunner::HandleStatus,
+                            this);
     current_robot_state_.resize(kNumJoints * 2, 1);
     has_received_new_status_ = false;
     waiting_for_first_message_ = true;
@@ -73,9 +74,14 @@ public:
     return current_robot_state_.tail(kNumJoints);
   } // current robot velocity
 
-  std::shared_ptr<const RigidBodyTreed> get_tree() { return tree_; };
 
-  // This method updates new_plan_ from a nullptr to point to a new PlanBase object.
+  Eigen::Isometry3d get_ee_pose_in_world_frame () {
+    return get_body_pose_in_world_frame(*tree_->FindBody("iiwa_link_ee"));
+  }
+
+
+  // This method updates new_plan_ from a nullptr to point to a new PlanBase
+  // object.
   // At the beginning of every command publisher loop, PlanRunner checks whether
   // new_plan_ is a nullptr.
   // If new_plan_ is not a nullptr, it is moved to plan_(which will be executed
@@ -96,7 +102,8 @@ public:
     while (true) {
       // Call lcm handle until at least one status message is
       // processed.
-      while (0 == receiver_lcm_.handleTimeout(10) || waiting_for_first_message_) {
+      while (0 == receiver_lcm_.handleTimeout(10) ||
+             waiting_for_first_message_) {
         // Print something here so users know no LCM message has been received.
       }
     }
@@ -113,6 +120,7 @@ public:
 
     int64_t start_time_us = -1;
     int64_t cur_time_us = -1;
+    double cur_plan_time_s = -1;
 
     // Allocate and initialize stuff used in the loop.
     lcmt_iiwa_command iiwa_command;
@@ -124,10 +132,12 @@ public:
     Eigen::VectorXd current_robot_state;
 
     while (true) {
-      // Put the thread to sleep until a new iiwa_status message is received by the
+      // Put the thread to sleep until a new iiwa_status message is received by
+      // the
       // subscriber thread.
       std::unique_lock<std::mutex> status_lock(robot_status_mutex_);
-      cv_.wait(status_lock, std::bind(&IiwaPlanRunner::has_received_new_status, this));
+      cv_.wait(status_lock,
+               std::bind(&IiwaPlanRunner::has_received_new_status, this));
       has_received_new_status_ = false;
       cur_time_us = cur_time_us_;
       current_robot_state = current_robot_state_;
@@ -157,29 +167,34 @@ public:
         std::cout << "Starting plan No. " << plan_number_ << std::endl;
       }
 
-      cur_plan_time_s_ = static_cast<double>(cur_time_us - start_time_us) / 1e6;
-      plan_->Step(current_robot_state, cur_plan_time_s_, &q_commanded,
+      cur_plan_time_s = static_cast<double>(cur_time_us - start_time_us) / 1e6;
+      plan_->Step(current_robot_state, cur_plan_time_s, &q_commanded,
                   &v_commanded);
 
+      // The following check is good to have but I haven't figured out the right
+      // place for it.
       // Stop if commanded q is "too different" from current q.
-//      Eigen::VectorXd dq = q_commanded - current_robot_state_.head(kNumJoints);
-//      for (int i = 0; i < kNumJoints; i++) {
-//        if (std::abs(dq[i]) > 0.1) {
-//          is_cur_plan_terminated_ = true;
-//          break;
-//        }
-//      }
-//
-//      if (is_cur_plan_terminated_) {
-//        std::cout << "Difference between q_commanded and q too large."
-//                     " Aborting plan "
-//                  << cur_plan_number << " and starting a new blank plan."
-//                  << std::endl;
-//        std::lock_guard<std::mutex> lock(robot_plan_mutex_);
-//        new_plan_ = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(
-//            tree_, current_robot_state_.head(kNumJoints));
-//        continue;
-//      }
+      //      Eigen::VectorXd dq = q_commanded -
+      //      current_robot_state_.head(kNumJoints);
+      //      for (int i = 0; i < kNumJoints; i++) {
+      //        if (std::abs(dq[i]) > 0.1) {
+      //          is_cur_plan_terminated_ = true;
+      //          break;
+      //        }
+      //      }
+      //
+      //      if (is_cur_plan_terminated_) {
+      //        std::cout << "Difference between q_commanded and q too large."
+      //                     " Aborting plan "
+      //                  << cur_plan_number << " and starting a new blank
+      //                  plan."
+      //                  << std::endl;
+      //        std::lock_guard<std::mutex> lock(robot_plan_mutex_);
+      //        new_plan_ =
+      //        JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(
+      //            tree_, current_robot_state_.head(kNumJoints));
+      //        continue;
+      //      }
 
       // construct and publish iiwa_command
       iiwa_command.utime = cur_time_us;
@@ -190,7 +205,7 @@ public:
     }
   }
 
-  void MoveToJointPosition(Eigen::Ref<const Eigen::VectorXd> q_final,
+  void MoveToJointPosition(const Eigen::Ref<const Eigen::VectorXd> q_final,
                            double duration = 4) {
     Eigen::VectorXd q0 = get_current_robot_position();
     std::vector<double> times{0, duration};
@@ -200,6 +215,22 @@ public:
 
     std::unique_ptr<PlanBase> plan = std::make_unique<JointSpaceTrajectoryPlan>(
         tree_, PPType::FirstOrderHold(times, knots));
+    QueueNewPlan(std::move(plan));
+  }
+
+  void MoveRelativeToCurrentEeCartesianPosition(
+      const Eigen::Ref<const Eigen::Vector3d> delta_x_ee, double duration = 4) {
+    auto T_ee = get_body_pose_in_world_frame(*tree_->FindBody("iiwa_link_ee"));
+    Eigen::Vector3d x_ee_start = T_ee.translation();
+    Eigen::Vector3d x_ee_final = x_ee_start + delta_x_ee;
+    std::vector<double> times{0, duration};
+    std::vector<Eigen::MatrixXd> knots;
+    knots.push_back(x_ee_start);
+    knots.push_back(x_ee_final);
+
+    std::unique_ptr<PlanBase> plan =
+        std::make_unique<EndEffectorOriginTrajectoryPlan>(
+            tree_, PPType::FirstOrderHold(times, knots));
     QueueNewPlan(std::move(plan));
   }
 
@@ -229,12 +260,20 @@ private:
     plan_.reset();
   }
 
+  Eigen::Isometry3d
+  get_body_pose_in_world_frame(const RigidBody<double> &body) {
+    Eigen::VectorXd q = get_current_robot_position();
+    KinematicsCache<double> cache = tree_->CreateKinematicsCache();
+    cache.initialize(q);
+    tree_->doKinematics(cache);
+    return tree_->CalcBodyPoseInWorldFrame(cache, body);
+  }
+
   std::shared_ptr<RigidBodyTreed> tree_;
   int plan_number_{};
   std::unique_ptr<PlanBase> plan_;
   std::unique_ptr<PlanBase> new_plan_;
 
-  double cur_plan_time_s_;
   bool is_cur_plan_terminated_;
 
   // threading
@@ -256,7 +295,6 @@ private:
   bool has_received_new_status_;
   Eigen::VectorXd current_robot_state_;
   int64_t cur_time_us_ = -1;
-
 };
 
 } // namespace kuka_iiwa_arm
