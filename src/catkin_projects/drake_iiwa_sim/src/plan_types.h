@@ -1,15 +1,11 @@
 #pragma once
 
-#include <stdexcept>
-
 #include <drake/common/trajectories/piecewise_polynomial.h>
 #include <drake/multibody/rigid_body_tree.h>
 
 namespace drake {
-namespace examples {
-namespace kuka_iiwa_arm {
+namespace robot_plan_runner {
 
-enum PlanType { JointSpaceTrajectoryPlanType, TaskSpaceTrajectoryPlanType };
 typedef trajectories::PiecewisePolynomial<double> PPType;
 
 // Abstract class
@@ -17,21 +13,19 @@ typedef trajectories::PiecewisePolynomial<double> PPType;
 // generates the commanded state/torque.
 class PlanBase {
 public:
-  PlanBase(std::shared_ptr<const RigidBodyTreed> tree, PlanType p_type)
-      : tree_(tree), p_type_(p_type) {
+  explicit PlanBase(std::shared_ptr<const RigidBodyTreed> tree)
+      : tree_(std::move(tree)) {
     num_positions = tree_->get_num_positions();
     num_velocities = tree_->get_num_velocities();
   }
-  ~PlanBase() {}
+
   virtual void Step(const Eigen::Ref<const Eigen::VectorXd> &x, double t,
                     Eigen::VectorXd *const q_commanded,
                     Eigen::VectorXd *const v_commanded) const = 0;
   int get_num_positions() const { return num_positions; }
   int get_num_velocities() const { return num_velocities; }
-  PlanType get_plan_type() const { return p_type_; }
 
 protected:
-  PlanType p_type_;
   std::shared_ptr<const RigidBodyTreed> tree_;
 
 private:
@@ -43,13 +37,12 @@ private:
 // task space trajectories.
 class TrajectoryPlanBase : public PlanBase {
 public:
-  TrajectoryPlanBase(std::shared_ptr<const RigidBodyTreed> tree, PlanType p_type,
+  TrajectoryPlanBase(std::shared_ptr<const RigidBodyTreed> tree,
                  const PPType &q_traj)
-      : PlanBase(std::move(tree), p_type), traj_(q_traj) {
+      : PlanBase(std::move(tree)), traj_(q_traj) {
     DRAKE_ASSERT(q_traj.cols() == 1);
     traj_d_ = traj_.derivative(1);
   }
-  ~TrajectoryPlanBase() {}
 
   double duration() {
     if (traj_.get_number_of_segments() > 0) {
@@ -68,7 +61,7 @@ class JointSpaceTrajectoryPlan : public TrajectoryPlanBase {
 public:
   JointSpaceTrajectoryPlan(std::shared_ptr<const RigidBodyTreed> tree,
                            const PPType &q_traj)
-      : TrajectoryPlanBase(tree, JointSpaceTrajectoryPlanType, q_traj) {
+      : TrajectoryPlanBase(std::move(tree), q_traj) {
     DRAKE_ASSERT(q_traj.rows() == get_num_positions());
   }
 
@@ -82,7 +75,7 @@ public:
     *v_commanded = traj_d_.value(t);
   }
 
-  static std::unique_ptr<PlanBase>
+  static std::unique_ptr<JointSpaceTrajectoryPlan>
   MakeHoldCurrentPositionPlan(std::shared_ptr<const RigidBodyTreed> tree,
                               const Eigen::Ref<const Eigen::VectorXd> &q) {
     // creates a zero-order hold around current robot configuration q.
@@ -107,7 +100,7 @@ public:
   EndEffectorOriginTrajectoryPlan(std::shared_ptr<const RigidBodyTreed> tree,
                                   const PPType &x_ee_traj,
                                   double control_period_s = 0.005)
-      : TrajectoryPlanBase(tree, TaskSpaceTrajectoryPlanType, x_ee_traj),
+      : TrajectoryPlanBase(std::move(tree), x_ee_traj),
         cache_(tree_->CreateKinematicsCache()),
         control_period_s_(control_period_s) {
     DRAKE_ASSERT(x_ee_traj.rows() == 3);
@@ -164,6 +157,5 @@ private:
   Eigen::Vector3d kp; // position feedback gain.
 };
 
-} // namespace kuka_iiwa_arm
-} // namespace examples
+} // namespace robot_plan_runner
 } // namespace drake
