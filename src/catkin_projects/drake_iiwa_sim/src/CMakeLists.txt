@@ -76,15 +76,22 @@ target_link_libraries(plan_types_test
         plan_types
         drake::drake)
 
+add_executable(test_plan_runner
+        test_plan_runner.cc)
+target_link_libraries(test_plan_runner
+        plan_runner
+        drake::drake)
+
 add_executable(run_plan_runner
         run_plan_runner.cc)
 target_link_libraries(run_plan_runner
-        plan_runner
-        drake::drake)
+        plan_runner)
 
 # install library
 install(TARGETS iiwa_lcm
  iiwa_qp_inverse_dynamics_controller
+        plan_types
+        plan_runner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -92,6 +99,7 @@ install(TARGETS iiwa_lcm
 
 # install executable
 install(TARGETS iiwa_sim
+        run_plan_runner
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
