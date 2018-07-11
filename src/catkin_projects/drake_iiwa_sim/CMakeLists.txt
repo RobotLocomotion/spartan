@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(drake REQUIRED)
 find_package(GFlags MODULE REQUIRED COMPONENTS shared)
 find_package(Threads REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 
 #include <robot_plan_runner/joint_space_trajectory_plan.h>
@@ -27,15 +28,18 @@
 namespace drake {
 namespace robot_plan_runner {
 
-const char *const kLcmStatusChannel = "IIWA_STATUS";
-const char *const kLcmCommandChannel = "IIWA_COMMAND";
-const char *const kLcmPlanChannel = "COMMITTED_ROBOT_PLAN";
-const char *const kLcmStopChannel = "STOP";
-const int kNumJoints = 7;
-
 class RobotPlanRunner {
 public:
-  RobotPlanRunner();
+  static std::unique_ptr<RobotPlanRunner>
+  GetInstance(const std::string &config_file_name);
+
+  RobotPlanRunner(const std::string &lcm_status_channel,
+                  const std::string &lcm_command_channel,
+                  const std::string &lcm_plan_channel,
+                  const std::string &lcm_stop_channel,
+                  const std::string &robot_ee_body_name, int num_joints,
+                  double joint_speed_limit_deg_per_sec, double control_period,
+                  std::unique_ptr<const RigidBodyTreed> tree);
   ~RobotPlanRunner();
 
   void Start();
@@ -57,8 +61,12 @@ public:
     new_plan_ = std::move(new_plan);
   }
 
+  std::shared_ptr<const RigidBodyTreed> get_rigid_body_tree() { return tree_; }
+  double get_control_period() { return kControlPeriod_; }
+  std::string get_ee_body_name() { return kRobotEeBodyName_; }
+
   Eigen::Isometry3d get_ee_pose_in_world_frame() {
-    return get_body_pose_in_world_frame(*tree_->FindBody("iiwa_link_ee"));
+    return get_body_pose_in_world_frame(*tree_->FindBody(kRobotEeBodyName_));
   }
 
   void MoveToJointPosition(const Eigen::Ref<const Eigen::VectorXd> q_final,
@@ -85,11 +93,11 @@ private:
   void HandleStatus(const lcm::ReceiveBuffer *, const std::string &,
                     const lcmt_iiwa_status *status);
 
-  void HandlePlan(const lcm::ReceiveBuffer *, const std::string &,
-                  const robotlocomotion::robot_plan_t *tape);
+  void
+  HandleJointSpaceTrajectoryPlan(const lcm::ReceiveBuffer *,
+                                 const std::string &,
+                                 const robotlocomotion::robot_plan_t *tape);
 
-  // This is a leftover method from the old iiwa_plan_runner.
-  // TODO: We need to find a way to stop the current Plan externally.
   void HandleStop(const lcm::ReceiveBuffer *, const std::string &,
                   const robotlocomotion::robot_plan_t *) {
     std::lock_guard<std::mutex> lock(robot_plan_mutex_);
@@ -99,7 +107,17 @@ private:
 
   Eigen::Isometry3d get_body_pose_in_world_frame(const RigidBody<double> &body);
 
-  std::shared_ptr<RigidBodyTreed> tree_;
+  // constants to be loaded from yaml file.
+  const std::string kLcmStatusChannel_;
+  const std::string kLcmCommandChannel_;
+  const std::string kLcmPlanChannel_;
+  const std::string kLcmStopChannel_;
+  const std::string kRobotEeBodyName_;
+  const int kNumJoints_;
+  const double kJointSpeedLimitDegPerSec_;
+  const double kControlPeriod_;
+
+  std::shared_ptr<const RigidBodyTreed> tree_;
   int plan_number_{};
 
   // threading
@@ -115,7 +133,6 @@ private:
   std::atomic<bool> is_plan_terminated_externally_;
   lcmt_iiwa_status iiwa_status_;
   Eigen::VectorXd current_robot_state_;
-  int64_t cur_time_us_;
   std::unique_ptr<PlanBase> new_plan_;
 };
 

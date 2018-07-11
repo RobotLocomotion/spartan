@@ -70,9 +70,9 @@ target_link_libraries(iiwa_sim
         drake::drake
         gflags_shared)
 
-add_executable(plan_types_test
-        plan_types_test.cc)
-target_link_libraries(plan_types_test
+add_executable(test_plan_types
+        test_plan_types.cc)
+target_link_libraries(test_plan_types
         plan_types
         drake::drake)
 
@@ -85,6 +85,7 @@ target_link_libraries(test_plan_runner
 add_executable(run_plan_runner
         run_plan_runner.cc)
 target_link_libraries(run_plan_runner
+        gflags_shared
         plan_runner)
 
 # install library
