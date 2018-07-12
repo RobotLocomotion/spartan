@@ -3,7 +3,7 @@
 #include <drake_robot_control/plan_runner.h>
 
 DEFINE_string(config_file_name, "${SPARTAN_SOURCE_DIR}/src/catkin_projects/"
-                                "drake_iiwa_sim/config/"
+                                "drake_robot_control/config/"
                                 "iiwa_plan_runner_config.yaml",
               "plan runner yaml config file path");
 

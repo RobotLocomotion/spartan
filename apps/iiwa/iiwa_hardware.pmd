@@ -179,7 +179,7 @@ group "9.iiwa_sim" {
 }
 
 cmd "new_plan_runner" {
-    exec = "$SPARTAN_INSTALL_DIR/lib/drake_iiwa_sim/run_plan_runner";
+    exec = "$SPARTAN_INSTALL_DIR/lib/drake_robot_control/run_plan_runner";
     host = "localhost";
 }
 
