@@ -167,6 +167,7 @@ void RobotPlanRunner::PublishCommand() {
   Eigen::VectorXd q_commanded(kNumJoints_), v_commanded(kNumJoints_),
       tau_commanded(kNumJoints_);
   Eigen::VectorXd current_robot_state, cur_tau_external(kNumJoints_);
+  Eigen::VectorXd q_commanded_prev(kNumJoints_);
 
   while (true) {
     // Put the thread to sleep until a new iiwa_status message is received by
@@ -221,21 +222,25 @@ void RobotPlanRunner::PublishCommand() {
     plan_local->Step(current_robot_state, cur_tau_external, cur_plan_time_s,
                      &q_commanded, &v_commanded, &tau_commanded);
 
+    for (int j = 0; j < kNumJoints_; j++) {
+      q_commanded_prev[j] = iiwa_status_local.joint_position_commanded[j];
+    }
+
     // Discard current plan if commanded position is "too far away" from
-    // current position.
-    Eigen::VectorXd dq = q_commanded - current_robot_state.head(kNumJoints_);
+    // the previous commanded position, i.e. the commanded joint trajectory is
+    // not sufficiently smooth.
+    Eigen::VectorXd dq_cmd = q_commanded - q_commanded_prev;
+
     for (int i = 0; i < kNumJoints_; i++) {
-      if (std::abs(dq[i]) > max_dq_per_step) {
-        std::cout << "Commanded joint position is too far away from current "
-                     "position, discarding plan..."
+      if (std::abs(dq_cmd[i]) > max_dq_per_step) {
+        std::cout << "Commanded joint position is too jerky, discarding plan..."
                   << std::endl;
-        std::cout << "dq limit: " << max_dq_per_step << std::endl;
-        std::cout << "Commanded dq[" << i << "]: " << dq[i] << std::endl;
+        std::cout << "dq_cmd limit: " << max_dq_per_step << std::endl;
+        std::cout << "Commanded dq_cmd[" << i << "]: " << dq_cmd[i]
+                  << std::endl;
         plan_local.reset();
         // Publish commanded position from previous control tick.
-        for (int j = 0; j < kNumJoints_; j++) {
-          q_commanded[j] = iiwa_status_local.joint_position_commanded[j];
-        }
+        q_commanded = q_commanded_prev;
         break;
       }
     }
