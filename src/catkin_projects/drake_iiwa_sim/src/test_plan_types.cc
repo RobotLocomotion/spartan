@@ -27,6 +27,7 @@ int do_main() {
   q << 0, 0, 0, 0, 0, 10, 100;
 
   Eigen::VectorXd x(14);
+  Eigen::VectorXd tau_external(7);
   Eigen::VectorXd q_commanded, v_commanded;
   std::vector<double> t{0, 1, 10, 1e80};
 
@@ -36,7 +37,7 @@ int do_main() {
   plan = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(tree->Clone(), q);
   cout << "hello world!" << endl;
   for(auto & ti:t) {
-    plan->Step(x, <#initializer#>, ti, &q_commanded, &v_commanded, nullptr);
+    plan->Step(x, tau_external, ti, &q_commanded, &v_commanded, nullptr);
     cout << "ti:" << ti << endl;
     cout << "q\n" << q_commanded << endl;
     cout << "v\n" << v_commanded << endl;
