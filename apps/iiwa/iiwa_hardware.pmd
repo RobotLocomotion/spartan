@@ -66,7 +66,7 @@ group "2.iiwa-drivers" {
   }
 
   cmd "1.plan-runner" {
-    exec = "$SPARTAN_INSTALL_DIR/share/drake/examples/kuka_iiwa_arm/kuka_plan_runner";
+    exec = "$SPARTAN_INSTALL_DIR/lib/drake_robot_control/run_plan_runner";
     host = "localhost";
   }
 
@@ -178,13 +178,6 @@ group "9.iiwa_sim" {
 
 }
 
-cmd "new_plan_runner" {
-    exec = "$SPARTAN_INSTALL_DIR/lib/drake_robot_control/run_plan_runner";
-    host = "localhost";
-}
-
-
-
 script "1.robot_startup" {
     start group "1.vision-drivers";
     start group "2.iiwa-drivers";
@@ -242,18 +235,6 @@ script "6.start_drake_iiwa_sim"
 
   start group "9.iiwa_sim";
   start cmd "1.plan-runner";
-  start cmd "2.state-translator";
-  start cmd "4.director";
-}
-
-script "6.start_drake_iiwa_sim_w_new_plan_runner"
-{
-  start cmd "0.roscore";
-  wait ms 3000;
-  start group "8.ROS";
-
-  start group "9.iiwa_sim";
-  start cmd "new_plan_runner";
   start cmd "2.state-translator";
   start cmd "4.director";
 }
