@@ -61,7 +61,7 @@ int do_main() {
       std::make_unique<EndEffectorOriginTrajectoryPlan>(
           tree->Clone(), PPType::FirstOrderHold(times, knots));
   for(auto & ti:t) {
-    plan->Step(x, <#initializer#>, ti, &q_commanded, &v_commanded, nullptr);
+    plan->Step(x, tau_external, ti, &q_commanded, &v_commanded, nullptr);
     cout << "ti:" << ti << endl;
     cout << "q\n" << q_commanded << endl;
     cout << "v\n" << v_commanded << endl;
