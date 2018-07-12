@@ -14,12 +14,16 @@ public:
 
   // Current robot state x = [q,v]
   // Current time t
-  void Step(const Eigen::Ref<const Eigen::VectorXd> &x, double t,
+  void Step(const Eigen::Ref<const Eigen::VectorXd> &x,
+            const Eigen::Ref<const Eigen::VectorXd> &tau_external,
+            double t,
             Eigen::VectorXd *const q_commanded,
-            Eigen::VectorXd *const v_commanded) const override {
+            Eigen::VectorXd *const v_commanded,
+            Eigen::VectorXd *const tau_commanded) const override {
     DRAKE_ASSERT(t >= 0);
     *q_commanded = traj_.value(t);
     *v_commanded = traj_d_.value(t);
+    *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
   }
 
   static std::unique_ptr<JointSpaceTrajectoryPlan>

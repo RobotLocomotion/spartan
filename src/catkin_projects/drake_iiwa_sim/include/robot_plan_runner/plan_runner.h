@@ -30,6 +30,8 @@ namespace robot_plan_runner {
 
 class RobotPlanRunner {
 public:
+  // The constructor should not be called directly.
+  // GetInstance should be called to create an instance of RobotPlanRunner from a config file.
   static std::unique_ptr<RobotPlanRunner>
   GetInstance(const std::string &config_file_name);
 
@@ -54,7 +56,7 @@ public:
   // object.
   // At the beginning of every command publisher loop, PlanRunner checks whether
   // new_plan_ is a nullptr.
-  // If new_plan_ is not a nullptr, it is moved to plan_(which will be executed
+  // If new_plan_ is not a nullptr, it is moved to plan_local (which will be executed
   // immediately), and becomes a nullptr again.
   void QueueNewPlan(std::unique_ptr<PlanBase> new_plan) {
     std::lock_guard<std::mutex> lock(robot_plan_mutex_);

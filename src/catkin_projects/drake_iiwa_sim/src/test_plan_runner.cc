@@ -41,10 +41,10 @@ int do_main() {
   runner->MoveToJointPosition(q2, 0.001);
   std::this_thread::sleep_for(std::chrono::milliseconds(2500));
 
-  runner->MoveToJointPosition(q0, 5.0);
+  runner->MoveToJointPosition(q0, 2.0);
   std::this_thread::sleep_for(std::chrono::milliseconds(2500));
 
-  runner->MoveToJointPosition(q1, 5.0);
+  runner->MoveToJointPosition(q1, 2.0);
   std::this_thread::sleep_for(std::chrono::milliseconds(2500));
 
   const Vector3d delta_x1(0.2, 0, 0);

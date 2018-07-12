@@ -162,10 +162,11 @@ void RobotPlanRunner::PublishCommand() {
   lcmt_iiwa_command iiwa_command;
   iiwa_command.num_joints = kNumJoints_;
   iiwa_command.joint_position.resize(kNumJoints_, 0.);
-  iiwa_command.num_torques = 0;
+  iiwa_command.num_torques = kNumJoints_;
   iiwa_command.joint_torque.resize(kNumJoints_, 0.);
-  Eigen::VectorXd q_commanded(kNumJoints_), v_commanded(kNumJoints_);
-  Eigen::VectorXd current_robot_state;
+  Eigen::VectorXd q_commanded(kNumJoints_), v_commanded(kNumJoints_),
+      tau_commanded(kNumJoints_);
+  Eigen::VectorXd current_robot_state, cur_tau_external(kNumJoints_);
 
   while (true) {
     // Put the thread to sleep until a new iiwa_status message is received by
@@ -193,8 +194,12 @@ void RobotPlanRunner::PublishCommand() {
     }
     robot_plan_mutex_.unlock();
 
-    // Make local changes after receiving a new plan.
     cur_time_us = iiwa_status_local.utime;
+    for (int i = 0; i < kNumJoints_; i++) {
+      cur_tau_external[i] = iiwa_status_local.joint_torque_external[i];
+    }
+
+    // Make local changes after checking for new plans.
     if (is_terminated) {
       is_terminated = false;
       plan_local.reset();
@@ -213,8 +218,8 @@ void RobotPlanRunner::PublishCommand() {
     }
 
     cur_plan_time_s = static_cast<double>(cur_time_us - start_time_us) / 1e6;
-    plan_local->Step(current_robot_state, cur_plan_time_s, &q_commanded,
-                     &v_commanded);
+    plan_local->Step(current_robot_state, cur_tau_external, cur_plan_time_s,
+                     &q_commanded, &v_commanded, &tau_commanded);
 
     // Discard current plan if commanded position is "too far away" from
     // current position.
@@ -239,6 +244,7 @@ void RobotPlanRunner::PublishCommand() {
     iiwa_command.utime = iiwa_status_local.utime;
     for (int i = 0; i < kNumJoints_; i++) {
       iiwa_command.joint_position[i] = q_commanded(i);
+      iiwa_command.joint_torque[i] = tau_commanded(i);
     }
     publisher_lcm.publish(kLcmCommandChannel_, &iiwa_command);
   }

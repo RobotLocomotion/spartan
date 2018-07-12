@@ -16,9 +16,14 @@ class PlanBase {
     num_velocities = tree_->get_num_velocities();
   }
 
-  virtual void Step(const Eigen::Ref<const Eigen::VectorXd> &x, double t,
+  // x:=[q,v] robot state
+  // t: plan time (relative to plan start time)
+  virtual void Step(const Eigen::Ref<const Eigen::VectorXd> &x,
+                    const Eigen::Ref<const Eigen::VectorXd> &tau_external,
+                    double t,
                     Eigen::VectorXd *const q_commanded,
-                    Eigen::VectorXd *const v_commanded) const = 0;
+                    Eigen::VectorXd *const v_commanded,
+                    Eigen::VectorXd *const tau_commanded) const = 0;
   int get_num_positions() const { return num_positions; }
   int get_num_velocities() const { return num_velocities; }
 

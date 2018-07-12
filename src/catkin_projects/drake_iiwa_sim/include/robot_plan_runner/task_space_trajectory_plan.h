@@ -34,9 +34,12 @@ class EndEffectorOriginTrajectoryPlan : public TrajectoryPlanBase {
   // v_ee_des contains a feedforward term: v_ee_ref,
   // and a feedback term: kp*(x_ee_ref - x_ee).
   // x_ee is (a subset of) the end effector pose calculated with forward kinematics.
-  void Step(const Eigen::Ref<const Eigen::VectorXd> &x, double t,
+  void Step(const Eigen::Ref<const Eigen::VectorXd> &x,
+            const Eigen::Ref<const Eigen::VectorXd> &tau_external,
+            double t,
             Eigen::VectorXd *const q_commanded,
-            Eigen::VectorXd *const v_commanded) const override {
+            Eigen::VectorXd *const v_commanded,
+            Eigen::VectorXd *const tau_commanded) const override {
     Eigen::VectorXd q = x.head(this->get_num_positions());
     Eigen::VectorXd v = x.tail(this->get_num_velocities());
     cache_.initialize(q, v);
@@ -56,6 +59,7 @@ class EndEffectorOriginTrajectoryPlan : public TrajectoryPlanBase {
             .solve(v_ee_des);
     *q_commanded = q + q_dot_des * control_period_s_;
     *v_commanded = q_dot_des; // This is ignored when constructing iiwa_command.
+    *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
   }
 
  private:
