@@ -1,7 +1,7 @@
 #include <chrono>
 #include <string>
 
-#include <robot_plan_runner/plan_runner.h>
+#include <drake_robot_control/plan_runner.h>
 #include <common_utils/system_utils.h>
 
 using Eigen::MatrixXd;

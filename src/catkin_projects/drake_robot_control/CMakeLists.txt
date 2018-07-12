@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(drake_iiwa_sim)
+project(drake_robot_control)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+# add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -10,7 +10,6 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
-  sensor_msgs
   std_msgs
 )
 
@@ -18,6 +17,8 @@ find_package(catkin REQUIRED COMPONENTS
 # find_package(Boost REQUIRED COMPONENTS system)
 find_package(drake REQUIRED)
 find_package(GFlags MODULE REQUIRED COMPONENTS shared)
+find_package(Threads REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -72,7 +73,7 @@ find_package(GFlags MODULE REQUIRED COMPONENTS shared)
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   sensor_msgs#   std_msgs
+#   std_msgs
 # )
 
 ################################################
@@ -105,10 +106,10 @@ find_package(GFlags MODULE REQUIRED COMPONENTS shared)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
- # INCLUDE_DIRS include
- # LIBRARIES drake_iiwa_sim
- # CATKIN_DEPENDS roscpp rospy sensor_msgs std_msgs
- # DEPENDS system_lib
+#  INCLUDE_DIRS include
+#  LIBRARIES drake_robot_control
+#  CATKIN_DEPENDS roscpp rospy std_msgs
+#  DEPENDS system_lib
 )
 
 ###########
@@ -118,15 +119,14 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-    include
-    ${catkin_INCLUDE_DIRS}
+	include
+	${catkin_INCLUDE_DIRS}
 )
-
 add_subdirectory(src)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/drake_iiwa_sim.cpp
+#   src/${PROJECT_NAME}/drake_robot_control.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -137,7 +137,7 @@ add_subdirectory(src)
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/drake_iiwa_sim_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/drake_robot_control_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -194,7 +194,7 @@ add_subdirectory(src)
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_drake_iiwa_sim.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_drake_robot_control.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

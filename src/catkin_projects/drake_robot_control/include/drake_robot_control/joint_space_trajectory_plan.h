@@ -1,5 +1,5 @@
 #pragma once
-#include <robot_plan_runner/trajectory_plan_base.h>
+#include <drake_robot_control/trajectory_plan_base.h>
 
 namespace drake {
 namespace robot_plan_runner {

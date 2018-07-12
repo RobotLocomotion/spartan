@@ -1,6 +1,6 @@
 #include <common_utils/system_utils.h>
 #include <gflags/gflags.h>
-#include <robot_plan_runner/plan_runner.h>
+#include <drake_robot_control/plan_runner.h>
 
 DEFINE_string(config_file_name, "${SPARTAN_SOURCE_DIR}/src/catkin_projects/"
                                 "drake_iiwa_sim/config/"

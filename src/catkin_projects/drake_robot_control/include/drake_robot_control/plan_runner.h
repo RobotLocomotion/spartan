@@ -9,9 +9,9 @@
 #include <string>
 #include <thread>
 
-#include <robot_plan_runner/joint_space_trajectory_plan.h>
-#include <robot_plan_runner/plan_base.h>
-#include <robot_plan_runner/task_space_trajectory_plan.h>
+#include <drake_robot_control/joint_space_trajectory_plan.h>
+#include <drake_robot_control/plan_base.h>
+#include <drake_robot_control/task_space_trajectory_plan.h>
 
 #include <lcm/lcm-cpp.hpp>
 #include <robotlocomotion/robot_plan_t.hpp>

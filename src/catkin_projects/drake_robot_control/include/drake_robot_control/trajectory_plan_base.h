@@ -1,5 +1,5 @@
 #pragma once
-#include <robot_plan_runner/plan_base.h>
+#include <drake_robot_control/plan_base.h>
 #include <drake/common/trajectories/piecewise_polynomial.h>
 
 namespace drake {

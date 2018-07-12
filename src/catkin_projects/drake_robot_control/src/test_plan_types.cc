@@ -1,5 +1,5 @@
-#include <robot_plan_runner/joint_space_trajectory_plan.h>
-#include <robot_plan_runner/task_space_trajectory_plan.h>
+#include <drake_robot_control/joint_space_trajectory_plan.h>
+#include <drake_robot_control/task_space_trajectory_plan.h>
 #include <stdexcept>
 
 #include <drake/common/find_resource.h>

@@ -32,36 +32,51 @@
 
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 
-add_library(iiwa_lcm
-        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/iiwa_lcm.h
-        iiwa_lcm.cc)
-target_link_libraries(iiwa_lcm
+add_library(plan_types
+        ${PROJECT_INCLUDE_DIR}/drake_robot_control/plan_base.h
+        ${PROJECT_INCLUDE_DIR}/drake_robot_control/trajectory_plan_base.h
+        ${PROJECT_INCLUDE_DIR}/drake_robot_control/joint_space_trajectory_plan.h
+        ${PROJECT_INCLUDE_DIR}/drake_robot_control/task_space_trajectory_plan.h
+        joint_space_trajectory_plan.cc
+        task_space_trajectory_plan.cc)
+target_link_libraries(plan_types
         drake::drake)
 
-add_library(iiwa_qp_inverse_dynamics_controller
-        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h
-        iiwa_qp_inverse_dynamics_controller.cc)
-target_link_libraries(iiwa_qp_inverse_dynamics_controller
-        drake::drake)
-
-add_executable(iiwa_sim
-        kuka_simulation.cc)
-target_link_libraries(iiwa_sim
-        iiwa_lcm
-        iiwa_qp_inverse_dynamics_controller
+add_library(plan_runner
+        ${PROJECT_INCLUDE_DIR}/drake_robot_control/plan_runner.h
+        plan_runner.cc)
+target_link_libraries(plan_runner
+        plan_types
         drake::drake
-        gflags_shared)
+        ${CMAKE_THREAD_LIBS_INIT})
+
+add_executable(test_plan_types
+        test_plan_types.cc)
+target_link_libraries(test_plan_types
+        plan_types
+        drake::drake)
+
+add_executable(test_plan_runner
+        test_plan_runner.cc)
+target_link_libraries(test_plan_runner
+        plan_runner
+        drake::drake)
+
+add_executable(run_plan_runner
+        run_plan_runner.cc)
+target_link_libraries(run_plan_runner
+        gflags_shared
+        plan_runner)
 
 # install library
-install(TARGETS iiwa_lcm
- iiwa_qp_inverse_dynamics_controller
+install(TARGETS plan_types plan_runner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 # install executable
-install(TARGETS iiwa_sim
+install(TARGETS run_plan_runner
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
