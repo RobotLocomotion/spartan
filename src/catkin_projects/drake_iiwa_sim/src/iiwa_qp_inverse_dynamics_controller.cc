@@ -1,4 +1,4 @@
-#include "drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h"
+#include <drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h>
 
 #include <drake/multibody/kinematics_cache.h>
 #include <drake/solvers/mathematical_program.h>
@@ -90,8 +90,8 @@ void IiwaQpInverseDynamicsController::DoCalcDiscreteVariableUpdates(
   VectorXd vd_d = kp_.array() * err_q.array() + kd_.array() * err_v.array();
   Vector7d tau = tree.inverseDynamics(cache, external_wrenches, vd_d);
 
-  // const int idx_base = tree.FindBodyIndex("base");
-  // const int idx_ee = tree.FindBodyIndex("iiwa_link_ee");
+  // const int idx_base_ = tree.FindBodyIndex("base");
+  // const int idx_ee_ = tree.FindBodyIndex("iiwa_link_ee");
 
   discrete_state->get_mutable_vector().SetFromVector(tau);
 }
