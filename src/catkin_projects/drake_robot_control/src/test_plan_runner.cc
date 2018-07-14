@@ -16,7 +16,7 @@ namespace {
 
 int do_main() {
   std::string config_file_name = "${SPARTAN_SOURCE_DIR}/src/catkin_projects/"
-                                 "drake_iiwa_sim/config/"
+                                 "drake_robot_control/config/"
                                  "iiwa_plan_runner_config.yaml";
   autoExpandEnvironmentVariables(config_file_name);
 
