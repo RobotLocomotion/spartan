@@ -65,6 +65,9 @@ void IiwaQpInverseDynamicsController::DoCalcDiscreteVariableUpdates(
       (*this->EvalVectorInput(context,
                               get_input_port_state_reference().get_index()))
           .CopyToVector();
+
+  // tau_ref is interpreted as the torque applied to the environment by the robot.
+  // Therefore, the torque applied to the robot by the environment is -tau_ref.
   const VectorXd tau_ref =
       (*this->EvalVectorInput(context,
                               get_input_port_torque_reference().get_index()))
@@ -81,17 +84,14 @@ void IiwaQpInverseDynamicsController::DoCalcDiscreteVariableUpdates(
   cache.initialize(q, v);
   tree.doKinematics(cache, true);
 
-  MatrixXd H = tree.massMatrix(cache);
   RigidBodyTree<double>::BodyToWrenchMap external_wrenches;
 
   // desired acceleration
   Vector7d err_q = q_ref - q;
   Vector7d err_v = v_ref - v;
-  VectorXd vd_d = kp_.array() * err_q.array() + kd_.array() * err_v.array();
-  Vector7d tau = tree.inverseDynamics(cache, external_wrenches, vd_d);
-
-  // const int idx_base_ = tree.FindBodyIndex("base");
-  // const int idx_ee_ = tree.FindBodyIndex("iiwa_link_ee");
+  VectorXd vd_commanded = kp_.array() * err_q.array() + kd_.array() * err_v.array();
+  Vector7d tau = tree.inverseDynamics(cache, external_wrenches, vd_commanded);
+  tau += tau_ref;
 
   discrete_state->get_mutable_vector().SetFromVector(tau);
 }
