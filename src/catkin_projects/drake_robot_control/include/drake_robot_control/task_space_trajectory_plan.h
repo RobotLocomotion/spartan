@@ -83,6 +83,8 @@ public:
     *v_commanded =
         q_dot_commanded; // This is ignored when constructing iiwa_command.
     *tau_commanded = J_ee_.bottomRows(3).transpose() * force_in_world_frame_ref_;
+
+    //TODO: set q_commanded constant after t > Plan.duration().
   }
 
 private:
