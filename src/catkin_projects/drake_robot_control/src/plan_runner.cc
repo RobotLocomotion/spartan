@@ -1,3 +1,4 @@
+#include <drake/math/roll_pitch_yaw.h>
 #include <drake_robot_control/plan_runner.h>
 #include <yaml-cpp/yaml.h>
 
@@ -269,18 +270,25 @@ void RobotPlanRunner::MoveToJointPosition(
 }
 
 void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
-    const Eigen::Ref<const Eigen::Vector3d> delta_x_ee, double duration) {
-  auto T_ee = get_body_pose_in_world_frame(*tree_->FindBody(kRobotEeBodyName_));
-  Eigen::Vector3d x_ee_start = T_ee.translation();
-  Eigen::Vector3d x_ee_final = x_ee_start + delta_x_ee;
+    const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
+    const Eigen::Ref<const Eigen::Vector3d> force_world_frame,
+    double duration) {
+  Eigen::Isometry3d T_ee;
+  Eigen::Vector3d rpy;
+  GetEePoseInWorldFrame(&T_ee, &rpy);
+
+  Eigen::Vector3d xyz_ee_start = T_ee.translation();
+  Eigen::Vector3d xyz_ee_final = xyz_ee_start + delta_xyz_ee;
+
   std::vector<double> times{0, duration};
   std::vector<Eigen::MatrixXd> knots;
-  knots.push_back(x_ee_start);
-  knots.push_back(x_ee_final);
+  knots.push_back(xyz_ee_start);
+  knots.push_back(xyz_ee_final);
 
   std::unique_ptr<PlanBase> plan =
       std::make_unique<EndEffectorOriginTrajectoryPlan>(
-          tree_, PPType::FirstOrderHold(times, knots));
+          tree_, PPType::FirstOrderHold(times, knots), rpy, force_world_frame,
+          kRobotEeBodyName_);
   QueueNewPlan(std::move(plan));
 }
 
@@ -352,13 +360,16 @@ void RobotPlanRunner::HandleJointSpaceTrajectoryPlan(
   QueueNewPlan(std::move(plan_new_local));
 }
 
-Eigen::Isometry3d
-RobotPlanRunner::get_body_pose_in_world_frame(const RigidBody<double> &body) {
+void RobotPlanRunner::GetBodyPoseInWorldFrame(const RigidBody<double> &body,
+                                              Eigen::Isometry3d *const T,
+                                              Eigen::Vector3d *const rpy) {
   Eigen::VectorXd q = get_current_robot_position();
   KinematicsCache<double> cache = tree_->CreateKinematicsCache();
   cache.initialize(q);
   tree_->doKinematics(cache);
-  return tree_->CalcBodyPoseInWorldFrame(cache, body);
+
+  *T = tree_->CalcBodyPoseInWorldFrame(cache, body);
+  *rpy = tree_->relativeRollPitchYaw(cache, body.get_body_index(), 0);
 }
 
 } // namespace robot_plan_runner

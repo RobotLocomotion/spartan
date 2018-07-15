@@ -31,7 +31,8 @@ namespace robot_plan_runner {
 class RobotPlanRunner {
 public:
   // The constructor should not be called directly.
-  // GetInstance should be called to create an instance of RobotPlanRunner from a config file.
+  // GetInstance should be called to create an instance of RobotPlanRunner from
+  // a config file.
   static std::unique_ptr<RobotPlanRunner>
   GetInstance(const std::string &config_file_name);
 
@@ -56,7 +57,8 @@ public:
   // object.
   // At the beginning of every command publisher loop, PlanRunner checks whether
   // new_plan_ is a nullptr.
-  // If new_plan_ is not a nullptr, it is moved to plan_local (which will be executed
+  // If new_plan_ is not a nullptr, it is moved to plan_local (which will be
+  // executed
   // immediately), and becomes a nullptr again.
   void QueueNewPlan(std::unique_ptr<PlanBase> new_plan) {
     std::lock_guard<std::mutex> lock(robot_plan_mutex_);
@@ -67,17 +69,18 @@ public:
   double get_control_period() { return kControlPeriod_; }
   std::string get_ee_body_name() { return kRobotEeBodyName_; }
 
-  Eigen::Isometry3d get_ee_pose_in_world_frame() {
-    return get_body_pose_in_world_frame(*tree_->FindBody(kRobotEeBodyName_));
+  void GetEePoseInWorldFrame(Eigen::Isometry3d *const T_ee, Eigen::Vector3d *const rpy_ee) {
+    GetBodyPoseInWorldFrame(*tree_->FindBody(kRobotEeBodyName_), T_ee, rpy_ee);
   }
 
   void MoveToJointPosition(const Eigen::Ref<const Eigen::VectorXd> q_final,
                            double duration = 4);
 
   void MoveRelativeToCurrentEeCartesianPosition(
-      const Eigen::Ref<const Eigen::Vector3d> delta_x_ee, double duration = 4);
+      const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
+      const Eigen::Ref<const Eigen::Vector3d> force_world_frame, double duration=4);
 
-private:
+ private:
   // worker method of lcm status receiver thread.
   void ReceiveRobotStatus();
 
@@ -107,36 +110,38 @@ private:
     new_plan_.reset();
   }
 
-  Eigen::Isometry3d get_body_pose_in_world_frame(const RigidBody<double> &body);
+  void GetBodyPoseInWorldFrame(const RigidBody<double> &body,
+                               Eigen::Isometry3d *const T_ee,
+                               Eigen::Vector3d *const rpy);
 
-  // constants to be loaded from yaml file.
-  const std::string kLcmStatusChannel_;
-  const std::string kLcmCommandChannel_;
-  const std::string kLcmPlanChannel_;
-  const std::string kLcmStopChannel_;
-  const std::string kRobotEeBodyName_;
-  const int kNumJoints_;
-  const double kJointSpeedLimitDegPerSec_;
-  const double kControlPeriod_;
+    // constants to be loaded from yaml file.
+    const std::string kLcmStatusChannel_;
+    const std::string kLcmCommandChannel_;
+    const std::string kLcmPlanChannel_;
+    const std::string kLcmStopChannel_;
+    const std::string kRobotEeBodyName_;
+    const int kNumJoints_;
+    const double kJointSpeedLimitDegPerSec_;
+    const double kControlPeriod_;
 
-  std::shared_ptr<const RigidBodyTreed> tree_;
-  int plan_number_{};
+    std::shared_ptr<const RigidBodyTreed> tree_;
+    int plan_number_{};
 
-  // threading
-  std::mutex robot_status_mutex_;
-  std::mutex robot_plan_mutex_;
-  std::thread publish_thread_;
-  std::thread subscriber_thread_;
-  std::thread plan_constructor_thread_;
-  std::condition_variable cv_;
+    // threading
+    std::mutex robot_status_mutex_;
+    std::mutex robot_plan_mutex_;
+    std::thread publish_thread_;
+    std::thread subscriber_thread_;
+    std::thread plan_constructor_thread_;
+    std::condition_variable cv_;
 
-  std::atomic<bool> is_waiting_for_first_robot_status_message_;
-  std::atomic<bool> has_received_new_status_;
-  std::atomic<bool> is_plan_terminated_externally_;
-  lcmt_iiwa_status iiwa_status_;
-  Eigen::VectorXd current_robot_state_;
-  std::unique_ptr<PlanBase> new_plan_;
-};
+    std::atomic<bool> is_waiting_for_first_robot_status_message_;
+    std::atomic<bool> has_received_new_status_;
+    std::atomic<bool> is_plan_terminated_externally_;
+    lcmt_iiwa_status iiwa_status_;
+    Eigen::VectorXd current_robot_state_;
+    std::unique_ptr<PlanBase> new_plan_;
+  };
 
 } // namespace examples
 } // namespace drake

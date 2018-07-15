@@ -28,47 +28,58 @@ int do_main() {
 
   VectorXd q0(kNumJoints), q1(kNumJoints), q2(kNumJoints);
   q0.setZero();
-  q1 << 0.6826, //
-      0.4082,   //
-      0.3147,   //
-      -0.9317,  //
-      -0.5904,  //
-      0.4316,   //
-      0.5157;   //
+  q1 << 0.2793, //
+      0.6824,   //
+      -0.0456,   //
+      -1.4918,  //
+      0.0754,  //
+      0.9042,   //
+      0.5961;   //
   q2 << 0, M_PI / 3, 0, 0, 0, 0, 0;
 
-  // Trigger discarding current command.
-  runner->MoveToJointPosition(q2, 0.001);
-  std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+  runner->MoveToJointPosition(q0, 4.0);
+  std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
-  runner->MoveToJointPosition(q0, 2.0);
-  std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+  runner->MoveToJointPosition(q1, 4.0);
+  std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
-  runner->MoveToJointPosition(q1, 2.0);
-  std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-
-  const Vector3d delta_x1(0.2, 0, 0);
-  const Vector3d delta_x2(0, -0.2, 0);
-  const Vector3d delta_x3(0, 0, -0.2);
-
+  double dx, dy, dz, fx, fy, fz;
+  Vector3d delta_x, force_xyz;
   Eigen::Isometry3d T_ee;
+  Eigen::Vector3d rpy;
+  runner->GetEePoseInWorldFrame(&T_ee, &rpy);
+  cout << "ee position\n" << T_ee.translation() << endl;
+  cout << "ee rpy\n" << rpy << endl;
 
-  T_ee = runner->get_ee_pose_in_world_frame();
-  cout << "EE_pose\n" << T_ee.matrix() << endl;
-  runner->MoveRelativeToCurrentEeCartesianPosition(delta_x3, 5.0);
-  std::this_thread::sleep_for(std::chrono::milliseconds(5500));
-  T_ee = runner->get_ee_pose_in_world_frame();
-  cout << "EE_pose\n" << T_ee.matrix() << endl;
+  while (true) {
+    cout << "\nplease enter world frame Cartesian command in the form of dx dy dz ..." << endl;
+    dx = std::numeric_limits<double>::infinity();
+    dy = dx;
+    dz = dx;
+    fx = 0;
+    fy = 0;
+    fz = 0;
+    std::cin >> dx >> dy >> dz;
+    std::cin >> fx >> fy >> fz;
 
-  runner->MoveRelativeToCurrentEeCartesianPosition(delta_x1, 5.0);
-  std::this_thread::sleep_for(std::chrono::milliseconds(5500));
-  T_ee = runner->get_ee_pose_in_world_frame();
-  cout << "EE_pose\n" << T_ee.matrix() << endl;
+    if(std::abs(dx) > 0.3 || std::abs(dy) > 0.3 || std::abs(dz) > 0.3 ||
+        std::abs(fx) > 15 || std::abs(fy) > 15 || std::abs(fz) > 15) {
+      cout << "command incomplete or too large..." << endl;
+      continue;
+    }
+    delta_x << dx, dy, dz;
+    force_xyz << fx, fy, fz;
+    cout << "commanded movement: " << endl;
+    cout << delta_x << endl;
+    cout << "commanded force_xyz (in world frame): " << endl;
+    cout << force_xyz << endl;
 
-  runner->MoveRelativeToCurrentEeCartesianPosition(delta_x2, 5.0);
-  std::this_thread::sleep_for(std::chrono::milliseconds(5500));
-  T_ee = runner->get_ee_pose_in_world_frame();
-  cout << "EE_pose\n" << T_ee.matrix() << endl;
+    runner->MoveRelativeToCurrentEeCartesianPosition(delta_x, force_xyz, 5.0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+    runner->GetEePoseInWorldFrame(&T_ee, &rpy);
+    cout << "ee position\n" << T_ee.translation() << endl;
+    cout << "ee rpy\n" << rpy << endl;
+  }
 
   runner->MoveToJointPosition(q0);
 
