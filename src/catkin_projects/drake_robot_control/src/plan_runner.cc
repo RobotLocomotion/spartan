@@ -271,7 +271,6 @@ void RobotPlanRunner::MoveToJointPosition(
 
 void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
     const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
-    const Eigen::Ref<const Eigen::Vector3d> force_world_frame,
     double duration) {
   Eigen::Isometry3d T_ee;
   Eigen::Vector3d rpy;
@@ -287,7 +286,7 @@ void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
 
   std::unique_ptr<PlanBase> plan =
       std::make_unique<EndEffectorOriginTrajectoryPlan>(
-          tree_, PPType::FirstOrderHold(times, knots), rpy, force_world_frame,
+          tree_, PPType::FirstOrderHold(times, knots), rpy,
           kRobotEeBodyName_);
   QueueNewPlan(std::move(plan));
 }

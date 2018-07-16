@@ -77,8 +77,7 @@ public:
                            double duration = 4);
 
   void MoveRelativeToCurrentEeCartesianPosition(
-      const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
-      const Eigen::Ref<const Eigen::Vector3d> force_world_frame, double duration=4);
+      const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee, double duration=4);
 
  private:
   // worker method of lcm status receiver thread.

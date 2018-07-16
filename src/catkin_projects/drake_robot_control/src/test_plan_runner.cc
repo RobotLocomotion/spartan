@@ -35,16 +35,22 @@ int do_main() {
       0.0754,  //
       0.9042,   //
       0.5961;   //
-  q2 << 0, M_PI / 3, 0, 0, 0, 0, 0;
+  q2 << -0.1456, //
+      -0.6498,   //
+      0.1090,   //
+      -1.5984,  //
+      0.0794,  //
+      1.5141,   //
+      0.4069;   //
 
-  runner->MoveToJointPosition(q0, 4.0);
+  runner->MoveToJointPosition(q2, 4.0);
   std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
   runner->MoveToJointPosition(q1, 4.0);
   std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
-  double dx, dy, dz, fx, fy, fz;
-  Vector3d delta_x, force_xyz;
+  double dx, dy, dz;
+  Vector3d delta_x;
   Eigen::Isometry3d T_ee;
   Eigen::Vector3d rpy;
   runner->GetEePoseInWorldFrame(&T_ee, &rpy);
@@ -56,25 +62,17 @@ int do_main() {
     dx = std::numeric_limits<double>::infinity();
     dy = dx;
     dz = dx;
-    fx = 0;
-    fy = 0;
-    fz = 0;
     std::cin >> dx >> dy >> dz;
-    std::cin >> fx >> fy >> fz;
 
-    if(std::abs(dx) > 0.3 || std::abs(dy) > 0.3 || std::abs(dz) > 0.3 ||
-        std::abs(fx) > 15 || std::abs(fy) > 15 || std::abs(fz) > 15) {
+    if(std::abs(dx) > 0.3 || std::abs(dy) > 0.3 || std::abs(dz) > 0.3) {
       cout << "command incomplete or too large..." << endl;
       continue;
     }
     delta_x << dx, dy, dz;
-    force_xyz << fx, fy, fz;
     cout << "commanded movement: " << endl;
     cout << delta_x << endl;
-    cout << "commanded force_xyz (in world frame): " << endl;
-    cout << force_xyz << endl;
 
-    runner->MoveRelativeToCurrentEeCartesianPosition(delta_x, force_xyz, 5.0);
+    runner->MoveRelativeToCurrentEeCartesianPosition(delta_x, 5.0);
     std::this_thread::sleep_for(std::chrono::milliseconds(6000));
     runner->GetEePoseInWorldFrame(&T_ee, &rpy);
     cout << "ee position\n" << T_ee.translation() << endl;
