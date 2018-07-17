@@ -1,6 +1,9 @@
 #include <drake_robot_control/plan_runner.h>
 #include <yaml-cpp/yaml.h>
 
+#include "trajectory_msgs/JointTrajectory.h"
+#include "trajectory_msgs/JointTrajectoryPoint.h"
+
 namespace drake {
 namespace robot_plan_runner {
 
@@ -363,6 +366,65 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(const robot_msgs::JointTrajec
 
   ROS_INFO("Received Joint Space Trajectory Plan");
   robot_msgs::JointTrajectoryResult result;
+  
+
+  int num_knot_points = goal->trajectory.points.size();
+  const trajectory_msgs::JointTrajectory & trajectory = goal->trajectory;
+
+
+
+  ROS_INFO("Received Joint Space Trajectory Plan");
+  if (is_waiting_for_first_robot_status_message_) {
+    std::cout << "Discarding plan, no status message received yet" << std::endl;
+    return;                                                                                            
+  } else if (num_knot_points < 2) {
+    std::cout << "Discarding plan, Not enough knot points." << std::endl;
+    return;
+  }
+
+  robot_status_mutex_.lock();
+  auto iiwa_status_local = iiwa_status_;
+  robot_status_mutex_.unlock();
+
+
+
+  std::vector<Eigen::MatrixXd> knots(num_knot_points,
+                                     Eigen::MatrixXd::Zero(kNumJoints_, 1));
+  std::map<std::string, int> name_to_idx =
+      tree_->computePositionNameToIndexMap();
+
+  std::vector<double> input_time;
+  for (int i = 0; i < num_knot_points; ++i) {
+    const trajectory_msgs::JointTrajectoryPoint & traj_point = trajectory.points[i];
+    for (int j = 0; j < trajectory.joint_names.size(); ++j) {
+      std::string joint_name = trajectory.joint_names[j];
+      if (name_to_idx.count(joint_name) == 0) {
+        continue;
+      }
+
+      int joint_idx = name_to_idx[joint_name];
+      // Treat the matrix at knots[i] as a column vector.
+      if (i == 0) {
+        // Always start moving from the position which we're
+        // currently commanding.
+        knots[0](joint_idx, 0) =
+            iiwa_status_local.joint_position_commanded[j];
+      } else {
+        knots[i](joint_idx, 0) = traj_point.positions[j];
+      }
+    }
+
+    input_time.push_back(traj_point.time_from_start.toSec());
+  }
+
+  std::cout << "plan duration in seconds: " << input_time.back() << std::endl;
+
+  const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(kNumJoints_, 1);
+  auto plan_new_local = std::make_unique<JointSpaceTrajectoryPlan>(
+      tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot));
+
+  QueueNewPlan(std::move(plan_new_local));
+
   result.status.status = result.status.FINISHED_NORMALLY;
   joint_trajectory_action_.setSucceeded(result);
 }
