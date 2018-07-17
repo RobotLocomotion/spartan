@@ -1,0 +1,9 @@
+# goal
+trajectory_msgs/JointTrajectory trajectory
+---
+# result
+PlanStatus status
+---
+# feedback
+PlanStatus status
+

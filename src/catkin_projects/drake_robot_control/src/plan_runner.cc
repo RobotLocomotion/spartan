@@ -5,7 +5,7 @@ namespace drake {
 namespace robot_plan_runner {
 
 std::unique_ptr<RobotPlanRunner>
-RobotPlanRunner::GetInstance(const std::string &config_file_name) {
+RobotPlanRunner::GetInstance(ros::NodeHandle& nh, const std::string &config_file_name) {
   YAML::Node config = YAML::LoadFile(config_file_name);
   if (!config["lcm_status_channel"] || !config["lcm_command_channel"] ||
       !config["lcm_plan_channel"] || !config["lcm_stop_channel"] ||
@@ -30,7 +30,7 @@ RobotPlanRunner::GetInstance(const std::string &config_file_name) {
       config["robot_ee_body_name"].as<std::string>(),
       config["num_joints"].as<int>(),
       config["joint_speed_limit_degree_per_sec"].as<double>(),
-      config["control_period_s"].as<double>(), std::move(tree));
+      config["control_period_s"].as<double>(), std::move(tree), nh);
 
   return std::move(ptr);
 }
@@ -40,13 +40,16 @@ RobotPlanRunner::RobotPlanRunner(
     const std::string &lcm_command_channel, const std::string &lcm_plan_channel,
     const std::string &lcm_stop_channel, const std::string &robot_ee_body_name,
     int num_joints, double joint_speed_limit_deg_per_sec, double control_period,
-    std::unique_ptr<const RigidBodyTreed> tree)
+    std::unique_ptr<const RigidBodyTreed> tree,
+    ros::NodeHandle& nh)
     : kLcmStatusChannel_(lcm_status_channel),
       kLcmCommandChannel_(lcm_command_channel),
       kLcmPlanChannel_(lcm_plan_channel), kLcmStopChannel_(lcm_stop_channel),
       kRobotEeBodyName_(robot_ee_body_name), kNumJoints_(num_joints),
       kJointSpeedLimitDegPerSec_(joint_speed_limit_deg_per_sec),
-      kControlPeriod_(control_period), tree_(std::move(tree)) {
+      kControlPeriod_(control_period), tree_(std::move(tree)),
+      nh_(nh),
+      joint_trajectory_action_(nh_, "JointTrajectory", boost::bind(&RobotPlanRunner::ExecuteJointTrajectoryAction, this, _1), false) {
 
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_positions());
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_actuators());
@@ -55,6 +58,7 @@ RobotPlanRunner::RobotPlanRunner(
   current_robot_state_.resize(kNumJoints_ * 2, 1);
   has_received_new_status_ = false;
   is_waiting_for_first_robot_status_message_ = true;
+  joint_trajectory_action_.start(); // start the ROS action
 }
 
 RobotPlanRunner::~RobotPlanRunner() {
@@ -74,6 +78,9 @@ void RobotPlanRunner::Start() {
   subscriber_thread_ = std::thread(&RobotPlanRunner::ReceiveRobotStatus, this);
   plan_constructor_thread_ =
       std::thread(&RobotPlanRunner::ConstructNewPlanFromLcm, this);
+
+  std::cout << "starting ros node" << std::endl;
+  ros::spin(); // start the ROS node, this spins on the main thread
 }
 
 Eigen::VectorXd RobotPlanRunner::get_current_robot_state() {
@@ -308,7 +315,7 @@ void RobotPlanRunner::HandleJointSpaceTrajectoryPlan(
   std::cout << "New joint space trajectory plan received." << std::endl;
   if (is_waiting_for_first_robot_status_message_) {
     std::cout << "Discarding plan, no status message received yet" << std::endl;
-    return;
+    return;                                                                                            
   } else if (tape->num_states < 2) {
     std::cout << "Discarding plan, Not enough knot points." << std::endl;
     return;
@@ -350,6 +357,14 @@ void RobotPlanRunner::HandleJointSpaceTrajectoryPlan(
       tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot));
 
   QueueNewPlan(std::move(plan_new_local));
+}
+
+void RobotPlanRunner::ExecuteJointTrajectoryAction(const robot_msgs::JointTrajectoryGoal::ConstPtr &goal){
+
+  ROS_INFO("Received Joint Space Trajectory Plan");
+  robot_msgs::JointTrajectoryResult result;
+  result.status.status = result.status.FINISHED_NORMALLY;
+  joint_trajectory_action_.setSucceeded(result);
 }
 
 Eigen::Isometry3d

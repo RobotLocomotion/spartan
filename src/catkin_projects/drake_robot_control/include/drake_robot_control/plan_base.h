@@ -38,6 +38,7 @@ class PlanBase {
   int get_num_positions() const { return num_positions; }
   int get_num_velocities() const { return num_velocities; }
   PlanStatus get_plan_status() const { return plan_status_; }
+  void stop();
  protected:
   std::shared_ptr<const RigidBodyTreed> tree_;
 
