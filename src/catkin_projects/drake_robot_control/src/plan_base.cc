@@ -26,5 +26,24 @@ void PlanBase::SetPlanFinished(){
     cv_.notify_all();
 }
 
+void PlanBase::GetPlanStatusMsg(robot_msgs::PlanStatus& plan_status_msg){
+    PlanStatus plan_status = this->get_plan_status();
+
+    switch(plan_status) {
+        case PlanStatus::FINISHED_NORMALLY:{
+          plan_status_msg.status = plan_status_msg.FINISHED_NORMALLY;
+          break;
+        } 
+        case PlanStatus::STOPPED_BY_EXTERNAL_TRIGGER: {
+          plan_status_msg.status = plan_status_msg.STOPPED_EXTERNALLY;
+          break;
+        }
+        default: {
+          plan_status_msg.status = plan_status_msg.ERROR;
+          break;
+        }
+    }
+}
+
 } // namespace robot_plan_runner
 } // namespace drake

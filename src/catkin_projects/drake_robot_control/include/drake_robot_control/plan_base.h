@@ -11,6 +11,8 @@
 
 #include <drake/multibody/rigid_body_tree.h>
 
+#include "robot_msgs/PlanStatus.h"
+
 
 
 namespace drake {
@@ -56,6 +58,9 @@ class PlanBase {
 
   // sets the plan to be finished, notifies any waiting threads
   void SetPlanFinished();
+
+  void GetPlanStatusMsg(robot_msgs::PlanStatus& plan_status_msg);
+
   
   // for multi-thread synchronization
   std::atomic<PlanStatus> plan_status_;

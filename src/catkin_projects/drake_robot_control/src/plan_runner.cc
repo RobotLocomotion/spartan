@@ -436,27 +436,14 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(const robot_msgs::JointTrajec
   ROS_INFO("Waiting for plan to finish");
   plan_new_local->WaitForPlanToFinish();
 
+
+
   // // set the result of the action
   // ROS_INFO("setting ROS action to succeeded state");
   robot_msgs::JointTrajectoryResult result;
-  PlanStatus plan_status = plan_new_local->get_plan_status();
+  plan_new_local->GetPlanStatusMsg(result.status);
 
-  switch(plan_status) {
-    case PlanStatus::FINISHED_NORMALLY:{
-      result.status.status = result.status.FINISHED_NORMALLY;
-      break;
-    } 
-    case PlanStatus::STOPPED_BY_EXTERNAL_TRIGGER: {
-      result.status.status = result.status.STOPPED_EXTERNALLY;
-      break;
-    }
-    default: {
-      result.status.status = result.status.ERROR;
-      break;
-    }
-  }
-
-  
+  ROS_INFO("setting action result");
   joint_trajectory_action_->setSucceeded(result);
 }
 
