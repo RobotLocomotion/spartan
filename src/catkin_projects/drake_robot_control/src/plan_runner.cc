@@ -8,7 +8,8 @@ namespace drake {
 namespace robot_plan_runner {
 
 std::unique_ptr<RobotPlanRunner>
-RobotPlanRunner::GetInstance(ros::NodeHandle& nh, const std::string &config_file_name) {
+RobotPlanRunner::GetInstance(ros::NodeHandle &nh,
+                             const std::string &config_file_name) {
   YAML::Node config = YAML::LoadFile(config_file_name);
   if (!config["lcm_status_channel"] || !config["lcm_command_channel"] ||
       !config["lcm_plan_channel"] || !config["lcm_stop_channel"] ||
@@ -43,16 +44,14 @@ RobotPlanRunner::RobotPlanRunner(
     const std::string &lcm_command_channel, const std::string &lcm_plan_channel,
     const std::string &lcm_stop_channel, const std::string &robot_ee_body_name,
     int num_joints, double joint_speed_limit_deg_per_sec, double control_period,
-    std::unique_ptr<const RigidBodyTreed> tree,
-    ros::NodeHandle& nh)
+    std::unique_ptr<const RigidBodyTreed> tree, ros::NodeHandle &nh)
     : kLcmStatusChannel_(lcm_status_channel),
       kLcmCommandChannel_(lcm_command_channel),
       kLcmPlanChannel_(lcm_plan_channel), kLcmStopChannel_(lcm_stop_channel),
       kRobotEeBodyName_(robot_ee_body_name), kNumJoints_(num_joints),
       kJointSpeedLimitDegPerSec_(joint_speed_limit_deg_per_sec),
-      kControlPeriod_(control_period), tree_(std::move(tree)),
-      nh_(nh),
-      plan_number_(0){
+      kControlPeriod_(control_period), tree_(std::move(tree)), nh_(nh),
+      plan_number_(0) {
 
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_positions());
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_actuators());
@@ -62,7 +61,11 @@ RobotPlanRunner::RobotPlanRunner(
   has_received_new_status_ = false;
   is_waiting_for_first_robot_status_message_ = true;
 
-  joint_trajectory_action_ = std::make_shared<actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>>(nh_, "JointTrajectory", boost::bind(&RobotPlanRunner::ExecuteJointTrajectoryAction, this, _1), false);
+  joint_trajectory_action_ = std::make_shared<
+      actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>>(
+      nh_, "JointTrajectory",
+      boost::bind(&RobotPlanRunner::ExecuteJointTrajectoryAction, this, _1),
+      false);
   joint_trajectory_action_->start(); // start the ROS action
 }
 
@@ -83,13 +86,6 @@ void RobotPlanRunner::Start() {
   subscriber_thread_ = std::thread(&RobotPlanRunner::ReceiveRobotStatus, this);
   plan_constructor_thread_ =
       std::thread(&RobotPlanRunner::ConstructNewPlanFromLcm, this);
-
-  std::cout << "starting ros node" << std::endl;
-
-  // start ROS AsyncSpinner since the service calls are blocking 
-
-  // ros::MultiThreadedSpinner spinner(4);
-  // spinner.spin();
 }
 
 Eigen::VectorXd RobotPlanRunner::get_current_robot_state() {
@@ -325,7 +321,7 @@ void RobotPlanRunner::HandleJointSpaceTrajectoryPlan(
   std::cout << "New joint space trajectory plan received." << std::endl;
   if (is_waiting_for_first_robot_status_message_) {
     std::cout << "Discarding plan, no status message received yet" << std::endl;
-    return;                                                                                            
+    return;
   } else if (tape->num_states < 2) {
     std::cout << "Discarding plan, Not enough knot points." << std::endl;
     return;
@@ -369,21 +365,19 @@ void RobotPlanRunner::HandleJointSpaceTrajectoryPlan(
   QueueNewPlan(plan_new_local);
 }
 
-void RobotPlanRunner::ExecuteJointTrajectoryAction(const robot_msgs::JointTrajectoryGoal::ConstPtr &goal){
+void RobotPlanRunner::ExecuteJointTrajectoryAction(
+    const robot_msgs::JointTrajectoryGoal::ConstPtr &goal) {
 
   ROS_INFO("Received Joint Space Trajectory Plan");
   // robot_msgs::JointTrajectoryResult result;
-  
 
   int num_knot_points = goal->trajectory.points.size();
-  const trajectory_msgs::JointTrajectory & trajectory = goal->trajectory;
-
-
+  const trajectory_msgs::JointTrajectory &trajectory = goal->trajectory;
 
   ROS_INFO("Received Joint Space Trajectory Plan");
   if (is_waiting_for_first_robot_status_message_) {
     std::cout << "Discarding plan, no status message received yet" << std::endl;
-    return;                                                                                            
+    return;
   } else if (num_knot_points < 2) {
     std::cout << "Discarding plan, Not enough knot points." << std::endl;
     return;
@@ -393,8 +387,6 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(const robot_msgs::JointTrajec
   auto iiwa_status_local = iiwa_status_;
   robot_status_mutex_.unlock();
 
-
-
   std::vector<Eigen::MatrixXd> knots(num_knot_points,
                                      Eigen::MatrixXd::Zero(kNumJoints_, 1));
   std::map<std::string, int> name_to_idx =
@@ -402,7 +394,8 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(const robot_msgs::JointTrajec
 
   std::vector<double> input_time;
   for (int i = 0; i < num_knot_points; ++i) {
-    const trajectory_msgs::JointTrajectoryPoint & traj_point = trajectory.points[i];
+    const trajectory_msgs::JointTrajectoryPoint &traj_point =
+        trajectory.points[i];
     for (int j = 0; j < trajectory.joint_names.size(); ++j) {
       std::string joint_name = trajectory.joint_names[j];
       if (name_to_idx.count(joint_name) == 0) {
@@ -414,8 +407,7 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(const robot_msgs::JointTrajec
       if (i == 0) {
         // Always start moving from the position which we're
         // currently commanding.
-        knots[0](joint_idx, 0) =
-            iiwa_status_local.joint_position_commanded[j];
+        knots[0](joint_idx, 0) = iiwa_status_local.joint_position_commanded[j];
       } else {
         knots[i](joint_idx, 0) = traj_point.positions[j];
       }
@@ -435,8 +427,6 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(const robot_msgs::JointTrajec
   // // now wait for the plan to finish
   ROS_INFO("Waiting for plan to finish");
   plan_new_local->WaitForPlanToFinish();
-
-
 
   // // set the result of the action
   // ROS_INFO("setting ROS action to succeeded state");
