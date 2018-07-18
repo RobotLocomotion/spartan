@@ -271,10 +271,11 @@ void RobotPlanRunner::MoveToJointPosition(
 
 void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
     const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
-    double duration) {
+    const math::RotationMatrixd &R_WE_ref, double duration) {
   Eigen::Isometry3d T_ee;
   Eigen::Vector3d rpy;
   GetEePoseInWorldFrame(&T_ee, &rpy);
+  const math::RotationMatrixd R_WE(T_ee.linear());
 
   Eigen::Vector3d xyz_ee_start = T_ee.translation();
   Eigen::Vector3d xyz_ee_final = xyz_ee_start + delta_xyz_ee;
@@ -284,10 +285,21 @@ void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
   knots.push_back(xyz_ee_start);
   knots.push_back(xyz_ee_final);
 
-  std::unique_ptr<PlanBase> plan =
-      std::make_unique<EndEffectorOriginTrajectoryPlan>(
-          tree_, PPType::FirstOrderHold(times, knots), rpy,
-          kRobotEeBodyName_);
+  std::unique_ptr<PlanBase> plan;
+
+  if (!R_WE.IsNearlyEqualTo(R_WE_ref, 0.5)) {
+    std::cout
+        << "Difference between current and reference orietation is too large, "
+           "keep current orietation..."
+        << std::endl;
+    plan = std::make_unique<EndEffectorOriginTrajectoryPlan>(
+        tree_, PPType::FirstOrderHold(times, knots), R_WE,
+        kRobotEeBodyName_);
+  } else {
+    plan = std::make_unique<EndEffectorOriginTrajectoryPlan>(
+        tree_, PPType::FirstOrderHold(times, knots), R_WE_ref,
+        kRobotEeBodyName_);
+  }
   QueueNewPlan(std::move(plan));
 }
 

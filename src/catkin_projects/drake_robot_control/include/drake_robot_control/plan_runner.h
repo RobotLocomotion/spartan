@@ -76,8 +76,9 @@ public:
   void MoveToJointPosition(const Eigen::Ref<const Eigen::VectorXd> q_final,
                            double duration = 4);
 
-  void MoveRelativeToCurrentEeCartesianPosition(
-      const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee, double duration=4);
+  void MoveRelativeToCurrentEeCartesianPosition(const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
+                                                const math::RotationMatrixd &R_WE_ref,
+                                                double duration);
 
  private:
   // worker method of lcm status receiver thread.

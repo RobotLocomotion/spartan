@@ -20,6 +20,8 @@ int do_main() {
                                  "iiwa_plan_runner_config.yaml";
   autoExpandEnvironmentVariables(config_file_name);
 
+  cout << config_file_name << endl;
+
   auto runner = RobotPlanRunner::GetInstance(config_file_name);
   const int kNumJoints = runner->get_rigid_body_tree()->get_num_positions();
 
@@ -57,6 +59,8 @@ int do_main() {
   cout << "ee position\n" << T_ee.translation() << endl;
   cout << "ee rpy\n" << rpy << endl;
 
+  math::RollPitchYawd rpy_drake(M_PI/6, M_PI/2, 0);
+
   while (true) {
     cout << "\nplease enter world frame Cartesian command in the form of dx dy dz ..." << endl;
     dx = std::numeric_limits<double>::infinity();
@@ -72,11 +76,13 @@ int do_main() {
     cout << "commanded movement: " << endl;
     cout << delta_x << endl;
 
-    runner->MoveRelativeToCurrentEeCartesianPosition(delta_x, 5.0);
+    runner->MoveRelativeToCurrentEeCartesianPosition(delta_x, rpy_drake.ToRotationMatrix(), 5.0);
     std::this_thread::sleep_for(std::chrono::milliseconds(6000));
     runner->GetEePoseInWorldFrame(&T_ee, &rpy);
     cout << "ee position\n" << T_ee.translation() << endl;
     cout << "ee rpy\n" << rpy << endl;
+    cout << "ee rotation matrix\n" << T_ee.linear() << endl;
+    cout << "ee rotation matirx desired\n" << rpy_drake.ToMatrix3ViaRotationMatrix() << endl;
   }
 
   runner->MoveToJointPosition(q0);
