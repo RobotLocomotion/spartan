@@ -6,10 +6,12 @@ import numpy as np
 # ROS
 import rospy
 import sensor_msgs.msg
+import actionlib
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 # ROS custom packages
 import robot_msgs.srv
+import robot_msgs.msg
 import robot_control.control_utils as controlUtils
 
 
@@ -17,23 +19,28 @@ from spartan.utils.ros_utils import SimpleSubscriber
 
 
 class RobotMovementService(object):
+    """
+    Helper class that provides some basic functionality, i.e. moveToJointPosition
+    """
 
-    def __init__(self, joint_states_topic="/joint_states"):
+    def __init__(self, config):
 
-        self.config = dict()
-        self.config['joint_states_topic'] = joint_states_topic
-        self.config['trajectory_service_name'] = 'robot_control/SendJointTrajectory'
-        self.config['move_to_joint_position_service_name'] = "robot_control/MoveToJointPosition"
-
-        self.setupServiceProxies()
+        self.config = config
+        self.setupActionClients()
         self.setupRobot()
         self.setupSubscribers()
 
-    def setupServiceProxies(self):
-        rospy.loginfo("waiting for the service %s", self.config['trajectory_service_name'])
-        rospy.wait_for_service(self.config['trajectory_service_name'])
-        self.trajectoryService = rospy.ServiceProxy(self.config['trajectory_service_name'],
-                                                    robot_msgs.srv.SendJointTrajectory)
+    def setupActionClients(self):
+        """
+        Connects to the action server for the plan_runner
+        :return: None
+        :rtype:
+        """
+
+        rospy.loginfo("waiting for the action %s", self.config["joint_space_trajectory_action"])
+        self.joint_space_trajectory_action = actionlib.SimpleActionClient(self.config["joint_space_trajectory_action"], robot_msgs.msg.JointTrajectoryAction)
+
+        self.joint_space_trajectory_action.wait_for_server()
 
     def setupSubscribers(self):
         self.subscribers = dict()
@@ -63,6 +70,16 @@ class RobotMovementService(object):
     @:param req: MoveToJointPosition.srv
     """
     def moveToJointPosition(self, req):
+        """
+        Callback for the MoveToJointPosition service
+
+        Constructs a joint space trajectory plan that interpolates from the current position to
+        the desired position in joint space
+        :param req: robot_msgs.srv.MoveToJointPositionRequest
+        :type req:
+        :return:
+        :rtype:
+        """
     
         jointStateFinal = req.joint_state
         jointStateStart = self.getRobotState()
@@ -97,16 +114,18 @@ class RobotMovementService(object):
         trajectory.points = [startPoint, endPoint]
         trajectory.joint_names = self.jointNames
 
-
-        trajectoryServiceResponse = self.trajectoryService(trajectory)
-        resp = robot_msgs.srv.MoveToJointPositionResponse(trajectoryServiceResponse.success)
-        return resp
+        joint_traj_action_goal = robot_msgs.msg.JointTrajectoryGoal()
+        joint_traj_action_goal.trajectory = trajectory
 
 
+        self.joint_space_trajectory_action.send_goal(joint_traj_action_goal)
+        self.joint_space_trajectory_action.wait_for_result()
+        result = self.joint_space_trajectory_action.get_result()
+
+        finished_normally = (result.status.status == result.status.FINISHED_NORMALLY)
+        return finished_normally
 
     # send this out over the TrajectoryService, wait for response then respond
-
-
     def advertiseServices(self):
         rospy.loginfo("advertising services")
         self.moveToJointPositionService = rospy.Service(self.config['move_to_joint_position_service_name'], robot_msgs.srv.MoveToJointPosition, self.moveToJointPosition)
@@ -127,11 +146,11 @@ class RobotMovementService(object):
         trajPoint.time_from_start = timeFromStart
         return trajPoint
 
-if __name__ == "__main__":
-    rospy.init_node("RobotMovementService")
-    robotMovementService = RobotMovementService()
-    robotMovementService.advertiseServices()
-    rospy.loginfo("RobotMovementService ready!")
-    while not rospy.is_shutdown():
-        rospy.spin()
+# if __name__ == "__main__":
+#     rospy.init_node("RobotMovementService")
+#     robotMovementService = RobotMovementService()
+#     robotMovementService.advertiseServices()
+#     rospy.loginfo("RobotMovementService ready!")
+#     while not rospy.is_shutdown():
+#         rospy.spin()
 
