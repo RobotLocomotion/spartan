@@ -46,6 +46,7 @@ target_link_libraries(iiwa_qp_inverse_dynamics_controller
 
 add_executable(iiwa_sim
         kuka_simulation.cc)
+add_dependencies(iiwa_sim ${catkin_EXPORTED_TARGETS})
 target_link_libraries(iiwa_sim
         iiwa_lcm
         iiwa_qp_inverse_dynamics_controller

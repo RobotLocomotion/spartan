@@ -40,6 +40,9 @@ add_library(plan_types
         joint_space_trajectory_plan.cc
         task_space_trajectory_plan.cc
         plan_base.cc)
+
+# following http://docs.ros.org/jade/api/catkin/html/howto/format2/cpp_msg_dependencies.html
+add_dependencies(plan_types ${catkin_EXPORTED_TARGETS})
 target_link_libraries(plan_types
         drake::drake
         ${CMAKE_THREAD_LIBS_INIT}
@@ -48,6 +51,8 @@ target_link_libraries(plan_types
 add_library(plan_runner
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/plan_runner.h
         plan_runner.cc)
+add_dependencies(plan_runner ${catkin_EXPORTED_TARGETS})
+
 target_link_libraries(plan_runner
         plan_types
         drake::drake
@@ -68,6 +73,7 @@ target_link_libraries(test_plan_runner
 
 add_executable(plan_runner_node
         plan_runner_node.cc)
+add_dependencies(plan_runner_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(plan_runner_node
         gflags_shared
         plan_runner
