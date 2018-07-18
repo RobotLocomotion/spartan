@@ -1,6 +1,0 @@
-trajectory_time: 7.5
-
-convergence_epsilon: 0.006 #0.006 #0.01
-convergence_timout: 7.5
-
-command_ptu_velocity: 2.0 #0.1
