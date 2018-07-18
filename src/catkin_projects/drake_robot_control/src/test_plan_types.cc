@@ -33,10 +33,10 @@ int do_main() {
 
   std::unique_ptr<PlanBase> plan;
 
-
-  plan = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(tree->Clone(), q);
+  plan =
+      JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(tree->Clone(), q);
   cout << "hello world!" << endl;
-  for(auto & ti:t) {
+  for (auto &ti : t) {
     plan->Step(x, tau_external, ti, &q_commanded, &v_commanded, nullptr);
     cout << "ti:" << ti << endl;
     cout << "q\n" << q_commanded << endl;
@@ -46,21 +46,20 @@ int do_main() {
   std::unique_ptr<PlanBase> plan2;
   plan2 = std::move(plan);
 
-  if(plan) {
+  if (plan) {
     cout << "plan is not false." << endl;
   } else {
     cout << "plan is false." << endl;
   }
 
-  Eigen::Vector3d x_ee(0,0,0);
+  Eigen::Vector3d x_ee(0, 0, 0);
   std::vector<double> times{0, 2};
   std::vector<Eigen::MatrixXd> knots;
   knots.push_back(x_ee);
   knots.push_back(x_ee);
-  plan =
-      std::make_unique<EndEffectorOriginTrajectoryPlan>(
-          tree->Clone(), PPType::FirstOrderHold(times, knots));
-  for(auto & ti:t) {
+  plan = std::make_unique<EndEffectorOriginTrajectoryPlan>(
+      tree->Clone(), PPType::FirstOrderHold(times, knots));
+  for (auto &ti : t) {
     plan->Step(x, tau_external, ti, &q_commanded, &v_commanded, nullptr);
     cout << "ti:" << ti << endl;
     cout << "q\n" << q_commanded << endl;

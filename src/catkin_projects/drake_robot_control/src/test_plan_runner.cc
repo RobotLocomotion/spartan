@@ -1,13 +1,11 @@
 #include <chrono>
 #include <string>
 
-#include <drake_robot_control/plan_runner.h>
 #include <common_utils/system_utils.h>
+#include <drake_robot_control/plan_runner.h>
 
-
-//ROS
+// ROS
 #include "ros/ros.h"
-
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -25,8 +23,7 @@ int do_main() {
                                  "iiwa_plan_runner_config.yaml";
   autoExpandEnvironmentVariables(config_file_name);
 
-
-  int argc; 
+  int argc;
   char **argv;
   ros::init(argc, argv, "plan_runner");
   ros::NodeHandle nh("plan_runner"); // sets the node's namespace
