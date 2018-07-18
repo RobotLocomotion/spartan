@@ -14,5 +14,11 @@ int main(int argc, char **argv) {
   auto runner =
       drake::robot_plan_runner::RobotPlanRunner::GetInstance(nh, config_filename);
   runner->Start();
+
+  
+  ros::AsyncSpinner spinner(4);
+  spinner.start();
+  ros::waitForShutdown();
+
   return 0;
 }

@@ -18,11 +18,11 @@ def test_joint_trajectory_action():
     print "sending goal"
     client.send_goal(goal)
 
-    print "received goal"
-
-# def test():
-#     traj_point = trajectory_msgs.TrajectoryPoint
-
+    rospy.loginfo("waiting for JointTrajectory action result")
+    client.wait_for_result()
+    result = client.get_result()
+    print "result:", result
+    
 
 def make_joint_trajectory_msg():
     traj = trajectory_msgs.msg.JointTrajectory()

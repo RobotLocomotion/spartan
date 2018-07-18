@@ -38,9 +38,12 @@ add_library(plan_types
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/joint_space_trajectory_plan.h
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/task_space_trajectory_plan.h
         joint_space_trajectory_plan.cc
-        task_space_trajectory_plan.cc)
+        task_space_trajectory_plan.cc
+        plan_base.cc)
 target_link_libraries(plan_types
-        drake::drake)
+        drake::drake
+        ${CMAKE_THREAD_LIBS_INIT}
+        ${catkin_LIBRARIES})
 
 add_library(plan_runner
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/plan_runner.h

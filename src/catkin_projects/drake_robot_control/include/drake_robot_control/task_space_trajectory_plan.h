@@ -39,7 +39,7 @@ class EndEffectorOriginTrajectoryPlan : public TrajectoryPlanBase {
             double t,
             Eigen::VectorXd *const q_commanded,
             Eigen::VectorXd *const v_commanded,
-            Eigen::VectorXd *const tau_commanded) const override {
+            Eigen::VectorXd *const tau_commanded) override {
     Eigen::VectorXd q = x.head(this->get_num_positions());
     Eigen::VectorXd v = x.tail(this->get_num_velocities());
     cache_.initialize(q, v);

@@ -52,7 +52,7 @@ RobotPlanRunner::RobotPlanRunner(
       kJointSpeedLimitDegPerSec_(joint_speed_limit_deg_per_sec),
       kControlPeriod_(control_period), tree_(std::move(tree)),
       nh_(nh),
-      joint_trajectory_action_(nh_, "JointTrajectory", boost::bind(&RobotPlanRunner::ExecuteJointTrajectoryAction, this, _1), false) {
+      plan_number_(0){
 
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_positions());
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_actuators());
@@ -61,7 +61,9 @@ RobotPlanRunner::RobotPlanRunner(
   current_robot_state_.resize(kNumJoints_ * 2, 1);
   has_received_new_status_ = false;
   is_waiting_for_first_robot_status_message_ = true;
-  joint_trajectory_action_.start(); // start the ROS action
+
+  joint_trajectory_action_ = std::make_shared<actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>>(nh_, "JointTrajectory", boost::bind(&RobotPlanRunner::ExecuteJointTrajectoryAction, this, _1), false);
+  joint_trajectory_action_->start(); // start the ROS action
 }
 
 RobotPlanRunner::~RobotPlanRunner() {
@@ -83,7 +85,11 @@ void RobotPlanRunner::Start() {
       std::thread(&RobotPlanRunner::ConstructNewPlanFromLcm, this);
 
   std::cout << "starting ros node" << std::endl;
-  ros::spin(); // start the ROS node, this spins on the main thread
+
+  // start ROS AsyncSpinner since the service calls are blocking 
+
+  // ros::MultiThreadedSpinner spinner(4);
+  // spinner.spin();
 }
 
 Eigen::VectorXd RobotPlanRunner::get_current_robot_state() {
@@ -156,7 +162,7 @@ void RobotPlanRunner::PublishCommand() {
 
   // Allocate and initialize stuff used in the loop.
   lcm::LCM publisher_lcm;
-  std::unique_ptr<PlanBase> plan_local;
+  std::shared_ptr<PlanBase> plan_local;
 
   const double max_dq_per_step =
       kJointSpeedLimitDegPerSec_ / 180 * M_PI * kControlPeriod_;
@@ -200,7 +206,9 @@ void RobotPlanRunner::PublishCommand() {
       is_plan_terminated_externally_ = false;
       is_terminated = true;
     } else if (new_plan_) {
-      plan_local = std::move(new_plan_);
+      std::cout << "New plan swapped into publisher thread" << std::endl;
+      plan_local = new_plan_;
+      new_plan_.reset();
       has_new_plan = true;
     }
     robot_plan_mutex_.unlock();
@@ -216,7 +224,6 @@ void RobotPlanRunner::PublishCommand() {
       plan_local.reset();
     } else if (has_new_plan) {
       has_new_plan = false;
-      plan_number_++;
       start_time_us = iiwa_status_local.utime;
       std::cout << "\nStarting plan No. " << plan_number_ << std::endl;
     }
@@ -273,9 +280,9 @@ void RobotPlanRunner::MoveToJointPosition(
   knots.push_back(q0);
   knots.push_back(q_final);
 
-  std::unique_ptr<PlanBase> plan = std::make_unique<JointSpaceTrajectoryPlan>(
+  std::shared_ptr<PlanBase> plan = std::make_shared<JointSpaceTrajectoryPlan>(
       tree_, PPType::FirstOrderHold(times, knots));
-  QueueNewPlan(std::move(plan));
+  QueueNewPlan(plan);
 }
 
 void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
@@ -288,10 +295,10 @@ void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
   knots.push_back(x_ee_start);
   knots.push_back(x_ee_final);
 
-  std::unique_ptr<PlanBase> plan =
-      std::make_unique<EndEffectorOriginTrajectoryPlan>(
+  std::shared_ptr<PlanBase> plan =
+      std::make_shared<EndEffectorOriginTrajectoryPlan>(
           tree_, PPType::FirstOrderHold(times, knots));
-  QueueNewPlan(std::move(plan));
+  QueueNewPlan(plan);
 }
 
 void RobotPlanRunner::HandleStatus(const lcm::ReceiveBuffer *,
@@ -356,16 +363,16 @@ void RobotPlanRunner::HandleJointSpaceTrajectoryPlan(
   }
 
   const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(kNumJoints_, 1);
-  auto plan_new_local = std::make_unique<JointSpaceTrajectoryPlan>(
+  auto plan_new_local = std::make_shared<JointSpaceTrajectoryPlan>(
       tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot));
 
-  QueueNewPlan(std::move(plan_new_local));
+  QueueNewPlan(plan_new_local);
 }
 
 void RobotPlanRunner::ExecuteJointTrajectoryAction(const robot_msgs::JointTrajectoryGoal::ConstPtr &goal){
 
   ROS_INFO("Received Joint Space Trajectory Plan");
-  robot_msgs::JointTrajectoryResult result;
+  // robot_msgs::JointTrajectoryResult result;
   
 
   int num_knot_points = goal->trajectory.points.size();
@@ -420,13 +427,37 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(const robot_msgs::JointTrajec
   std::cout << "plan duration in seconds: " << input_time.back() << std::endl;
 
   const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(kNumJoints_, 1);
-  auto plan_new_local = std::make_unique<JointSpaceTrajectoryPlan>(
+  auto plan_new_local = std::make_shared<JointSpaceTrajectoryPlan>(
       tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot));
 
-  QueueNewPlan(std::move(plan_new_local));
+  QueueNewPlan(plan_new_local);
 
-  result.status.status = result.status.FINISHED_NORMALLY;
-  joint_trajectory_action_.setSucceeded(result);
+  // // now wait for the plan to finish
+  ROS_INFO("Waiting for plan to finish");
+  plan_new_local->WaitForPlanToFinish();
+
+  // // set the result of the action
+  // ROS_INFO("setting ROS action to succeeded state");
+  robot_msgs::JointTrajectoryResult result;
+  PlanStatus plan_status = plan_new_local->get_plan_status();
+
+  switch(plan_status) {
+    case PlanStatus::FINISHED_NORMALLY:{
+      result.status.status = result.status.FINISHED_NORMALLY;
+      break;
+    } 
+    case PlanStatus::STOPPED_BY_EXTERNAL_TRIGGER: {
+      result.status.status = result.status.STOPPED_EXTERNALLY;
+      break;
+    }
+    default: {
+      result.status.status = result.status.ERROR;
+      break;
+    }
+  }
+
+  
+  joint_trajectory_action_->setSucceeded(result);
 }
 
 Eigen::Isometry3d

@@ -65,9 +65,10 @@ public:
   // new_plan_ is a nullptr.
   // If new_plan_ is not a nullptr, it is moved to plan_local (which will be executed
   // immediately), and becomes a nullptr again.
-  void QueueNewPlan(std::unique_ptr<PlanBase> new_plan) {
+  void QueueNewPlan(std::shared_ptr<PlanBase> new_plan) {
     std::lock_guard<std::mutex> lock(robot_plan_mutex_);
-    new_plan_ = std::move(new_plan);
+    new_plan_ = new_plan;
+    new_plan_->plan_number_ = plan_number_++; //sets the plan number
   }
 
   std::shared_ptr<const RigidBodyTreed> get_rigid_body_tree() { return tree_; }
@@ -129,7 +130,6 @@ private:
   const double kControlPeriod_;
 
   std::shared_ptr<const RigidBodyTreed> tree_;
-  int plan_number_{};
 
   // threading
   std::mutex robot_status_mutex_;
@@ -142,14 +142,15 @@ private:
   std::atomic<bool> is_waiting_for_first_robot_status_message_;
   std::atomic<bool> has_received_new_status_;
   std::atomic<bool> is_plan_terminated_externally_;
+  std::atomic<int> plan_number_; // the current plan number
   lcmt_iiwa_status iiwa_status_;
   Eigen::VectorXd current_robot_state_;
-  std::unique_ptr<PlanBase> new_plan_;
+  std::shared_ptr<PlanBase> new_plan_;
 
   ros::NodeHandle nh_;
 
   // ROS Actions
-  actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction> joint_trajectory_action_;
+  std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>> joint_trajectory_action_;
 
 };
 
