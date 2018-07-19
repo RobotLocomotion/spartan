@@ -1,0 +1,12 @@
+# goal
+CartesianTrajectory trajectory
+
+# optional force threshold
+ForceThreshold[] force_threshold
+---
+# result
+PlanStatus status
+---
+# feedback
+PlanStatus status
+
