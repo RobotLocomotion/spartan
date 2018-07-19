@@ -19,7 +19,7 @@ public:
             double t,
             Eigen::VectorXd *const q_commanded,
             Eigen::VectorXd *const v_commanded,
-            Eigen::VectorXd *const tau_commanded) const override {
+            Eigen::VectorXd *const tau_commanded) override {
     DRAKE_ASSERT(t >= 0);
     *q_commanded = traj_.value(t);
     *v_commanded = traj_d_.value(t);
