@@ -148,7 +148,8 @@ public:
   std::atomic<bool> is_waiting_for_first_robot_status_message_;
   std::atomic<bool> has_received_new_status_;
   std::atomic<bool> is_plan_terminated_externally_;
-  std::atomic<int> plan_number_; // the current plan numberlcmt_iiwa_status iiwa_status_;
+  std::atomic<int> plan_number_; // the current plan number
+  lcmt_iiwa_status iiwa_status_;
   Eigen::VectorXd current_robot_state_;
   std::shared_ptr<PlanBase> new_plan_;
 ros::NodeHandle nh_;

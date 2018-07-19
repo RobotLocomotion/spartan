@@ -59,11 +59,11 @@ target_link_libraries(plan_runner
         ${CMAKE_THREAD_LIBS_INIT}
         ${catkin_LIBRARIES})
 
-add_executable(test_plan_types
-        test_plan_types.cc)
-target_link_libraries(test_plan_types
-        plan_types
-        drake::drake)
+#add_executable(test_plan_types
+#        test_plan_types.cc)
+#target_link_libraries(test_plan_types
+#        plan_types
+#        drake::drake)
 
 add_executable(test_plan_runner
         test_plan_runner.cc)
