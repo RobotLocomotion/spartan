@@ -1,6 +1,19 @@
 #pragma once
 
+#include <atomic>
+#include <condition_variable>
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+
 #include <drake/multibody/rigid_body_tree.h>
+
+#include "robot_msgs/PlanStatus.h"
+
+
 
 namespace drake {
 namespace robot_plan_runner {
@@ -21,7 +34,7 @@ enum PlanStatus {
 class PlanBase {
  public:
   explicit PlanBase(std::shared_ptr<const RigidBodyTreed> tree)
-      : tree_(std::move(tree)) {
+      : tree_(std::move(tree)), is_finished_(false) {
     num_positions = tree_->get_num_positions();
     num_velocities = tree_->get_num_velocities();
     plan_status_ = NOT_STARTED;
@@ -34,17 +47,38 @@ class PlanBase {
                     double t,
                     Eigen::VectorXd *const q_commanded,
                     Eigen::VectorXd *const v_commanded,
-                    Eigen::VectorXd *const tau_commanded) const = 0;
+                    Eigen::VectorXd *const tau_commanded) = 0;
   int get_num_positions() const { return num_positions; }
   int get_num_velocities() const { return num_velocities; }
-  PlanStatus get_plan_status() const { return plan_status_; }
+
+  // return (a copy) of the current plan status
+  PlanStatus get_plan_status() const { return plan_status_.load();}
+  void Stop(){};
+  PlanStatus WaitForPlanToFinish();
+
+  // sets the plan to be finished, notifies any waiting threads
+  void SetPlanFinished();
+
+  void GetPlanStatusMsg(robot_msgs::PlanStatus& plan_status_msg);
+
+  
+  // for multi-thread synchronization
+  std::atomic<PlanStatus> plan_status_;
+  std::condition_variable cv_;
+  std::mutex mutex_;
+  bool is_finished_;
+  int plan_number_;
+
  protected:
   std::shared_ptr<const RigidBodyTreed> tree_;
-
+  
  private:
   int num_positions;
   int num_velocities;
-  PlanStatus plan_status_;
+  
+  
+
+  ;
 };
 
 } // namespace robot_plan_runner

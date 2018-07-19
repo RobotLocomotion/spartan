@@ -11,6 +11,9 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  robot_msgs
+  actionlib
+  actionlib_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -188,6 +191,19 @@ add_subdirectory(src)
 #   # myfile2
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
+
+
+
+install(DIRECTORY
+    config/
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
+)
+
+install(DIRECTORY
+    launch/
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
+
 
 #############
 ## Testing ##

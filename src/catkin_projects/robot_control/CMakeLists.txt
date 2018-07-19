@@ -153,12 +153,7 @@ catkin_package(
 # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
 
 catkin_install_python(PROGRAMS
-	scripts/test_command.py
-	scripts/test_movement_service.py
-	scripts/test_ikservice.py
-	src/robot_control/trajectory_server.py
-	src/robot_control/robotmovementservice.py
-	src/robot_control/ikservice.py
+	nodes/robot_movement_service_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 ## Mark executable scripts (Python etc.) for installation
@@ -184,13 +179,13 @@ catkin_install_python(PROGRAMS
 # )
 
 # Mark other files for installation (e.g. launch and bag files, etc.)
-install(FILES
-   launch/robot_control.launch
-   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+install(DIRECTORY
+   launch/
+   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 )
-install(FILES
-   data/robot_control_params.yaml
-   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/data
+install(DIRECTORY
+   config/
+   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
 )
 
 

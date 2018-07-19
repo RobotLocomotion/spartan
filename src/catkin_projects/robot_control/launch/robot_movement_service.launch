@@ -2,7 +2,7 @@
 <launch>
 
 	<arg name="pkg_name" default="robot_control" />
-	<arg name="config_filename" value="$(eval find(arg('pkg_name')) +'/config/iiwa_plan_runner_config.yaml')" />
+	<arg name="config_filename" value="$(eval find(arg('pkg_name')) +'/config/robot_movement_service.yaml')" />
 
 	<node name="robot_movement_service" pkg="$(arg pkg_name)" type="robot_movement_service_node.py" output="screen">
 		<param name="config_filename" type="string" value="$(arg config_filename)"/>

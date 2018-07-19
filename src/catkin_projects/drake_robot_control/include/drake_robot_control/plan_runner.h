@@ -25,6 +25,12 @@
 #include <drake/multibody/parsers/urdf_parser.h>
 #include <drake/multibody/rigid_body_tree.h>
 
+// ROS
+#include <actionlib/server/simple_action_server.h>
+
+#include "robot_msgs/JointTrajectoryAction.h"
+
+
 namespace drake {
 namespace robot_plan_runner {
 
@@ -33,7 +39,7 @@ public:
   // The constructor should not be called directly.
   // GetInstance should be called to create an instance of RobotPlanRunner from a config file.
   static std::unique_ptr<RobotPlanRunner>
-  GetInstance(const std::string &config_file_name);
+  GetInstance(ros::NodeHandle& nh, const std::string &config_file_name);
 
   RobotPlanRunner(const std::string &lcm_status_channel,
                   const std::string &lcm_command_channel,
@@ -41,7 +47,8 @@ public:
                   const std::string &lcm_stop_channel,
                   const std::string &robot_ee_body_name, int num_joints,
                   double joint_speed_limit_deg_per_sec, double control_period,
-                  std::unique_ptr<const RigidBodyTreed> tree);
+                  std::unique_ptr<const RigidBodyTreed> tree,
+                  ros::NodeHandle& nh);
   ~RobotPlanRunner();
 
   void Start();
@@ -58,9 +65,10 @@ public:
   // new_plan_ is a nullptr.
   // If new_plan_ is not a nullptr, it is moved to plan_local (which will be executed
   // immediately), and becomes a nullptr again.
-  void QueueNewPlan(std::unique_ptr<PlanBase> new_plan) {
+  void QueueNewPlan(std::shared_ptr<PlanBase> new_plan) {
     std::lock_guard<std::mutex> lock(robot_plan_mutex_);
-    new_plan_ = std::move(new_plan);
+    new_plan_ = new_plan;
+    new_plan_->plan_number_ = plan_number_++; //sets the plan number
   }
 
   std::shared_ptr<const RigidBodyTreed> get_rigid_body_tree() { return tree_; }
@@ -100,6 +108,8 @@ private:
                                  const std::string &,
                                  const robotlocomotion::robot_plan_t *tape);
 
+  void ExecuteJointTrajectoryAction(const robot_msgs::JointTrajectoryGoal::ConstPtr &goal);
+
   void HandleStop(const lcm::ReceiveBuffer *, const std::string &,
                   const robotlocomotion::robot_plan_t *) {
     std::lock_guard<std::mutex> lock(robot_plan_mutex_);
@@ -120,7 +130,6 @@ private:
   const double kControlPeriod_;
 
   std::shared_ptr<const RigidBodyTreed> tree_;
-  int plan_number_{};
 
   // threading
   std::mutex robot_status_mutex_;
@@ -133,9 +142,16 @@ private:
   std::atomic<bool> is_waiting_for_first_robot_status_message_;
   std::atomic<bool> has_received_new_status_;
   std::atomic<bool> is_plan_terminated_externally_;
+  std::atomic<int> plan_number_; // the current plan number
   lcmt_iiwa_status iiwa_status_;
   Eigen::VectorXd current_robot_state_;
-  std::unique_ptr<PlanBase> new_plan_;
+  std::shared_ptr<PlanBase> new_plan_;
+
+  ros::NodeHandle nh_;
+
+  // ROS Actions
+  std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>> joint_trajectory_action_;
+
 };
 
 } // namespace examples

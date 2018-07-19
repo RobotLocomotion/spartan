@@ -38,17 +38,26 @@ add_library(plan_types
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/joint_space_trajectory_plan.h
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/task_space_trajectory_plan.h
         joint_space_trajectory_plan.cc
-        task_space_trajectory_plan.cc)
+        task_space_trajectory_plan.cc
+        plan_base.cc)
+
+# following http://docs.ros.org/jade/api/catkin/html/howto/format2/cpp_msg_dependencies.html
+add_dependencies(plan_types ${catkin_EXPORTED_TARGETS})
 target_link_libraries(plan_types
-        drake::drake)
+        drake::drake
+        ${CMAKE_THREAD_LIBS_INIT}
+        ${catkin_LIBRARIES})
 
 add_library(plan_runner
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/plan_runner.h
         plan_runner.cc)
+add_dependencies(plan_runner ${catkin_EXPORTED_TARGETS})
+
 target_link_libraries(plan_runner
         plan_types
         drake::drake
-        ${CMAKE_THREAD_LIBS_INIT})
+        ${CMAKE_THREAD_LIBS_INIT}
+        ${catkin_LIBRARIES})
 
 add_executable(test_plan_types
         test_plan_types.cc)
@@ -62,11 +71,13 @@ target_link_libraries(test_plan_runner
         plan_runner
         drake::drake)
 
-add_executable(run_plan_runner
-        run_plan_runner.cc)
-target_link_libraries(run_plan_runner
+add_executable(plan_runner_node
+        plan_runner_node.cc)
+add_dependencies(plan_runner_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(plan_runner_node
         gflags_shared
-        plan_runner)
+        plan_runner
+        ${catkin_LIBRARIES})
 
 # install library
 install(TARGETS plan_types plan_runner
@@ -76,7 +87,7 @@ install(TARGETS plan_types plan_runner
 )
 
 # install executable
-install(TARGETS run_plan_runner
+install(TARGETS plan_runner_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

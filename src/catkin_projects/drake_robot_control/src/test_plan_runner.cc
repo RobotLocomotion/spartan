@@ -1,8 +1,11 @@
 #include <chrono>
 #include <string>
 
-#include <drake_robot_control/plan_runner.h>
 #include <common_utils/system_utils.h>
+#include <drake_robot_control/plan_runner.h>
+
+// ROS
+#include "ros/ros.h"
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -20,7 +23,12 @@ int do_main() {
                                  "iiwa_plan_runner_config.yaml";
   autoExpandEnvironmentVariables(config_file_name);
 
-  auto runner = RobotPlanRunner::GetInstance(config_file_name);
+  int argc;
+  char **argv;
+  ros::init(argc, argv, "plan_runner");
+  ros::NodeHandle nh("plan_runner"); // sets the node's namespace
+
+  auto runner = RobotPlanRunner::GetInstance(nh, config_file_name);
   const int kNumJoints = runner->get_rigid_body_tree()->get_num_positions();
 
   runner->Start();

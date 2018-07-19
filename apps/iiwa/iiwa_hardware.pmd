@@ -66,7 +66,7 @@ group "2.iiwa-drivers" {
   }
 
   cmd "1.plan-runner" {
-    exec = "$SPARTAN_INSTALL_DIR/lib/drake_robot_control/run_plan_runner";
+    exec = "roslaunch drake_robot_control plan_runner.launch";
     host = "localhost";
   }
 
@@ -122,11 +122,6 @@ group "8.ROS" {
     host = "localhost";
   }
 
-  cmd "1.ROS Trajectory Server" {
-    exec = "roslaunch robot_control robot_control.launch";
-    host = "localhost";
-  }
-
   cmd "2.ROS Model and TF Publisher" {
     exec = "roslaunch robot_server robot_state_publisher.launch";
     host = "localhost";
@@ -138,7 +133,7 @@ group "8.ROS" {
   }
 
   cmd "4.Robot Movement Service" {
-    exec = "rosrun robot_control robotmovementservice.py";
+    exec = "roslaunch robot_control robot_movement_service.launch";
     host = "localhost";
   }
 

@@ -1,0 +1,3 @@
+joint_states_topic: "/joint_states"
+joint_space_trajectory_action: "/plan_runner/JointTrajectory"
+move_to_joint_position_service_name: "/robot_control/MoveToJointPosition"

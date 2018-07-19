@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+
+<arg name="pkg_name" default="drake_robot_control" />
+<arg name="param_filename" value="$(eval find(arg('pkg_name')) +'/config/iiwa_plan_runner_config.yaml')" />
+
+<node name="plan_runner" pkg="$(arg pkg_name)" type="plan_runner_node" output="screen">
+    <param name="param_filename" type="string" value="$(arg param_filename)"/>
+</node>
+
+</launch>
