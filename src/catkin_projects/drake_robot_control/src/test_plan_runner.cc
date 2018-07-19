@@ -19,7 +19,7 @@ namespace {
 
 int do_main() {
   std::string config_file_name = "${SPARTAN_SOURCE_DIR}/src/catkin_projects/"
-                                 "drake_iiwa_sim/config/"
+                                 "drake_robot_control/config/"
                                  "iiwa_plan_runner_config.yaml";
   autoExpandEnvironmentVariables(config_file_name);
 
@@ -36,47 +36,60 @@ int do_main() {
 
   VectorXd q0(kNumJoints), q1(kNumJoints), q2(kNumJoints);
   q0.setZero();
-  q1 << 0.6826, //
-      0.4082,   //
-      0.3147,   //
-      -0.9317,  //
-      -0.5904,  //
-      0.4316,   //
-      0.5157;   //
-  q2 << 0, M_PI / 3, 0, 0, 0, 0, 0;
+  q1 << 0.2793, //
+      0.6824,   //
+      -0.0456,   //
+      -1.4918,  //
+      0.0754,  //
+      0.9042,   //
+      0.5961;   //
+  q2 << -0.1456, //
+      -0.6498,   //
+      0.1090,   //
+      -1.5984,  //
+      0.0794,  //
+      1.5141,   //
+      0.4069;   //
 
-  // Trigger discarding current command.
-  runner->MoveToJointPosition(q2, 0.001);
-  std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+  runner->MoveToJointPosition(q2, 4.0);
+  std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
-  runner->MoveToJointPosition(q0, 2.0);
-  std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+  runner->MoveToJointPosition(q1, 4.0);
+  std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
-  runner->MoveToJointPosition(q1, 2.0);
-  std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-
-  const Vector3d delta_x1(0.2, 0, 0);
-  const Vector3d delta_x2(0, -0.2, 0);
-  const Vector3d delta_x3(0, 0, -0.2);
-
+  double dx, dy, dz;
+  Vector3d delta_x;
   Eigen::Isometry3d T_ee;
+  Eigen::Vector3d rpy;
+  runner->GetEePoseInWorldFrame(&T_ee, &rpy);
+  cout << "ee position\n" << T_ee.translation() << endl;
+  cout << "ee rpy\n" << rpy << endl;
 
-  T_ee = runner->get_ee_pose_in_world_frame();
-  cout << "EE_pose\n" << T_ee.matrix() << endl;
-  runner->MoveRelativeToCurrentEeCartesianPosition(delta_x3, 5.0);
-  std::this_thread::sleep_for(std::chrono::milliseconds(5500));
-  T_ee = runner->get_ee_pose_in_world_frame();
-  cout << "EE_pose\n" << T_ee.matrix() << endl;
+  math::RollPitchYawd rpy_drake(M_PI/6, M_PI/2, 0);
 
-  runner->MoveRelativeToCurrentEeCartesianPosition(delta_x1, 5.0);
-  std::this_thread::sleep_for(std::chrono::milliseconds(5500));
-  T_ee = runner->get_ee_pose_in_world_frame();
-  cout << "EE_pose\n" << T_ee.matrix() << endl;
+  while (true) {
+    cout << "\nplease enter world frame Cartesian command in the form of dx dy dz ..." << endl;
+    dx = std::numeric_limits<double>::infinity();
+    dy = dx;
+    dz = dx;
+    std::cin >> dx >> dy >> dz;
 
-  runner->MoveRelativeToCurrentEeCartesianPosition(delta_x2, 5.0);
-  std::this_thread::sleep_for(std::chrono::milliseconds(5500));
-  T_ee = runner->get_ee_pose_in_world_frame();
-  cout << "EE_pose\n" << T_ee.matrix() << endl;
+    if(std::abs(dx) > 0.3 || std::abs(dy) > 0.3 || std::abs(dz) > 0.3) {
+      cout << "command incomplete or too large..." << endl;
+      continue;
+    }
+    delta_x << dx, dy, dz;
+    cout << "commanded movement: " << endl;
+    cout << delta_x << endl;
+
+    runner->MoveRelativeToCurrentEeCartesianPosition(delta_x, rpy_drake.ToRotationMatrix(), 5.0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+    runner->GetEePoseInWorldFrame(&T_ee, &rpy);
+    cout << "ee position\n" << T_ee.translation() << endl;
+    cout << "ee rpy\n" << rpy << endl;
+    cout << "ee rotation matrix\n" << T_ee.linear() << endl;
+    cout << "ee rotation matirx desired\n" << rpy_drake.ToMatrix3ViaRotationMatrix() << endl;
+  }
 
   runner->MoveToJointPosition(q0);
 

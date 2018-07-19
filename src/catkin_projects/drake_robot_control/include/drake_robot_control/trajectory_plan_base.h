@@ -18,7 +18,7 @@ public:
     traj_d_ = traj_.derivative(1);
   }
 
-  double duration() {
+  double duration() const {
     if (traj_.get_number_of_segments() > 0) {
       return traj_.end_time() - traj_.start_time();
     } else {

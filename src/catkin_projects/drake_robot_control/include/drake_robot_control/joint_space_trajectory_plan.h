@@ -42,8 +42,8 @@ public:
 
         // notify the condition variable
         this->SetPlanFinished();
-        
-        // // update the status via the ROS action if the 
+
+        // // update the status via the ROS action if the
         // // pointer is not null
         // if (joint_trajectory_action_){
         //   ROS_INFO("setting ROS action to succeeded state");
