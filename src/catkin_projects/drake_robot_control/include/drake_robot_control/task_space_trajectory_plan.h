@@ -10,6 +10,8 @@ namespace robot_plan_runner {
 
 /*
  *  TODO: the implementation in this Plan has a number of drawbacks.
+ *  1. For smoother rotation commands, take in a quaternion slerp,
+ *    instead of a fixed reference rotation matrix.
  *
  *  2. The robot looks precarious when commanded to move near sigularities.
  *
@@ -40,17 +42,20 @@ namespace robot_plan_runner {
 // Design of a momentum-based control framework and application to the humandoid
 // robot atlas.
 
+// Force threshold is in Newtons.
+
 class EndEffectorOriginTrajectoryPlan : public TrajectoryPlanBase {
 public:
   EndEffectorOriginTrajectoryPlan(std::shared_ptr<const RigidBodyTreed> tree,
                                   const PPType &xyz_ee_traj,
                                   const math::RotationMatrixd &R_WEr,
                                   const std::string &ee_body_name,
-                                  double control_period_s = 0.005)
+                                  double control_period_s = 0.005,
+                                  double force_threshold = 20)
       : TrajectoryPlanBase(std::move(tree), xyz_ee_traj),
-        cache_(tree_->CreateKinematicsCache()),
-        R_WEr_(R_WEr), ee_body_name_(ee_body_name),
-        control_period_s_(control_period_s) {
+        cache_(tree_->CreateKinematicsCache()), R_WEr_(R_WEr),
+        ee_body_name_(ee_body_name), control_period_s_(control_period_s),
+        force_threshold_(force_threshold) {
     DRAKE_ASSERT(xyz_ee_traj.rows() == 3);
     idx_ee_ = tree_->FindBodyIndex(ee_body_name_);
     idx_world_ = tree_->FindBodyIndex("world");
@@ -76,32 +81,48 @@ public:
             Eigen::VectorXd *const tau_commanded) override {
     Eigen::VectorXd q = x.head(this->get_num_positions());
     Eigen::VectorXd v = x.tail(this->get_num_velocities());
+    Eigen::Vector3d xyz_ee_ref = traj_.value(t);
+    Eigen::Vector3d xyz_d_ee_ref = traj_d_.value(t);
 
     *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
 
-    // set q_commanded constant after t > Plan.duration().
-    if (!is_finished_ && t > this->duration()) {
-      is_finished_ = true;
-      q_final_ = q;
-      std::cout << "Plan finished, holding position:\n"
-                << q_final_ << std::endl;
+    cache_.initialize(q, v);
+    tree_->doKinematics(cache_);
+    J_ee_E_ = tree_->geometricJacobian(cache_, idx_world_, idx_ee_, idx_ee_);
+    J_ee_W_ = tree_->geometricJacobian(cache_, idx_world_, idx_ee_, idx_world_);
+
+    if (!is_finished_) {
+      if (t < this->duration()) {
+        TwistVector<double> ee_force_W_;
+        ee_force_W_.head(3).setZero(); // no external moment
+        ee_force_W_.tail(3) =
+            xyz_d_ee_ref / xyz_d_ee_ref.norm() * force_threshold_;
+        Eigen::VectorXd joint_torque = J_ee_W_.transpose() * ee_force_W_;
+        if (tau_external.norm() > joint_torque.norm()) {
+          is_finished_ = true;
+          q_final_ = q;
+          std::cout << "Norm of joint torque exceeding threshold "
+                    << joint_torque.norm() << ", holding current position:\n"
+                    << q_final_ << std::endl;
+        }
+      } else {
+        // t >= duration, plan finished normally.
+        is_finished_ = true;
+        q_final_ = q;
+        std::cout << "Plan finished, holding position:\n"
+                  << q_final_ << std::endl;
+      }
     }
+
 
     if (is_finished_) {
       *q_commanded = q_final_;
       *v_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
     } else {
-      Eigen::Vector3d xyz_ee_ref = traj_.value(t);
-      Eigen::Vector3d xyz_d_ee_ref = traj_d_.value(t);
-
       H_WEr_.set_rotation(R_WEr_);
       H_WEr_.set_translation(xyz_ee_ref);
       Eigen::Isometry3d H_WEr = H_WEr_.GetAsIsometry3();
 
-      cache_.initialize(q, v);
-      tree_->doKinematics(cache_);
-
-      J_ee_E_ = tree_->geometricJacobian(cache_, idx_world_, idx_ee_, idx_ee_);
       H_WE_ = tree_->CalcBodyPoseInWorldFrame(cache_, tree_->get_body(idx_ee_));
 
       Eigen::Isometry3d H_EW = H_WE_.inverse();
@@ -139,7 +160,8 @@ public:
 
       TwistVector<double> T_WE_E_cmd;
       T_WE_E_cmd.head(3) = kp_rotation_.array() * v_log_R_EEr.array();
-      T_WE_E_cmd.tail(3) = kp_translation_.array() * H_EEr.translation().array();
+      T_WE_E_cmd.tail(3) =
+          kp_translation_.array() * H_EEr.translation().array();
 
       T_WE_E_cmd += T_WEr_E;
 
@@ -148,13 +170,15 @@ public:
           J_ee_E_.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV)
               .solve(T_WE_E_cmd);
       *q_commanded = q + q_dot_cmd * control_period_s_;
-      *v_commanded = q_dot_cmd; // This is ignored when constructing iiwa_command.
+      *v_commanded =
+          q_dot_cmd; // This is ignored when constructing iiwa_command.
     }
   }
 
 private:
   KinematicsCache<double> cache_;
   drake::TwistMatrix<double> J_ee_E_;
+  drake::TwistMatrix<double> J_ee_W_;
   Eigen::Isometry3d H_WE_;
   math::Transform<double> H_WEr_;
   bool is_finished_;
@@ -167,6 +191,7 @@ private:
   Eigen::Vector3d kp_translation_;
   // final robot configuration after the plan is completed.
   Eigen::VectorXd q_final_;
+  const double force_threshold_;
 };
 
 } // namespace robot_plan_runner
