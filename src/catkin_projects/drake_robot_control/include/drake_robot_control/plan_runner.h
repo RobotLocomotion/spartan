@@ -27,8 +27,13 @@
 
 // ROS
 #include <actionlib/server/simple_action_server.h>
+// #include <tf/transform_listener.h>
+#include <tf2_ros/transform_listener.h>
+
+
 
 #include "robot_msgs/JointTrajectoryAction.h"
+#include "robot_msgs/CartesianTrajectoryAction.h"
 
 
 namespace drake {
@@ -111,7 +116,21 @@ public:
                                  const std::string &,
                                  const robotlocomotion::robot_plan_t *tape);
 
+  /**
+   * Callback for the JointTrajectory action
+   *
+   * @param goal
+   */
   void ExecuteJointTrajectoryAction(const robot_msgs::JointTrajectoryGoal::ConstPtr &goal);
+
+
+  /**
+   * Callback for the CartesianTrajectory action
+   *
+   * @param goal
+   */
+  void ExecuteCartesianTrajectoryAction(const robot_msgs::CartesianTrajectoryGoal::ConstPtr &goal);
+
 
   void HandleStop(const lcm::ReceiveBuffer *, const std::string &,
                   const robotlocomotion::robot_plan_t *) {
@@ -152,10 +171,16 @@ public:
   lcmt_iiwa_status iiwa_status_;
   Eigen::VectorXd current_robot_state_;
   std::shared_ptr<PlanBase> new_plan_;
-ros::NodeHandle nh_;
+  ros::NodeHandle nh_;
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
+
 
   // ROS Actions
-  std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>> joint_trajectory_action_;};
+  std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>> joint_trajectory_action_;
+
+  std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::CartesianTrajectoryAction>> cartesian_trajectory_action_;
+};
 
 } // namespace examples
 } // namespace drake

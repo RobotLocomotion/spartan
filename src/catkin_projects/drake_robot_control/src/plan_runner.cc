@@ -2,8 +2,15 @@
 #include <drake_robot_control/plan_runner.h>
 #include <yaml-cpp/yaml.h>
 
-#include "trajectory_msgs/JointTrajectory.h"
-#include "trajectory_msgs/JointTrajectoryPoint.h"
+#include "drake_robot_control/utils.h"
+#include "common_utils/system_utils.h"
+
+//ROS
+// #include <tf_conversions/tf2_eigen.h>
+#include <trajectory_msgs/JointTrajectory.h>
+#include <trajectory_msgs/JointTrajectoryPoint.h>
+#include <geometry_msgs/TransformStamped.h>
+
 
 namespace drake {
 namespace robot_plan_runner {
@@ -23,8 +30,9 @@ RobotPlanRunner::GetInstance(ros::NodeHandle &nh,
   }
 
   auto tree = std::make_unique<RigidBodyTreed>();
-  parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
-      FindResourceOrThrow(config["robot_urdf_path"].as<std::string>().c_str()),
+  std::string urdf_filename = config["robot_urdf_path"].as<std::string>();
+  autoExpandEnvironmentVariables(urdf_filename);
+  parsers::urdf::AddModelInstanceFromUrdfFileToWorld(urdf_filename,
       multibody::joints::kFixed, tree.get());
 
   auto ptr = std::make_unique<RobotPlanRunner>(
@@ -52,7 +60,7 @@ RobotPlanRunner::RobotPlanRunner(
       kRobotEeBodyName_(robot_ee_body_name), kNumJoints_(num_joints),
       kJointSpeedLimitDegPerSec_(joint_speed_limit_deg_per_sec),
       kControlPeriod_(control_period), tree_(std::move(tree)), nh_(nh),
-      plan_number_(0) {
+      plan_number_(0), tf_listener_(tf_buffer_){
 
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_positions());
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_actuators());
@@ -62,12 +70,22 @@ RobotPlanRunner::RobotPlanRunner(
   has_received_new_status_ = false;
   is_waiting_for_first_robot_status_message_ = true;
 
+
+  // setup the ROS actions
+
   joint_trajectory_action_ = std::make_shared<
       actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>>(
       nh_, "JointTrajectory",
       boost::bind(&RobotPlanRunner::ExecuteJointTrajectoryAction, this, _1),
       false);
   joint_trajectory_action_->start(); // start the ROS action
+
+  cartesian_trajectory_action_ = std::make_shared<
+      actionlib::SimpleActionServer<robot_msgs::CartesianTrajectoryAction>>(
+      nh_, "CartesianTrajectory",
+          boost::bind(&RobotPlanRunner::ExecuteCartesianTrajectoryAction, this, _1),
+          false);
+  cartesian_trajectory_action_->start(); // start the ROS action
 }
 
 RobotPlanRunner::~RobotPlanRunner() {
@@ -454,6 +472,109 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(
 
   ROS_INFO("setting action result");
   joint_trajectory_action_->setSucceeded(result);
+}
+
+void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::CartesianTrajectoryGoal::ConstPtr &goal){
+
+  ROS_INFO("Received Cartesian Space Trajectory Action");
+  const robot_msgs::CartesianTrajectory & traj = goal->trajectory;
+
+  int num_knot_points = traj.xyz_points.size();
+
+  if (is_waiting_for_first_robot_status_message_) {
+    std::cout << "Discarding plan, no status message received yet" << std::endl;
+    return;
+  } else if (num_knot_points < 2) {
+    std::cout << "Discarding plan, Not enough knot points." << std::endl;
+    return;
+  }
+
+  robot_status_mutex_.lock();
+  auto iiwa_status_local = iiwa_status_;
+  robot_status_mutex_.unlock();
+
+
+
+  // extract the xyz trajectory
+
+  // frame in which xyz_traj is expressed.
+  // It can either be world (denoted by base)
+  // or it can be a local frame on the robot
+  std::string xyz_traj_frame_id = traj.xyz_points[0].header.frame_id;
+  std::string base_frame_id = "base";
+  std::cout << "xyz_traj_frame_id: " << xyz_traj_frame_id << std::endl;
+  geometry_msgs::TransformStamped transform_tf;
+
+  try{
+    transform_tf = tf_buffer_.lookupTransform(base_frame_id, xyz_traj_frame_id,
+                             ros::Time(0));
+  }
+  catch (tf2::TransformException ex){
+    ROS_ERROR("%s",ex.what());
+    ros::Duration(1.0).sleep();
+  }
+  // convert to Eigen transform
+  Eigen::Affine3d T_local_to_world = spartan::drake_robot_control::utils::transformToEigen(transform_tf);
+
+  std::cout << "num_knot_points:" << num_knot_points << std::endl;
+  std::cout << "T_local_to_world.translation():\n" << T_local_to_world.translation() << std::endl;
+
+//
+  // lookup current position of ee_frame_id
+  geometry_msgs::TransformStamped ee_frame_tf;
+  try{
+    ee_frame_tf = tf_buffer_.lookupTransform(base_frame_id, traj.ee_frame_id, ros::Time(0));
+  }
+  catch (tf2::TransformException ex){
+    ROS_ERROR("%s",ex.what());
+    ros::Duration(1.0).sleep();
+  }
+
+  Eigen::Affine3d T_ee_to_world = spartan::drake_robot_control::utils::transformToEigen(ee_frame_tf);
+
+  std::cout << "ee_frame_current.translation():" << T_ee_to_world.translation() << std::endl;
+
+
+  std::vector<Eigen::MatrixXd> knots(num_knot_points, Eigen::MatrixXd::Zero(3,1));
+  std::vector<double> input_time;
+
+  // Local to world transformation
+
+  // figure out what frame the points are expressed in
+  for (int i = 0; i < num_knot_points; i++){
+
+    std::cout << "i = " << i << std::endl;
+    // replace first knot point by current position of ee_frame
+    Eigen::Vector3d xyz_pos_in_world;
+    if (i == 0){
+      xyz_pos_in_world = T_ee_to_world.translation();
+    } else{
+
+      const geometry_msgs::PointStamped & xyz_point = traj.xyz_points[i];
+      Eigen::Vector3d xyz_pos_local(xyz_point.point.x, xyz_point.point.y, xyz_point.point.z);
+      xyz_pos_in_world = T_local_to_world * xyz_pos_local;
+    }
+
+    std::cout << "\nxyz_knot:\n" << xyz_pos_in_world << std::endl;
+
+    knots[i] = xyz_pos_in_world;
+    input_time.push_back(traj.time_from_start[i].toSec());
+  }
+
+  drake::math::RotationMatrixd R_ee_to_world(T_ee_to_world.linear());
+
+  // set succeeded for now
+  const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(3, 1);
+  auto plan_local = std::make_shared<EndEffectorOriginTrajectoryPlan>(tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot), R_ee_to_world, traj.ee_frame_id);
+
+
+  QueueNewPlan(plan_local);
+  ROS_INFO("Waiting for plan to finish");
+
+  robot_msgs::CartesianTrajectoryResult result;
+  ROS_INFO("setting action result");
+  cartesian_trajectory_action_->setSucceeded(result);
+
 }
 
 void RobotPlanRunner::GetBodyPoseInWorldFrame(const RigidBody<double> &body,

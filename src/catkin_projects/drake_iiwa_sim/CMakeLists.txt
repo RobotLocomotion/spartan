@@ -4,6 +4,11 @@ project(drake_iiwa_sim)
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
 
+# this needs to happen before the find_package(catkin . . . )
+# so that we end up using the Eigen version supplied by drake, rather
+# than the one that comes in as part of tf2_eigen
+find_package(drake REQUIRED)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -16,7 +21,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-find_package(drake REQUIRED)
 find_package(GFlags MODULE REQUIRED COMPONENTS shared)
 
 ## Uncomment this if the package has a setup.py. This macro ensures

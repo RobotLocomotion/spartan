@@ -37,6 +37,7 @@ add_library(plan_types
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/trajectory_plan_base.h
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/joint_space_trajectory_plan.h
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/task_space_trajectory_plan.h
+        ${PROJECT_INCLUDE_DIR}/drake_robot_control/utils.h
         joint_space_trajectory_plan.cc
         task_space_trajectory_plan.cc
         plan_base.cc)

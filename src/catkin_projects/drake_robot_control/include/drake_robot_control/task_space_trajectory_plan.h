@@ -59,8 +59,8 @@ public:
     DRAKE_ASSERT(xyz_ee_traj.rows() == 3);
     idx_ee_ = tree_->FindBodyIndex(ee_body_name_);
     idx_world_ = tree_->FindBodyIndex("world");
-    kp_rotation_.setConstant(25);
-    kp_translation_.setConstant(50);
+    kp_rotation_.setConstant(5);
+    kp_translation_.setConstant(10);
     is_finished_ = false;
   }
 
