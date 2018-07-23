@@ -1,5 +1,8 @@
 #include <drake_robot_control/task_space_trajectory_plan.h>
 
+//ROS
+#include <ros/console.h>
+
 
 namespace drake {
 namespace robot_plan_runner {
@@ -9,6 +12,13 @@ namespace robot_plan_runner {
             Eigen::VectorXd *const q_commanded,
             Eigen::VectorXd *const v_commanded,
             Eigen::VectorXd *const tau_commanded) {
+
+    PlanStatus not_started_status = PlanStatus::NOT_STARTED;
+    PlanStatus running_status = PlanStatus::RUNNING;
+
+    plan_status_.compare_exchange_strong(not_started_status, PlanStatus::RUNNING);
+
+
     Eigen::VectorXd q = x.head(this->get_num_positions());
     Eigen::VectorXd v = x.tail(this->get_num_velocities());
     Eigen::Vector3d xyz_ee_ref = traj_.value(t);
@@ -29,18 +39,21 @@ namespace robot_plan_runner {
             xyz_d_ee_ref / xyz_d_ee_ref.norm() * force_threshold_;
         Eigen::VectorXd joint_torque = J_ee_W_.transpose() * ee_force_W_;
         if (tau_external.norm() > joint_torque.norm()) {
-          is_finished_ = true;
+          plan_status_ = PlanStatus::STOPPPED_BY_FORCE_THRESHOLD;
           q_final_ = q;
+          this->SetPlanFinished();
+
           std::cout << "Norm of joint torque exceeding threshold "
                     << joint_torque.norm() << ", holding current position:\n"
                     << q_final_ << std::endl;
         }
       } else {
-        // t >= duration, plan finished normally.
-        is_finished_ = true;
-        q_final_ = q;
-        std::cout << "Plan finished, holding position:\n"
-                  << q_final_ << std::endl;
+        if (plan_status_.compare_exchange_strong(running_status, PlanStatus::FINISHED_NORMALLY)){
+          ROS_INFO("plan finished normally");
+          // notify the condition variable
+          q_final_ = q;
+          this->SetPlanFinished();
+        }
       }
     }
 

@@ -516,9 +516,6 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
   // convert to Eigen transform
   Eigen::Affine3d T_local_to_world = spartan::drake_robot_control::utils::transformToEigen(transform_tf);
 
-  std::cout << "num_knot_points:" << num_knot_points << std::endl;
-  std::cout << "T_local_to_world.translation():\n" << T_local_to_world.translation() << std::endl;
-
 //
   // lookup current position of ee_frame_id
   geometry_msgs::TransformStamped ee_frame_tf;
@@ -532,7 +529,7 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
 
   Eigen::Affine3d T_ee_to_world = spartan::drake_robot_control::utils::transformToEigen(ee_frame_tf);
 
-  std::cout << "ee_frame_current.translation():" << T_ee_to_world.translation() << std::endl;
+
 
 
   std::vector<Eigen::MatrixXd> knots(num_knot_points, Eigen::MatrixXd::Zero(3,1));
@@ -543,7 +540,7 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
   // figure out what frame the points are expressed in
   for (int i = 0; i < num_knot_points; i++){
 
-    std::cout << "i = " << i << std::endl;
+
     // replace first knot point by current position of ee_frame
     Eigen::Vector3d xyz_pos_in_world;
     if (i == 0){
@@ -554,8 +551,6 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
       Eigen::Vector3d xyz_pos_local(xyz_point.point.x, xyz_point.point.y, xyz_point.point.z);
       xyz_pos_in_world = T_local_to_world * xyz_pos_local;
     }
-
-    std::cout << "\nxyz_knot:\n" << xyz_pos_in_world << std::endl;
 
     knots[i] = xyz_pos_in_world;
     input_time.push_back(traj.time_from_start[i].toSec());
@@ -571,7 +566,11 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
   QueueNewPlan(plan_local);
   ROS_INFO("Waiting for plan to finish");
 
+  PlanStatus plan_status = plan_local->WaitForPlanToFinish();
+
+
   robot_msgs::CartesianTrajectoryResult result;
+  plan_local->GetPlanStatusMsg(result.status);
   ROS_INFO("setting action result");
   cartesian_trajectory_action_->setSucceeded(result);
 

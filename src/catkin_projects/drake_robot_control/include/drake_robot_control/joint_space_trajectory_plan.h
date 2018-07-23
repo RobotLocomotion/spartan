@@ -35,7 +35,7 @@ public:
     *v_commanded = traj_d_.value(t);
     *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
 
-    if (t > traj_.end_time()){
+    if (t > this->duration()){
 
       if (plan_status_.compare_exchange_strong(running_status, PlanStatus::FINISHED_NORMALLY)){
         ROS_INFO("plan finished normally");
