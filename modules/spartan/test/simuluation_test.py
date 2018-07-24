@@ -156,7 +156,7 @@ class IiwaSimulationTest(unittest.TestCase):
         self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
 
 
-    def test_simulator_startup(self):
+    def _test_simulator_startup(self):
         """
         Launches simulator, makes sure that it can ping roscore
         :return:
@@ -168,7 +168,7 @@ class IiwaSimulationTest(unittest.TestCase):
 
 
 
-    def test_move_arm(self):
+    def _test_move_arm(self):
         """
         Move the arm to a given position
         :return:
