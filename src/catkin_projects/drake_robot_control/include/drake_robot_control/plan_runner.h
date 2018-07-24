@@ -170,6 +170,8 @@ public:
   std::atomic<int> plan_number_; // the current plan number
   lcmt_iiwa_status iiwa_status_;
   Eigen::VectorXd current_robot_state_;
+  Eigen::VectorXd current_position_commanded_; // joint_position_commanded from iiwa_status msg
+  Eigen::VectorXd current_torque_commanded_; // joint_torque_commanded from iiwa_status msg
   std::shared_ptr<PlanBase> new_plan_;
   ros::NodeHandle nh_;
   tf2_ros::Buffer tf_buffer_;

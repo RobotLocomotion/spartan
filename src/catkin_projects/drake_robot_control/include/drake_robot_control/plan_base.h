@@ -53,6 +53,10 @@ class PlanBase {
   int get_num_velocities() const { return num_velocities; }
 
   // return (a copy) of the current plan status
+  inline
+  void set_plan_status(PlanStatus plan_status){
+    plan_status_ = plan_status;
+  }
   PlanStatus get_plan_status() const { return plan_status_.load();}
   void Stop(){};
   PlanStatus WaitForPlanToFinish();
@@ -61,6 +65,14 @@ class PlanBase {
   void SetPlanFinished();
 
   void GetPlanStatusMsg(robot_msgs::PlanStatus& plan_status_msg);
+
+  // store the previously commanded q, tau
+  inline
+  void SetCurrentCommand(const Eigen::Ref<const Eigen::VectorXd> &q_commanded,
+                          const Eigen::Ref<const Eigen::VectorXd> &tau_commanded){
+    q_commanded_prev_ = q_commanded;
+    tau_commanded_prev_ = tau_commanded;
+  }
 
   
   // for multi-thread synchronization
@@ -72,6 +84,8 @@ class PlanBase {
 
  protected:
   std::shared_ptr<const RigidBodyTreed> tree_;
+  Eigen::VectorXd q_commanded_prev_;
+  Eigen::VectorXd tau_commanded_prev_;
   
  private:
   int num_positions;

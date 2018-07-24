@@ -80,7 +80,7 @@ def make_cartesian_trajectory_goal_gripper_frame():
     xyz_knot = geometry_msgs.msg.PointStamped()
     xyz_knot.header.frame_id = frame_id
     xyz_knot.point.x = 0.1
-    xyz_knot.point.y = 0
+    xyz_knot.point.y = 0.0
     xyz_knot.point.z = 0.0
 
     traj.xyz_points.append(xyz_knot)
@@ -88,7 +88,7 @@ def make_cartesian_trajectory_goal_gripper_frame():
     traj.ee_frame_id = ee_frame_id
 
     traj.time_from_start.append(rospy.Duration(0.0))
-    traj.time_from_start.append(rospy.Duration(1.0))
+    traj.time_from_start.append(rospy.Duration(2.0))
 
 
     return goal

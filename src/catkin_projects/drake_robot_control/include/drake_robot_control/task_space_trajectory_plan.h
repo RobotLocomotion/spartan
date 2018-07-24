@@ -95,7 +95,7 @@ private:
   Eigen::Vector3d kp_rotation_;
   Eigen::Vector3d kp_translation_;
   // final robot configuration after the plan is completed.
-  Eigen::VectorXd q_final_;
+  Eigen::VectorXd q_command_final_;
   const double force_threshold_;
 };
 

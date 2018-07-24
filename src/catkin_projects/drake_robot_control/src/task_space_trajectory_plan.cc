@@ -40,18 +40,16 @@ namespace robot_plan_runner {
         Eigen::VectorXd joint_torque = J_ee_W_.transpose() * ee_force_W_;
         if (tau_external.norm() > joint_torque.norm()) {
           plan_status_ = PlanStatus::STOPPPED_BY_FORCE_THRESHOLD;
-          q_final_ = q;
           this->SetPlanFinished();
-
+          q_command_final_ = q_commanded_prev_;
           std::cout << "Norm of joint torque exceeding threshold "
-                    << joint_torque.norm() << ", holding current position:\n"
-                    << q_final_ << std::endl;
+                    << joint_torque.norm() << std::endl;
         }
       } else {
         if (plan_status_.compare_exchange_strong(running_status, PlanStatus::FINISHED_NORMALLY)){
           ROS_INFO("plan finished normally");
           // notify the condition variable
-          q_final_ = q;
+          q_command_final_ = q_commanded_prev_;
           this->SetPlanFinished();
         }
       }
@@ -59,7 +57,7 @@ namespace robot_plan_runner {
 
 
     if (is_finished_) {
-      *q_commanded = q_final_;
+      *q_commanded = q_commanded_prev_; // just echo the current commanded position
       *v_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
     } else {
       H_WEr_.set_rotation(R_WEr_);

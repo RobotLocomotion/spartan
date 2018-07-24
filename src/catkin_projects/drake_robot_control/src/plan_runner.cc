@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include <drake/math/roll_pitch_yaw.h>
 #include <drake_robot_control/plan_runner.h>
 #include <yaml-cpp/yaml.h>
@@ -67,6 +69,8 @@ RobotPlanRunner::RobotPlanRunner(
   plan_number_ = 0;
   new_plan_ = nullptr;
   current_robot_state_.resize(kNumJoints_ * 2, 1);
+  current_position_commanded_.resize(kNumJoints_, 1);
+  current_torque_commanded_.resize(kNumJoints_, 1);
   has_received_new_status_ = false;
   is_waiting_for_first_robot_status_message_ = true;
 
@@ -197,8 +201,10 @@ void RobotPlanRunner::PublishCommand() {
   iiwa_command.joint_torque.resize(kNumJoints_, 0.);
   Eigen::VectorXd q_commanded(kNumJoints_), v_commanded(kNumJoints_),
       tau_commanded(kNumJoints_);
+
+  Eigen::VectorXd q_commanded_cur(kNumJoints_), tau_commanded_cur(kNumJoints_);
   Eigen::VectorXd current_robot_state, cur_tau_external(kNumJoints_);
-  Eigen::VectorXd q_commanded_prev(kNumJoints_);
+
 
   while (true) {
     // Put the thread to sleep until a new iiwa_status message is received by
@@ -208,6 +214,8 @@ void RobotPlanRunner::PublishCommand() {
              std::bind(&RobotPlanRunner::has_received_new_status, this));
     has_received_new_status_ = false;
     current_robot_state = current_robot_state_;
+    q_commanded_cur = current_position_commanded_; // joint_position_commanded
+    tau_commanded_cur = current_torque_commanded_; // joint_torque_commanded
     iiwa_status_local = iiwa_status_;
 
     // Calling unlock is necessary because when cv_.wait() returns, this
@@ -251,29 +259,36 @@ void RobotPlanRunner::PublishCommand() {
     }
 
     cur_plan_time_s = static_cast<double>(cur_time_us - start_time_us) / 1e6;
+    plan_local->SetCurrentCommand(q_commanded_cur, tau_commanded_cur);
     plan_local->Step(current_robot_state, cur_tau_external, cur_plan_time_s,
                      &q_commanded, &v_commanded, &tau_commanded);
-
-    for (int j = 0; j < kNumJoints_; j++) {
-      q_commanded_prev[j] = iiwa_status_local.joint_position_commanded[j];
-    }
 
     // Discard current plan if commanded position is "too far away" from
     // the previous commanded position, i.e. the commanded joint trajectory is
     // not sufficiently smooth.
-    Eigen::VectorXd dq_cmd = q_commanded - q_commanded_prev;
-
+    Eigen::VectorXd dq_cmd = q_commanded - q_commanded_cur;
+    bool unsafe_command = false;
     for (int i = 0; i < kNumJoints_; i++) {
-      if (std::abs(dq_cmd[i]) > max_dq_per_step) {
+
+      if ( (std::abs(dq_cmd[i]) > max_dq_per_step)) {
         std::cout << "Commanded joint position is too jerky, discarding plan..."
                   << std::endl;
         std::cout << "dq_cmd limit: " << max_dq_per_step << std::endl;
         std::cout << "Commanded dq_cmd[" << i << "]: " << dq_cmd[i]
                   << std::endl;
+        unsafe_command = true;
+      }
+
+      if (std::isnan(q_commanded[i])){
+        std::cout << "Command is nan, discarding" << std::endl;
+        unsafe_command = true;
+      }
+
+      if (unsafe_command){
+        q_commanded = q_commanded_cur;
+        plan_local->set_plan_status(PlanStatus::STOPPED_BY_SAFETY_CHECK);
+        plan_local->SetPlanFinished();
         plan_local.reset();
-        // Publish commanded position from previous control tick.
-        q_commanded = q_commanded_prev;
-        break;
       }
     }
 
@@ -345,6 +360,9 @@ void RobotPlanRunner::HandleStatus(const lcm::ReceiveBuffer *,
     current_robot_state_[i] = iiwa_status_.joint_position_measured[i];
     current_robot_state_[i + kNumJoints_] =
         iiwa_status_.joint_velocity_estimated[i];
+
+    current_position_commanded_[i] = iiwa_status_.joint_position_commanded[i];
+    current_torque_commanded_[i] = iiwa_status_.joint_torque_commanded[i];
   }
   lock.unlock();
   cv_.notify_all();
