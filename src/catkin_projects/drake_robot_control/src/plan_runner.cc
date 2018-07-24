@@ -216,7 +216,7 @@ void RobotPlanRunner::PublishCommand() {
     current_robot_state = current_robot_state_;
     q_commanded_cur = current_position_commanded_; // joint_position_commanded
     tau_commanded_cur = current_torque_commanded_; // joint_torque_commanded
-    iiwa_status_local = iiwa_status_;
+    iiwa_status_local = iiwa_status_; // this is a copy
 
     // Calling unlock is necessary because when cv_.wait() returns, this
     // thread acquires the mutex, preventing the receiver thread from
@@ -281,6 +281,8 @@ void RobotPlanRunner::PublishCommand() {
 
       if (std::isnan(q_commanded[i])){
         std::cout << "Command is nan, discarding" << std::endl;
+        std::cout << "Current_robot_state:\n" << current_robot_state << std::endl;
+        std::cout << "cur_plan_time: " << cur_plan_time_s << std::endl;
         unsafe_command = true;
       }
 
