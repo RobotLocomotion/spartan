@@ -1,5 +1,6 @@
 import unittest
 import subprocess
+import psutil
 import sys
 import os
 import numpy as np
@@ -24,24 +25,30 @@ import spartan.utils.ros_utils as rosUtils
 class IiwaSimulationTest(unittest.TestCase):
 
     def setUp(self):
-        self._kill_all_procman_processes()
         self._all_processes = []
+        self._terminate_all_processes()
         self._launch_procman_and_start_simulator()
 
 
     def tearDown(self):
-        self._kill_all_processes()
-        self._kill_all_procman_processes()
+        self._terminate_all_processes()
         pass
 
-    def _kill_all_procman_processes(self):
+    def _terminate_all_processes(self):
         """
         Kills all processes related to procman
         :return:
         :rtype:
         """
-        cmd = ["pkill",  "-f",  "procman"]
-        process = subprocess.call(cmd)
+        print "PRE KILLING TREE"
+        os.system("pstree -ap")
+        children = self._all_processes  #get_children_pids(os.getpid())
+        for proc in children:
+            proc.terminate()
+            proc.wait()
+        print "POST KILLING TREE:"
+        os.system("pstree -ap")
+        print "DONE WITH PRERUN CLEANUP"
 
 
     def _launch_procman_and_start_simulator(self):
@@ -51,35 +58,15 @@ class IiwaSimulationTest(unittest.TestCase):
         :rtype:
         """
         deputy = self._launch_process_and_test(["/usr/bin/env", "bot-procman-deputy", "--name", "localhost"])
-
+        self._all_processes.append(deputy)
         sheriff = self._launch_process_and_test(["/usr/bin/env", "bot-procman-sheriff",
                                            "--no-gui", "--on-script-complete", "exit",
                                            os.path.expandvars("${SPARTAN_SOURCE_DIR}/apps/iiwa/iiwa_hardware.pmd"),
                                            "6.start_drake_iiwa_sim"])
 
         sheriff.wait()
-        print "Sheriff returned code %d" %(sheriff.returncode)
+        print "Sheriff returned code %d" % (sheriff.returncode)
         assert sheriff.returncode == 0, "Sheriff returned code %d" %(sheriff.returncode)
-
-
-        # print "sleeping for 3 seconds . . . "
-        # time.sleep(3.0)
-        # print "done sleeping"
-        #
-        # # Get the arm state to check sim is running
-        # rospy.init_node("iiwa_sim_test", anonymous=True)
-        # self._robotSubscriber = SimpleSubscriber("/joint_states", sensor_msgs.msg.JointState)
-        # self._robotSubscriber.start()
-        #
-        # # wait for 5 seconds for robot movement service and /joint_states to come up
-        # wait_time = 5
-        # start_time = time.time()
-        # while (time.time() - start_time) < wait_time:
-        #     if self._robotSubscriber.hasNewMessage:
-        #         break
-        #     time.sleep(1)
-        #
-        # assert self._robotSubscriber.hasNewMessage, "Never received robot joint positions on /joint_states topic"
 
 
     def _launch_process_and_test(self, args):
@@ -98,29 +85,7 @@ class IiwaSimulationTest(unittest.TestCase):
             process_name = ''.join(args)
             assert p.returncode==0, "Process %s returned with nonzero code %d" %(process_name, p.returncode)
 
-        self._all_processes.append(p)
         return p
-
-    def _kill_all_processes(self, additional_processes=None):
-        """
-        Kill all processes in self._all_processes
-        Also kill any additional processes that may have been passed in
-        :param additional_processes:
-        :type additional_processes:
-        :return:
-        :rtype:
-        """
-
-        for p in self._all_processes:
-            if p.poll() is None:
-                p.kill()
-
-        if additional_processes is None:
-            additional_processes = []
-
-        for p in additional_processes:
-            if p.poll() is None:
-                p.kill()
 
     def _start_ros_node_and_wait_for_sim(self):
         """
@@ -130,8 +95,8 @@ class IiwaSimulationTest(unittest.TestCase):
         :rtype:
         """
 
-        print "sleeping for 3 seconds . . . "
-        time.sleep(3.0)
+        print "sleeping for 5 seconds . . . "
+        time.sleep(5.0)
         print "done sleeping"
 
         # Get the arm state to check sim is running
@@ -145,6 +110,8 @@ class IiwaSimulationTest(unittest.TestCase):
         while (time.time() - start_time) < wait_time:
             if self._robotSubscriber.hasNewMessage:
                 break
+            print "Rostopic list: ",
+            os.system("rostopic list")
             time.sleep(1)
 
         self.assertTrue(self._robotSubscriber.hasNewMessage, "Never received robot joint positions on /joint_states topic")
@@ -156,7 +123,7 @@ class IiwaSimulationTest(unittest.TestCase):
         self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
 
 
-    def _test_simulator_startup(self):
+    def test_simulator_startup(self):
         """
         Launches simulator, makes sure that it can ping roscore
         :return:
@@ -164,8 +131,6 @@ class IiwaSimulationTest(unittest.TestCase):
         """
 
         self._start_ros_node_and_wait_for_sim()
-
-
 
 
     def _test_move_arm(self):
@@ -192,6 +157,7 @@ class IiwaSimulationTest(unittest.TestCase):
             print "last robot joint position", lastRobotJointPositions
 
         self.assertTrue(reached_target_position, "Robot didn't reach target position")
+
 
     def test_ik_service(self):
         """
@@ -229,7 +195,6 @@ class IiwaSimulationTest(unittest.TestCase):
             robotService.moveToJointPosition(response.joint_state.position)
 
         self.assertTrue(response.success)
-
 
         # check that desired position matches actual
         self.setupTF()
