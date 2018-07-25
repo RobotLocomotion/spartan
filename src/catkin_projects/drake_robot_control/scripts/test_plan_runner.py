@@ -52,8 +52,10 @@ def test_cartesian_trajectory_action():
     print "connected to server"
 
     # goal = make_cartesian_trajectory_goal_gripper_frame()
+
     goal = make_cartesian_trajectory_goal_world_frame()
-    # goal.trajectory = make_cartesian_trajectory_msg()
+    goal.gains.append(make_cartesian_gains_msg())
+    
 
     print "sending goal"
     client.send_goal(goal)
@@ -137,6 +139,21 @@ def make_cartesian_trajectory_goal_world_frame():
     traj.quaternions.append(quat_msg)
 
     return goal
+
+def make_cartesian_gains_msg():
+    msg = robot_msgs.msg.CartesianGain()
+
+    kp_rot = 20
+    msg.rotation.x = kp_rot
+    msg.rotation.x = kp_rot
+    msg.rotation.x = kp_rot
+
+    kp_trans = 10
+    msg.translation.x = kp_trans
+    msg.translation.y = kp_trans
+    msg.translation.z = kp_trans
+
+    return msg
 
 
 

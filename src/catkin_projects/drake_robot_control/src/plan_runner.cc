@@ -48,6 +48,9 @@ RobotPlanRunner::GetInstance(ros::NodeHandle &nh,
       config["joint_speed_limit_degree_per_sec"].as<double>(),
       config["control_period_s"].as<double>(), std::move(tree), nh);
 
+  // store the config locally
+  ptr->config_ = config;
+
   return std::move(ptr);
 }
 
@@ -615,9 +618,23 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
     R_ee_to_world_final = R_ee_to_world_initial;
   }
 
-  // set succeeded for now
+
+  // figure out the gains
+  Eigen::Vector3d kp_rotation;
+  Eigen::Vector3d kp_translation;
+  if (goal->gains.size() > 0){
+
+    kp_rotation = Eigen::Vector3d(goal->gains[0].rotation.x, goal->gains[0].rotation.y, goal->gains[0].rotation.z);
+
+    kp_translation = Eigen::Vector3d(goal->gains[0].translation.x, goal->gains[0].translation.y, goal->gains[0].translation.z);
+  } else{
+    kp_rotation = Eigen::Vector3d(this->config_["task_space_plan"]["kp_rotation"].as<std::vector<double>>().data());
+    kp_translation = Eigen::Vector3d(this->config_["task_space_plan"]["kp_translation"].as<std::vector<double>>().data());
+  }
+
+
   const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(3, 1);
-  auto plan_local = std::make_shared<EndEffectorOriginTrajectoryPlan>(tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot), R_ee_to_world_initial, R_ee_to_world_final, traj.ee_frame_id);
+  auto plan_local = std::make_shared<EndEffectorOriginTrajectoryPlan>(tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot), R_ee_to_world_initial, R_ee_to_world_final, kp_rotation, kp_translation, traj.ee_frame_id);
 
 
   QueueNewPlan(plan_local);

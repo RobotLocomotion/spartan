@@ -3,6 +3,10 @@ CartesianTrajectory trajectory
 
 # optional force threshold
 ForceThreshold[] force_threshold
+
+# optional gains
+# should have length 0 or 1
+CartesianGain[] gains
 ---
 # result
 PlanStatus status

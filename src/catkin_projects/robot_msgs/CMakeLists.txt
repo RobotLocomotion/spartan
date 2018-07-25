@@ -54,6 +54,7 @@ add_message_files(
    PlanStatus.msg
    CartesianTrajectory.msg
    ForceThreshold.msg
+   CartesianGain.msg
 )
 
 ## Generate services in the 'srv' folder

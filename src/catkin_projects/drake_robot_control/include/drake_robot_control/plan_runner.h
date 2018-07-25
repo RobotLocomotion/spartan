@@ -9,6 +9,8 @@
 #include <string>
 #include <thread>
 
+#include <yaml-cpp/yaml.h>
+
 #include <drake_robot_control/joint_space_trajectory_plan.h>
 #include <drake_robot_control/plan_base.h>
 #include <drake_robot_control/task_space_trajectory_plan.h>
@@ -186,6 +188,9 @@ public:
   tf2_ros::TransformListener tf_listener_;
   std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>> joint_trajectory_action_;
   std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::CartesianTrajectoryAction>> cartesian_trajectory_action_;
+
+  // config
+  YAML::Node config_;
 };
 
 } // namespace examples
