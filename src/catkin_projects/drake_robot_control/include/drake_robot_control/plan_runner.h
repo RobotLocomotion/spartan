@@ -156,13 +156,19 @@ public:
   std::shared_ptr<const RigidBodyTreed> tree_;
 
 
-    // threading
-    std::mutex robot_status_mutex_;
-    std::mutex robot_plan_mutex_;
-    std::thread publish_thread_;
-    std::thread subscriber_thread_;
-    std::thread plan_constructor_thread_;
-    std::condition_variable cv_;
+
+  // mutexes
+  std::mutex robot_status_mutex_;
+  std::mutex robot_plan_mutex_;
+
+  // condition variables
+  std::condition_variable cv_;
+
+  // threads
+  std::thread publish_thread_;
+  std::thread subscriber_thread_;
+  std::thread plan_constructor_thread_;
+
 
   std::atomic<bool> is_waiting_for_first_robot_status_message_;
   std::atomic<bool> has_received_new_status_;
@@ -173,14 +179,12 @@ public:
   Eigen::VectorXd current_position_commanded_; // joint_position_commanded from iiwa_status msg
   Eigen::VectorXd current_torque_commanded_; // joint_torque_commanded from iiwa_status msg
   std::shared_ptr<PlanBase> new_plan_;
+
+  // ROS
   ros::NodeHandle nh_;
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
-
-
-  // ROS Actions
   std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>> joint_trajectory_action_;
-
   std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::CartesianTrajectoryAction>> cartesian_trajectory_action_;
 };
 

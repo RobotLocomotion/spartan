@@ -49,15 +49,17 @@ class PlanBase {
                     Eigen::VectorXd *const q_commanded,
                     Eigen::VectorXd *const v_commanded,
                     Eigen::VectorXd *const tau_commanded) = 0;
+
   int get_num_positions() const { return num_positions; }
   int get_num_velocities() const { return num_velocities; }
 
-  // return (a copy) of the current plan status
   inline
   void set_plan_status(PlanStatus plan_status){
     plan_status_ = plan_status;
   }
+  // return (a copy) of the current plan status
   PlanStatus get_plan_status() const { return plan_status_.load();}
+
   void Stop(){};
   PlanStatus WaitForPlanToFinish();
 

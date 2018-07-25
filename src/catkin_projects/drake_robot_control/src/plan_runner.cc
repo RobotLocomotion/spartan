@@ -213,6 +213,8 @@ void RobotPlanRunner::PublishCommand() {
     cv_.wait(status_lock,
              std::bind(&RobotPlanRunner::has_received_new_status, this));
     has_received_new_status_ = false;
+
+    // these should all be copies
     current_robot_state = current_robot_state_;
     q_commanded_cur = current_position_commanded_; // joint_position_commanded
     tau_commanded_cur = current_torque_commanded_; // joint_torque_commanded
@@ -280,17 +282,37 @@ void RobotPlanRunner::PublishCommand() {
       }
 
       if (std::isnan(q_commanded[i])){
-        std::cout << "Command is nan, discarding" << std::endl;
+        std::cout << "\nCommand is nan, discarding" << std::endl;
+        std::cout << "\nposition_command:\n" << q_commanded << std::endl;
+        std::cout << "\nvelocity_command:\n" << v_commanded << std::endl;
+        std::cout << "\ntorque_command:\n" << tau_commanded << std::endl;
         std::cout << "Current_robot_state:\n" << current_robot_state << std::endl;
-        std::cout << "cur_plan_time: " << cur_plan_time_s << std::endl;
+        std::cout << "\ncur_plan_time: " << cur_plan_time_s << std::endl;
+
+        std::cout << "\nq_commanded_cur:\n" << q_commanded_cur << std::endl;
+        std::cout << "\ntau_commanded_cur:\n" << tau_commanded_cur << std::endl;
         unsafe_command = true;
+
+        std::cout << "plan_local->get_plan_status():" << plan_local->get_plan_status() << std::endl;
+        std::cout << "plan_local->is_finished_:" << plan_local->is_finished_ << std::endl;
       }
 
       if (unsafe_command){
+        std::cout << "received unsafe command\n";
+        std::cout << "sending previous command instead" << std::endl;
         q_commanded = q_commanded_cur;
+        tau_commanded = tau_commanded_cur;
+
+
+        std::cout << "\nposition_command:\n" << q_commanded << std::endl;
+        std::cout << "\ntorque_command:\n" << tau_commanded << std::endl;
+
         plan_local->set_plan_status(PlanStatus::STOPPED_BY_SAFETY_CHECK);
         plan_local->SetPlanFinished();
+        std::cout << "set current plan to finished\n";
         plan_local.reset();
+        std::cout << "reset plan_local pointer\n";
+        break;
       }
     }
 
@@ -425,6 +447,7 @@ void RobotPlanRunner::HandleJointSpaceTrajectoryPlan(
 void RobotPlanRunner::ExecuteJointTrajectoryAction(
     const robot_msgs::JointTrajectoryGoal::ConstPtr &goal) {
 
+  ROS_INFO("\n\n----JointTrajectoryAction Start------\n\n");
   ROS_INFO("Received Joint Space Trajectory Plan");
   // robot_msgs::JointTrajectoryResult result;
 
@@ -492,11 +515,13 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(
 
   ROS_INFO("setting action result");
   joint_trajectory_action_->setSucceeded(result);
+
+  ROS_INFO("\n\n------JointTrajectoryAction Finished------\n\n");
 }
 
 void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::CartesianTrajectoryGoal::ConstPtr &goal){
 
-  ROS_INFO("Received Cartesian Space Trajectory Action");
+  ROS_INFO("\n\n-------CartesianTrajectoryAction Start--------\n\n");
   const robot_msgs::CartesianTrajectory & traj = goal->trajectory;
 
   int num_knot_points = traj.xyz_points.size();
@@ -522,7 +547,7 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
   // or it can be a local frame on the robot
   std::string xyz_traj_frame_id = traj.xyz_points[0].header.frame_id;
   std::string base_frame_id = "base";
-  std::cout << "xyz_traj_frame_id: " << xyz_traj_frame_id << std::endl;
+//  std::cout << "xyz_traj_frame_id: " << xyz_traj_frame_id << std::endl;
   geometry_msgs::TransformStamped transform_tf;
 
   try{
@@ -593,6 +618,7 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
   plan_local->GetPlanStatusMsg(result.status);
   ROS_INFO("setting action result");
   cartesian_trajectory_action_->setSucceeded(result);
+  ROS_INFO("\n\n------CartesianTrajectoryAction Finished------\n\n");
 
 }
 

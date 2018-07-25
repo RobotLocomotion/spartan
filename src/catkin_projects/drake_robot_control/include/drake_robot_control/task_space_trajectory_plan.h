@@ -84,10 +84,9 @@ private:
   KinematicsCache<double> cache_;
   drake::TwistMatrix<double> J_ee_E_;
   drake::TwistMatrix<double> J_ee_W_;
-  Eigen::Isometry3d H_WE_;
-  math::Transform<double> H_WEr_;
-  bool is_finished_;
-  const math::RotationMatrixd R_WEr_;
+  Eigen::Isometry3d H_WE_; // ee to world, current homogeneous transform
+  math::Transform<double> H_WEr_; // end-effector to world, reference homogeneous transform
+  const math::RotationMatrixd R_WEr_; // end-effector to world, reference rotation
   const double control_period_s_;
   const std::string ee_body_name_;
   int idx_ee_;
