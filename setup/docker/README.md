@@ -85,6 +85,7 @@ Handling images
 - `docker tag IMAGE_ID NEW_NAME` - creates a new REPOSITORY:TAG for an IMAGE_ID
 - `docker rmi REPOSITORY:TAG` - removes this tag for an image
 - `docker tag IMAGE_ID my-spartan && docker rmi spartan` -- example to combine above two commands to rename an image ID
+- clean up stale artifacts `docker system prune`.
 
 Handling containers
 - `docker ps -a` - lists all containers on machine
