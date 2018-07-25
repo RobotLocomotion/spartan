@@ -37,4 +37,5 @@ pip install \
   pyglet \
   plyfile \
   matplotlib==1.5.3 \
-  scikit-image
+  scikit-image \
+  pytest-xdist
