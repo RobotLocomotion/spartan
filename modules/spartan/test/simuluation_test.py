@@ -222,5 +222,12 @@ def dev():
 
 
 if __name__ == '__main__':
+    # NOTE: You can't run all of these tests at once without
+    # using something like pytest --forked to run each test
+    # in its own process. This is because many of the tests
+    # need to set up a ROS node, which can only be done once
+    # in a process, ever, BUT must be done after roscore is
+    # started. Since roscore is started and restarted
+    # many times, this doesn't work when running this
+    # file like 'python simulation_test.py'.
     unittest.main()
-
