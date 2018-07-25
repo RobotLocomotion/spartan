@@ -48,20 +48,23 @@ class EndEffectorOriginTrajectoryPlan : public TrajectoryPlanBase {
 public:
   EndEffectorOriginTrajectoryPlan(std::shared_ptr<const RigidBodyTreed> tree,
                                   const PPType &xyz_ee_traj,
-                                  const math::RotationMatrixd &R_WEr,
+                                  const math::RotationMatrixd &R_WE_initial,
+                                  const math::RotationMatrixd &R_WE_final,
                                   const std::string &ee_body_name,
                                   double control_period_s = 0.005,
                                   double force_threshold = 20)
       : TrajectoryPlanBase(std::move(tree), xyz_ee_traj),
-        cache_(tree_->CreateKinematicsCache()), R_WEr_(R_WEr),
+        cache_(tree_->CreateKinematicsCache()), R_WE_inital_(R_WE_initial),
+        R_WE_final_(R_WE_final),
         ee_body_name_(ee_body_name), control_period_s_(control_period_s),
-        force_threshold_(force_threshold) {
+        force_threshold_(force_threshold), quat_WE_initial_(R_WE_initial.matrix()),
+        quat_WE_final_(R_WE_final.matrix()) {
     DRAKE_ASSERT(xyz_ee_traj.rows() == 3);
     idx_ee_ = tree_->FindBodyIndex(ee_body_name_);
     idx_world_ = tree_->FindBodyIndex("world");
     kp_rotation_.setConstant(5);
     kp_translation_.setConstant(10);
-    is_finished_ = false;
+
   }
 
   // q, v: current robot configuration/velocity.
@@ -80,13 +83,45 @@ public:
             Eigen::VectorXd *const v_commanded,
             Eigen::VectorXd *const tau_commanded) override;
 
+  /**
+   * Computes the orientation trajectory and associated angular velocity vector
+  */
+  void ComputeOrientationTrajectory(){
+    // make sure we go the "short" way around
+    if (quat_WE_initial_.dot(quat_WE_final_) < 0){
+      quat_WE_final_ = quat_WE_final_.conjugate();
+    }
+
+    // compute angular velocity, make sure to only go 0.5 to avoid the corner case
+    Eigen::Quaterniond quat_WE_half = quat_WE_initial_.slerp(0.5, quat_WE_final_);
+
+    // figure out angle-axis corresponding to quat_Einit_E
+    Eigen::Quaterniond quat_Einit_Ehalf = quat_WE_initial_.inverse() * quat_WE_half;
+    Eigen::AngleAxisd angle_axis(quat_Einit_Ehalf);
+
+    // angular velocity of reference trajectory, expressed in Einit frame
+    Eigen::Vector3d ang_velocity_WEr_Einit = 2*angle_axis.angle() * angle_axis.axis();
+
+    // angular velocity of reference trajectory, expressed in World frame
+    ang_velocity_WEr_W_ = R_WE_inital_ * ang_velocity_WEr_Einit;
+  }
+
 private:
   KinematicsCache<double> cache_;
   drake::TwistMatrix<double> J_ee_E_;
   drake::TwistMatrix<double> J_ee_W_;
   Eigen::Isometry3d H_WE_; // ee to world, current homogeneous transform
   math::Transform<double> H_WEr_; // end-effector to world, reference homogeneous transform
-  const math::RotationMatrixd R_WEr_; // end-effector to world, reference rotation
+
+  // reference orientation trajectory for EE
+  const math::RotationMatrixd R_WE_inital_;
+  const math::RotationMatrixd R_WE_final_;
+  Eigen::Quaterniond quat_WE_initial_;
+  Eigen::Quaterniond quat_WE_final_;
+
+  // angular velocity of reference trajectory, expressed in World frame
+  Eigen::Vector3d ang_velocity_WEr_W_;
+
   const double control_period_s_;
   const std::string ee_body_name_;
   int idx_ee_;

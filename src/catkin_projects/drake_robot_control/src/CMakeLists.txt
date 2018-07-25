@@ -66,11 +66,11 @@ target_link_libraries(plan_runner
 #        plan_types
 #        drake::drake)
 
-add_executable(test_plan_runner
-        test_plan_runner.cc)
-target_link_libraries(test_plan_runner
-        plan_runner
-        drake::drake)
+#add_executable(test_plan_runner
+#        test_plan_runner.cc)
+#target_link_libraries(test_plan_runner
+#        plan_runner
+#        drake::drake)
 
 add_executable(plan_runner_node
         plan_runner_node.cc)

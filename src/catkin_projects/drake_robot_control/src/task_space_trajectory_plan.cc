@@ -54,8 +54,13 @@ typedef drake::TwistVector<double> TwistVectord;
 
     Eigen::VectorXd q = x.head(this->get_num_positions());
     Eigen::VectorXd v = x.tail(this->get_num_velocities());
-    Eigen::Vector3d xyz_ee_ref = traj_.value(t);
-    Eigen::Vector3d xyz_d_ee_ref = traj_d_.value(t);
+    Eigen::Vector3d xyz_ee_ref = traj_.value(t); // expressed in world
+    Eigen::Vector3d xyz_d_ee_ref = traj_d_.value(t); // expressed in world
+
+    double t_fraction = std::min(t/this->duration(),1.0);
+    math::RotationMatrixd R_WEr(quat_WE_initial_.slerp(t_fraction, quat_WE_final_));
+    math::RotationMatrixd R_ErW = R_WEr.inverse();
+
 
     *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
 
@@ -99,69 +104,74 @@ typedef drake::TwistVector<double> TwistVectord;
 
 
 
-    if (this->get_plan_status() == PlanStatus::RUNNING){
-
-      H_WEr_.set_rotation(R_WEr_);
-      H_WEr_.set_translation(xyz_ee_ref);
-      Eigen::Isometry3d H_WEr = H_WEr_.GetAsIsometry3();
-
-      H_WE_ = tree_->CalcBodyPoseInWorldFrame(cache_, tree_->get_body(idx_ee_));
-
-      Eigen::Isometry3d H_EW = H_WE_.inverse();
-      Eigen::Isometry3d H_EEr = H_EW * H_WEr;
-
-      // Compute the PD part of the control
-      // K_{p,w} log_{SO(3)}(R_EEr)
-      Eigen::Vector3d log_R_EEr = spartan::drake_robot_control::utils::LogSO3(H_EEr.linear());
-
-      TwistVectord twist_pd;
-      // we need to do elementwise multiplication, hence the use of array instead
-      // of Vector
-      twist_pd.head(3) = this->kp_rotation_.array() * log_R_EEr.array();
-      twist_pd.tail(3) = this->kp_translation_.array() * H_EEr.translation().array();
 
 
-      // Compute the feed forward part of the control
-      // For now the feed-forward rotation part is set to zero
-      TwistVectord T_WEr_W;
-      T_WEr_W.head(3).setZero();
-      T_WEr_W.tail(3) = xyz_d_ee_ref; // if angular velocity was non-zero this would have to change
+    H_WEr_.set_rotation(R_WEr);
+    H_WEr_.set_translation(xyz_ee_ref);
+    Eigen::Isometry3d H_WEr = H_WEr_.GetAsIsometry3();
 
-      // Convert this twist to be expressed in body frame.
-      // To convert a twist use the adjoint map
-      Eigen::Matrix<double, 6, 6> Ad_H_EW =
-          spartan::drake_robot_control::utils::AdjointSE3(H_EW.linear(), H_EW.translation());
-      TwistVectord T_WEr_E = Ad_H_EW * T_WEr_W;
+    H_WE_ = tree_->CalcBodyPoseInWorldFrame(cache_, tree_->get_body(idx_ee_));
 
+    Eigen::Isometry3d H_EW = H_WE_.inverse();
+    Eigen::Isometry3d H_EEr = H_EW * H_WEr;
 
-      // Total desired twist
-      // Can add these this twists since both expressed in frame E
-      TwistVectord T_WE_E_cmd = twist_pd + T_WEr_E;
+    // Compute the PD part of the control
+    // K_{p,w} log_{SO(3)}(R_EEr)
+    Eigen::Vector3d log_R_EEr = spartan::drake_robot_control::utils::LogSO3(H_EEr.linear());
 
-      // q_dot_cmd = J_ee.pseudo_inverse()*T_WE_E_cmd
-      Eigen::VectorXd q_dot_cmd =
-          J_ee_E_.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV)
-              .solve(T_WE_E_cmd);
-      *q_commanded = q + q_dot_cmd * control_period_s_;
-      *v_commanded = q_dot_cmd; // This is ignored when constructing iiwa_command.
+    TwistVectord twist_pd;
+    // we need to do elementwise multiplication, hence the use of array instead
+    // of Vector
+    twist_pd.head(3) = this->kp_rotation_.array() * log_R_EEr.array();
+    twist_pd.tail(3) = this->kp_translation_.array() * H_EEr.translation().array();
 
 
-      bool unsafe_command = Eigen::isnan(q_commanded->array()).any();
-      if (unsafe_command){
-        std::cout << "\n\nunsafe command caught inside Step()" << std::endl;
-        std::cout << "q_commanded:\n" << *q_commanded << std::endl;
-        std::cout << "q_dot_cmd:\n" << q_dot_cmd << std::endl;
-        std::cout << "q:\n" << q << std::endl;
+    // Compute the feed forward part of the control
+    // Need twist of reference trajectory with respect to world
+    // easiest to compute this as expressed in Er frame,
+    // then transform that twist to E frame using adjoint
+    TwistVectord T_WEr_Er;
+    T_WEr_Er.head(3) = R_WEr * ang_velocity_WEr_W_;
+    T_WEr_Er.tail(3) = R_WEr * xyz_d_ee_ref;
 
-        std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
-      }
+    Eigen::Matrix<double, 6, 6> Ad_H_EEr =
+        spartan::drake_robot_control::utils::AdjointSE3(H_EEr.linear(), H_EEr.translation());
+    TwistVectord T_WEr_E = Ad_H_EEr * T_WEr_Er;
 
-    } else {
-      // this means plan_status_ != RUNNING
-      *q_commanded = q_commanded_prev_; // just echo the current commanded position and torque
-      *v_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
-      *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
+
+//      TwistVectord T_WEr_W;
+//      T_WEr_W.head(3).setZero();
+//      T_WEr_W.tail(3) = xyz_d_ee_ref; // if angular velocity was non-zero this would have to change
+//
+//      // Convert this twist to be expressed in body frame.
+//      // To convert a twist use the adjoint map
+//      Eigen::Matrix<double, 6, 6> Ad_H_EW =
+//          spartan::drake_robot_control::utils::AdjointSE3(H_EW.linear(), H_EW.translation());
+//      TwistVectord T_WEr_E = Ad_H_EW * T_WEr_W;
+
+
+    // Total desired twist
+    // Can add these this twists since both expressed in frame E
+    TwistVectord T_WE_E_cmd = twist_pd + T_WEr_E;
+
+    // q_dot_cmd = J_ee.pseudo_inverse()*T_WE_E_cmd
+    Eigen::VectorXd q_dot_cmd =
+        J_ee_E_.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV)
+            .solve(T_WE_E_cmd);
+    *q_commanded = q + q_dot_cmd * control_period_s_;
+    *v_commanded = q_dot_cmd; // This is ignored when constructing iiwa_command.
+
+
+    bool unsafe_command = Eigen::isnan(q_commanded->array()).any();
+    if (unsafe_command){
+      std::cout << "\n\nunsafe command caught inside Step()" << std::endl;
+      std::cout << "q_commanded:\n" << *q_commanded << std::endl;
+      std::cout << "q_dot_cmd:\n" << q_dot_cmd << std::endl;
+      std::cout << "q:\n" << q << std::endl;
+
+      std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
     }
+
 
 
     // debugging prints for when things are nan . . .

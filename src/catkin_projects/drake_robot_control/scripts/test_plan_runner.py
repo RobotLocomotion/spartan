@@ -51,7 +51,8 @@ def test_cartesian_trajectory_action():
     client.wait_for_server()
     print "connected to server"
 
-    goal = make_cartesian_trajectory_goal_gripper_frame()
+    # goal = make_cartesian_trajectory_goal_gripper_frame()
+    goal = make_cartesian_trajectory_goal_world_frame()
     # goal.trajectory = make_cartesian_trajectory_msg()
 
     print "sending goal"
@@ -79,7 +80,7 @@ def make_cartesian_trajectory_goal_gripper_frame():
 
     xyz_knot = geometry_msgs.msg.PointStamped()
     xyz_knot.header.frame_id = frame_id
-    xyz_knot.point.x = 0.1
+    xyz_knot.point.x = 0.20
     xyz_knot.point.y = 0.0
     xyz_knot.point.z = 0.0
 
@@ -92,6 +93,51 @@ def make_cartesian_trajectory_goal_gripper_frame():
 
 
     return goal
+
+def make_cartesian_trajectory_goal_world_frame():
+
+    # (array([0.588497  , 0.00716426, 0.5159925 ]), array([ 0.70852019, -0.15500524,  0.67372875,  0.1416407 ]))
+
+    pos = [0.588497  , 0.00716426, 0.5159925]
+    quat = [ 0.70852019, -0.15500524,  0.67372875,  0.1416407 ]
+
+    goal = robot_msgs.msg.CartesianTrajectoryGoal()
+    traj = goal.trajectory
+
+    # frame_id = "iiwa_link_ee"
+    frame_id = "base"
+    ee_frame_id = "iiwa_link_ee"
+    
+    xyz_knot = geometry_msgs.msg.PointStamped()
+    xyz_knot.header.frame_id = frame_id
+    xyz_knot.point.x = 0
+    xyz_knot.point.y = 0
+    xyz_knot.point.z = 0
+    traj.xyz_points.append(xyz_knot)
+
+    xyz_knot = geometry_msgs.msg.PointStamped()
+    xyz_knot.header.frame_id = frame_id
+    xyz_knot.point.x = pos[0]
+    xyz_knot.point.y = pos[1]
+    xyz_knot.point.z = pos[2]
+
+    traj.xyz_points.append(xyz_knot)
+
+    traj.ee_frame_id = ee_frame_id
+
+    traj.time_from_start.append(rospy.Duration(0.0))
+    traj.time_from_start.append(rospy.Duration(2.0))
+
+    quat_msg = geometry_msgs.msg.Quaternion()
+    quat_msg.w = quat[0]
+    quat_msg.x = quat[1]
+    quat_msg.y = quat[2]
+    quat_msg.z = quat[3]
+
+    traj.quaternions.append(quat_msg)
+
+    return goal
+
 
 
 if __name__ == "__main__":

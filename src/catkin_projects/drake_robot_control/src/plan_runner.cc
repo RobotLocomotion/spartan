@@ -12,6 +12,7 @@
 #include <trajectory_msgs/JointTrajectory.h>
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/Quaternion.h>
 
 
 namespace drake {
@@ -339,39 +340,39 @@ void RobotPlanRunner::MoveToJointPosition(
   QueueNewPlan(plan);
 }
 
-void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
-    const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
-    const math::RotationMatrixd &R_WE_ref, double duration) {
-  Eigen::Isometry3d T_ee;
-  Eigen::Vector3d rpy;
-  GetEePoseInWorldFrame(&T_ee, &rpy);
-  const math::RotationMatrixd R_WE(T_ee.linear());
-
-  Eigen::Vector3d xyz_ee_start = T_ee.translation();
-  Eigen::Vector3d xyz_ee_final = xyz_ee_start + delta_xyz_ee;
-
-  std::vector<double> times{0, duration};
-  std::vector<Eigen::MatrixXd> knots;
-  knots.push_back(xyz_ee_start);
-  knots.push_back(xyz_ee_final);
-
-  std::shared_ptr<PlanBase> plan;
-
-  if (!R_WE.IsNearlyEqualTo(R_WE_ref, 0.5)) {
-    std::cout
-        << "Difference between current and reference orietation is too large, "
-           "keep current orietation..."
-        << std::endl;
-    plan = std::make_shared<EndEffectorOriginTrajectoryPlan>(
-        tree_, PPType::FirstOrderHold(times, knots), R_WE,
-        kRobotEeBodyName_);
-  } else {
-    plan = std::make_unique<EndEffectorOriginTrajectoryPlan>(
-        tree_, PPType::FirstOrderHold(times, knots), R_WE_ref,
-        kRobotEeBodyName_);
-  }
-  QueueNewPlan(plan);
-}
+//void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
+//    const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
+//    const math::RotationMatrixd &R_WE_ref, double duration) {
+//  Eigen::Isometry3d T_ee;
+//  Eigen::Vector3d rpy;
+//  GetEePoseInWorldFrame(&T_ee, &rpy);
+//  const math::RotationMatrixd R_WE(T_ee.linear());
+//
+//  Eigen::Vector3d xyz_ee_start = T_ee.translation();
+//  Eigen::Vector3d xyz_ee_final = xyz_ee_start + delta_xyz_ee;
+//
+//  std::vector<double> times{0, duration};
+//  std::vector<Eigen::MatrixXd> knots;
+//  knots.push_back(xyz_ee_start);
+//  knots.push_back(xyz_ee_final);
+//
+//  std::shared_ptr<PlanBase> plan;
+//
+//  if (!R_WE.IsNearlyEqualTo(R_WE_ref, 0.5)) {
+//    std::cout
+//        << "Difference between current and reference orietation is too large, "
+//           "keep current orietation..."
+//        << std::endl;
+//    plan = std::make_shared<EndEffectorOriginTrajectoryPlan>(
+//        tree_, PPType::FirstOrderHold(times, knots), R_WE,
+//        kRobotEeBodyName_);
+//  } else {
+//    plan = std::make_unique<EndEffectorOriginTrajectoryPlan>(
+//        tree_, PPType::FirstOrderHold(times, knots), R_WE_ref,
+//        kRobotEeBodyName_);
+//  }
+//  QueueNewPlan(plan);
+//}
 
 void RobotPlanRunner::HandleStatus(const lcm::ReceiveBuffer *,
                                    const std::string &,
@@ -585,7 +586,6 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
   // figure out what frame the points are expressed in
   for (int i = 0; i < num_knot_points; i++){
 
-
     // replace first knot point by current position of ee_frame
     Eigen::Vector3d xyz_pos_in_world;
     if (i == 0){
@@ -601,11 +601,23 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
     input_time.push_back(traj.time_from_start[i].toSec());
   }
 
-  drake::math::RotationMatrixd R_ee_to_world(T_ee_to_world.linear());
+
+  drake::math::RotationMatrixd R_ee_to_world_initial(T_ee_to_world.linear());
+  drake::math::RotationMatrixd R_ee_to_world_final;
+
+  if (traj.quaternions.size() > 0){
+    ROS_INFO("Orientation passed in, interpolating with slerp");
+    const geometry_msgs::Quaternion & quat_msg = traj.quaternions[0];
+    Eigen::Quaterniond quat_WE_final(quat_msg.w, quat_msg.x, quat_msg.y, quat_msg.z);
+    R_ee_to_world_final = drake::math::RotationMatrixd(quat_WE_final);
+  } else{
+    ROS_INFO("No orientation passed in, using current");
+    R_ee_to_world_final = R_ee_to_world_initial;
+  }
 
   // set succeeded for now
   const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(3, 1);
-  auto plan_local = std::make_shared<EndEffectorOriginTrajectoryPlan>(tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot), R_ee_to_world, traj.ee_frame_id);
+  auto plan_local = std::make_shared<EndEffectorOriginTrajectoryPlan>(tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot), R_ee_to_world_initial, R_ee_to_world_final, traj.ee_frame_id);
 
 
   QueueNewPlan(plan_local);
