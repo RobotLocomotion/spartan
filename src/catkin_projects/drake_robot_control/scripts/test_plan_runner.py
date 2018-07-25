@@ -1,3 +1,6 @@
+import argparse
+
+
 import rospy
 import actionlib
 import robot_msgs.msg
@@ -5,6 +8,7 @@ import trajectory_msgs.msg
 import geometry_msgs.msg
 
 import robot_control.control_utils as control_utils
+
 
 def test_joint_trajectory_action():
     client = actionlib.SimpleActionClient("plan_runner/JointTrajectory", robot_msgs.msg.JointTrajectoryAction)
@@ -44,16 +48,18 @@ def make_joint_trajectory_msg():
 
     return traj
 
-def test_cartesian_trajectory_action():
+def test_cartesian_trajectory_action(move_type="gripper_frame"):
     client = actionlib.SimpleActionClient("plan_runner/CartesianTrajectory", robot_msgs.msg.CartesianTrajectoryAction)
 
     print "waiting for server"
     client.wait_for_server()
     print "connected to server"
 
-    # goal = make_cartesian_trajectory_goal_gripper_frame()
+    if move_type == "gripper_frame":
+        goal = make_cartesian_trajectory_goal_gripper_frame()
+    if move_type == "world_frame":
+        goal = make_cartesian_trajectory_goal_world_frame()
 
-    goal = make_cartesian_trajectory_goal_world_frame()
     goal.gains.append(make_cartesian_gains_msg())
     
 
@@ -82,7 +88,7 @@ def make_cartesian_trajectory_goal_gripper_frame():
 
     xyz_knot = geometry_msgs.msg.PointStamped()
     xyz_knot.header.frame_id = frame_id
-    xyz_knot.point.x = 0.20
+    xyz_knot.point.x = 0.2
     xyz_knot.point.y = 0.0
     xyz_knot.point.z = 0.0
 
@@ -91,7 +97,7 @@ def make_cartesian_trajectory_goal_gripper_frame():
     traj.ee_frame_id = ee_frame_id
 
     traj.time_from_start.append(rospy.Duration(0.0))
-    traj.time_from_start.append(rospy.Duration(2.0))
+    traj.time_from_start.append(rospy.Duration(4.0))
 
 
     return goal
@@ -143,7 +149,7 @@ def make_cartesian_trajectory_goal_world_frame():
 def make_cartesian_gains_msg():
     msg = robot_msgs.msg.CartesianGain()
 
-    kp_rot = 20
+    kp_rot = 5
     msg.rotation.x = kp_rot
     msg.rotation.x = kp_rot
     msg.rotation.x = kp_rot
@@ -158,6 +164,10 @@ def make_cartesian_gains_msg():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-m", "--movement", type=str,
+        help="(optional) type of movement, can be gripper_frame or world_frame", default="gripper_frame")
     rospy.init_node("test_plan_runner")
+    args = parser.parse_args()
     # test_joint_trajectory_action()
-    test_cartesian_trajectory_action()
+    test_cartesian_trajectory_action(move_type=args.movement)

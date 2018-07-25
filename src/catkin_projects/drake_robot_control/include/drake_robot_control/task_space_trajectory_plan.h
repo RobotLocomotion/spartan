@@ -64,6 +64,7 @@ public:
     DRAKE_ASSERT(xyz_ee_traj.rows() == 3);
     idx_ee_ = tree_->FindBodyIndex(ee_body_name_);
     idx_world_ = tree_->FindBodyIndex("world");
+    this->ComputeOrientationTrajectory();
   }
 
   // q, v: current robot configuration/velocity.
@@ -86,8 +87,10 @@ public:
    * Computes the orientation trajectory and associated angular velocity vector
   */
   void ComputeOrientationTrajectory(){
+    std::cout << "Computing the orientation trajectory" << std::endl;
     // make sure we go the "short" way around
     if (quat_WE_initial_.dot(quat_WE_final_) < 0){
+      std::cout << "conjugating quaternion\n";
       quat_WE_final_ = quat_WE_final_.conjugate();
     }
 
@@ -101,8 +104,13 @@ public:
     // angular velocity of reference trajectory, expressed in Einit frame
     Eigen::Vector3d ang_velocity_WEr_Einit = 2*angle_axis.angle() * angle_axis.axis();
 
+    std::cout << "rotation angle\n" << 2*angle_axis.angle() << std::endl;
+    std::cout << "rotation axis\n" << angle_axis.axis() << std::endl;
+
     // angular velocity of reference trajectory, expressed in World frame
     ang_velocity_WEr_W_ = R_WE_inital_ * ang_velocity_WEr_Einit;
+
+    std::cout << "ang_velocity_WEr_W_\n" << ang_velocity_WEr_W_ << std::endl;
   }
 
 private:

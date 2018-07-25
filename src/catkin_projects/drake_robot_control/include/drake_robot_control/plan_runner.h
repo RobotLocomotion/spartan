@@ -136,9 +136,7 @@ public:
 
   void HandleStop(const lcm::ReceiveBuffer *, const std::string &,
                   const robotlocomotion::robot_plan_t *) {
-    std::lock_guard<std::mutex> lock(robot_plan_mutex_);
-    is_plan_terminated_externally_ = true;
-    new_plan_.reset();
+    terminate_current_plan_flag_ = true;
   }
 
   void GetBodyPoseInWorldFrame(const RigidBody<double> &body,
@@ -174,7 +172,7 @@ public:
 
   std::atomic<bool> is_waiting_for_first_robot_status_message_;
   std::atomic<bool> has_received_new_status_;
-  std::atomic<bool> is_plan_terminated_externally_;
+  std::atomic<bool> terminate_current_plan_flag_;
   std::atomic<int> plan_number_; // the current plan number
   lcmt_iiwa_status iiwa_status_;
   Eigen::VectorXd current_robot_state_;

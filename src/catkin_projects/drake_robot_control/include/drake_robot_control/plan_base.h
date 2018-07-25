@@ -86,6 +86,9 @@ class PlanBase {
 
  protected:
   std::shared_ptr<const RigidBodyTreed> tree_;
+  
+  // records the last commands sent by this plan
+  // or the last command sent by a previous plan if we have just swapped this plan in
   Eigen::VectorXd q_commanded_prev_;
   Eigen::VectorXd tau_commanded_prev_;
   

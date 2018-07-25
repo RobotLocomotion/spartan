@@ -52,8 +52,14 @@ typedef drake::TwistVector<double> TwistVectord;
      std::cout << "plan status was NOT_STARTED, setting it to RUNNING" << std::endl;
     }
 
-    Eigen::VectorXd q = x.head(this->get_num_positions());
+
+    // Eigen::VectorXd q = x.head(this->get_num_positions());
+    // Instead of the actual q, use the last commanded q
+    Eigen::VectorXd q = q_commanded_prev_;
     Eigen::VectorXd v = x.tail(this->get_num_velocities());
+
+    
+
     Eigen::Vector3d xyz_ee_ref = traj_.value(t); // expressed in world
     Eigen::Vector3d xyz_d_ee_ref = traj_d_.value(t); // expressed in world
 
@@ -61,7 +67,7 @@ typedef drake::TwistVector<double> TwistVectord;
     math::RotationMatrixd R_WEr(quat_WE_initial_.slerp(t_fraction, quat_WE_final_));
     math::RotationMatrixd R_ErW = R_WEr.inverse();
 
-
+    
     *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
 
     cache_.initialize(q, v);
@@ -102,10 +108,6 @@ typedef drake::TwistVector<double> TwistVectord;
       }
     }
 
-
-
-
-
     H_WEr_.set_rotation(R_WEr);
     H_WEr_.set_translation(xyz_ee_ref);
     Eigen::Isometry3d H_WEr = H_WEr_.GetAsIsometry3();
@@ -131,23 +133,21 @@ typedef drake::TwistVector<double> TwistVectord;
     // easiest to compute this as expressed in Er frame,
     // then transform that twist to E frame using adjoint
     TwistVectord T_WEr_Er;
-    T_WEr_Er.head(3) = R_WEr * ang_velocity_WEr_W_;
-    T_WEr_Er.tail(3) = R_WEr * xyz_d_ee_ref;
+
+    if (plan_status_ == PlanStatus::RUNNING){
+      // T_WEr_Er.head(3) = R_WEr * ang_velocity_WEr_W_;
+      T_WEr_Er.head(3) = Eigen::Vector3d::Zero(); // hack for now
+      T_WEr_Er.tail(3) = R_WEr * xyz_d_ee_ref;  
+    } else{
+      // if the plan is finished, the feed forward should be zero
+      T_WEr_Er.head(3) = Eigen::Vector3d::Zero();
+      T_WEr_Er.tail(3) = Eigen::Vector3d::Zero();
+    }
+    
 
     Eigen::Matrix<double, 6, 6> Ad_H_EEr =
         spartan::drake_robot_control::utils::AdjointSE3(H_EEr.linear(), H_EEr.translation());
     TwistVectord T_WEr_E = Ad_H_EEr * T_WEr_Er;
-
-
-//      TwistVectord T_WEr_W;
-//      T_WEr_W.head(3).setZero();
-//      T_WEr_W.tail(3) = xyz_d_ee_ref; // if angular velocity was non-zero this would have to change
-//
-//      // Convert this twist to be expressed in body frame.
-//      // To convert a twist use the adjoint map
-//      Eigen::Matrix<double, 6, 6> Ad_H_EW =
-//          spartan::drake_robot_control::utils::AdjointSE3(H_EW.linear(), H_EW.translation());
-//      TwistVectord T_WEr_E = Ad_H_EW * T_WEr_W;
 
 
     // Total desired twist
@@ -170,6 +170,15 @@ typedef drake::TwistVector<double> TwistVectord;
       std::cout << "q:\n" << q << std::endl;
 
       std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
+    }
+
+    bool debug = false;
+    if (debug){
+      std::cout << "\n-------\n";
+      std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
+
+      Eigen::Isometry3d H_ErE = H_EEr.inverse();
+      std::cout << "H_ErE.translation() " << H_ErE.translation() << std::endl;
     }
 
 

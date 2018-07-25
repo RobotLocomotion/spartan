@@ -66,7 +66,8 @@ RobotPlanRunner::RobotPlanRunner(
       kRobotEeBodyName_(robot_ee_body_name), kNumJoints_(num_joints),
       kJointSpeedLimitDegPerSec_(joint_speed_limit_deg_per_sec),
       kControlPeriod_(control_period), tree_(std::move(tree)), nh_(nh),
-      plan_number_(0), tf_listener_(tf_buffer_){
+      plan_number_(0), tf_listener_(tf_buffer_),
+      terminate_current_plan_flag_(false){
 
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_positions());
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_actuators());
@@ -195,8 +196,8 @@ void RobotPlanRunner::PublishCommand() {
   int64_t start_time_us = -1;
   int64_t cur_time_us = -1;
   double cur_plan_time_s = -1;
-  bool has_new_plan = false;
-  bool is_terminated = false;
+  bool has_published_command = false;
+  // bool terminate_current_plan = false; // whether or not to 
 
   lcmt_iiwa_command iiwa_command;
   iiwa_command.num_joints = kNumJoints_;
@@ -206,7 +207,11 @@ void RobotPlanRunner::PublishCommand() {
   Eigen::VectorXd q_commanded(kNumJoints_), v_commanded(kNumJoints_),
       tau_commanded(kNumJoints_);
 
-  Eigen::VectorXd q_commanded_cur(kNumJoints_), tau_commanded_cur(kNumJoints_);
+  
+
+  Eigen::VectorXd prev_position_command(kNumJoints_);
+  Eigen::VectorXd prev_torque_command(kNumJoints_);
+
   Eigen::VectorXd current_robot_state, cur_tau_external(kNumJoints_);
 
 
@@ -218,10 +223,10 @@ void RobotPlanRunner::PublishCommand() {
              std::bind(&RobotPlanRunner::has_received_new_status, this));
     has_received_new_status_ = false;
 
+    // we should have the lock at this point
+
     // these should all be copies
     current_robot_state = current_robot_state_;
-    q_commanded_cur = current_position_commanded_; // joint_position_commanded
-    tau_commanded_cur = current_torque_commanded_; // joint_torque_commanded
     iiwa_status_local = iiwa_status_; // this is a copy
 
     // Calling unlock is necessary because when cv_.wait() returns, this
@@ -229,32 +234,27 @@ void RobotPlanRunner::PublishCommand() {
     // executing.
     status_lock.unlock();
 
-    // Lock plan_mutex when checking for new plans.
+    if (!has_published_command){
+      prev_position_command = current_robot_state.head(kNumJoints_);
+      prev_torque_command = Eigen::VectorXd::Zero(kNumJoints_);
+    }
+
+    // see if ther eare any new plans
     robot_plan_mutex_.lock();
-    if (is_plan_terminated_externally_) {
-      is_plan_terminated_externally_ = false;
-      is_terminated = true;
-    } else if (new_plan_) {
+    if (terminate_current_plan_flag_.load() == true){
+      std::cout << "Terminating current plan" << std::endl;
+      terminate_current_plan_flag_.store(false);
+      plan_local.reset();
+    } else if (new_plan_){
       std::cout << "New plan swapped into publisher thread" << std::endl;
       plan_local = new_plan_;
       new_plan_.reset();
-      has_new_plan = true;
     }
     robot_plan_mutex_.unlock();
 
     cur_time_us = iiwa_status_local.utime;
     for (int i = 0; i < kNumJoints_; i++) {
       cur_tau_external[i] = iiwa_status_local.joint_torque_external[i];
-    }
-
-    // Make local changes after checking for new plans.
-    if (is_terminated) {
-      is_terminated = false;
-      plan_local.reset();
-    } else if (has_new_plan) {
-      has_new_plan = false;
-      start_time_us = iiwa_status_local.utime;
-      std::cout << "\nStarting plan No. " << plan_number_ << std::endl;
     }
 
     if (!plan_local) {
@@ -264,15 +264,26 @@ void RobotPlanRunner::PublishCommand() {
           tree_, current_robot_state.head(kNumJoints_));
     }
 
+    // special logic if the plan is new, i.e. not yet in state RUNNING
+    if(plan_local->get_plan_status() == PlanStatus::NOT_STARTED){
+      std::cout << "\nStarting plan No. " << plan_number_ << std::endl;
+
+      plan_local->SetCurrentCommand(prev_position_command, prev_torque_command);
+      start_time_us = iiwa_status_local.utime;
+
+      std::cout << "\n\nsetting prev_position_command:\n" << prev_position_command;
+      std::cout << "\n\nsetting prev_torque_command:\n" << prev_torque_command;
+    }
+
     cur_plan_time_s = static_cast<double>(cur_time_us - start_time_us) / 1e6;
-    plan_local->SetCurrentCommand(q_commanded_cur, tau_commanded_cur);
     plan_local->Step(current_robot_state, cur_tau_external, cur_plan_time_s,
                      &q_commanded, &v_commanded, &tau_commanded);
+    plan_local->SetCurrentCommand(q_commanded, tau_commanded);
 
     // Discard current plan if commanded position is "too far away" from
     // the previous commanded position, i.e. the commanded joint trajectory is
     // not sufficiently smooth.
-    Eigen::VectorXd dq_cmd = q_commanded - q_commanded_cur;
+    Eigen::VectorXd dq_cmd = q_commanded - prev_position_command;
     bool unsafe_command = false;
     for (int i = 0; i < kNumJoints_; i++) {
 
@@ -285,6 +296,11 @@ void RobotPlanRunner::PublishCommand() {
         unsafe_command = true;
       }
 
+      if (std::abs(tau_commanded[i]) > 1.0){
+        std::cout << "Non-zero torque command detected, stopping" << std::endl;
+        unsafe_command = true;
+      }
+
       if (std::isnan(q_commanded[i])){
         std::cout << "\nCommand is nan, discarding" << std::endl;
         std::cout << "\nposition_command:\n" << q_commanded << std::endl;
@@ -292,9 +308,6 @@ void RobotPlanRunner::PublishCommand() {
         std::cout << "\ntorque_command:\n" << tau_commanded << std::endl;
         std::cout << "Current_robot_state:\n" << current_robot_state << std::endl;
         std::cout << "\ncur_plan_time: " << cur_plan_time_s << std::endl;
-
-        std::cout << "\nq_commanded_cur:\n" << q_commanded_cur << std::endl;
-        std::cout << "\ntau_commanded_cur:\n" << tau_commanded_cur << std::endl;
         unsafe_command = true;
 
         std::cout << "plan_local->get_plan_status():" << plan_local->get_plan_status() << std::endl;
@@ -302,12 +315,17 @@ void RobotPlanRunner::PublishCommand() {
       }
 
       if (unsafe_command){
-        std::cout << "received unsafe command\n";
-        std::cout << "sending previous command instead" << std::endl;
-        q_commanded = q_commanded_cur;
-        tau_commanded = tau_commanded_cur;
+        std::cout << "detected unsafe command\n";
+        std::cout << "\nposition_command:\n" << q_commanded << std::endl;
+        std::cout << "\ntorque_command:\n" << tau_commanded << std::endl;
 
 
+        std::cout << "sending previous position command instead" << std::endl;
+        std::cout << "setting torque command to zero" << std::endl;
+        q_commanded = prev_position_command;
+        tau_commanded = Eigen::VectorXd::Zero(kNumJoints_);
+
+        std::cout << "safe commands" << std::endl;
         std::cout << "\nposition_command:\n" << q_commanded << std::endl;
         std::cout << "\ntorque_command:\n" << tau_commanded << std::endl;
 
@@ -327,6 +345,9 @@ void RobotPlanRunner::PublishCommand() {
       iiwa_command.joint_torque[i] = tau_commanded(i);
     }
     publisher_lcm.publish(kLcmCommandChannel_, &iiwa_command);
+    has_published_command = true;
+    prev_position_command = q_commanded;
+    prev_torque_command = tau_commanded;
   }
 }
 
@@ -388,9 +409,6 @@ void RobotPlanRunner::HandleStatus(const lcm::ReceiveBuffer *,
     current_robot_state_[i] = iiwa_status_.joint_position_measured[i];
     current_robot_state_[i + kNumJoints_] =
         iiwa_status_.joint_velocity_estimated[i];
-
-    current_position_commanded_[i] = iiwa_status_.joint_position_commanded[i];
-    current_torque_commanded_[i] = iiwa_status_.joint_torque_commanded[i];
   }
   lock.unlock();
   cv_.notify_all();
@@ -458,7 +476,6 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(
   int num_knot_points = goal->trajectory.points.size();
   const trajectory_msgs::JointTrajectory &trajectory = goal->trajectory;
 
-  ROS_INFO("Received Joint Space Trajectory Plan");
   if (is_waiting_for_first_robot_status_message_) {
     std::cout << "Discarding plan, no status message received yet" << std::endl;
     return;
