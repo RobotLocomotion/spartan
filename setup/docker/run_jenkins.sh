@@ -29,7 +29,7 @@ fi
 
 # Try building *again* to ensure that re-installing various pieces doesn't
 # break (see e.g. issue #159)
-make -j8 -
+make -j8 -output-sync=target
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code in make: " $exit_status
@@ -44,7 +44,9 @@ use_spartan
 Xvfb :100 -ac &
 
 # Run Spartan modules test.
-DISPLAY=:100 py.test --junitxml results.xml /home/jenkins/spartan/modules/spartan/test/
+# These tests *must* be run forked (as in, each test
+# in its own process)
+DISPLAY=:100 pytest --forked --junitxml results.xml ~/spartan/modules/spartan/test/
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code when running tests: " $exit_status
