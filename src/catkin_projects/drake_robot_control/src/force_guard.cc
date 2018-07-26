@@ -23,12 +23,10 @@ std::pair<bool, double> TotalExternalTorqueGuard::EvaluateGuard(const Kinematics
   return std::make_pair(guard_triggered, fraction);
 }
 
-ExternalForceGuard::ExternalForceGuard(const RigidBodyTreed& tree, double force_threshold, int idx_body, int idx_world, int idx_expressed_in, const Eigen::Ref<const Eigen::Vector3d> &force_direction):
-    ForceGuard(ForceGuardType::EXTERNAL_FORCE), tree_(tree), force_threshold_(force_threshold), idx_body_(idx_body),
+ExternalForceGuard::ExternalForceGuard(const RigidBodyTreed& tree, int idx_body, int idx_world, int idx_expressed_in, const Eigen::Ref<const Eigen::Vector3d> &force):
+    ForceGuard(ForceGuardType::EXTERNAL_FORCE), tree_(tree), force_(force), idx_body_(idx_body),
     idx_world_(idx_world), idx_expressed_in_(idx_expressed_in){
 
-
-  force_direction_ = force_direction/force_direction.norm();
   twist_external_ = Eigen::Matrix<double, 6,1>::Zero();
 
 }
@@ -39,7 +37,7 @@ std::pair<bool, double> ExternalForceGuard::EvaluateGuard(const KinematicsCache<
   H_body_expressed_in_ = tree_.relativeTransform(cache_, idx_body_, idx_expressed_in_);
 
   // rotate force to be in body frame
-  twist_external_.tail(3) = H_body_expressed_in_.linear() * force_direction_;
+  twist_external_.tail(3) = H_body_expressed_in_.linear() * force_;
 
   Eigen::MatrixXd J = tree_.geometricJacobian(cache_, idx_world_, idx_body_, idx_body_);
   Eigen::VectorXd torque_external_threshold = J.transpose() *  twist_external_;
@@ -50,6 +48,11 @@ std::pair<bool, double> ExternalForceGuard::EvaluateGuard(const KinematicsCache<
 
   if (guard_triggered){
     has_been_triggered_ = true;
+
+//    std::cout << "\n\n-------ExternalForceGuard Triggered-------\n\n" << std::endl;
+//    std::cout << "torque_external_threshold:\n" << torque_external_threshold << std::endl;
+//    std::cout << "\ntau_external:\n" << tau_external << std::endl;
+//    std::cout << "\ntwist in body frame:\n" << twist_external_ << std::endl;
   }
 
   return std::make_pair(guard_triggered, fraction);
@@ -74,6 +77,11 @@ std::pair<bool, std::pair<double, std::shared_ptr<ForceGuard>>> ForceGuardContai
       largest_fraction = result.second;
       guard = guards_[i];
     }
+  }
+
+  if (guard_triggered){
+    has_been_triggered_ = true;
+    triggered_guard_ = guard;
   }
 
   return std::make_pair(guard_triggered, std::make_pair(guard_triggered, guard));

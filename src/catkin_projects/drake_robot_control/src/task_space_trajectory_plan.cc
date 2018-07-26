@@ -1,3 +1,6 @@
+#include <exception>
+
+
 #include <drake_robot_control/task_space_trajectory_plan.h>
 #include <drake_robot_control/utils.h>
 #include <Eigen/Dense>
@@ -8,6 +11,8 @@
 
 namespace drake {
 namespace robot_plan_runner {
+
+typedef spartan::drake_robot_control::ForceGuard ForceGuard;
 
 /// Notation
 /// H_JI: is the homogeneous transform from I to J
@@ -43,63 +48,75 @@ typedef drake::TwistVector<double> TwistVectord;
             Eigen::VectorXd *const v_commanded,
             Eigen::VectorXd *const tau_commanded) {
 
+    *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
     DRAKE_ASSERT(t >= 0);
 
     PlanStatus not_started_status = PlanStatus::NOT_STARTED;
     PlanStatus running_status = PlanStatus::RUNNING;
 
-    if (plan_status_.compare_exchange_strong(not_started_status, PlanStatus::RUNNING) ){
-     std::cout << "plan status was NOT_STARTED, setting it to RUNNING" << std::endl;
+    if (plan_status_.compare_exchange_strong(not_started_status, PlanStatus::RUNNING)) {
+      std::cout << "plan status was NOT_STARTED, setting it to RUNNING" << std::endl;
     }
 
+    if (this->is_stopped()) {
+      *q_commanded = q_commanded_prev_;
+      *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
+      return;
+    }
+
+    // if we reach here then plan should be in state RUNNING
 
     // Eigen::VectorXd q = x.head(this->get_num_positions());
     // Instead of the actual q, use the last commanded q
+    Eigen::VectorXd q_measured = x.head(this->get_num_positions());
     Eigen::VectorXd q = q_commanded_prev_;
     Eigen::VectorXd v = x.tail(this->get_num_velocities());
-
-    
 
     Eigen::Vector3d xyz_ee_ref = traj_.value(t); // expressed in world
     Eigen::Vector3d xyz_d_ee_ref = traj_d_.value(t); // expressed in world
 
-    double t_fraction = std::min(t/this->duration(),1.0);
+    double t_fraction = std::min(t / this->duration(), 1.0);
     math::RotationMatrixd R_WEr(quat_WE_initial_.slerp(t_fraction, quat_WE_final_));
     math::RotationMatrixd R_ErW = R_WEr.inverse();
 
-    
-    *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
+
+
+    // compute KinematicsCache off of measured states
+    // for use in computing the force guards
+    cache_measured_state_.initialize(q_measured, v);
+    tree_->doKinematics(cache_measured_state_);
+
+    // Check the external force guards
+    if (guard_container_) {
+      std::pair < bool, std::pair < double, std::shared_ptr < ForceGuard >> > result = guard_container_->EvaluateGuards(
+          cache_measured_state_,
+          q_measured,
+          tau_external);
+
+      bool guard_triggered = result.first;
+
+      if (guard_triggered) {
+        std::cout << "Force Guard Triggered, stopping plan" << std::endl;
+        std::cout << "ForceGuardType: " << result.second.second->get_type() << std::endl;
+        plan_status_ = PlanStatus::STOPPED_BY_FORCE_GUARD;
+        this->SetPlanFinished();
+      }
+
+    }
 
     cache_.initialize(q, v);
     tree_->doKinematics(cache_);
+
     J_ee_E_ = tree_->geometricJacobian(cache_, idx_world_, idx_ee_, idx_ee_);
     J_ee_W_ = tree_->geometricJacobian(cache_, idx_world_, idx_ee_, idx_world_);
 
-
-
+    PlanStatus plan_status = this->get_plan_status();
     if (this->get_plan_status() == PlanStatus::RUNNING) {
 
-      // check if force threshold was tripped
-      if (t < this->duration()) {
-        TwistVectord ee_force_W_;
-        ee_force_W_.head(3).setZero(); // no external moment
-        ee_force_W_.tail(3) =
-            xyz_d_ee_ref / xyz_d_ee_ref.norm() * force_threshold_;
-        Eigen::VectorXd joint_torque = J_ee_W_.transpose() * ee_force_W_;
-
-        if (tau_external.norm() > joint_torque.norm()) {
-          if (plan_status_.compare_exchange_strong(running_status, PlanStatus::STOPPPED_BY_FORCE_THRESHOLD)) {
-            this->SetPlanFinished();
-            q_command_final_ = q_commanded_prev_;
-            std::cout << "Norm of joint torque exceeding threshold "
-                      << joint_torque.norm() << std::endl;
-          }
-        }
-      }
-      else {
+      if (t > this->duration()) {
         // if we arrive here, it means that plan status was
         // RUNNING and t > this->duration()
-        if (plan_status_.compare_exchange_strong(running_status, PlanStatus::FINISHED_NORMALLY)){
+        if (plan_status_.compare_exchange_strong(running_status, PlanStatus::FINISHED_NORMALLY)) {
           ROS_INFO("plan finished normally");
           // notify the condition variable
           q_command_final_ = q_commanded_prev_;
@@ -107,6 +124,7 @@ typedef drake::TwistVector<double> TwistVectord;
         }
       }
     }
+
 
     H_WEr_.set_rotation(R_WEr);
     H_WEr_.set_translation(xyz_ee_ref);
@@ -134,16 +152,15 @@ typedef drake::TwistVector<double> TwistVectord;
     // then transform that twist to E frame using adjoint
     TwistVectord T_WEr_Er;
 
-    if (plan_status_ == PlanStatus::RUNNING){
+    if (plan_status_ == PlanStatus::RUNNING) {
       // T_WEr_Er.head(3) = R_WEr * ang_velocity_WEr_W_;
       T_WEr_Er.head(3) = Eigen::Vector3d::Zero(); // hack for now
-      T_WEr_Er.tail(3) = R_WEr * xyz_d_ee_ref;  
-    } else{
+      T_WEr_Er.tail(3) = R_WEr * xyz_d_ee_ref;
+    } else {
       // if the plan is finished, the feed forward should be zero
       T_WEr_Er.head(3) = Eigen::Vector3d::Zero();
       T_WEr_Er.tail(3) = Eigen::Vector3d::Zero();
     }
-    
 
     Eigen::Matrix<double, 6, 6> Ad_H_EEr =
         spartan::drake_robot_control::utils::AdjointSE3(H_EEr.linear(), H_EEr.translation());
@@ -163,7 +180,7 @@ typedef drake::TwistVector<double> TwistVectord;
 
 
     bool unsafe_command = Eigen::isnan(q_commanded->array()).any();
-    if (unsafe_command){
+    if (unsafe_command) {
       std::cout << "\n\nunsafe command caught inside Step()" << std::endl;
       std::cout << "q_commanded:\n" << *q_commanded << std::endl;
       std::cout << "q_dot_cmd:\n" << q_dot_cmd << std::endl;
@@ -173,16 +190,13 @@ typedef drake::TwistVector<double> TwistVectord;
     }
 
     bool debug = false;
-    if (debug){
+    if (debug) {
       std::cout << "\n-------\n";
       std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
 
       Eigen::Isometry3d H_ErE = H_EEr.inverse();
       std::cout << "H_ErE.translation() " << H_ErE.translation() << std::endl;
     }
-
-
-
     // debugging prints for when things are nan . . .
 
   }

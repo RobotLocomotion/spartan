@@ -1,5 +1,6 @@
 import argparse
 
+import numpy as np
 
 import rospy
 import actionlib
@@ -61,6 +62,7 @@ def test_cartesian_trajectory_action(move_type="gripper_frame"):
         goal = make_cartesian_trajectory_goal_world_frame()
 
     goal.gains.append(make_cartesian_gains_msg())
+    goal.force_guard.append(make_force_guard_msg())
     
 
     print "sending goal"
@@ -88,7 +90,7 @@ def make_cartesian_trajectory_goal_gripper_frame():
 
     xyz_knot = geometry_msgs.msg.PointStamped()
     xyz_knot.header.frame_id = frame_id
-    xyz_knot.point.x = 0.2
+    xyz_knot.point.x = 0.1
     xyz_knot.point.y = 0.0
     xyz_knot.point.z = 0.0
 
@@ -161,6 +163,23 @@ def make_cartesian_gains_msg():
 
     return msg
 
+def make_force_guard_msg():
+    msg = robot_msgs.msg.ForceGuard()
+    external_force = robot_msgs.msg.ExternalForceGuard()
+
+    body_frame = "iiwa_link_ee"
+    expressed_in_frame = "iiwa_link_ee"
+    force_vec = 20*np.array([-1,0,0])
+
+    external_force.force.header.frame_id = expressed_in_frame
+    external_force.body_frame = body_frame
+    external_force.force.vector.x = force_vec[0]
+    external_force.force.vector.y = force_vec[1]
+    external_force.force.vector.z = force_vec[2]
+
+    msg.external_force_guards.append(external_force)
+
+    return msg
 
 
 if __name__ == "__main__":

@@ -53,7 +53,8 @@ add_message_files(
    RobotJointNames.msg
    PlanStatus.msg
    CartesianTrajectory.msg
-   ForceThreshold.msg
+   ForceGuard.msg
+   ExternalForceGuard.msg
    CartesianGain.msg
 )
 

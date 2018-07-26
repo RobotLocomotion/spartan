@@ -55,8 +55,7 @@ public:
                                   const std::string &ee_body_name,
                                   double control_period_s = 0.005,
                                   double force_threshold = 20)
-      : TrajectoryPlanBase(std::move(tree), xyz_ee_traj),
-        cache_(tree_->CreateKinematicsCache()), R_WE_inital_(R_WE_initial),
+      : TrajectoryPlanBase(std::move(tree), xyz_ee_traj), R_WE_inital_(R_WE_initial),
         R_WE_final_(R_WE_final), kp_rotation_(kp_rotation), kp_translation_(kp_translation),
         ee_body_name_(ee_body_name), control_period_s_(control_period_s),
         force_threshold_(force_threshold), quat_WE_initial_(R_WE_initial.matrix()),
@@ -114,7 +113,7 @@ public:
   }
 
 private:
-  KinematicsCache<double> cache_;
+
   drake::TwistMatrix<double> J_ee_E_;
   drake::TwistMatrix<double> J_ee_W_;
   Eigen::Isometry3d H_WE_; // ee to world, current homogeneous transform

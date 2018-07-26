@@ -5,6 +5,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include "drake_robot_control/utils.h"
+#include "drake_robot_control/force_guard.h"
 #include "common_utils/system_utils.h"
 
 //ROS
@@ -17,6 +18,11 @@
 
 namespace drake {
 namespace robot_plan_runner {
+
+typedef spartan::drake_robot_control::ForceGuard ForceGuard;
+typedef spartan::drake_robot_control::TotalExternalTorqueGuard TotalExternalTorqueGuard;
+typedef spartan::drake_robot_control::ExternalForceGuard ExternalForceGuard;
+typedef spartan::drake_robot_control::ForceGuardContainer ForceGuardContainer;
 
 std::unique_ptr<RobotPlanRunner>
 RobotPlanRunner::GetInstance(ros::NodeHandle &nh,
@@ -652,6 +658,53 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
 
   const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(3, 1);
   auto plan_local = std::make_shared<EndEffectorOriginTrajectoryPlan>(tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot), R_ee_to_world_initial, R_ee_to_world_final, kp_rotation, kp_translation, traj.ee_frame_id);
+
+
+  // make the force threshold object
+  if (goal->force_guard.size() > 0){
+
+    const robot_msgs::ForceGuard force_guard_msg = goal->force_guard[0];
+
+    std::vector<std::shared_ptr<ForceGuard>> guards;
+
+    if (force_guard_msg.joint_torque_external_l2_norm.size() > 0){
+
+      double threshold = force_guard_msg.joint_torque_external_l2_norm[0];
+      // create TotalExternalTorqueGuard
+      std::shared_ptr<TotalExternalTorqueGuard> guard = std::make_shared<TotalExternalTorqueGuard>(threshold);
+      guards.push_back(guard);
+    }
+
+    for (int i = 0; i < force_guard_msg.external_force_guards.size(); i++){
+      const robot_msgs::ExternalForceGuard external_force_guard_msg = force_guard_msg.external_force_guards[i];
+
+      std::string body_frame = external_force_guard_msg.body_frame;
+      std::string expressed_in_frame = external_force_guard_msg.force.header.frame_id;
+      if (expressed_in_frame == "base"){
+        expressed_in_frame = "world";
+      }
+
+      const auto & force_msg = external_force_guard_msg.force.vector;
+      Eigen::Vector3d force(force_msg.x, force_msg.y, force_msg.z);
+
+      int idx_world = tree_->FindBodyIndex("world");
+      int idx_body = tree_->FindBodyIndex(body_frame);
+      int idx_expressed_in = tree_->FindBodyIndex(expressed_in_frame);
+      std::shared_ptr<ExternalForceGuard> guard = std::make_shared<ExternalForceGuard>(*tree_, idx_body, idx_world, idx_expressed_in, force);
+
+      guards.push_back(guard);
+    }
+
+    if (guards.size() > 0){
+//      std::cout << "Adding %s force guards" % guards.size() << std::endl;
+      std::cout << "Adding force guards" << std::endl;
+      std::shared_ptr<ForceGuardContainer> guard_container = std::make_shared<ForceGuardContainer>();
+      guard_container->AddGuards(guards);
+
+      // now add it to the plan
+      plan_local->set_guard_container(guard_container);
+    }
+  }
 
 
   QueueNewPlan(plan_local);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <string>
 #include <utility>
 #include <Eigen/Dense>
@@ -62,18 +63,17 @@ class TotalExternalTorqueGuard : public ForceGuard{
 /// force to the specified body location
 class ExternalForceGuard : public ForceGuard{
  public:
-  ExternalForceGuard(const RigidBodyTreed& tree, double force_threshold, int idx_body, int idx_world, int idx_expressed_in, const Eigen::Ref<const Eigen::Vector3d> &force_direction);
+  ExternalForceGuard(const RigidBodyTreed& tree, int idx_body, int idx_world, int idx_expressed_in, const Eigen::Ref<const Eigen::Vector3d> &force);
 
   std::pair<bool, double> EvaluateGuard(const KinematicsCache<double>& cache_, const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::VectorXd> &tau_external) override ;
 
  private:
   const RigidBodyTreed& tree_;
 
-  const double force_threshold_;
   const int idx_world_;
   const int idx_body_;
   const int idx_expressed_in_;
-  Eigen::Vector3d force_direction_;
+  Eigen::Vector3d force_;
   Eigen::Matrix<double, 6,1> twist_external_;
   Eigen::Isometry3d H_body_expressed_in_;
 
@@ -86,17 +86,37 @@ class ExternalForceGuard : public ForceGuard{
 
 class ForceGuardContainer{
  public:
-  ForceGuardContainer();
+  ForceGuardContainer(){};
 
   inline
   void AddGuard(std::shared_ptr<ForceGuard> guard){
     guards_.push_back(guard);
   }
 
+  inline void AddGuards(std::vector<std::shared_ptr<ForceGuard>> guards){
+    for (int i = 0; i < guards.size(); i++){
+      guards_.push_back(guards[i]);
+    }
+  }
+
+  inline
+  bool HasBeenTriggered(){
+    return has_been_triggered_;
+  }
+
+  inline
+  std::shared_ptr<ForceGuard> GetTriggeredGuard(){
+    return triggered_guard_;
+  }
+
+
+
   std::pair<bool, std::pair<double, std::shared_ptr<ForceGuard>>> EvaluateGuards(const KinematicsCache<double>& cache_, const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::VectorXd> &tau_external);
 
  private:
   std::vector<std::shared_ptr<ForceGuard>> guards_;
+  bool has_been_triggered_;
+  std::shared_ptr<ForceGuard> triggered_guard_;
 };
 
 }//spartan

@@ -7,4 +7,4 @@ float32[] joint_torque_external_l2_norm
 # for each of the 3 cardinal directions
 # Typically frame_id would be something like gripper_base_frame
 # or iiwa_link_ee_gripper_aligned
-geometry_msgs/Vector3Stamped[] ee_force_threshold
+ExternalForceGuard[] external_force_guards

@@ -2,7 +2,7 @@
 CartesianTrajectory trajectory
 
 # optional force threshold
-ForceThreshold[] force_threshold
+ForceGuard[] force_guard
 
 # optional gains
 # should have length 0 or 1
