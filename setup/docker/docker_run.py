@@ -62,6 +62,8 @@ if __name__=="__main__":
 		cmd += " -p 30201:30201/udp " # expose udp ports for kuka
 		cmd += " -p 1500:1500/udp " # expose udp ports for schunk
 		cmd += " -p 1501:1501/udp " # expose udp ports for schunk
+		cmd += " -p 6000:6000/tcp " # expose tcp port for meshcat
+		cmd += " -p 7000:7000/tcp " # expose tcp port for meshcat
 
 	cmd += " " + args.passthrough + " "
 

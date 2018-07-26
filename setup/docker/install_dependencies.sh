@@ -38,4 +38,5 @@ pip install \
   plyfile \
   matplotlib==1.5.3 \
   scikit-image \
-  pytest-xdist
+  pytest-xdist \
+  meshcat
