@@ -603,6 +603,21 @@
       },
       "name": "sensor_forward",
       "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "above_baymax",
+      "joints": {
+        "iiwa_joint_1": 0.011982247233390808,
+        "iiwa_joint_2": 0.8064386248588562,
+        "iiwa_joint_3": -0.05775485560297966,
+        "iiwa_joint_4": -1.4336305856704712,
+        "iiwa_joint_5": 0.08498052507638931,
+        "iiwa_joint_6": 0.8536427021026611,
+        "iiwa_joint_7": 0.31268423795700073
+      },
+      "name": "test",
+      "nominal_handedness": "left"
     }
   ],
   "Grasping": [
@@ -906,6 +921,38 @@
         "iiwa_joint_7": 0.5568154454231262
       },
       "name": "hand_to_human_right",
+      "nominal_handedness": "left"
+    }
+  ],
+  "test": [
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.0038743200711905956,
+        "iiwa_joint_2": 0.8270254731178284,
+        "iiwa_joint_3": -0.05797039344906807,
+        "iiwa_joint_4": -1.4129024744033813,
+        "iiwa_joint_5": 0.084577277302742,
+        "iiwa_joint_6": 0.8767580389976501,
+        "iiwa_joint_7": 0.3055402636528015
+      },
+      "name": "above_baymax",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.004693501628935337,
+        "iiwa_joint_2": 0.9628763198852539,
+        "iiwa_joint_3": -0.05429764837026596,
+        "iiwa_joint_4": -1.4038232564926147,
+        "iiwa_joint_5": 0.10078886896371841,
+        "iiwa_joint_6": 0.7508590817451477,
+        "iiwa_joint_7": 0.2950115203857422
+      },
+      "name": "penetrating_baymax",
       "nominal_handedness": "left"
     }
   ]

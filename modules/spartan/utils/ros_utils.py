@@ -69,6 +69,31 @@ def listToPointMsg(l):
 
     return msg
 
+"""
+@param msg: geometry_msgs.msg.Point
+@return list of [x,y,z] position
+"""
+def pointMsgToList(msg):
+    l = []
+    l.append(msg.x)
+    l.append(msg.y)
+    l.append(msg.z)
+    return l
+
+"""
+@param msg: geometry_msgs.msg.Quaternion
+@return list: [w,x,y,z]
+"""
+def quatMsgToList(msg):
+    quat = []
+    quat.append(msg.w)
+    quat.append(msg.x)
+    quat.append(msg.y)
+    quat.append(msg.z)
+
+    return quat
+
+
 def poseFromROSTransformMsg(msg):
     pos = [msg.translation.x, msg.translation.y, msg.translation.z]
     quat = [msg.rotation.w, msg.rotation.x, msg.rotation.y, msg.rotation.z]

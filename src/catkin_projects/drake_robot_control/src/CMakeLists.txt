@@ -37,8 +37,12 @@ add_library(plan_types
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/trajectory_plan_base.h
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/joint_space_trajectory_plan.h
         ${PROJECT_INCLUDE_DIR}/drake_robot_control/task_space_trajectory_plan.h
+        ${PROJECT_INCLUDE_DIR}/drake_robot_control/utils.h
+        ${PROJECT_INCLUDE_DIR}/drake_robot_control/force_guard.h
+        plan_base.cc
         joint_space_trajectory_plan.cc
         task_space_trajectory_plan.cc
+        force_guard.cc
         plan_base.cc)
 
 # following http://docs.ros.org/jade/api/catkin/html/howto/format2/cpp_msg_dependencies.html
@@ -59,17 +63,17 @@ target_link_libraries(plan_runner
         ${CMAKE_THREAD_LIBS_INIT}
         ${catkin_LIBRARIES})
 
-add_executable(test_plan_types
-        test_plan_types.cc)
-target_link_libraries(test_plan_types
-        plan_types
-        drake::drake)
+#add_executable(test_plan_types
+#        test_plan_types.cc)
+#target_link_libraries(test_plan_types
+#        plan_types
+#        drake::drake)
 
-add_executable(test_plan_runner
-        test_plan_runner.cc)
-target_link_libraries(test_plan_runner
-        plan_runner
-        drake::drake)
+#add_executable(test_plan_runner
+#        test_plan_runner.cc)
+#target_link_libraries(test_plan_runner
+#        plan_runner
+#        drake::drake)
 
 add_executable(plan_runner_node
         plan_runner_node.cc)

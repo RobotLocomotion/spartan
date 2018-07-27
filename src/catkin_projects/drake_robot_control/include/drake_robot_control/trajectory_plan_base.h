@@ -1,6 +1,6 @@
 #pragma once
-#include <drake_robot_control/plan_base.h>
 #include <drake/common/trajectories/piecewise_polynomial.h>
+#include <drake_robot_control/plan_base.h>
 
 namespace drake {
 namespace robot_plan_runner {
@@ -18,7 +18,7 @@ public:
     traj_d_ = traj_.derivative(1);
   }
 
-  double duration() {
+  double duration() const {
     if (traj_.get_number_of_segments() > 0) {
       return traj_.end_time() - traj_.start_time();
     } else {
