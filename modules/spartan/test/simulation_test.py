@@ -9,6 +9,7 @@ import socket
 
 # ROS
 import rospy
+import actionlib
 import sensor_msgs.msg
 import geometry_msgs.msg
 import rosgraph
@@ -19,8 +20,90 @@ import tf2_ros
 from spartan.utils.ros_utils import SimpleSubscriber
 from spartan.utils.ros_utils import RobotService
 import spartan.utils.ros_utils as rosUtils
+import spartan.utils.utils as spartan_utils
+
+# spartan ROS
+import robot_msgs.msg
 
 
+
+def make_cartesian_trajectory_goal_world_frame():
+
+    # (array([0.588497  , 0.00716426, 0.5159925 ]), array([ 0.70852019, -0.15500524,  0.67372875,  0.1416407 ]))
+
+    pos = [0.588497  , 0.00716426, 0.5159925]
+    quat = [ 0.70852019, -0.15500524,  0.67372875,  0.1416407 ]
+
+    goal = robot_msgs.msg.CartesianTrajectoryGoal()
+    traj = goal.trajectory
+
+    # frame_id = "iiwa_link_ee"
+    frame_id = "base"
+    ee_frame_id = "iiwa_link_ee"
+    
+    xyz_knot = geometry_msgs.msg.PointStamped()
+    xyz_knot.header.frame_id = frame_id
+    xyz_knot.point.x = 0
+    xyz_knot.point.y = 0
+    xyz_knot.point.z = 0
+    traj.xyz_points.append(xyz_knot)
+
+    xyz_knot = geometry_msgs.msg.PointStamped()
+    xyz_knot.header.frame_id = frame_id
+    xyz_knot.point.x = pos[0]
+    xyz_knot.point.y = pos[1]
+    xyz_knot.point.z = pos[2]
+
+    traj.xyz_points.append(xyz_knot)
+
+    traj.ee_frame_id = ee_frame_id
+
+    traj.time_from_start.append(rospy.Duration(0.0))
+    traj.time_from_start.append(rospy.Duration(2.0))
+
+    quat_msg = geometry_msgs.msg.Quaternion()
+    quat_msg.w = quat[0]
+    quat_msg.x = quat[1]
+    quat_msg.y = quat[2]
+    quat_msg.z = quat[3]
+
+    traj.quaternions.append(quat_msg)
+
+    return goal
+
+
+def make_cartesian_gains_msg():
+    msg = robot_msgs.msg.CartesianGain()
+
+    kp_rot = 5
+    msg.rotation.x = kp_rot
+    msg.rotation.x = kp_rot
+    msg.rotation.x = kp_rot
+
+    kp_trans = 10
+    msg.translation.x = kp_trans
+    msg.translation.y = kp_trans
+    msg.translation.z = kp_trans
+
+    return msg
+
+def make_force_guard_msg():
+    msg = robot_msgs.msg.ForceGuard()
+    external_force = robot_msgs.msg.ExternalForceGuard()
+
+    body_frame = "iiwa_link_ee"
+    expressed_in_frame = "iiwa_link_ee"
+    force_vec = 20*np.array([-1,0,0])
+
+    external_force.force.header.frame_id = expressed_in_frame
+    external_force.body_frame = body_frame
+    external_force.force.vector.x = force_vec[0]
+    external_force.force.vector.y = force_vec[1]
+    external_force.force.vector.z = force_vec[2]
+
+    msg.external_force_guards.append(external_force)
+
+    return msg
 
 class IiwaSimulationTest(unittest.TestCase):
 
@@ -122,6 +205,15 @@ class IiwaSimulationTest(unittest.TestCase):
         self.tfBuffer = tf2_ros.Buffer()
         self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
 
+    def get_ee_frame_pose(self):
+        # check that desired position matches actual
+        self.setupTF()
+        ee_frame_name = "iiwa_link_ee"
+        world_frame_name = "base"
+        iiwa_link_ee_to_world = self.tfBuffer.lookup_transform(world_frame_name, ee_frame_name, rospy.Time(0), rospy.Duration(1))
+
+        return iiwa_link_ee_to_world
+
 
     def test_simulator_startup(self):
         """
@@ -133,7 +225,7 @@ class IiwaSimulationTest(unittest.TestCase):
         self._start_ros_node_and_wait_for_sim()
 
 
-    def _test_move_arm(self):
+    def test_move_arm(self):
         """
         Move the arm to a given position
         :return:
@@ -212,6 +304,76 @@ class IiwaSimulationTest(unittest.TestCase):
         eps = 0.01
         pos_achieved = np.linalg.norm(np.array(pos) - np.array(pos_actual) ) < eps
         self.assertTrue(pos_achieved, "Didn't achieve desired end-effector position")
+
+    def test_cartesian_space_plan(self):
+        """
+        Test the cartesian space plan
+        """
+
+        self._start_ros_node_and_wait_for_sim()
+
+        above_table_pre_grasp = [0.04486168762069299, 0.3256606458812486, -0.033502080520812445, -1.5769091802934694, 0.05899249087322813, 1.246379583616529, 0.38912999977004026]
+        targetPosition = above_table_pre_grasp
+
+        robotService = rosUtils.RobotService.makeKukaRobotService()
+        success = robotService.moveToJointPosition(targetPosition, timeout=5)
+        self.assertTrue(success, msg="RobotService MoveToJointPosition returned failure ")
+
+        # check that we actually reached the target position
+        lastRobotJointPositions = self._robotSubscriber.lastMsg.position
+        reached_target_position = np.linalg.norm(np.array(targetPosition) - np.array(lastRobotJointPositions[0:7])) < 0.1
+
+        # now call the cartesian space plan service
+        client = actionlib.SimpleActionClient("plan_runner/CartesianTrajectory", robot_msgs.msg.CartesianTrajectoryAction)
+
+        print "waiting for server"
+        client.wait_for_server()
+        print "connected to server"
+
+        
+        goal = make_cartesian_trajectory_goal_world_frame()
+
+        goal.gains.append(make_cartesian_gains_msg())
+        goal.force_guard.append(make_force_guard_msg())
+        
+
+        print "sending goal"
+        client.send_goal(goal)
+
+        rospy.loginfo("waiting for CartesianTrajectory action result")
+        client.wait_for_result()
+        result = client.get_result()
+
+        rospy.sleep(3) # wait for controller to settle
+
+        success = (result.status.status == robot_msgs.msg.PlanStatus.FINISHED_NORMALLY)
+        print "result:", result
+
+        self.assertTrue(success, msg = "PlanStatus was not FINISHED_NORMALLY")
+
+        # check the position
+        # check that desired position matches actual
+        self.setupTF()
+        iiwa_link_ee_to_world = self.get_ee_frame_pose()
+
+
+        pos_actual = np.array(rosUtils.pointMsgToList(iiwa_link_ee_to_world.transform.translation))
+        pos_desired = np.array(rosUtils.pointMsgToList(goal.trajectory.xyz_points[-1].point))
+
+        quat_actual = np.array(rosUtils.quatMsgToList(iiwa_link_ee_to_world.transform.rotation))
+        quat_desired = np.array(rosUtils.quatMsgToList(goal.trajectory.quaternions[0]))
+
+        pos_tol = 0.01 # within 5 cm
+        orientation_tol = 10 # within 5 degrees
+
+        pos_error = np.linalg.norm(pos_actual - pos_desired)
+        orientation_error_deg = 180/np.pi * spartan_utils.compute_angle_between_quaternions(quat_actual, quat_desired)
+
+        print "pos_error:\n", pos_error
+        print "orientation error:\n", orientation_error_deg
+
+        self.assertTrue(pos_error < pos_tol, msg="position error was above tolerance")
+        self.assertTrue(orientation_error_deg < orientation_tol, msg = "orientation error was above tolerance")
 
 
 def dev():
