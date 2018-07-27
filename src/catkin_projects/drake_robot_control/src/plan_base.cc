@@ -31,18 +31,30 @@ void PlanBase::GetPlanStatusMsg(robot_msgs::PlanStatus &plan_status_msg) {
   PlanStatus plan_status = this->get_plan_status();
 
   switch (plan_status) {
-  case PlanStatus::FINISHED_NORMALLY: {
-    plan_status_msg.status = plan_status_msg.FINISHED_NORMALLY;
-    break;
-  }
-  case PlanStatus::STOPPED_BY_EXTERNAL_TRIGGER: {
-    plan_status_msg.status = plan_status_msg.STOPPED_EXTERNALLY;
-    break;
-  }
-  default: {
-    plan_status_msg.status = plan_status_msg.ERROR;
-    break;
-  }
+    case PlanStatus::NOT_STARTED:{
+      plan_status_msg.status = plan_status_msg.NOT_STARTED;
+      break;
+    }
+    case PlanStatus::FINISHED_NORMALLY: {
+      plan_status_msg.status = plan_status_msg.FINISHED_NORMALLY;
+      break;
+    }
+    case PlanStatus::STOPPED_BY_EXTERNAL_TRIGGER: {
+      plan_status_msg.status = plan_status_msg.STOPPED_BY_EXTERNAL_TRIGGER;
+      break;
+    }
+    case PlanStatus::STOPPED_BY_SAFETY_CHECK: {
+      plan_status_msg.status = plan_status_msg.STOPPED_BY_SAFETY_CHECK;
+      break;
+    }
+    case PlanStatus::STOPPED_BY_FORCE_GUARD: {
+      plan_status_msg.status = plan_status_msg.STOPPED_BY_FORCE_GUARD;
+      break;
+    }
+    default: {
+      plan_status_msg.status = plan_status_msg.ERROR;
+      break;
+    }
   }
 }
 

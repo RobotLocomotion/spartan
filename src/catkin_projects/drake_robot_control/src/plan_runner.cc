@@ -1,28 +1,84 @@
+#include <boost/format.hpp>
 #include <math.h>
 
 #include <drake/math/roll_pitch_yaw.h>
 #include <drake_robot_control/plan_runner.h>
 #include <yaml-cpp/yaml.h>
 
-#include "drake_robot_control/utils.h"
-#include "drake_robot_control/force_guard.h"
 #include "common_utils/system_utils.h"
+#include "drake_robot_control/force_guard.h"
+#include "drake_robot_control/utils.h"
 
-//ROS
+// ROS
 // #include <tf_conversions/tf2_eigen.h>
+#include <geometry_msgs/Quaternion.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <trajectory_msgs/JointTrajectoryPoint.h>
-#include <geometry_msgs/TransformStamped.h>
-#include <geometry_msgs/Quaternion.h>
-
 
 namespace drake {
 namespace robot_plan_runner {
 
 typedef spartan::drake_robot_control::ForceGuard ForceGuard;
-typedef spartan::drake_robot_control::TotalExternalTorqueGuard TotalExternalTorqueGuard;
+typedef spartan::drake_robot_control::TotalExternalTorqueGuard
+    TotalExternalTorqueGuard;
 typedef spartan::drake_robot_control::ExternalForceGuard ExternalForceGuard;
 typedef spartan::drake_robot_control::ForceGuardContainer ForceGuardContainer;
+
+std::shared_ptr<ForceGuardContainer>
+ForceGuardContainerFromRosMsg(const robot_msgs::ForceGuard &msg,
+                              const RigidBodyTreed &tree) {
+
+  std::vector<std::shared_ptr<ForceGuard>> guards;
+
+  // create TotalExternalTorqueGuard
+  if (msg.joint_torque_external_l2_norm.size() > 0) {
+    double threshold = msg.joint_torque_external_l2_norm[0];
+    std::shared_ptr<TotalExternalTorqueGuard> guard =
+        std::make_shared<TotalExternalTorqueGuard>(threshold);
+    guards.push_back(guard);
+  }
+
+  for (int i = 0; i < msg.external_force_guards.size(); i++) {
+    guards.push_back(
+        ExternalForceGuardFromRosMsg(msg.external_force_guards[i], tree));
+  }
+
+  std::shared_ptr<ForceGuardContainer> guard_container;
+
+  if (guards.size() > 0) {
+    std::cout << boost::format(
+                     "Created a ForceGuardContainer with %d guards\n") %
+                     guards.size();
+    guard_container = std::make_shared<ForceGuardContainer>();
+    guard_container->AddGuards(guards);
+  }
+
+  return guard_container;
+}
+
+std::shared_ptr<ExternalForceGuard>
+ExternalForceGuardFromRosMsg(const robot_msgs::ExternalForceGuard &msg,
+                             const RigidBodyTreed &tree) {
+
+  std::string body_frame = msg.body_frame;
+  std::string expressed_in_frame = msg.force.header.frame_id;
+  if (expressed_in_frame == "base") {
+    expressed_in_frame = "world";
+  }
+
+  const auto &force_msg = msg.force.vector;
+  Eigen::Vector3d force(force_msg.x, force_msg.y, force_msg.z);
+
+  int idx_world = tree.FindBodyIndex("world");
+  int idx_body = tree.FindBodyIndex(body_frame);
+  int idx_expressed_in = tree.FindBodyIndex(expressed_in_frame);
+  std::shared_ptr<ExternalForceGuard> guard =
+      std::make_shared<ExternalForceGuard>(tree, idx_body, idx_world,
+                                           idx_expressed_in, force);
+
+  return guard;
+}
 
 std::unique_ptr<RobotPlanRunner>
 RobotPlanRunner::GetInstance(ros::NodeHandle &nh,
@@ -41,8 +97,8 @@ RobotPlanRunner::GetInstance(ros::NodeHandle &nh,
   auto tree = std::make_unique<RigidBodyTreed>();
   std::string urdf_filename = config["robot_urdf_path"].as<std::string>();
   autoExpandEnvironmentVariables(urdf_filename);
-  parsers::urdf::AddModelInstanceFromUrdfFileToWorld(urdf_filename,
-      multibody::joints::kFixed, tree.get());
+  parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+      urdf_filename, multibody::joints::kFixed, tree.get());
 
   auto ptr = std::make_unique<RobotPlanRunner>(
       config["lcm_status_channel"].as<std::string>(),
@@ -73,7 +129,7 @@ RobotPlanRunner::RobotPlanRunner(
       kJointSpeedLimitDegPerSec_(joint_speed_limit_deg_per_sec),
       kControlPeriod_(control_period), tree_(std::move(tree)), nh_(nh),
       plan_number_(0), tf_listener_(tf_buffer_),
-      terminate_current_plan_flag_(false){
+      terminate_current_plan_flag_(false) {
 
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_positions());
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_actuators());
@@ -84,7 +140,6 @@ RobotPlanRunner::RobotPlanRunner(
   current_torque_commanded_.resize(kNumJoints_, 1);
   has_received_new_status_ = false;
   is_waiting_for_first_robot_status_message_ = true;
-
 
   // setup the ROS actions
 
@@ -98,8 +153,8 @@ RobotPlanRunner::RobotPlanRunner(
   cartesian_trajectory_action_ = std::make_shared<
       actionlib::SimpleActionServer<robot_msgs::CartesianTrajectoryAction>>(
       nh_, "CartesianTrajectory",
-          boost::bind(&RobotPlanRunner::ExecuteCartesianTrajectoryAction, this, _1),
-          false);
+      boost::bind(&RobotPlanRunner::ExecuteCartesianTrajectoryAction, this, _1),
+      false);
   cartesian_trajectory_action_->start(); // start the ROS action
 }
 
@@ -203,7 +258,7 @@ void RobotPlanRunner::PublishCommand() {
   int64_t cur_time_us = -1;
   double cur_plan_time_s = -1;
   bool has_published_command = false;
-  // bool terminate_current_plan = false; // whether or not to 
+  // bool terminate_current_plan = false; // whether or not to
 
   lcmt_iiwa_command iiwa_command;
   iiwa_command.num_joints = kNumJoints_;
@@ -213,13 +268,10 @@ void RobotPlanRunner::PublishCommand() {
   Eigen::VectorXd q_commanded(kNumJoints_), v_commanded(kNumJoints_),
       tau_commanded(kNumJoints_);
 
-  
-
   Eigen::VectorXd prev_position_command(kNumJoints_);
   Eigen::VectorXd prev_torque_command(kNumJoints_);
 
   Eigen::VectorXd current_robot_state, cur_tau_external(kNumJoints_);
-
 
   while (true) {
     // Put the thread to sleep until a new iiwa_status message is received by
@@ -240,18 +292,18 @@ void RobotPlanRunner::PublishCommand() {
     // executing.
     status_lock.unlock();
 
-    if (!has_published_command){
+    if (!has_published_command) {
       prev_position_command = current_robot_state.head(kNumJoints_);
       prev_torque_command = Eigen::VectorXd::Zero(kNumJoints_);
     }
 
     // see if ther eare any new plans
     robot_plan_mutex_.lock();
-    if (terminate_current_plan_flag_.load() == true){
+    if (terminate_current_plan_flag_.load() == true) {
       std::cout << "Terminating current plan" << std::endl;
       terminate_current_plan_flag_.store(false);
       plan_local.reset();
-    } else if (new_plan_){
+    } else if (new_plan_) {
       std::cout << "New plan swapped into publisher thread" << std::endl;
       plan_local = new_plan_;
       new_plan_.reset();
@@ -271,14 +323,11 @@ void RobotPlanRunner::PublishCommand() {
     }
 
     // special logic if the plan is new, i.e. not yet in state RUNNING
-    if(plan_local->get_plan_status() == PlanStatus::NOT_STARTED){
+    if (plan_local->get_plan_status() == PlanStatus::NOT_STARTED) {
       std::cout << "\nStarting plan No. " << plan_number_ << std::endl;
 
       plan_local->SetCurrentCommand(prev_position_command, prev_torque_command);
       start_time_us = iiwa_status_local.utime;
-
-      std::cout << "\n\nsetting prev_position_command:\n" << prev_position_command;
-      std::cout << "\n\nsetting prev_torque_command:\n" << prev_torque_command;
     }
 
     cur_plan_time_s = static_cast<double>(cur_time_us - start_time_us) / 1e6;
@@ -293,7 +342,7 @@ void RobotPlanRunner::PublishCommand() {
     bool unsafe_command = false;
     for (int i = 0; i < kNumJoints_; i++) {
 
-      if ( (std::abs(dq_cmd[i]) > max_dq_per_step)) {
+      if ((std::abs(dq_cmd[i]) > max_dq_per_step)) {
         std::cout << "Commanded joint position is too jerky, discarding plan..."
                   << std::endl;
         std::cout << "dq_cmd limit: " << max_dq_per_step << std::endl;
@@ -302,29 +351,31 @@ void RobotPlanRunner::PublishCommand() {
         unsafe_command = true;
       }
 
-      if (std::abs(tau_commanded[i]) > 1.0){
+      if (std::abs(tau_commanded[i]) > 1.0) {
         std::cout << "Non-zero torque command detected, stopping" << std::endl;
         unsafe_command = true;
       }
 
-      if (std::isnan(q_commanded[i])){
+      if (std::isnan(q_commanded[i])) {
         std::cout << "\nCommand is nan, discarding" << std::endl;
         std::cout << "\nposition_command:\n" << q_commanded << std::endl;
         std::cout << "\nvelocity_command:\n" << v_commanded << std::endl;
         std::cout << "\ntorque_command:\n" << tau_commanded << std::endl;
-        std::cout << "Current_robot_state:\n" << current_robot_state << std::endl;
+        std::cout << "Current_robot_state:\n"
+                  << current_robot_state << std::endl;
         std::cout << "\ncur_plan_time: " << cur_plan_time_s << std::endl;
         unsafe_command = true;
 
-        std::cout << "plan_local->get_plan_status():" << plan_local->get_plan_status() << std::endl;
-        std::cout << "plan_local->is_finished_:" << plan_local->is_finished_ << std::endl;
+        std::cout << "plan_local->get_plan_status():"
+                  << plan_local->get_plan_status() << std::endl;
+        std::cout << "plan_local->is_finished_:" << plan_local->is_finished_
+                  << std::endl;
       }
 
-      if (unsafe_command){
+      if (unsafe_command) {
         std::cout << "detected unsafe command\n";
         std::cout << "\nposition_command:\n" << q_commanded << std::endl;
         std::cout << "\ntorque_command:\n" << tau_commanded << std::endl;
-
 
         std::cout << "sending previous position command instead" << std::endl;
         std::cout << "setting torque command to zero" << std::endl;
@@ -370,7 +421,7 @@ void RobotPlanRunner::MoveToJointPosition(
   QueueNewPlan(plan);
 }
 
-//void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
+// void RobotPlanRunner::MoveRelativeToCurrentEeCartesianPosition(
 //    const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
 //    const math::RotationMatrixd &R_WE_ref, double duration) {
 //  Eigen::Isometry3d T_ee;
@@ -390,7 +441,8 @@ void RobotPlanRunner::MoveToJointPosition(
 //
 //  if (!R_WE.IsNearlyEqualTo(R_WE_ref, 0.5)) {
 //    std::cout
-//        << "Difference between current and reference orietation is too large, "
+//        << "Difference between current and reference orietation is too large,
+//        "
 //           "keep current orietation..."
 //        << std::endl;
 //    plan = std::make_shared<EndEffectorOriginTrajectoryPlan>(
@@ -526,19 +578,34 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(
   std::cout << "plan duration in seconds: " << input_time.back() << std::endl;
 
   const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(kNumJoints_, 1);
-  auto plan_new_local = std::make_shared<JointSpaceTrajectoryPlan>(
+  auto plan_local = std::make_shared<JointSpaceTrajectoryPlan>(
       tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot));
 
-  QueueNewPlan(plan_new_local);
+  // Add ForceGuards if specified
+  if (goal->force_guard.size() > 0) {
+
+    const robot_msgs::ForceGuard force_guard_msg = goal->force_guard[0];
+    std::shared_ptr<ForceGuardContainer> guard_container =
+        ForceGuardContainerFromRosMsg(force_guard_msg, *tree_);
+
+    // if the shared_ptr is not null, it means there is at least one guard in
+    // the guard container
+    if (guard_container) {
+      ROS_INFO("Adding ForceGuardContainer to plan");
+      plan_local->set_guard_container(guard_container);
+    }
+  }
+
+  QueueNewPlan(plan_local);
 
   // // now wait for the plan to finish
   ROS_INFO("Waiting for plan to finish");
-  plan_new_local->WaitForPlanToFinish();
+  plan_local->WaitForPlanToFinish();
 
   // // set the result of the action
   // ROS_INFO("setting ROS action to succeeded state");
   robot_msgs::JointTrajectoryResult result;
-  plan_new_local->GetPlanStatusMsg(result.status);
+  plan_local->GetPlanStatusMsg(result.status);
 
   ROS_INFO("setting action result");
   joint_trajectory_action_->setSucceeded(result);
@@ -546,10 +613,11 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(
   ROS_INFO("\n\n------JointTrajectoryAction Finished------\n\n");
 }
 
-void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::CartesianTrajectoryGoal::ConstPtr &goal){
+void RobotPlanRunner::ExecuteCartesianTrajectoryAction(
+    const robot_msgs::CartesianTrajectoryGoal::ConstPtr &goal) {
 
   ROS_INFO("\n\n-------CartesianTrajectoryAction Start--------\n\n");
-  const robot_msgs::CartesianTrajectory & traj = goal->trajectory;
+  const robot_msgs::CartesianTrajectory &traj = goal->trajectory;
 
   int num_knot_points = traj.xyz_points.size();
 
@@ -565,8 +633,6 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
   auto iiwa_status_local = iiwa_status_;
   robot_status_mutex_.unlock();
 
-
-
   // extract the xyz trajectory
 
   // frame in which xyz_traj is expressed.
@@ -574,52 +640,52 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
   // or it can be a local frame on the robot
   std::string xyz_traj_frame_id = traj.xyz_points[0].header.frame_id;
   std::string base_frame_id = "base";
-//  std::cout << "xyz_traj_frame_id: " << xyz_traj_frame_id << std::endl;
+  //  std::cout << "xyz_traj_frame_id: " << xyz_traj_frame_id << std::endl;
   geometry_msgs::TransformStamped transform_tf;
 
-  try{
+  try {
     transform_tf = tf_buffer_.lookupTransform(base_frame_id, xyz_traj_frame_id,
-                             ros::Time(0));
-  }
-  catch (tf2::TransformException ex){
-    ROS_ERROR("%s",ex.what());
+                                              ros::Time(0));
+  } catch (tf2::TransformException ex) {
+    ROS_ERROR("%s", ex.what());
     ros::Duration(1.0).sleep();
   }
   // convert to Eigen transform
-  Eigen::Affine3d T_local_to_world = spartan::drake_robot_control::utils::transformToEigen(transform_tf);
+  Eigen::Affine3d T_local_to_world =
+      spartan::drake_robot_control::utils::transformToEigen(transform_tf);
 
-//
+  //
   // lookup current position of ee_frame_id
   geometry_msgs::TransformStamped ee_frame_tf;
-  try{
-    ee_frame_tf = tf_buffer_.lookupTransform(base_frame_id, traj.ee_frame_id, ros::Time(0));
-  }
-  catch (tf2::TransformException ex){
-    ROS_ERROR("%s",ex.what());
+  try {
+    ee_frame_tf = tf_buffer_.lookupTransform(base_frame_id, traj.ee_frame_id,
+                                             ros::Time(0));
+  } catch (tf2::TransformException ex) {
+    ROS_ERROR("%s", ex.what());
     ros::Duration(1.0).sleep();
   }
 
-  Eigen::Affine3d T_ee_to_world = spartan::drake_robot_control::utils::transformToEigen(ee_frame_tf);
+  Eigen::Affine3d T_ee_to_world =
+      spartan::drake_robot_control::utils::transformToEigen(ee_frame_tf);
 
-
-
-
-  std::vector<Eigen::MatrixXd> knots(num_knot_points, Eigen::MatrixXd::Zero(3,1));
+  std::vector<Eigen::MatrixXd> knots(num_knot_points,
+                                     Eigen::MatrixXd::Zero(3, 1));
   std::vector<double> input_time;
 
   // Local to world transformation
 
   // figure out what frame the points are expressed in
-  for (int i = 0; i < num_knot_points; i++){
+  for (int i = 0; i < num_knot_points; i++) {
 
     // replace first knot point by current position of ee_frame
     Eigen::Vector3d xyz_pos_in_world;
-    if (i == 0){
+    if (i == 0) {
       xyz_pos_in_world = T_ee_to_world.translation();
-    } else{
+    } else {
 
-      const geometry_msgs::PointStamped & xyz_point = traj.xyz_points[i];
-      Eigen::Vector3d xyz_pos_local(xyz_point.point.x, xyz_point.point.y, xyz_point.point.z);
+      const geometry_msgs::PointStamped &xyz_point = traj.xyz_points[i];
+      Eigen::Vector3d xyz_pos_local(xyz_point.point.x, xyz_point.point.y,
+                                    xyz_point.point.z);
       xyz_pos_in_world = T_local_to_world * xyz_pos_local;
     }
 
@@ -627,98 +693,74 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(const robot_msgs::Cartesi
     input_time.push_back(traj.time_from_start[i].toSec());
   }
 
-
   drake::math::RotationMatrixd R_ee_to_world_initial(T_ee_to_world.linear());
   drake::math::RotationMatrixd R_ee_to_world_final;
 
-  if (traj.quaternions.size() > 0){
+  if (traj.quaternions.size() > 0) {
     ROS_INFO("Orientation passed in, interpolating with slerp");
-    const geometry_msgs::Quaternion & quat_msg = traj.quaternions[0];
-    Eigen::Quaterniond quat_WE_final(quat_msg.w, quat_msg.x, quat_msg.y, quat_msg.z);
+    const geometry_msgs::Quaternion &quat_msg = traj.quaternions[0];
+    Eigen::Quaterniond quat_WE_final(quat_msg.w, quat_msg.x, quat_msg.y,
+                                     quat_msg.z);
     R_ee_to_world_final = drake::math::RotationMatrixd(quat_WE_final);
-  } else{
+  } else {
     ROS_INFO("No orientation passed in, using current");
     R_ee_to_world_final = R_ee_to_world_initial;
   }
 
-
   // figure out the gains
   Eigen::Vector3d kp_rotation;
   Eigen::Vector3d kp_translation;
-  if (goal->gains.size() > 0){
+  if (goal->gains.size() > 0) {
 
-    kp_rotation = Eigen::Vector3d(goal->gains[0].rotation.x, goal->gains[0].rotation.y, goal->gains[0].rotation.z);
+    kp_rotation =
+        Eigen::Vector3d(goal->gains[0].rotation.x, goal->gains[0].rotation.y,
+                        goal->gains[0].rotation.z);
 
-    kp_translation = Eigen::Vector3d(goal->gains[0].translation.x, goal->gains[0].translation.y, goal->gains[0].translation.z);
-  } else{
-    kp_rotation = Eigen::Vector3d(this->config_["task_space_plan"]["kp_rotation"].as<std::vector<double>>().data());
-    kp_translation = Eigen::Vector3d(this->config_["task_space_plan"]["kp_translation"].as<std::vector<double>>().data());
+    kp_translation = Eigen::Vector3d(goal->gains[0].translation.x,
+                                     goal->gains[0].translation.y,
+                                     goal->gains[0].translation.z);
+  } else {
+    kp_rotation =
+        Eigen::Vector3d(this->config_["task_space_plan"]["kp_rotation"]
+                            .as<std::vector<double>>()
+                            .data());
+    kp_translation =
+        Eigen::Vector3d(this->config_["task_space_plan"]["kp_translation"]
+                            .as<std::vector<double>>()
+                            .data());
   }
 
-
   const Eigen::MatrixXd knot_dot = Eigen::MatrixXd::Zero(3, 1);
-  auto plan_local = std::make_shared<EndEffectorOriginTrajectoryPlan>(tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot), R_ee_to_world_initial, R_ee_to_world_final, kp_rotation, kp_translation, traj.ee_frame_id);
+  auto plan_local = std::make_shared<EndEffectorOriginTrajectoryPlan>(
+      tree_, PPType::Cubic(input_time, knots, knot_dot, knot_dot),
+      R_ee_to_world_initial, R_ee_to_world_final, kp_rotation, kp_translation,
+      traj.ee_frame_id);
 
-
-  // make the force threshold object
-  if (goal->force_guard.size() > 0){
+  // Add ForceGuards if specified
+  if (goal->force_guard.size() > 0) {
 
     const robot_msgs::ForceGuard force_guard_msg = goal->force_guard[0];
+    std::shared_ptr<ForceGuardContainer> guard_container =
+        ForceGuardContainerFromRosMsg(force_guard_msg, *tree_);
 
-    std::vector<std::shared_ptr<ForceGuard>> guards;
-
-    if (force_guard_msg.joint_torque_external_l2_norm.size() > 0){
-
-      double threshold = force_guard_msg.joint_torque_external_l2_norm[0];
-      // create TotalExternalTorqueGuard
-      std::shared_ptr<TotalExternalTorqueGuard> guard = std::make_shared<TotalExternalTorqueGuard>(threshold);
-      guards.push_back(guard);
-    }
-
-    for (int i = 0; i < force_guard_msg.external_force_guards.size(); i++){
-      const robot_msgs::ExternalForceGuard external_force_guard_msg = force_guard_msg.external_force_guards[i];
-
-      std::string body_frame = external_force_guard_msg.body_frame;
-      std::string expressed_in_frame = external_force_guard_msg.force.header.frame_id;
-      if (expressed_in_frame == "base"){
-        expressed_in_frame = "world";
-      }
-
-      const auto & force_msg = external_force_guard_msg.force.vector;
-      Eigen::Vector3d force(force_msg.x, force_msg.y, force_msg.z);
-
-      int idx_world = tree_->FindBodyIndex("world");
-      int idx_body = tree_->FindBodyIndex(body_frame);
-      int idx_expressed_in = tree_->FindBodyIndex(expressed_in_frame);
-      std::shared_ptr<ExternalForceGuard> guard = std::make_shared<ExternalForceGuard>(*tree_, idx_body, idx_world, idx_expressed_in, force);
-
-      guards.push_back(guard);
-    }
-
-    if (guards.size() > 0){
-//      std::cout << "Adding %s force guards" % guards.size() << std::endl;
-      std::cout << "Adding force guards" << std::endl;
-      std::shared_ptr<ForceGuardContainer> guard_container = std::make_shared<ForceGuardContainer>();
-      guard_container->AddGuards(guards);
-
-      // now add it to the plan
+    // if the shared_ptr is not null, it means there is at least one guard in
+    // the guard container
+    if (guard_container) {
+      ROS_INFO("Adding ForceGuardContainer to plan");
       plan_local->set_guard_container(guard_container);
     }
   }
-
 
   QueueNewPlan(plan_local);
   ROS_INFO("Waiting for plan to finish");
 
   PlanStatus plan_status = plan_local->WaitForPlanToFinish();
 
-
   robot_msgs::CartesianTrajectoryResult result;
   plan_local->GetPlanStatusMsg(result.status);
   ROS_INFO("setting action result");
   cartesian_trajectory_action_->setSucceeded(result);
   ROS_INFO("\n\n------CartesianTrajectoryAction Finished------\n\n");
-
 }
 
 void RobotPlanRunner::GetBodyPoseInWorldFrame(const RigidBody<double> &body,

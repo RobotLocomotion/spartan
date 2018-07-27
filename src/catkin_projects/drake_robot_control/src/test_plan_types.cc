@@ -53,7 +53,7 @@ int do_main() {
   }
 
   Eigen::Vector3d x_ee(0, 0, 0);
-  Eigen::Vector3d rpy_ee(0,0,0);
+  Eigen::Vector3d rpy_ee(0, 0, 0);
   std::vector<double> times{0, 2};
   std::vector<Eigen::MatrixXd> knots;
   knots.push_back(x_ee);

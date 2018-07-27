@@ -32,14 +32,37 @@
 // #include <tf/transform_listener.h>
 #include <tf2_ros/transform_listener.h>
 
-
-
-#include "robot_msgs/JointTrajectoryAction.h"
 #include "robot_msgs/CartesianTrajectoryAction.h"
-
+#include "robot_msgs/JointTrajectoryAction.h"
 
 namespace drake {
 namespace robot_plan_runner {
+
+typedef spartan::drake_robot_control::ForceGuard ForceGuard;
+typedef spartan::drake_robot_control::TotalExternalTorqueGuard
+    TotalExternalTorqueGuard;
+typedef spartan::drake_robot_control::ExternalForceGuard ExternalForceGuard;
+typedef spartan::drake_robot_control::ForceGuardContainer ForceGuardContainer;
+
+/**
+ * Construct a ForceGuardContainer from a ROS message
+ * @param msg
+ * @param tree
+ * @return null if there were no guards
+ */
+std::shared_ptr<ForceGuardContainer>
+ForceGuardContainerFromRosMsg(const robot_msgs::ForceGuard &msg,
+                              const RigidBodyTreed &tree);
+
+/**
+ * Construct ExternalForceGuard from a ROS message
+ * @param msg
+ * @param tree
+ * @return
+ */
+std::shared_ptr<ExternalForceGuard>
+ExternalForceGuardFromRosMsg(const robot_msgs::ExternalForceGuard &msg,
+                             const RigidBodyTreed &tree);
 
 class RobotPlanRunner {
 public:
@@ -47,7 +70,7 @@ public:
   // GetInstance should be called to create an instance of RobotPlanRunner from
   // a config file.
   static std::unique_ptr<RobotPlanRunner>
-  GetInstance(ros::NodeHandle& nh, const std::string &config_file_name);
+  GetInstance(ros::NodeHandle &nh, const std::string &config_file_name);
 
   RobotPlanRunner(const std::string &lcm_status_channel,
                   const std::string &lcm_command_channel,
@@ -56,7 +79,7 @@ public:
                   const std::string &robot_ee_body_name, int num_joints,
                   double joint_speed_limit_deg_per_sec, double control_period,
                   std::unique_ptr<const RigidBodyTreed> tree,
-                  ros::NodeHandle& nh);
+                  ros::NodeHandle &nh);
   ~RobotPlanRunner();
 
   void Start();
@@ -77,25 +100,26 @@ public:
   void QueueNewPlan(std::shared_ptr<PlanBase> new_plan) {
     std::lock_guard<std::mutex> lock(robot_plan_mutex_);
     new_plan_ = new_plan;
-    new_plan_->plan_number_ = plan_number_++; //sets the plan number
+    new_plan_->plan_number_ = plan_number_++; // sets the plan number
   }
 
   std::shared_ptr<const RigidBodyTreed> get_rigid_body_tree() { return tree_; }
   double get_control_period() { return kControlPeriod_; }
   std::string get_ee_body_name() { return kRobotEeBodyName_; }
 
-  void GetEePoseInWorldFrame(Eigen::Isometry3d *const T_ee, Eigen::Vector3d *const rpy_ee) {
+  void GetEePoseInWorldFrame(Eigen::Isometry3d *const T_ee,
+                             Eigen::Vector3d *const rpy_ee) {
     GetBodyPoseInWorldFrame(*tree_->FindBody(kRobotEeBodyName_), T_ee, rpy_ee);
   }
 
   void MoveToJointPosition(const Eigen::Ref<const Eigen::VectorXd> q_final,
                            double duration = 4);
 
-  void MoveRelativeToCurrentEeCartesianPosition(const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
-                                                const math::RotationMatrixd &R_WE_ref,
-                                                double duration);
+  void MoveRelativeToCurrentEeCartesianPosition(
+      const Eigen::Ref<const Eigen::Vector3d> delta_xyz_ee,
+      const math::RotationMatrixd &R_WE_ref, double duration);
 
- private:
+private:
   // worker method of lcm status receiver thread.
   void ReceiveRobotStatus();
 
@@ -123,16 +147,16 @@ public:
    *
    * @param goal
    */
-  void ExecuteJointTrajectoryAction(const robot_msgs::JointTrajectoryGoal::ConstPtr &goal);
-
+  void ExecuteJointTrajectoryAction(
+      const robot_msgs::JointTrajectoryGoal::ConstPtr &goal);
 
   /**
    * Callback for the CartesianTrajectory action
    *
    * @param goal
    */
-  void ExecuteCartesianTrajectoryAction(const robot_msgs::CartesianTrajectoryGoal::ConstPtr &goal);
-
+  void ExecuteCartesianTrajectoryAction(
+      const robot_msgs::CartesianTrajectoryGoal::ConstPtr &goal);
 
   void HandleStop(const lcm::ReceiveBuffer *, const std::string &,
                   const robotlocomotion::robot_plan_t *) {
@@ -143,19 +167,17 @@ public:
                                Eigen::Isometry3d *const T_ee,
                                Eigen::Vector3d *const rpy);
 
-    // constants to be loaded from yaml file.
-    const std::string kLcmStatusChannel_;
-    const std::string kLcmCommandChannel_;
-    const std::string kLcmPlanChannel_;
-    const std::string kLcmStopChannel_;
-    const std::string kRobotEeBodyName_;
-    const int kNumJoints_;
-    const double kJointSpeedLimitDegPerSec_;
-    const double kControlPeriod_;
+  // constants to be loaded from yaml file.
+  const std::string kLcmStatusChannel_;
+  const std::string kLcmCommandChannel_;
+  const std::string kLcmPlanChannel_;
+  const std::string kLcmStopChannel_;
+  const std::string kRobotEeBodyName_;
+  const int kNumJoints_;
+  const double kJointSpeedLimitDegPerSec_;
+  const double kControlPeriod_;
 
   std::shared_ptr<const RigidBodyTreed> tree_;
-
-
 
   // mutexes
   std::mutex robot_status_mutex_;
@@ -169,23 +191,28 @@ public:
   std::thread subscriber_thread_;
   std::thread plan_constructor_thread_;
 
-
   std::atomic<bool> is_waiting_for_first_robot_status_message_;
   std::atomic<bool> has_received_new_status_;
   std::atomic<bool> terminate_current_plan_flag_;
   std::atomic<int> plan_number_; // the current plan number
   lcmt_iiwa_status iiwa_status_;
   Eigen::VectorXd current_robot_state_;
-  Eigen::VectorXd current_position_commanded_; // joint_position_commanded from iiwa_status msg
-  Eigen::VectorXd current_torque_commanded_; // joint_torque_commanded from iiwa_status msg
+  Eigen::VectorXd current_position_commanded_; // joint_position_commanded from
+                                               // iiwa_status msg
+  Eigen::VectorXd
+      current_torque_commanded_; // joint_torque_commanded from iiwa_status msg
   std::shared_ptr<PlanBase> new_plan_;
 
   // ROS
   ros::NodeHandle nh_;
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
-  std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>> joint_trajectory_action_;
-  std::shared_ptr<actionlib::SimpleActionServer<robot_msgs::CartesianTrajectoryAction>> cartesian_trajectory_action_;
+  std::shared_ptr<
+      actionlib::SimpleActionServer<robot_msgs::JointTrajectoryAction>>
+      joint_trajectory_action_;
+  std::shared_ptr<
+      actionlib::SimpleActionServer<robot_msgs::CartesianTrajectoryAction>>
+      cartesian_trajectory_action_;
 
   // config
   YAML::Node config_;
