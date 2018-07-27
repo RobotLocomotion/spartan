@@ -18,8 +18,9 @@ def test_joint_trajectory_action():
     client.wait_for_server()
     print "connected to server"
 
+    joint_position = [0.5]*7
     goal = robot_msgs.msg.JointTrajectoryGoal()
-    goal.trajectory = make_joint_trajectory_msg()
+    goal.trajectory = make_joint_trajectory_msg(joint_position)
 
     print "sending goal"
     client.send_goal(goal)
@@ -28,9 +29,37 @@ def test_joint_trajectory_action():
     client.wait_for_result()
     result = client.get_result()
     print "result:", result
+
+# moves the "penetrate_baymax" position
+def test_joint_trajectory_action_with_force_guard():
+    
+    # penetrate baymax position
+    joint_position = [0.004693801442017107, 0.9628760254043379, -0.05429710750841024, -1.4038225779201545, 0.10079011175127535, 0.7508584287857891, 0.29501057123920577]
+
+    # above baymax position
+
+
+    goal = robot_msgs.msg.JointTrajectoryGoal()
+    goal.trajectory = make_joint_trajectory_msg(joint_position)
+    goal.force_guard.append(make_force_guard_msg())
+
+
+    client = actionlib.SimpleActionClient("plan_runner/JointTrajectory", robot_msgs.msg.JointTrajectoryAction)
+
+    print "waiting for server"
+    client.wait_for_server()
+    print "connected to server" 
+
+    print "sending goal"
+    client.send_goal(goal)   
+
+    rospy.loginfo("waiting for JointTrajectory action result")
+    client.wait_for_result()
+    result = client.get_result()
+    print "result:", result
     
 
-def make_joint_trajectory_msg():
+def make_joint_trajectory_msg(joint_position):
     traj = trajectory_msgs.msg.JointTrajectory()
     traj.joint_names = control_utils.getIiwaJointNames()
     num_joints = 7
@@ -41,7 +70,7 @@ def make_joint_trajectory_msg():
 
 
     traj_end = trajectory_msgs.msg.JointTrajectoryPoint()
-    traj_end.positions = [0.5] * 7
+    traj_end.positions = joint_position
     traj_end.time_from_start = rospy.Duration(3.0)
 
     traj.points.append(traj_start)
@@ -189,4 +218,5 @@ if __name__ == "__main__":
     rospy.init_node("test_plan_runner")
     args = parser.parse_args()
     # test_joint_trajectory_action()
-    test_cartesian_trajectory_action(move_type=args.movement)
+    # test_cartesian_trajectory_action(move_type=args.movement)
+    test_joint_trajectory_action_with_force_guard()
