@@ -3,12 +3,21 @@
 import os
 import rospy
 import time
+import gc
+import multiprocessing as mp
+import resource
+
 
 from fusion_server.fusion import FusionServer
 import fusion_server.tsdf_fusion as tsdf_fusion
 
 import spartan.utils.utils as spartanUtils
 
+
+def mem():
+    print('Memory usage         : % 2.2f MB' % round(
+        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0,1)
+    )
 
 def already_extracted_rosbag(log_full_path):
     images_dir = os.path.join(log_full_path, 'processed', 'images')
@@ -26,26 +35,50 @@ def already_downsampled(log_full_path):
     file_to_check_2 = os.path.join(images_dir, "000001_rgb.png")
     return not (os.path.exists(file_to_check_1) and os.path.exists(file_to_check_2))
 
+def extract_data_from_rosbag(bag_filepath):
+    fs = FusionServer()    
+    processed_dir, images_dir = fs.extract_data_from_rosbag(bag_filepath)
+
 def extract_and_fuse_single_scene(log_full_path, downsample=False):
 
     print "extracting and fusing scene:", log_full_path 
+    log = os.path.split(log_full_path)[-1]
+
+    mem()
 
     if not already_extracted_rosbag(log_full_path):
         print "extracting", log_full_path
         bag_filepath = os.path.join(log_full_path, 'raw', 'fusion_'+log+'.bag')
-        processed_dir, images_dir = fs.extract_data_from_rosbag(bag_filepath)
+
+        # run this memory intensive step in a process, to allow
+        # it to release memory back to the operating system
+        # when finished
+        proc = mp.Process(target=extract_data_from_rosbag, args=(bag_filepath,))
+        proc.start()
+        proc.join()
+
+        print "finished extracting", log_full_path
         # counter_new_extracted += 1
     else:
         print "already extracted", log_full_path
-        processed_dir = os.path.join(log_full_path, 'processed')
-        images_dir    = os.path.join(processed_dir, 'images')
+
+
+    processed_dir = os.path.join(log_full_path, 'processed')
+    images_dir    = os.path.join(processed_dir, 'images')
+    
+    # we need to free some memory
+    gc.collect()
+    mem()
+
 
     if not already_ran_tsdf_fusion(log_full_path):
         print "preparing for tsdf_fusion for", log_full_path
         tsdf_fusion.format_data_for_tsdf(images_dir)
+        gc.collect()
 
         print "running tsdf fusion"
         tsdf_fusion.run_tsdf_fusion_cuda(images_dir)
+        gc.collect()
 
         print "converting tsdf to ply"
         tsdf_bin_filename = os.path.join(processed_dir, 'tsdf.bin')
@@ -56,6 +89,7 @@ def extract_and_fuse_single_scene(log_full_path, downsample=False):
         print "already ran tsdf_fusion for", log_full_path
 
     if not already_downsampled(log_full_path) and downsample:
+        fs = FusionServer()
         print "downsampling image folder"
         linear_distance_threshold = 0.03
         angle_distance_threshold = 10 # in degrees
