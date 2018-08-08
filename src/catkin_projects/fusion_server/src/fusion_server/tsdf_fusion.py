@@ -164,7 +164,7 @@ def convert_tsdf_to_ply(tsdf_bin_filename, tsdf_mesh_filename):
     print "voxeGridOrigin: ", voxelGridOrigin
     print "tsdf.shape:", tsdf.shape
 
-    verts, faces, normals, values = measure.marching_cubes_lewiner(tsdf, spacing=[voxelSize]*3)
+    verts, faces, normals, values = measure.marching_cubes_lewiner(tsdf, spacing=[voxelSize]*3, level=0)
 
 
     print "type(verts): ", type(verts)
