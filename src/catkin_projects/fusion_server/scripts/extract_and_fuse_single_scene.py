@@ -19,5 +19,5 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    batch_extract_and_fuse_all_scenes.extract_and_fuse_single_scene(args.log_dir, downsample=True):
+    batch_extract_and_fuse_all_scenes.extract_and_fuse_single_scene(args.log_dir, downsample=True)
 

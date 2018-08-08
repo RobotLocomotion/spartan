@@ -81,6 +81,9 @@ def run_tsdf_fusion_cuda(image_folder, output_dir=None, voxel_grid_origin_x=0.4,
     spartan_source_dir = spartan_utils.getSpartanSourceDir()
     tsdf_fusion_dir = os.path.join(spartan_source_dir, "src", "tsdf-fusion")
     tsdf_executable = os.path.join(tsdf_fusion_dir, 'demo')
+    if not os.path.isfile(tsdf_executable):
+        raise ValueError('tsdf executable not found, have you compiled it?')
+
     cmd = "cd %s && %s %s %s" %(tsdf_fusion_dir, tsdf_executable, image_folder, camera_intrinsics_file)
 
 
