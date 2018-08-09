@@ -8,6 +8,14 @@ import numpy as np
 import os
 import sys
 
+import geometry_msgs.msg
+import ros_numpy
+import rospy
+import sensor_msgs.msg
+
+import spartan.utils.utils as spartanUtils
+import spartan.utils.ros_utils as rosUtils
+
 from director import filterUtils
 from director import ioUtils
 from director.shallowCopy import shallowCopy
@@ -19,8 +27,27 @@ import meshcat.geometry as meshcat_g
 import meshcat.transformations as meshcat_tf
 
 
+def pointcloud2ToVtk(pc2):
+    pc_np = ros_numpy.numpify(pc2)
+    n_points = pc_np.shape[0]*pc_np.shape[1]
+    points = np.zeros((n_points, 3))
+    points[:, 0] = pc_np['x'].flatten()
+    points[:, 1] = pc_np['y'].flatten()
+    points[:, 2] = pc_np['z'].flatten()
+    colors = np.frombuffer(
+        pc_np['rgb'].flatten(), dtype=np.uint8, count=3*n_points)
+    colors = colors.reshape(n_points, 3)
+    good_entries = np.logical_not(np.isnan(points, ).any(axis=1))
+    points = points[good_entries, :]
+    colors = colors[good_entries, :]
+    # TODO: what's the right way to cram color into a polydata?
+    pc_vtk = vtkNumpy.numpyToPolyData(
+        points, pointData=None, createVertexCells=True)
+    return pc_vtk, colors
 
-def applyEuclideanClustering(dataObj, clusterTolerance=0.05, minClusterSize=100, maxClusterSize=1e6):
+
+def applyEuclideanClustering(dataObj, clusterTolerance=0.05,
+                             minClusterSize=100, maxClusterSize=1e6):
     # COPIED FROM DIRECTOR/SEGMENTATIONROUTINES
     # (which I can't import because importing PythonQt is broken)
     f = vtk.vtkPCLEuclideanClusterExtraction()
@@ -40,13 +67,12 @@ def extractClusters(polyData, clusterInXY=False, **kwargs):
     if not polyData.GetNumberOfPoints():
         return []
 
-    if (clusterInXY == True):
+    if clusterInXY is True:
         ''' If Points are seperated in X&Y, then cluster outside this '''
         polyDataXY = vtk.vtkPolyData()
         polyDataXY.DeepCopy(polyData)
-        points=vtkNumpy.getNumpyFromVtk(polyDataXY , 'Points') # shared memory
-        points[:,2] = 0.0
-        #showPolyData(polyDataXY, 'polyDataXY', visible=False, parent=getDebugFolder())
+        points = vtkNumpy.getNumpyFromVtk(polyDataXY, 'Points')
+        points[:, 2] = 0.0
         polyDataXY = applyEuclideanClustering(polyDataXY, **kwargs)
         clusterLabels = vtkNumpy.getNumpyFromVtk(polyDataXY, 'cluster_labels')
         vtkNumpy.addNumpyToVtk(polyData, clusterLabels, 'cluster_labels')
@@ -55,10 +81,10 @@ def extractClusters(polyData, clusterInXY=False, **kwargs):
         polyData = applyEuclideanClustering(polyData, **kwargs)
         clusterLabels = vtkNumpy.getNumpyFromVtk(polyData, 'cluster_labels')
 
-
     clusters = []
     for i in xrange(1, clusterLabels.max() + 1):
-        cluster = filterUtils.thresholdPoints(polyData, 'cluster_labels', [i, i])
+        cluster = filterUtils.thresholdPoints(polyData, 'cluster_labels',
+                                              [i, i])
         clusters.append(cluster)
     return clusters
 
@@ -83,6 +109,7 @@ def getMajorPlanes(polyData, useVoxelGrid=False,
 
     minClusterSize = 100
 
+    planeInfo = []
     while len(polyDataList) < 5:
         f = vtk.vtkPCLSACSegmentationPlane()
         f.SetInputData(polyData)
@@ -97,10 +124,12 @@ def getMajorPlanes(polyData, useVoxelGrid=False,
         if largestCluster.GetNumberOfPoints() > minClusterSize:
             polyDataList.append(largestCluster)
             polyData = outliers
+            planeInfo.append((np.array(f.GetPlaneOrigin()),
+                              np.array(f.GetPlaneNormal())))
         else:
             break
 
-    return polyDataList
+    return polyDataList, planeInfo
 
 
 def extractLargestCluster(polyData, **kwargs):
@@ -122,59 +151,166 @@ def draw_polydata_in_meshcat(vis, polyData, name, color=None, size=0.001):
         meshcat_g.PointCloud(position=points, color=colors, size=size))
 
 
+def draw_plane_in_meshcat(vis, point, normal, size, name):
+    size = np.array(size)
+    vis["perception"]["tabletopsegmenter"][name].set_object(
+        meshcat_g.Box(size))
+
+    box_tf = np.eye(4)
+    # From https://math.stackexchange.com/questions/1956699/getting-a-transformation-matrix-from-a-normal-vector
+    nx, ny, nz = normal
+    if (nx**2 + ny**2 != 0.):
+        nxny = np.sqrt(nx**2 + ny**2)
+        box_tf[0, 0] = ny / nxny
+        box_tf[0, 1] = -nx / nxny
+        box_tf[1, 0] = nx*nz / nxny
+        box_tf[1, 1] = ny*nz / nxny
+        box_tf[1, 2] = -nxny
+        box_tf[2, :3] = normal
+    box_tf[:3, :3] = box_tf[:3, :3].T
+    box_tf[0:3, 3] = np.array(point) #- box_tf[0:3, 0:3].dot(size)
+    vis["perception"]["tabletopsegmenter"][name].set_transform(box_tf)
+
+
+
 class TabletopObjectSegmenter:
     def __init__(self,
-                 zmq_url="tcp://127.0.0.1:6000"):
+                 zmq_url="tcp://127.0.0.1:6000",
+                 visualize=False):
 
         print("Opening meshcat vis... will hang if no server"
               "\tis running.")
-        self.vis = meshcat.Visualizer(zmq_url=zmq_url)
-        self.vis["perception"].delete()
-        self.vis["perception/tabletopsegmenter"].delete()
+        self.vis = None
+        if visualize:
+            self.vis = meshcat.Visualizer(zmq_url=zmq_url)
+            self.vis["perception"].delete()
+            self.vis["perception/tabletopsegmenter"].delete()
 
-    def segment_pointcloud(self, polyData):
+    def segment_pointcloud(self, polyData, visualize=False):
         polyDataSimplified = applyVoxelGrid(polyData, leafSize=0.005)
         draw_polydata_in_meshcat(self.vis, polyDataSimplified,
                                  "simplified_input")
 
-        points = vtkNumpy.getNumpyFromVtk(polyDataSimplified).T
-        vtkNumpy.addNumpyToVtk(polyDataSimplified, points[2, :], 'z_height')
+        major_planes, plane_infos = \
+            getMajorPlanes(polyDataSimplified, useVoxelGrid=False,
+                           distanceToPlaneThreshold=0.005)
+        coloriter = iter(plt.cm.rainbow(np.linspace(0, 1, len(major_planes))))
+        scores = []
+        means = []
+        stds = []
+        for i, plane in enumerate(major_planes):
+            # Calculate this plane score, by checking is total size,
+            # closeness to the camera (i.e. lowest z, since camera is at
+            # origin looking up), and centrality in image
+            # (i.e. closest to z axis)
+            centrality_weight = 2.
+            closeness_weight = 10.
+            size_weight = 1.
+            # Calculate mean + std in R^3
+            pts = vtkNumpy.getNumpyFromVtk(plane)
+            mean = np.mean(pts, axis=0)
+            std = np.std(pts, axis=0)
+            means.append(mean)
+            stds.append(std)
+            score = centrality_weight * np.linalg.norm(mean[0:2]) + \
+                closeness_weight * mean[2] + \
+                size_weight * 1. / max(std)
+            score /= (centrality_weight + closeness_weight + size_weight)
+            scores.append(score)
+        scores = np.array(scores)
+        scores = (scores - np.min(scores)) / (np.max(scores) - np.min(scores))
+
+        if self.vis is not None:
+            for i, plane in enumerate(major_planes):
+                score_color = plt.cm.RdYlGn(1. - scores[i])
+                draw_polydata_in_meshcat(self.vis, plane, "planes/%02d" % i,
+                                         score_color, size=0.01)
+
+        best_plane_i = np.argmin(scores)
+        pt = plane_infos[best_plane_i][0]
+        normal = plane_infos[best_plane_i][1]
+        if np.dot(normal, [0., 0., 1.]) > 0.:
+            normal *= -1.
+        print("pt: ", pt, " and norm: ", normal)
+        #draw_plane_in_meshcat(self.vis, pt, normal,
+        #                      size=[1., 1., 0.001],
+        #                      name="table")
+
+        # Todo: figure out which points are "on top of" that table cluster
+        points = vtkNumpy.getNumpyFromVtk(polyData).T
+        height_above_surface = np.dot(points.T - pt, normal)
+        vtkNumpy.addNumpyToVtk(polyData, height_above_surface,
+                               'height_above_surface')
         tabletopPoints = filterUtils.thresholdPoints(
-            polyDataSimplified, 'z_height', [-0.001, 100.])
+            polyData, 'height_above_surface', [0.005, 0.05])
 
-        clusters = extractClusters(tabletopPoints, clusterInXY=False)
-        coloriter = iter(plt.cm.rainbow(np.linspace(0, 1, len(clusters))))
-        for i, cluster in enumerate(clusters):
-            print("Cluster %d: " % i, cluster)
-            draw_polydata_in_meshcat(self.vis, cluster, "clusters/%02d" % i,
-                                     next(coloriter), size=0.01)
+        distance_from_table_center = np.linalg.norm(
+            vtkNumpy.getNumpyFromVtk(tabletopPoints) - means[best_plane_i],
+            axis=1)
+        print(distance_from_table_center)
+        vtkNumpy.addNumpyToVtk(tabletopPoints, distance_from_table_center,
+                               'distance_from_table_center')
+        tabletopPoints = filterUtils.thresholdPoints(
+            tabletopPoints, 'distance_from_table_center', [0., 0.1])
 
+        draw_polydata_in_meshcat(self.vis, tabletopPoints, "tabletopPoints",
+                                 color=[0., 0., 1.], size=0.001)
 
-
+        #clusters = extractClusters(tabletopPoints, clusterInXY=False,
+        #                           minClusterSize=100, clusterTolerance=0.01,
+        #                           maxClusterSize=10000)
+        #coloriter = iter(plt.cm.rainbow(np.linspace(0, 1, len(clusters))))
+        #if self.vis is not None:
+        #    for i, cluster in enumerate(clusters):
+        #        #print("Cluster %d: " % i, cluster)
+        #        draw_polydata_in_meshcat(
+        #            self.vis, cluster, "clusters/%02d" % i,
+        #            next(coloriter), size=0.01)
 
 
 if __name__ == "__main__":
     np.set_printoptions(precision=5, suppress=True)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_file",
+    parser.add_argument("--scans_dir",
                         type=str,
                         help="Point cloud file to segment.",
                         default="/home/gizatt/spartan/data_volume/"
-                                "carrot_scans/2018-07-10-21-32-49/"
-                                "processed/fusion_pointcloud.ply")
+                                "carrot_scans")
+    parser.add_argument("--topic",
+                        type=str,
+                        help="Point cloud topic.",
+                        default="/camera/depth_registered/points")
+    parser.add_argument("--ignore_live",
+                        help="Whether to use the point cloud file.",
+                        default=False, action='store_true')
     args = parser.parse_args()
 
-    scans_dir = "/home/gizatt/spartan/data_volume/carrot_scans/"
-    scans = []
-    for (dir, _, files) in os.walk(scans_dir):
-        for f in files:
-            path = os.path.join(dir, f)
-            if os.path.exists(path) and \
-               path.split("/")[-1] == "fusion_pointcloud.ply":
-                scans.append(path)
+    if args.ignore_live is True:
+        scans_dir = "/home/gizatt/spartan/data_volume/carrot_scans/"
+        scans = []
+        for (dir, _, files) in os.walk(scans_dir):
+            for f in files:
+                path = os.path.join(dir, f)
+                if os.path.exists(path) and \
+                   path.split("/")[-1] == "fusion_pointcloud.ply":
+                    scans.append(path)
 
-    for scan in scans:
-        polyData = ioUtils.readPolyData(scan)
-        segmenter = TabletopObjectSegmenter()
-        segmenter.segment_pointcloud(polyData)
-        raw_input("Enter to continue...")
+        for scan in scans:
+            print("Trying scan %s" % scan)
+            polyData = ioUtils.readPolyData(scan)
+            segmenter = TabletopObjectSegmenter(visualize=True)
+            segmenter.segment_pointcloud(polyData)
+            raw_input("Enter to continue...")
+    else:
+        rospy.init_node("tabletop_segmenter")
+        sub = rosUtils.SimpleSubscriber(
+            topic=args.topic, messageType=sensor_msgs.msg.PointCloud2)
+        sub.start(queue_size=1)
+        segmenter = TabletopObjectSegmenter(visualize=True)
+        while (1):
+            print("Waiting for pc on channel %s..." % args.topic, end="")
+            pc2 = sub.waitForNextMessage()
+            print("... got one")
+            polyData, colors = pointcloud2ToVtk(pc2)
+            segmenter.segment_pointcloud(polyData)
+            raw_input("Etner to continue...")
