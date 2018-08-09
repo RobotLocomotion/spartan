@@ -18,6 +18,7 @@ import spartan.utils.ros_utils as rosUtils
 
 from director import filterUtils
 from director import ioUtils
+from director import transformUtils
 from director.shallowCopy import shallowCopy
 from director import vtkNumpy
 from director import vtkAll as vtk
@@ -151,26 +152,30 @@ def draw_polydata_in_meshcat(vis, polyData, name, color=None, size=0.001):
         meshcat_g.PointCloud(position=points, color=colors, size=size))
 
 
+def get_tf_from_point_normal(point, normal):
+    tf = np.eye(4)
+    # From https://math.stackexchange.com/questions/1956699/getting-a-transformation-matrix-from-a-normal-vector
+    nx, ny, nz = normal
+    if (nx**2 + ny**2 != 0.):
+        nxny = np.sqrt(nx**2 + ny**2)
+        tf[0, 0] = ny / nxny
+        tf[0, 1] = -nx / nxny
+        tf[1, 0] = nx*nz / nxny
+        tf[1, 1] = ny*nz / nxny
+        tf[1, 2] = -nxny
+        tf[2, :3] = normal
+    tf[:3, :3] = tf[:3, :3].T
+    tf[0:3, 3] = np.array(point)
+    return tf
+
+
 def draw_plane_in_meshcat(vis, point, normal, size, name):
     size = np.array(size)
     vis["perception"]["tabletopsegmenter"][name].set_object(
         meshcat_g.Box(size))
 
-    box_tf = np.eye(4)
-    # From https://math.stackexchange.com/questions/1956699/getting-a-transformation-matrix-from-a-normal-vector
-    nx, ny, nz = normal
-    if (nx**2 + ny**2 != 0.):
-        nxny = np.sqrt(nx**2 + ny**2)
-        box_tf[0, 0] = ny / nxny
-        box_tf[0, 1] = -nx / nxny
-        box_tf[1, 0] = nx*nz / nxny
-        box_tf[1, 1] = ny*nz / nxny
-        box_tf[1, 2] = -nxny
-        box_tf[2, :3] = normal
-    box_tf[:3, :3] = box_tf[:3, :3].T
-    box_tf[0:3, 3] = np.array(point) #- box_tf[0:3, 0:3].dot(size)
+    box_tf = get_tf_from_point_normal(point, normal)
     vis["perception"]["tabletopsegmenter"][name].set_transform(box_tf)
-
 
 
 class TabletopObjectSegmenter:
@@ -231,7 +236,7 @@ class TabletopObjectSegmenter:
         normal = plane_infos[best_plane_i][1]
         if np.dot(normal, [0., 0., 1.]) > 0.:
             normal *= -1.
-        print("pt: ", pt, " and norm: ", normal)
+        #print("pt: ", pt, " and norm: ", normal)
         #draw_plane_in_meshcat(self.vis, pt, normal,
         #                      size=[1., 1., 0.001],
         #                      name="table")
@@ -253,6 +258,9 @@ class TabletopObjectSegmenter:
         tabletopPoints = filterUtils.thresholdPoints(
             tabletopPoints, 'distance_from_table_center', [0., 0.1])
 
+        # Finally, transform those tabletop points to point up and
+        tf = transformUtils.getTransformFromOriginAndNormal(pt, normal).GetLinearInverse()
+        tabletopPoints = filterUtils.transformPolyData(tabletopPoints, tf)
         draw_polydata_in_meshcat(self.vis, tabletopPoints, "tabletopPoints",
                                  color=[0., 0., 1.], size=0.001)
 
