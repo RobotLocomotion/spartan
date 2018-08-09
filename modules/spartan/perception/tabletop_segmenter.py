@@ -264,6 +264,7 @@ class TabletopObjectSegmenter:
         draw_polydata_in_meshcat(self.vis, tabletopPoints, "tabletopPoints",
                                  color=[0., 0., 1.], size=0.001)
 
+        return tabletopPoints
         #clusters = extractClusters(tabletopPoints, clusterInXY=False,
         #                           minClusterSize=100, clusterTolerance=0.01,
         #                           maxClusterSize=10000)
@@ -320,5 +321,6 @@ if __name__ == "__main__":
             pc2 = sub.waitForNextMessage()
             print("... got one")
             polyData, colors = pointcloud2ToVtk(pc2)
-            segmenter.segment_pointcloud(polyData)
+            pd = segmenter.segment_pointcloud(polyData)
+            np.save("cloud.npy", vtkNumpy.getNumpyFromVtk(pd))
             raw_input("Etner to continue...")

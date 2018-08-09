@@ -18,7 +18,9 @@ apt install --no-install-recommends \
   dialog \
   python-pip \
   python-pytest \
-  libav-tools
+  libav-tools \
+  openscad \
+  libspatialindex-dev
 
 # these following three are ElasticFusion dependencies
 apt install --no-install-recommends \
@@ -39,4 +41,6 @@ pip install \
   matplotlib==1.5.3 \
   scikit-image \
   pytest-xdist \
-  meshcat
+  meshcat \
+  trimesh \
+  rtree
