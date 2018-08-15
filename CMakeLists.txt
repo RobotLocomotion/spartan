@@ -34,6 +34,9 @@ option(WITH_BULLET3 "Build a complete version of Bullet, and install pybullet su
 option(WITH_ROS "Build the catkin-workspace projects." ON)
 option(WITH_REACHABILITY_ANALYZER "Build a reachability analyzer (better with snopt)" OFF)
 option(WITH_TRIMESH "Build trimesh, a python utility for working with triangle meshes" OFF)
+option(WITH_PYFUSION "Build pyfusion, a python utility for working TSDF fusion" OFF)
+option(WITH_PYTHON_OCTOMAP "Build python-octomap" OFF)
+option(WITH_PYTHON_PCL "Build python-pcl" OFF)
 option(WITH_DRAKE_IIWA_SIM "Build IIWA full system simulation with Drake tools?" OFF)
 
 # Setup external projects
@@ -285,6 +288,72 @@ if (WITH_TRIMESH)
       INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages && cp -r ${build_dir}/externals/trimesh/build/lib.linux-x86_64-2.7/trimesh ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/
       BUILD_IN_SOURCE 1
       DEPENDS v-hacd
+    )
+endif()
+
+if (WITH_PYFUSION)
+    find_package(PythonInterp REQUIRED)
+
+    SET(PYFUSION_GIT_REPOSITORY git@github.com:griegler/pyfusion.git)
+    SET(PYFUSION_GIT_TAG fafb5a83c66ab128fff59d9c2f96ae63342478a3)
+    ExternalProject_Add(pyfusion
+      SOURCE_DIR ${build_dir}/externals/pyfusion
+      GIT_REPOSITORY "${PYFUSION_GIT_REPOSITORY}"
+      GIT_TAG "${PYFUSION_GIT_TAG}"
+      BUILD_ALWAYS 1
+      CMAKE_CACHE_ARGS
+        ${CMAKE_ARGS_FOR_EXTERNALS}
+      BUILD_COMMAND make && python setup.py build_ext --inplace && cp -t build cyfusion.so libfusion_cpu.so libfusion_gpu.so
+      INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages && rm -rf ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/pyfusion && cp -r ${build_dir}/externals/pyfusion ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/
+      BUILD_IN_SOURCE 1
+    )
+endif()
+
+if (WITH_PYTHON_OCTOMAP)
+    find_package(PythonInterp REQUIRED)
+
+    SET(OCTOMAP_REPOSITORY git@github.com:OctoMap/octomap.git)
+    SET(OCTOMAP_TAG v1.9.0)
+    ExternalProject_Add(octomap
+      SOURCE_DIR ${build_dir}/externals/octomap
+      GIT_REPOSITORY "${OCTOMAP_REPOSITORY}"
+      GIT_TAG "${OCTOMAP_TAG}"
+      BUILD_ALWAYS 1
+      CMAKE_CACHE_ARGS
+        ${CMAKE_ARGS_FOR_EXTERNALS}
+      INSTALL_COMMAND make install
+    )
+
+    SET(PYTHON_OCTOMAP_REPOSITORY git@github.com:neka-nat/python-octomap.git)
+    SET(PYTHON_OCTOMAP_TAG 6f4ff1b059201502bd631f19916f04f7dd1c020c)
+    ExternalProject_Add(python-octomap
+      SOURCE_DIR ${build_dir}/externals/python-octomap
+      CONFIGURE_COMMAND ""
+      GIT_REPOSITORY "${PYTHON_OCTOMAP_REPOSITORY}"
+      GIT_TAG "${PYTHON_OCTOMAP_TAG}"
+      BUILD_ALWAYS 1
+      BUILD_COMMAND python setup.py build_ext --include-dirs ${CMAKE_INSTALL_PREFIX}/include --library-dirs ${CMAKE_INSTALL_PREFIX}/lib
+      INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages && cp -r ${build_dir}/externals/python-octomap/build/lib.linux-x86_64-2.7/octomap.so ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/
+      BUILD_IN_SOURCE 1
+      DEPENDS octomap
+    )
+endif()
+
+if (WITH_PYTHON_PCL)
+    find_package(PythonInterp REQUIRED)
+
+    SET(PYTHON_PCL_REPOSITORY git@github.com:strawlab/python-pcl.git)
+    SET(PYTHON_PCL_TAG 8fd7bb2c9b5eff2fecea7c4ddc241763a3c77334)
+    ExternalProject_Add(python-pcl
+      SOURCE_DIR ${build_dir}/externals/python-pcl
+      CONFIGURE_COMMAND ""
+      GIT_REPOSITORY "${PYTHON_PCL_REPOSITORY}"
+      GIT_TAG "${PYTHON_PCL_TAG}"
+      BUILD_ALWAYS 1
+      BUILD_COMMAND python setup.py build_ext -i --include-dirs ${CMAKE_INSTALL_PREFIX}/include --library-dirs ${CMAKE_INSTALL_PREFIX}/lib
+      INSTALL_COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages && cp -r ${build_dir}/externals/python-pcl/build/lib.linux-x86_64-2.7/pcl.so ${CMAKE_INSTALL_PREFIX}/lib/python2.7/site-packages/
+      BUILD_IN_SOURCE 1
+      DEPENDS drake director
     )
 endif()
 
