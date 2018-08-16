@@ -43,4 +43,5 @@ pip install \
   pytest-xdist \
   meshcat \
   trimesh \
-  rtree
+  rtree \
+  pymaxflow

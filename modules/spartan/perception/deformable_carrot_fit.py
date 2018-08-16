@@ -11,7 +11,9 @@ from mesh_creation import create_cut_cylinder
 from pydrake.all import (
     AutoDiffXd,
     MathematicalProgram,
-    SolutionResult)
+    SolutionResult,
+    RollPitchYaw,
+    RotationMatrix)
 import pydrake.math as drake_math
 import pydrake.forwarddiff as forwarddiff
 
@@ -58,7 +60,7 @@ def meshcat_draw_line_with_dots(path, x1, x2, N=50, size=0.0001,
 class DeformableCarrot():
     def __init__(self):
         self.trimesh = create_cut_cylinder(
-            radius=0.02, height=0.02,
+            radius=0.01, height=0.04,
             cutting_planes=[([0, 0, 0], [0, 1, 0])],
             sections=10)
         self.n_verts = self.trimesh.vertices.shape[0]
@@ -166,6 +168,10 @@ for random_seed in range(10):
     carrot = DeformableCarrot()
     carrot.tf[0:3, 3] = np.mean(points, axis=0) + \
         np.random.random(3)*0.1 - np.ones(3)*0.05
+    carrot_rpy = np.random.random(3)*2*np.pi
+    carrot.tf[0:3, 0:3] = RotationMatrix(
+        RollPitchYaw(carrot_rpy)).matrix()
+
     carrot.draw(vis)
     tf_est = carrot.tf.copy()
     for k in range(500):
