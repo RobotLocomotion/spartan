@@ -2,7 +2,7 @@
 #include <string>
 
 #include <drake/math/roll_pitch_yaw.h>
-#include <drake/math/transform.h>
+#include <drake/math/rigid_transform.h>
 #include <drake_robot_control/trajectory_plan_base.h>
 
 namespace drake {
@@ -118,7 +118,7 @@ private:
   drake::TwistMatrix<double> J_ee_E_;
   drake::TwistMatrix<double> J_ee_W_;
   Eigen::Isometry3d H_WE_; // ee to world, current homogeneous transform
-  math::Transform<double>
+  math::RigidTransform<double>
       H_WEr_; // end-effector to world, reference homogeneous transform
 
   // reference orientation trajectory for EE

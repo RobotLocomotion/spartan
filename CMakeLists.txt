@@ -22,7 +22,7 @@ endif()
 
 # Options
 option(WITH_PERCEPTION "Build with perception libraries and tools." ON)
-option(WITH_SNOPT "Build drake with support for the SNOPT solver." ON)
+option(WITH_ROBOTLOCOMOTION_SNOPT "Build drake with support for the SNOPT solver." ON)
 option(WITH_GUROBI "Build with support for Gurobi" OFF)
 option(WITH_MOSEK "Build with support for MOSEK" OFF)
 
@@ -73,7 +73,8 @@ ExternalProject_Add(drake
     BINARY_DIR ${build_dir}/drake
     BUILD_ALWAYS 1
     CMAKE_CACHE_ARGS
-      -DWITH_SNOPT:BOOL=${WITH_SNOPT}
+      -DWITH_ROBOTLOCOMOTION_SNOPT:BOOL=${WITH_ROBOTLOCOMOTION_SNOPT}
+      -DWITH_SNOPT:BOOL=OFF
       -DWITH_GUROBI:BOOL=${WITH_GUROBI}
       -DWITH_MOSEK:BOOL=${WITH_MOSEK}
       ${CMAKE_ARGS_FOR_EXTERNALS}
