@@ -13,14 +13,14 @@
   <build_depend>roscpp</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>image_transport</build_depend>
-  <build_depend>wsg50_msgs</build_depend>
+  <build_depend>wsg_50_common</build_depend>
 
-  <build_export_depend>wsg50_msgs</build_export_depend>
+  <build_export_depend>wsg_50_common</build_export_depend>
   
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>libpcl-all</buildtool_depend>
 
-  <exec_depend>wsg50_msgs</exec_depend>
+  <exec_depend>wsg_50_common</exec_depend>
   <exec_depend>roscpp</exec_depend>
 
 </package>

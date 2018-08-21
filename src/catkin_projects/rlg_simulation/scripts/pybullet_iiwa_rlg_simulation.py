@@ -43,7 +43,7 @@ from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
 import spartan.utils.cv_utils as cvUtils
-import wsg50_msgs.msg
+import wsg_50_common.msg
 
 # Comms from camera
 import std_msgs.msg
@@ -54,7 +54,7 @@ from cv_bridge import CvBridge, CvBridgeError
 # Visualization to Director
 import pydrake
 import pydrake.rbtree
-import RemoteTreeViewerWrapper_pybind as Rtv
+#import RemoteTreeViewerWrapper_pybind as Rtv
 
 # Loading URDFs from ROS package paths
 from director.packagepath import PackageMap
@@ -243,9 +243,9 @@ class IiwaRlgSimulator():
     Its constructor subscribes to the appropriate input channels:
         - LCM channel `IIWA_COMMAND`, type `lcmt_iiwa_command`, for joint position
           commands. (Torque mode not supported, but it would be easy to switch.)
-        - Ros topic `/schunk_driver/schunk_wsg_command`, type
-          wsg50_msgs::WSG_50_command for position setpoing and max force
-    
+        - Ros topic `/wsg50_driver/wsg50/gripper_control/goal`, type
+          wsg_50_common::CommandActionGoal for position setpoing and max force
+
     ResetSimulation() sets up the simulation.
 
     RunSim run a sim until (R)eset or (Q)uit from the sim gui.
@@ -272,9 +272,13 @@ class IiwaRlgSimulator():
         self.iiwa_command_sub = self.lc.subscribe("IIWA_COMMAND", self.HandleIiwaCommand)        
 
         # Set up Schunk command subscriber on ROS
-        self.schunk_command_sub = rosUtils.SimpleSubscriber("/schunk_driver/schunk_wsg_command", wsg50_msgs.msg.WSG_50_command, self.HandleSchunkCommand)
+        self.schunk_command_sub = rosUtils.SimpleSubscriber(
+            "/wsg50_driver/wsg50/gripper_control/goal",
+            wsg_50_common.msg.CommandActionGoal, self.HandleSchunkCommand)
         self.schunk_command_sub.start(queue_size=1)
-        self.schunk_status_publisher = rospy.Publisher("/schunk_driver/schunk_wsg_status", wsg50_msgs.msg.WSG_50_state, queue_size=1)
+        self.schunk_status_publisher = rospy.Publisher(
+            "/wsg50_driver/wsg50/status",
+            wsg_50_common.msg.Status, queue_size=1)
 
         # Set up image publishing
         camera_topics = RgbdCameraMetaInfo.getCameraPublishTopics(self.camera_serial_number)
@@ -290,7 +294,7 @@ class IiwaRlgSimulator():
 
         # Set up a Remote Tree Viewer wrapper to publish
         # object states
-        self.rtv = Rtv.RemoteTreeViewerWrapper()
+        #self.rtv = Rtv.RemoteTreeViewerWrapper()
 
     def ResetSimulation(self):
         pybullet.resetSimulation()
@@ -408,8 +412,8 @@ class IiwaRlgSimulator():
     def HandleSchunkCommand(self, msg):
         self.schunk_command_lock.acquire()
         try:
-            self.last_schunk_position_command = [-msg.position_mm*0.005, msg.position_mm*0.005]
-            self.last_schunk_torque_command = [msg.force*10, msg.force*10]
+            self.last_schunk_position_command = [-msg.goal.command.width*0.5, msg.goal.command.width*0.5]
+            self.last_schunk_torque_command = [msg.goal.command.force*10, msg.goal.command.force*10]
         except Exception as e:
             print "Exception ", e, " in ros schunk command handler"
         self.schunk_command_lock.release()
@@ -425,13 +429,12 @@ class IiwaRlgSimulator():
         # Get joint state info
         states = pybullet.getJointStates(self.kuka_id, self.schunk_motor_id_list)
 
-        msg = wsg50_msgs.msg.WSG_50_state()
-        msg.header.stamp = rospy.Time.now()
+        msg = wsg_50_common.msg.Status()
         # Distance *between* paddles
-        msg.position_mm = (-states[0][0] + states[1][0])*1000.
-        msg.force = (-states[0][3] + states[1][3])/2.
+        msg.width = (-states[0][0] + states[1][0])
         # Rate of change of distance between paddles
-        msg.speed_mm_per_s = (-states[0][1] + states[1][1])*1000.
+        msg.current_speed = (-states[0][1] + states[1][1])
+        msg.current_force = (-states[0][3] + states[1][3])/2.
         self.schunk_status_publisher.publish(msg)
 
     def DoDepthRendering(self):
@@ -586,26 +589,26 @@ class IiwaRlgSimulator():
         self.rgb_publisher.publish(rgbMsg)
 
 
-    def UpdateRtv(self):
-        for i, object_id in enumerate(self.object_ids):
-            pos, quat = pybullet.getBasePositionAndOrientation(object_id)
-            # this pos is in COM frame... offset to Drake's preference
-            # of URDF link frame.
-            # Should only be a problem for *root* links,
-            # (i.e. index 1 in Drake), as the rest are relative
-            # to that.
-            com_root = np.array(self.rbts[i].get_body(1).get_center_of_mass())
-            # Ugh conve
-            pos = np.array(pos) - com_root
-            rpy = np.array(pybullet.getEulerFromQuaternion(quat))
-            state_vec = np.hstack([pos, rpy])
-
-            N = pybullet.getNumJoints(object_id)
-            if N > 0:
-                jointInfo = pybullet.getJointStates(object_id, range(pybullet.getNumJoints(object_id)))
-                print "Warning, untested. Remove this print if this works..."
-                state_vec = np.hstack([state_vec, np.array([j[0] for j in jointInfo])])
-            self.rtv.publishRigidBodyTree(self.rbts[i], state_vec, [1., 1., 1., 1.], ["object", str(i)], True)
+    #def UpdateRtv(self):
+    #    for i, object_id in enumerate(self.object_ids):
+    #        pos, quat = pybullet.getBasePositionAndOrientation(object_id)
+    #        # this pos is in COM frame... offset to Drake's preference
+    #        # of URDF link frame.
+    #        # Should only be a problem for *root* links,
+    #        # (i.e. index 1 in Drake), as the rest are relative
+    #        # to that.
+    #        com_root = np.array(self.rbts[i].get_body(1).get_center_of_mass())
+    #        # Ugh conve
+    #        pos = np.array(pos) - com_root
+    #        rpy = np.array(pybullet.getEulerFromQuaternion(quat))
+    #        state_vec = np.hstack([pos, rpy])
+#
+    #        N = pybullet.getNumJoints(object_id)
+    #        if N > 0:
+    #            jointInfo = pybullet.getJointStates(object_id, range(pybullet.getNumJoints(object_id)))
+    #            print "Warning, untested. Remove this print if this works..."
+    #            state_vec = np.hstack([state_vec, np.array([j[0] for j in jointInfo])])
+    #        self.rtv.publishRigidBodyTree(self.rbts[i], state_vec, [1., 1., 1., 1.], ["object", str(i)], True)
 
     def RunSim(self):
         # Run simulation with time control
@@ -654,7 +657,7 @@ class IiwaRlgSimulator():
                 self.PublishIiwaStatus()
                 self.PublishSchunkStatus()
                 last_status_send = sim_time
-                self.UpdateRtv()
+                #self.UpdateRtv()
 
             # Render
             if (sim_time - last_render) > 0.333:
