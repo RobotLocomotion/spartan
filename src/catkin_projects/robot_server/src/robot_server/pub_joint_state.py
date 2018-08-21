@@ -19,7 +19,7 @@ from std_msgs.msg import Header
 # ROS custom packages
 from robot_msgs.srv import *
 from robot_msgs.msg import *
-from wsg50_msgs.msg import *
+import wsg_50_common.msg
 
 class JointStatePublisher:
     def __init__(self):
@@ -35,8 +35,8 @@ class JointStatePublisher:
 
         self.lc = lcm.LCM()
         self.lc.subscribe("IIWA_STATUS", self.onIiwaStatus)
-        self.gripper_subscriber = rospy.Subscriber("/schunk_driver/schunk_wsg_status", 
-            WSG_50_state, self.onSchunkStatus, queue_size=1)
+        self.gripper_subscriber = rospy.Subscriber("/wsg50_driver/wsg50/status", 
+            wsg_50_common.msg.Status, self.onSchunkStatus, queue_size=1)
 
         #gripper_sub = self.lc.subscribe("command_topic", self.gripper_sub)
         
@@ -81,15 +81,15 @@ class JointStatePublisher:
 
         # Left finger
         idx = self.joint_idx['wsg_50_base_joint_gripper_left']
-        self.joint_positions[idx] = -msg.position_mm * 0.0005
-        self.joint_velocities[idx] = -msg.speed_mm_per_s * 0.0005
-        self.joint_efforts[idx] = -msg.force
+        self.joint_positions[idx] = -msg.width * 0.5
+        self.joint_velocities[idx] = -msg.current_speed * 0.5
+        self.joint_efforts[idx] = -msg.current_force
 
         # Right finge
         idx = self.joint_idx['wsg_50_base_joint_gripper_right']
-        self.joint_positions[idx] = msg.position_mm * 0.0005
-        self.joint_velocities[idx] = msg.speed_mm_per_s * 0.0005
-        self.joint_efforts[idx] = msg.force
+        self.joint_positions[idx] = msg.width * 0.5
+        self.joint_velocities[idx] = msg.current_speed * 0.5
+        self.joint_efforts[idx] = msg.current_force
         
         # This could be enabled, but I'm going to let Iiwa
         # statuses be the driver of when status gets
