@@ -15,6 +15,15 @@ import std_srvs.srv
 import robot_control.control_utils as control_utils
 import spartan.utils.ros_utils as ros_utils
 
+from pydrake import getDrakePath
+from pydrake.common import FindResourceOrThrow
+from pydrake.multibody.parsers import PackageMap
+from pydrake.multibody.rigid_body_tree import (
+    AddModelInstanceFromUrdfStringSearchingInRosPackages,
+    FloatingBaseType,
+    RigidBodyTree
+)
+
 def test_joint_trajectory_action():
     client = actionlib.SimpleActionClient("plan_runner/JointTrajectory", robot_msgs.msg.JointTrajectoryAction)
 
@@ -186,8 +195,8 @@ def make_cartesian_gains_msg():
 
     kp_rot = 5
     msg.rotation.x = kp_rot
-    msg.rotation.x = kp_rot
-    msg.rotation.x = kp_rot
+    msg.rotation.y = kp_rot
+    msg.rotation.z = kp_rot
 
     kp_trans = 10
     msg.translation.x = kp_trans
@@ -217,7 +226,7 @@ def make_force_guard_msg():
 def test_joint_space_streaming():
     rospy.wait_for_service("plan_runner/init_joint_space_streaming")
     sp = rospy.ServiceProxy('plan_runner/init_joint_space_streaming',
-        robot_msgs.srv.StartJointSpaceStreamingPlan)
+        robot_msgs.srv.StartStreamingPlan)
     init = robot_msgs.srv.StartJointSpaceStreamingPlanRequest()
     init.force_guard.append(make_force_guard_msg())
     print sp(init)
@@ -247,13 +256,80 @@ def test_joint_space_streaming():
     init = std_srvs.srv.TriggerRequest()
     print sp(init)
 
+def test_task_space_streaming():
+    rospy.wait_for_service("plan_runner/init_task_space_streaming")
+    sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
+        robot_msgs.srv.StartStreamingPlan)
+    init = robot_msgs.srv.StartStreamingPlanRequest()
+    init.force_guard.append(make_force_guard_msg())
+    print sp(init)
+    pub = rospy.Publisher('plan_runner/task_space_streaming_setpoint',
+        robot_msgs.msg.CartesianGoalPoint, queue_size=1)
+    robotSubscriber = ros_utils.JointStateSubscriber("/joint_states")
+    print("Waiting for full kuka state...")
+    while len(robotSubscriber.joint_positions.keys()) < 3:
+        rospy.sleep(0.1)
+    print("got full state")
+
+    robot = RigidBodyTree()
+    package_map = PackageMap()
+    package_map.PopulateFromEnvironment("ROS_PACKAGE_PATH")
+    base_dir = getDrakePath()
+    weld_frame = None
+    floating_base_type = FloatingBaseType.kFixed
+
+    robot = RigidBodyTree()
+    AddModelInstanceFromUrdfStringSearchingInRosPackages(
+        rospy.get_param("/robot_description"),
+        package_map,
+        base_dir,
+        floating_base_type,
+        weld_frame,
+        robot)
+    index = robot.findFrame("iiwa_link_ee").get_frame_index()
+    q = robotSubscriber.get_position_vector_from_joint_names(control_utils.getIiwaJointNames())
+    q_full = np.zeros(robot.get_num_positions())
+    q_full[0:q.shape[0]] = q
+    kincache = robot.doKinematics(q_full)
+    original_point = robot.transformPoints(kincache, np.zeros(3), index, 0)
+    target_point = original_point[:, 0] + np.array([0.05, 0., 0.])
+    start_time = time.time()
+    print target_point
+    while (time.time() - start_time < 5.):
+        new_msg = robot_msgs.msg.CartesianGoalPoint()
+        new_msg.xyz_point.header.frame_id = "world"
+        new_msg.xyz_point.point.x = target_point[0]
+        new_msg.xyz_point.point.y = target_point[1]
+        new_msg.xyz_point.point.z = target_point[2]
+        new_msg.xyz_d_point.x = 0.
+        new_msg.xyz_d_point.y = 0.
+        new_msg.xyz_d_point.z = 0.0
+        new_msg.quaternion.w = 1.
+        new_msg.quaternion.x = 0.
+        new_msg.quaternion.y = 0.
+        new_msg.quaternion.z = 0.
+        new_msg.gain = make_cartesian_gains_msg()
+        new_msg.gain.rotation.x = 0
+        new_msg.gain.rotation.y = 0
+        new_msg.gain.rotation.z = 0
+        new_msg.ee_frame_id = "iiwa_link_ee"
+        pub.publish(new_msg)
+        rospy.sleep(0.05)
+
+    rospy.wait_for_service("plan_runner/stop_plan")
+    sp = rospy.ServiceProxy('plan_runner/stop_plan',
+        std_srvs.srv.Trigger)
+    init = std_srvs.srv.TriggerRequest()
+    print sp(init)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--movement", type=str,
         help="(optional) type of movement, can be gripper_frame or world_frame", default="gripper_frame")
     rospy.init_node("test_plan_runner")
     args = parser.parse_args()
-    # test_joint_trajectory_action()
+    test_joint_trajectory_action()
     # test_cartesian_trajectory_action(move_type=args.movement)
     # test_joint_trajectory_action_with_force_guard()
-    test_joint_space_streaming()
+    #test_joint_space_streaming()
+    test_task_space_streaming()
