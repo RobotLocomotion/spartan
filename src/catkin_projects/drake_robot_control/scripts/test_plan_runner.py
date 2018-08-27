@@ -15,15 +15,6 @@ import std_srvs.srv
 import robot_control.control_utils as control_utils
 import spartan.utils.ros_utils as ros_utils
 
-from pydrake import getDrakePath
-from pydrake.common import FindResourceOrThrow
-from pydrake.multibody.parsers import PackageMap
-from pydrake.multibody.rigid_body_tree import (
-    AddModelInstanceFromUrdfStringSearchingInRosPackages,
-    FloatingBaseType,
-    RigidBodyTree
-)
-
 def test_joint_trajectory_action():
     client = actionlib.SimpleActionClient("plan_runner/JointTrajectory", robot_msgs.msg.JointTrajectoryAction)
 
@@ -271,50 +262,23 @@ def test_task_space_streaming():
         rospy.sleep(0.1)
     print("got full state")
 
-    robot = RigidBodyTree()
-    package_map = PackageMap()
-    package_map.PopulateFromEnvironment("ROS_PACKAGE_PATH")
-    base_dir = getDrakePath()
-    weld_frame = None
-    floating_base_type = FloatingBaseType.kFixed
-
-    robot = RigidBodyTree()
-    AddModelInstanceFromUrdfStringSearchingInRosPackages(
-        rospy.get_param("/robot_description"),
-        package_map,
-        base_dir,
-        floating_base_type,
-        weld_frame,
-        robot)
-    index = robot.findFrame("iiwa_link_ee").get_frame_index()
-    q = robotSubscriber.get_position_vector_from_joint_names(control_utils.getIiwaJointNames())
-    q_full = np.zeros(robot.get_num_positions())
-    q_full[0:q.shape[0]] = q
-    kincache = robot.doKinematics(q_full)
-    original_point = robot.transformPoints(kincache, np.zeros(3), index, 0)
-    target_point = original_point[:, 0] + np.array([0.05, 0., 0.])
     start_time = time.time()
-    print target_point
-    while (time.time() - start_time < 5.):
-        new_msg = robot_msgs.msg.CartesianGoalPoint()
-        new_msg.xyz_point.header.frame_id = "world"
-        new_msg.xyz_point.point.x = target_point[0]
-        new_msg.xyz_point.point.y = target_point[1]
-        new_msg.xyz_point.point.z = target_point[2]
-        new_msg.xyz_d_point.x = 0.
-        new_msg.xyz_d_point.y = 0.
-        new_msg.xyz_d_point.z = 0.0
-        new_msg.quaternion.w = 1.
-        new_msg.quaternion.x = 0.
-        new_msg.quaternion.y = 0.
-        new_msg.quaternion.z = 0.
-        new_msg.gain = make_cartesian_gains_msg()
-        new_msg.gain.rotation.x = 0
-        new_msg.gain.rotation.y = 0
-        new_msg.gain.rotation.z = 0
-        new_msg.ee_frame_id = "iiwa_link_ee"
+    new_msg = robot_msgs.msg.CartesianGoalPoint()
+    new_msg.xyz_point.header.frame_id = "iiwa_link_ee"
+    new_msg.xyz_point.point.x = 0.0
+    new_msg.xyz_point.point.y = 0.01
+    new_msg.xyz_point.point.z = 0.0
+    new_msg.xyz_d_point.x = 0.
+    new_msg.xyz_d_point.y = 0.
+    new_msg.xyz_d_point.z = 0.0
+    new_msg.quaternion.w = 1.
+    new_msg.quaternion.x = 0.
+    new_msg.quaternion.y = 0.
+    new_msg.quaternion.z = 0.
+    new_msg.gain = make_cartesian_gains_msg()
+    new_msg.ee_frame_id = "iiwa_link_ee"
+    while (time.time() - start_time < 1.0):
         pub.publish(new_msg)
-        rospy.sleep(0.05)
 
     rospy.wait_for_service("plan_runner/stop_plan")
     sp = rospy.ServiceProxy('plan_runner/stop_plan',
