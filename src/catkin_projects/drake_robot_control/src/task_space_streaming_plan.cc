@@ -145,9 +145,6 @@ void TaskSpaceStreamingPlan::Step(
   *q_commanded = q + q_dot_cmd * dt;
   *v_commanded = q_dot_cmd; // This is ignored when constructing iiwa_command.
 
-
-  printf("Here, line 144\n");
-
   bool unsafe_command = Eigen::isnan(q_commanded->array()).any();
   if (unsafe_command) {
     std::cout << "\n\nunsafe command caught inside Step()" << std::endl;
@@ -171,6 +168,10 @@ void TaskSpaceStreamingPlan::Step(
 
 void TaskSpaceStreamingPlan::HandleSetpoint(
     const robot_msgs::CartesianGoalPoint::ConstPtr& msg) {
+  if (this->is_stopped()){
+    std::cout << "In callback, but plan is stopped... forcefully unregistering." << std::endl;
+    this->setpoint_subscriber_->shutdown();
+  }
   std::lock_guard<std::mutex> lock(goal_mutex_);
   std::cout << "Starting to handle setpoint... " << std::endl;
   // Extract the body index in the RBT that this msg
