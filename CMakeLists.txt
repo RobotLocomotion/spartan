@@ -317,6 +317,7 @@ if (WITH_ROS)
       # Combine environment prefix path (with ROS) with our own
       "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_INSTALL_PREFIX};${CMAKE_PREFIX_PATH_ENV}"
       -DWITH_DRAKE_IIWA_SIM:BOOL=${WITH_DRAKE_IIWA_SIM}
+      -Drazer_hydra_INSTALL_UDEV_RULES:BOOL=OFF
     DEPENDS drake director common_utils
   )
 endif()
