@@ -56,6 +56,7 @@ add_message_files(
    ForceGuard.msg
    ExternalForceGuard.msg
    CartesianGain.msg
+   CartesianGoalPoint.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -64,7 +65,7 @@ add_service_files(
   SendJointTrajectory.srv
   MoveToJointPosition.srv
   RunIK.srv
-  StartJointSpaceStreamingPlan.srv
+  StartStreamingPlan.srv
 )
 
 ## Generate actions in the 'action' folder
