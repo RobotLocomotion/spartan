@@ -56,3 +56,6 @@
 [submodule "src/catkin_projects/wsg50-ros-pkg"]
 	path = src/catkin_projects/wsg50-ros-pkg
 	url = https://github.com/gizatt/wsg50-ros-pkg
+[submodule "src/catkin_projects/razer_hydra_ros"]
+	path = src/catkin_projects/razer_hydra_ros
+	url = https://github.com/aleeper/razer_hydra_ros
