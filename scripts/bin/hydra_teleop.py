@@ -26,6 +26,7 @@ import spartan.utils.ros_utils as ros_utils
 import spartan.utils.utils as spartan_utils
 import spartan.utils.transformations as transformations
 import robot_control.control_utils as control_utils
+from spartan.manipulation.schunk_driver import SchunkDriver
 # spartan ROS
 import robot_msgs.msg
 
@@ -164,6 +165,11 @@ if __name__ == "__main__":
     hydraSubscriber.waitForNextMessage()
     print("Got hydra.")
 
+    handDriver = SchunkDriver()
+    gripper_goal_pos = 0.1
+    handDriver.reset_and_home()
+    handDriver.reset_and_home()
+
     # Start by moving to an above-table pregrasp pose that we know
     # EE control will work well from (i.e. far from singularity)
     above_table_pre_grasp = [0.04486168762069299, 0.3256606458812486, -0.033502080520812445, -1.5769091802934694, 0.05899249087322813, 1.246379583616529, 0.38912999977004026]
@@ -212,9 +218,17 @@ if __name__ == "__main__":
 
     rospy.on_shutdown(cleanup)
     try:
+        last_gripper_update_time = time.time()
         while not rospy.is_shutdown():
             latest_hydra_msg = hydraSubscriber.waitForNextMessage()
-            
+            dt = time.time() - last_gripper_update_time
+            if dt > 2.0:
+                last_time = time.time()
+                gripper_goal_pos += latest_hydra_msg.paddles[0].joy[0]*dt*0.1
+                gripper_goal_pos = max(min(gripper_goal_pos, 0.1), 0.0)
+                handDriver.sendGripperCommand(gripper_goal_pos, speed=1.0)
+                print gripper_goal_pos
+
             try:
                 current_pose_ee = ros_utils.poseFromROSTransformMsg(
                     tfBuffer.lookup_transform("base", frame_name, rospy.Time()).transform)
@@ -241,7 +255,7 @@ if __name__ == "__main__":
                 hydra_tf[0:3, 0:3] = hydra_tf[0:3, 0:3].T
                 print("Relative TF:", hydra_tf)
                 # Target TF for the EE will be its start TF plus this offset
-                slerp_amount = 0.2
+                slerp_amount = 0.3
                 target_tf_ee = start_tf_ee.dot(hydra_tf.dot(frame_offset))
                 target_trans_ee = slerp_amount*target_tf_ee[:3, 3] + (1. - slerp_amount)*np.array(start_pose_ee[0])
                 target_quat_ee = slerp_amount*transformations.quaternion_from_matrix(
@@ -263,7 +277,7 @@ if __name__ == "__main__":
                 new_msg.gain = make_cartesian_gains_msg(5., 10.)
                 new_msg.ee_frame_id = frame_name
                 pub.publish(new_msg)
-                rospy.sleep(0.1)
+                rospy.sleep(0.01)
 
     except Exception as e:
         print "Suffered exception ", e
