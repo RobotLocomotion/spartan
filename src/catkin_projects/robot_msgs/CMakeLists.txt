@@ -64,6 +64,7 @@ add_service_files(
   SendJointTrajectory.srv
   MoveToJointPosition.srv
   RunIK.srv
+  StartJointSpaceStreamingPlan.srv
 )
 
 ## Generate actions in the 'action' folder

@@ -1,15 +1,19 @@
 import argparse
+import time
 
 import numpy as np
 
 import rospy
 import actionlib
 import robot_msgs.msg
+import robot_msgs.srv
 import trajectory_msgs.msg
 import geometry_msgs.msg
+import sensor_msgs.msg
+import std_srvs.srv
 
 import robot_control.control_utils as control_utils
-
+import spartan.utils.ros_utils as ros_utils
 
 def test_joint_trajectory_action():
     client = actionlib.SimpleActionClient("plan_runner/JointTrajectory", robot_msgs.msg.JointTrajectoryAction)
@@ -210,6 +214,38 @@ def make_force_guard_msg():
 
     return msg
 
+def test_joint_space_streaming():
+    rospy.wait_for_service("plan_runner/init_joint_space_streaming")
+    sp = rospy.ServiceProxy('plan_runner/init_joint_space_streaming',
+        robot_msgs.srv.StartJointSpaceStreamingPlan)
+    init = robot_msgs.srv.StartJointSpaceStreamingPlanRequest()
+    init.force_guard.append(make_force_guard_msg())
+    print sp(init)
+    pub = rospy.Publisher('plan_runner/joint_space_streaming_setpoint',
+        sensor_msgs.msg.JointState, queue_size=1)
+    robotSubscriber = ros_utils.JointStateSubscriber("/joint_states")
+    print("Waiting for full kuka state...")
+    while len(robotSubscriber.joint_positions.keys()) < 3:
+        rospy.sleep(0.1)
+    print("got full state")
+
+    start_time = time.time()
+    while (time.time() - start_time < 1.):
+        current_joint_positions = robotSubscriber.get_position_vector_from_joint_names(control_utils.getIiwaJointNames())
+    
+        new_msg = sensor_msgs.msg.JointState()
+        new_msg.name = control_utils.getIiwaJointNames()
+        new_msg.position = current_joint_positions
+        new_msg.velocity = np.zeros(7)
+        new_msg.effort = np.zeros(7)
+        new_msg.position[0] += 0.01
+        pub.publish(new_msg)
+
+    rospy.wait_for_service("plan_runner/stop_plan")
+    sp = rospy.ServiceProxy('plan_runner/stop_plan',
+        std_srvs.srv.Trigger)
+    init = std_srvs.srv.TriggerRequest()
+    print sp(init)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -219,4 +255,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     # test_joint_trajectory_action()
     # test_cartesian_trajectory_action(move_type=args.movement)
-    test_joint_trajectory_action_with_force_guard()
+    # test_joint_trajectory_action_with_force_guard()
+    test_joint_space_streaming()
