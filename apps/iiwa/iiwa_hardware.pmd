@@ -157,6 +157,11 @@ group "8.ROS" {
     host = "localhost";
   }
 
+  cmd "9.razer_hydra" {
+    exec = "roslaunch razer_hydra hydra.launch";
+    host = "localhost";
+  }
+
 }
 
 group "9.iiwa_sim" {
@@ -190,6 +195,7 @@ script "1.2.robot_noui_startup" {
   start cmd "6.ROS-OpenNI";
   start cmd "7.schunk_driver";
   start cmd "8.fusion_server";
+  start cmd "9.razer_hydra";
 }
 
 script "2.restart_controller" {
