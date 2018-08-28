@@ -118,10 +118,13 @@ def make_move_goal(trans, quat, duration):
     return goal
 
 
+def ro(quat):
+    return [quat[1], quat[2], quat[3], quat[0]]
+
 def tf_matrix_from_pose(pose):
     trans, quat = pose
     mat = transformations.quaternion_matrix(quat)
-    mat[:3,3] = trans
+    mat[:3, 3] = trans
     return mat
 
 def get_relative_tf_between_poses(pose_1, pose_2):
@@ -214,9 +217,14 @@ if __name__ == "__main__":
         print("Done cleaning up and stopping streaming plan")
 
     frame_name = "iiwa_link_ee"
-    frame_offset = transformations.euler_matrix(0., 0., 0.)
+    # origin_tf, in the above EE frame
+    origin_tf = transformations.euler_matrix(0.0, 0., 0.)
+    origin_tf[0:3, 3] = np.array([0.15, 0.0, 0.0])
+    origin_tf_inv = np.linalg.inv(origin_tf)
 
     rospy.on_shutdown(cleanup)
+    br = tf.TransformBroadcaster()
+
     try:
         last_gripper_update_time = time.time()
         while not rospy.is_shutdown():
@@ -228,6 +236,12 @@ if __name__ == "__main__":
                 gripper_goal_pos = max(min(gripper_goal_pos, 0.1), 0.0)
                 handDriver.sendGripperCommand(gripper_goal_pos, speed=1.0)
                 print gripper_goal_pos
+
+            br.sendTransform(origin_tf[0:3, 3],
+                             ro(transformations.quaternion_from_matrix(origin_tf)),
+                             rospy.Time.now(),
+                             "origin_tf",
+                             frame_name)
 
             try:
                 current_pose_ee = ros_utils.poseFromROSTransformMsg(
@@ -250,17 +264,58 @@ if __name__ == "__main__":
                     enable_move_button_last_state = True
                 # Difference in tf from initial TF
                 current_pose_wand = ros_utils.poseFromROSTransformMsg(hydra_status.transform)
-                hydra_tf = get_relative_tf_between_poses(start_pose_wand, current_pose_wand)
-                # WHY IS THIS NECESSARY
-                hydra_tf[0:3, 0:3] = hydra_tf[0:3, 0:3].T
-                print("Relative TF:", hydra_tf)
-                # Target TF for the EE will be its start TF plus this offset
-                slerp_amount = 0.3
-                target_tf_ee = start_tf_ee.dot(hydra_tf.dot(frame_offset))
-                target_trans_ee = slerp_amount*target_tf_ee[:3, 3] + (1. - slerp_amount)*np.array(start_pose_ee[0])
-                target_quat_ee = slerp_amount*transformations.quaternion_from_matrix(
-                    target_tf_ee) + (1. - slerp_amount)*np.array(start_pose_ee[1])
 
+                # These expect quat in x y z w, rather than our normal w x y z
+                br.sendTransform(start_pose_wand[0], ro(start_pose_wand[1]),
+                                 rospy.Time.now(),
+                                 "start_pose_wand",
+                                 "base")
+                br.sendTransform(current_pose_wand[0], ro(current_pose_wand[1]),
+                                 rospy.Time.now(),
+                                 "current_pose_wand",
+                                 "base")
+                br.sendTransform(start_pose_ee[0], ro(start_pose_ee[1]),
+                                 rospy.Time.now(),
+                                 "start_pose_ee",
+                                 "base")
+
+                hydra_tf = get_relative_tf_between_poses(start_pose_wand, current_pose_wand)
+
+                # Target TF for the EE will be its start TF plus this offset
+                rot_slerp_amount = 1.0
+                trans_slerp_amount = 0.5
+
+                tf_in_ee_frame = origin_tf.dot(hydra_tf).dot(origin_tf_inv)
+
+                br.sendTransform(tf_in_ee_frame[0:3, 3],
+                                 ro(transformations.quaternion_from_matrix(tf_in_ee_frame)),
+                                 rospy.Time.now(),
+                                 "tf_in_ee_frame",
+                                 "base")
+
+                start_tf_ee_inv = np.linalg.inv(start_tf_ee)
+                target_tf_ee = start_tf_ee.copy()
+                target_tf_ee[0:3, 3] += tf_in_ee_frame[0:3, 3] # copy position change in world frame
+                target_tf_ee[0:3, 0:3] = tf_in_ee_frame[0:3, 0:3].dot(target_tf_ee[0:3, 0:3])
+
+                br.sendTransform(target_tf_ee[0:3, 3],
+                                 ro(transformations.quaternion_from_matrix(target_tf_ee)),
+                                 rospy.Time.now(),
+                                 "target_tf_ee",
+                                 "base")
+
+                target_trans_ee = trans_slerp_amount*target_tf_ee[:3, 3] + (1. - trans_slerp_amount)*np.array(start_pose_ee[0])
+                target_quat_ee = transformations.quaternion_slerp(
+                    np.array(start_pose_ee[1]),
+                    transformations.quaternion_from_matrix(target_tf_ee),
+                    rot_slerp_amount)
+                target_quat_ee = np.array(target_quat_ee) / np.linalg.norm(target_quat_ee)
+
+                br.sendTransform(target_trans_ee,
+                                 ro(target_quat_ee),
+                                 rospy.Time.now(),
+                                 "target_tf_ee_interp",
+                                 "base")
 
                 new_msg = robot_msgs.msg.CartesianGoalPoint()
                 new_msg.xyz_point.header.frame_id = "world"
