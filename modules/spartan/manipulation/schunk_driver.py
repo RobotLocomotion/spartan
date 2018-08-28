@@ -81,6 +81,7 @@ class SchunkDriver(object):
 	def sendGripperCommand(self, position, force=40., speed=0.1, stop_on_block=False):
 		msg = wsg_50_common.msg.CommandActionGoal()
 		msg.header.stamp = rospy.Time.now()
+		msg.goal.command.command_id = wsg_50_common.msg.Command.MOVE
 		msg.goal.command.width = position
 		msg.goal.command.speed = speed
 		msg.goal.command.force = force
