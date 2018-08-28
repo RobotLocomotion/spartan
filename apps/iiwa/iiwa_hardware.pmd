@@ -173,11 +173,23 @@ group "9.iiwa_sim" {
 
 }
 
-script "1.robot_startup" {
-    start group "1.vision-drivers";
-    start group "2.iiwa-drivers";
-    start group "3.schunk-driver";
-    start cmd "4.director";
+script "1.1.robot_full_startup" {
+  run_script "1.2.robot_noui_startup";
+  wait ms 5000;
+  start cmd "4.director";
+  start cmd "3.rviz";
+}
+
+script "1.2.robot_noui_startup" {
+  start cmd "0.roscore";
+  wait ms 3000;
+  start group "2.iiwa-drivers";
+  start cmd "2.ROS Model and TF Publisher";
+  start cmd "4.Robot Movement Service";
+  start cmd "5.IK Service";
+  start cmd "6.ROS-OpenNI";
+  start cmd "7.schunk_driver";
+  start cmd "8.fusion_server";
 }
 
 script "2.restart_controller" {
@@ -222,7 +234,7 @@ script "5.start_ROS" {
   start group "8.ROS";
 }
 
-script "6.start_drake_iiwa_sim"
+script "6.0.start_drake_iiwa_sim"
 {
   start cmd "0.roscore";
   wait ms 3000;
