@@ -230,11 +230,11 @@ if __name__ == "__main__":
         while not rospy.is_shutdown():
             latest_hydra_msg = hydraSubscriber.waitForNextMessage()
             dt = time.time() - last_gripper_update_time
-            if dt > 2.0:
+            if dt > 0.1:
                 last_time = time.time()
-                gripper_goal_pos += latest_hydra_msg.paddles[0].joy[0]*dt*0.1
+                gripper_goal_pos += latest_hydra_msg.paddles[0].joy[0]*dt*0.001
                 gripper_goal_pos = max(min(gripper_goal_pos, 0.1), 0.0)
-                handDriver.sendGripperCommand(gripper_goal_pos, speed=1.0)
+                handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1)
                 print gripper_goal_pos
 
             br.sendTransform(origin_tf[0:3, 3],
