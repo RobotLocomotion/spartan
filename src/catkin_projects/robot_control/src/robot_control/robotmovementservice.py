@@ -15,7 +15,7 @@ import robot_msgs.msg
 import robot_control.control_utils as controlUtils
 
 
-from spartan.utils.ros_utils import SimpleSubscriber
+from spartan.utils.ros_utils import JointStateSubscriber
 
 
 class RobotMovementService(object):
@@ -46,24 +46,22 @@ class RobotMovementService(object):
         self.subscribers = dict()
 
 
-        s = SimpleSubscriber(self.config['joint_states_topic'], sensor_msgs.msg.JointState)
-        s.start()
+        s = JointStateSubscriber(topic=self.config['joint_states_topic'])
         self.subscribers['joint_states'] = s
 
     def setupRobot(self):
         self.jointNames = controlUtils.getIiwaJointNames()
 
     def getRobotState(self):
-        full_state = self.subscribers['joint_states'].waitForNextMessage()
-        # Reduce to just this robot's state
-        keep_indices = [full_state.name.index(name) for name in self.jointNames if name in full_state.name]
-        if len(keep_indices) != len(self.jointNames):
-            raise Exception("At least one of the requested joint names was not in the full robot state.")
+        self.subscribers['joint_states'].subscriber.waitForNextMessage()
         reduced_state = sensor_msgs.msg.JointState()
         reduced_state.name = self.jointNames
-        reduced_state.position = [full_state.position[i] for i in keep_indices]
-        reduced_state.velocity = [full_state.velocity[i] for i in keep_indices]
-        reduced_state.effort = [full_state.effort[i] for i in keep_indices]
+        reduced_state.position = self.subscribers['joint_states']\
+            .get_position_vector_from_joint_names(self.jointNames)
+        reduced_state.velocity = self.subscribers['joint_states']\
+            .get_velocity_vector_from_joint_names(self.jointNames)
+        reduced_state.effort = self.subscribers['joint_states']\
+            .get_effort_vector_from_joint_names(self.jointNames)
         return reduced_state
 
     """
