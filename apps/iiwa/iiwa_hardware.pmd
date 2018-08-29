@@ -240,7 +240,7 @@ script "5.start_ROS" {
   start group "8.ROS";
 }
 
-script "6.0.start_drake_iiwa_sim"
+script "6.start_drake_iiwa_sim"
 {
   start cmd "0.roscore";
   wait ms 3000;
