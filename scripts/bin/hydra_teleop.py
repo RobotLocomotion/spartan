@@ -149,7 +149,7 @@ def build_rbt_from_ros_environment():
         robot)
     return robot
 
-if __name__ == "__main__":
+def do_main():
     rospy.init_node('sandbox', anonymous=True)
 
     tfBuffer = tf2_ros.Buffer()
@@ -228,20 +228,19 @@ if __name__ == "__main__":
     try:
         last_gripper_update_time = time.time()
         while not rospy.is_shutdown():
-            latest_hydra_msg = hydraSubscriber.waitForNextMessage()
+            latest_hydra_msg = hydraSubscriber.waitForNextMessage(sleep_duration=0.0001)
             dt = time.time() - last_gripper_update_time
-            if dt > 0.1:
-                last_time = time.time()
-                gripper_goal_pos += latest_hydra_msg.paddles[0].joy[0]*dt*0.0005
+            if dt > 0.2:
+                last_gripper_update_time = time.time()
+                gripper_goal_pos += latest_hydra_msg.paddles[0].joy[0]*dt*0.05
                 gripper_goal_pos = max(min(gripper_goal_pos, 0.1), 0.0)
                 handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1)
-                print gripper_goal_pos
-
-            br.sendTransform(origin_tf[0:3, 3],
-                             ro(transformations.quaternion_from_matrix(origin_tf)),
-                             rospy.Time.now(),
-                             "origin_tf",
-                             frame_name)
+                print "Gripper goal pos: ", gripper_goal_pos
+                #br.sendTransform(origin_tf[0:3, 3],
+                #                 ro(transformations.quaternion_from_matrix(origin_tf)),
+                #                 rospy.Time.now(),
+                #                 "origin_tf",
+                #                 frame_name)
 
             try:
                 current_pose_ee = ros_utils.poseFromROSTransformMsg(
@@ -332,7 +331,10 @@ if __name__ == "__main__":
                 new_msg.gain = make_cartesian_gains_msg(5., 10.)
                 new_msg.ee_frame_id = frame_name
                 pub.publish(new_msg)
-                rospy.sleep(0.01)
 
     except Exception as e:
         print "Suffered exception ", e
+
+
+if __name__ == "__main__":
+    do_main()
