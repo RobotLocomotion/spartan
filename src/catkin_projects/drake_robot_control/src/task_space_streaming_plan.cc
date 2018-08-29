@@ -54,13 +54,13 @@ void TaskSpaceStreamingPlan::Step(
     bool guard_triggered = result.first;
 
     if (guard_triggered) {
-      std::cout << "Force Guard Triggered, commanding to measured" << std::endl;
+      std::cout << "Force Guard Triggered, commanding in direction of measured position" << std::endl;
       std::cout << "ForceGuardType: " << result.second.second->get_type()
                 << std::endl;
       //plan_status_ = PlanStatus::STOPPED_BY_FORCE_GUARD;
       //this->SetPlanFinished();
-
-      *q_commanded = q;
+      *q_commanded = q_commanded_prev_*0.99 + q*0.01;
+      q_commanded_prev_ = *q_commanded;
       *tau_commanded = Eigen::VectorXd::Zero(this->get_num_positions());
       return;
     }
