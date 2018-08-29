@@ -35,7 +35,6 @@
 #include <tf2_ros/transform_listener.h>
 #include "std_srvs/Trigger.h"
 
-#include "robot_msgs/CartesianPoint.h"
 #include "robot_msgs/CartesianTrajectoryAction.h"
 #include "robot_msgs/JointTrajectoryAction.h"
 #include "robot_msgs/StartStreamingPlan.h"
