@@ -208,6 +208,25 @@ def do_main():
     start_pose_wand = None
     start_tf_ee = None
 
+    #safe_space_bounds = np.array([
+    #    [-0.1525049945545604, -0.29228035558728516, 0.13544803250537002],
+    #    [-0.4769166944956231, -0.35229338435348867, 0.19769445898112134],
+    #    [-0.457830238829753, 0.20935562473070765, 0.21958282208421853],
+    #    [-0.11156388045357436, 0.19961179929244402, 0.26618401754649285],
+    #    [-0.10225744036375771, 0.22933143089985508, 0.48444059628986263],
+    #    [-0.14861448807866284, -0.41030619355456643, 0.4648083304072826],
+    #    [-0.5242759491071456, -0.4147275210829423, 0.4948555294112139],
+    #    [-0.4847194053597296, 0.27176780719677074, 0.45391525596908033],
+    #    [-0.17358753502356636, 0.18660040610810102, 0.15775990744092278],
+    #    [-0.45109038331994794, 0.20434001341514574, 0.09804323148032473],
+    #    [-0.4716416007082929, -0.3620164988593509, 0.12965905105466402],
+    #    [-0.16130783846258154, -0.3208282816424661, 0.109649432666865]])
+    # Reasonable inner bounding box
+    safe_space_lower = np.array([-0.45, -0.35, 0.125])
+    safe_space_upper = np.array([-0.15, 0.2, 0.45])
+    safe_space_violation = False
+    last_safe_space_complaint = time.time() - 1000.
+
     def cleanup():
         rospy.wait_for_service("plan_runner/stop_plan")
         sp = rospy.ServiceProxy('plan_runner/stop_plan',
@@ -227,6 +246,7 @@ def do_main():
 
     try:
         last_gripper_update_time = time.time()
+        last_button_1_status = False
         while not rospy.is_shutdown():
             latest_hydra_msg = hydraSubscriber.waitForNextMessage(sleep_duration=0.0001)
             dt = time.time() - last_gripper_update_time
@@ -236,11 +256,11 @@ def do_main():
                 gripper_goal_pos = max(min(gripper_goal_pos, 0.1), 0.0)
                 handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1)
                 print "Gripper goal pos: ", gripper_goal_pos
-                #br.sendTransform(origin_tf[0:3, 3],
-                #                 ro(transformations.quaternion_from_matrix(origin_tf)),
-                #                 rospy.Time.now(),
-                #                 "origin_tf",
-                #                 frame_name)
+                br.sendTransform(origin_tf[0:3, 3],
+                                 ro(transformations.quaternion_from_matrix(origin_tf)),
+                                 rospy.Time.now(),
+                                 "origin_tf",
+                                 frame_name)
 
             try:
                 current_pose_ee = ros_utils.poseFromROSTransformMsg(
@@ -252,17 +272,31 @@ def do_main():
 
             # Check if the move button is press
             hydra_status = latest_hydra_msg.paddles[paddle_index]
+
+            # Difference in tf from initial TF
+            current_pose_wand = ros_utils.poseFromROSTransformMsg(hydra_status.transform)
+            if hydra_status.buttons[1] and hydra_status.buttons[1] != last_button_1_status:
+                print "Current wand pose: ", current_pose_wand
+            wand_trans = np.array(current_pose_wand[0])
+            if np.any(wand_trans <= safe_space_lower) or np.any(wand_trans >= safe_space_upper):
+                if time.time() - last_safe_space_complaint > 0.5:
+                    print "Safe space violation: ", wand_trans
+                    last_safe_space_complaint = time.time()
+                safe_space_violation = True
+
             if hydra_status.buttons[enable_move_button_index] is False:
                 enable_move_button_last_state = False
-            else:
+                safe_space_violation = False
+            elif safe_space_violation is False:
                 if enable_move_button_last_state is False:
                     start_pose_wand = ros_utils.poseFromROSTransformMsg(hydra_status.transform)
                     start_tf_wand = tf_matrix_from_pose(start_pose_wand)
                     start_pose_ee = current_pose_ee
                     start_tf_ee = tf_matrix_from_pose(start_pose_ee)
                     enable_move_button_last_state = True
-                # Difference in tf from initial TF
-                current_pose_wand = ros_utils.poseFromROSTransformMsg(hydra_status.transform)
+
+
+                last_button_1_status = hydra_status.buttons[1]
 
                 # These expect quat in x y z w, rather than our normal w x y z
                 br.sendTransform(start_pose_wand[0], ro(start_pose_wand[1]),
