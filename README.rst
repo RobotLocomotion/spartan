@@ -19,9 +19,8 @@ Drake_ and Director_. This repository is meant as an internal tool for the Robot
 .. _Director: https://www.github.com/RobotLocomotion/director
 .. _can be found here: https://github.com/RobotLocomotion/KukaHardware
 
-
 Docker Build instructions
-==================
+===========================
 
 The only supported way to build Spartan is with Docker.  See `build with Docker instructions here`_.
 
@@ -240,13 +239,13 @@ FAQ
 - If you get an error related to being unable to find a shared library ``liblcm.so`` after calling ``make``, you may not have called ``. build/setup_environment.sh`` (or, equivalently, ``use_spartan``). These commands work only after calling ``cmake``, so run the CMake configuration -- then source the environment setup file -- then run ``make``.
 
 Code Style
-=======
+=======================
 - C++ code should follow the Google style guide https://google.github.io/styleguide/cppguide.html
 - Python code should follow the Google style guide https://github.com/google/styleguide/blob/gh-pages/pyguide.md
 
 
 CI with Jenkins
-=======
+============================
 CI is provided by Jenkins, presently running on a DRC laptop running Ubuntu
 16.04 with nvidia-375 and CUDA 8, plus docker and nvidia-docker. Two Jenkins jobs test
 our build:
@@ -267,3 +266,9 @@ That includes failures in initializing any submodule; errors provisioning or
 launching a docker container; or errors detected by the `run_jenkins` script,
 which contains its own error checking on the CMake configuration and the build.
 Eventually, we'll be able to test a full simulation stack too!
+
+
+Useful other documentation
+==========================
+`Razer Hydra teleop guide <docs/hydra_guide.md>`_
+`Schunk driving and usage guide <docs/schunk_driving_guide.md>`_
