@@ -316,7 +316,7 @@ def do_main():
 
                 # Target TF for the EE will be its start TF plus this offset
                 rot_slerp_amount = 1.0
-                trans_slerp_amount = 0.5
+                trans_slerp_amount = 1.0
 
                 tf_in_ee_frame = origin_tf.dot(hydra_tf).dot(origin_tf_inv)
 
