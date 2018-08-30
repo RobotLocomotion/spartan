@@ -623,11 +623,12 @@ class FusionServer(object):
 
         log_dir = os.path.dirname(os.path.dirname(bag_filepath))
         processed_dir = os.path.join(log_dir, 'processed')
-        images_dir = os.path.join(processed_dir, save_folder_name)
+        images_dir = os.path.join(processed_dir, 'rgbd_images')
 
         if rgb_only:
             images_dir = os.path.join(processed_dir, 'images')
 
+        print "Using log dir %s, processed_dir %s, and images_dir %s" % (log_dir, processed_dir, images_dir)
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
             self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
         image_capture.load_ros_bag(bag_filepath)
@@ -680,7 +681,13 @@ class FusionServer(object):
             tsdf_fusion.format_data_for_tsdf(images_dir)
 
             print "running tsdf fusion"
+            # defaults: voxel_grid_origin_x=0.4,
+            # voxel_grid_origin_y=-0.3, voxel_grid_origin_z=-0.2, voxel_size=0.0025
+            # 1mm voxels
             tsdf_fusion.run_tsdf_fusion_cuda(images_dir)
+            #tsdf_fusion.run_tsdf_fusion_cuda(images_dir, voxel_size=0.001,
+            #    voxel_grid_origin_x=0.48, voxel_grid_origin_y=-0.25, voxel_grid_origin_z=-0.07,
+            #    voxel_grid_dim_x=480, voxel_grid_dim_y=640, voxel_grid_dim_z=140)
 
             print "converting tsdf to ply"
             tsdf_bin_filename = os.path.join(processed_dir, 'tsdf.bin')
