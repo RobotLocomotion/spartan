@@ -272,3 +272,4 @@ Useful other documentation
 ==========================
 `Razer Hydra teleop guide <docs/hydra_guide.md>`_
 `Schunk driving and usage guide <docs/schunk_driving_guide.md>`_
+`Fusion server notes <docs/fusion_server_notes.md>`_
