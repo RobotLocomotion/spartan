@@ -415,4 +415,4 @@ class RobotService(object):
 
     @staticmethod
     def makeKukaRobotService():
-        return RobotService(spartanUtils.getKukaJointNames())
+        return RobotService(spartanUtils.get_kuka_joint_names())
