@@ -413,16 +413,6 @@ class RobotService(object):
 
         return jointState
 
-
-
     @staticmethod
     def makeKukaRobotService():
-        jointNames = ['iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3',
-     'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6',
-     'iiwa_joint_7']
-
-        return RobotService(jointNames)
-
-
-
-
+        return RobotService(spartanUtils.getKukaJointNames())

@@ -108,10 +108,7 @@ def make_force_guard_msg():
 class IiwaSimulationTest(unittest.TestCase):
 
     def setUp(self):
-        self.kuka_joint_names = [
-          'iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3',
-          'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6',
-          'iiwa_joint_7']
+        self.kuka_joint_names = spartan_utils.get_kuka_joint_names()
         self._all_processes = []
         self._terminate_all_processes()
         self._launch_procman_and_start_simulator()
