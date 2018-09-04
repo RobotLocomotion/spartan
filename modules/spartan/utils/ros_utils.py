@@ -299,10 +299,10 @@ class SimpleSubscriber(object):
         if self.externalCallback is not None:
             self.externalCallback(msg)
 
-    def waitForNextMessage(self):
+    def waitForNextMessage(self, sleep_duration=0.1):
         self.hasNewMessage = False
         while not self.hasNewMessage:
-            rospy.sleep(0.1)
+            rospy.sleep(sleep_duration)
         return self.lastMsg
 
 
@@ -336,6 +336,21 @@ class JointStateSubscriber(object):
             q[i] = self.joint_positions[name]
         return q
 
+    def get_velocity_vector_from_joint_names(self, joint_name_list):
+        v = np.zeros(len(joint_name_list))
+        for i, name in enumerate(joint_name_list):
+            if name not in self.joint_positions.keys():
+                raise ValueError("Never received state for joint %s" % name)
+            v[i] = self.joint_velocities[name]
+        return v
+
+    def get_effort_vector_from_joint_names(self, joint_name_list):
+        e = np.zeros(len(joint_name_list))
+        for i, name in enumerate(joint_name_list):
+            if name not in self.joint_positions.keys():
+                raise ValueError("Never received state for joint %s" % name)
+            e[i] = self.joint_efforts[name]
+        return e
 
 
 '''

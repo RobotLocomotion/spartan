@@ -12,7 +12,9 @@
 #include <yaml-cpp/yaml.h>
 
 #include <drake_robot_control/joint_space_trajectory_plan.h>
+#include <drake_robot_control/joint_space_streaming_plan.h>
 #include <drake_robot_control/plan_base.h>
+#include <drake_robot_control/task_space_streaming_plan.h>
 #include <drake_robot_control/task_space_trajectory_plan.h>
 
 #include <lcm/lcm-cpp.hpp>
@@ -31,9 +33,11 @@
 #include <actionlib/server/simple_action_server.h>
 // #include <tf/transform_listener.h>
 #include <tf2_ros/transform_listener.h>
+#include "std_srvs/Trigger.h"
 
 #include "robot_msgs/CartesianTrajectoryAction.h"
 #include "robot_msgs/JointTrajectoryAction.h"
+#include "robot_msgs/StartStreamingPlan.h"
 
 namespace drake {
 namespace robot_plan_runner {
@@ -163,6 +167,17 @@ private:
     terminate_current_plan_flag_ = true;
   }
 
+  bool HandlePlanEndServiceCall(
+    std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
+  bool HandleInitJointSpaceStreamingServiceCall(
+    robot_msgs::StartStreamingPlan::Request &req,
+    robot_msgs::StartStreamingPlan::Response &res);
+  bool HandleInitTaskSpaceStreamingServiceCall(
+    robot_msgs::StartStreamingPlan::Request &req,
+    robot_msgs::StartStreamingPlan::Response &res);
+  void HandleJointSpaceStreamingSetpoint(
+      const sensor_msgs::JointState::ConstPtr& msg);
+
   void GetBodyPoseInWorldFrame(const RigidBody<double> &body,
                                Eigen::Isometry3d *const T_ee,
                                Eigen::Vector3d *const rpy);
@@ -213,6 +228,13 @@ private:
   std::shared_ptr<
       actionlib::SimpleActionServer<robot_msgs::CartesianTrajectoryAction>>
       cartesian_trajectory_action_;
+
+  std::shared_ptr<ros::ServiceServer>
+    plan_end_server_;
+  std::shared_ptr<ros::ServiceServer>
+    joint_space_streaming_plan_init_server_;
+  std::shared_ptr<ros::ServiceServer>
+    task_space_streaming_plan_init_server_;
 
   // config
   YAML::Node config_;

@@ -623,11 +623,12 @@ class FusionServer(object):
 
         log_dir = os.path.dirname(os.path.dirname(bag_filepath))
         processed_dir = os.path.join(log_dir, 'processed')
-        images_dir = os.path.join(processed_dir, save_folder_name)
+        images_dir = os.path.join(processed_dir, 'rgbd_images')
 
         if rgb_only:
             images_dir = os.path.join(processed_dir, 'images')
 
+        print "Using log dir %s, processed_dir %s, and images_dir %s" % (log_dir, processed_dir, images_dir)
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
             self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
         image_capture.load_ros_bag(bag_filepath)
@@ -673,7 +674,7 @@ class FusionServer(object):
                                             self.cache['point_cloud_to_world_stamped'])
 
             response = CaptureSceneAndFuseResponse(elastic_fusion_output)
-            
+
         elif self.config['fusion_type'] == FusionType.TSDF_FUSION:
 
             print "formatting data for tsdf fusion"

@@ -156,6 +156,105 @@ RobotPlanRunner::RobotPlanRunner(
       boost::bind(&RobotPlanRunner::ExecuteCartesianTrajectoryAction, this, _1),
       false);
   cartesian_trajectory_action_->start(); // start the ROS action
+
+  // Set up the streaming plan management services and channels
+  plan_end_server_ = std::make_shared<ros::ServiceServer>(
+      nh_.advertiseService(
+        "/plan_runner/stop_plan",
+        &RobotPlanRunner::HandlePlanEndServiceCall, this));
+  joint_space_streaming_plan_init_server_ = 
+    std::make_shared<ros::ServiceServer>(
+      nh_.advertiseService(
+        "/plan_runner/init_joint_space_streaming",
+        &RobotPlanRunner::HandleInitJointSpaceStreamingServiceCall, this));
+  task_space_streaming_plan_init_server_ = 
+    std::make_shared<ros::ServiceServer>(
+      nh_.advertiseService(
+        "/plan_runner/init_task_space_streaming",
+        &RobotPlanRunner::HandleInitTaskSpaceStreamingServiceCall, this));
+}
+
+bool RobotPlanRunner::HandleInitJointSpaceStreamingServiceCall(
+    robot_msgs::StartStreamingPlan::Request &req,
+    robot_msgs::StartStreamingPlan::Response &res) {
+  ROS_INFO("\n\n----JointSpaceStreaming Start------\n\n");
+  ROS_INFO("Received Joint Space Streaming Plan");
+
+  if (is_waiting_for_first_robot_status_message_) {
+    std::cout << "Discarding plan, no status message received yet" << std::endl;
+    res.status.status = res.status.ERROR;
+    return false;
+  }
+
+  auto plan_local = std::make_shared<JointSpaceStreamingPlan>(tree_, nh_);
+
+  std::cout << "started joint space streaming plan" << std::endl;
+
+  // Add ForceGuards if specified
+  if (req.force_guard.size() > 0) {
+
+    const robot_msgs::ForceGuard force_guard_msg = req.force_guard[0];
+    std::shared_ptr<ForceGuardContainer> guard_container =
+        ForceGuardContainerFromRosMsg(force_guard_msg, *tree_);
+
+    // if the shared_ptr is not null, it means there is at least one guard in
+    // the guard container
+    if (guard_container) {
+      ROS_INFO("Adding ForceGuardContainer to plan");
+      plan_local->set_guard_container(guard_container);
+    }
+  }
+
+  QueueNewPlan(plan_local);
+
+  res.status.status = res.status.RUNNING;
+  ROS_INFO("\n\n------JointSpaceStreaming Successfully Started------\n\n");
+  return true;
+}
+
+bool RobotPlanRunner::HandleInitTaskSpaceStreamingServiceCall(
+    robot_msgs::StartStreamingPlan::Request &req,
+    robot_msgs::StartStreamingPlan::Response &res) {
+  ROS_INFO("\n\n----TaskSpaceStreaming Start------\n\n");
+  ROS_INFO("Received Task Space Streaming Plan");
+
+  if (is_waiting_for_first_robot_status_message_) {
+    std::cout << "Discarding plan, no status message received yet" << std::endl;
+    res.status.status = res.status.ERROR;
+    return false;
+  }
+
+  auto plan_local = std::make_shared<TaskSpaceStreamingPlan>(tree_, nh_);
+
+  std::cout << "started task space streaming plan" << std::endl;
+
+  // Add ForceGuards if specified
+  if (req.force_guard.size() > 0) {
+
+    const robot_msgs::ForceGuard force_guard_msg = req.force_guard[0];
+    std::shared_ptr<ForceGuardContainer> guard_container =
+        ForceGuardContainerFromRosMsg(force_guard_msg, *tree_);
+
+    // if the shared_ptr is not null, it means there is at least one guard in
+    // the guard container
+    if (guard_container) {
+      ROS_INFO("Adding ForceGuardContainer to plan");
+      plan_local->set_guard_container(guard_container);
+    }
+  }
+
+  QueueNewPlan(plan_local);
+
+  res.status.status = res.status.RUNNING;
+  ROS_INFO("\n\n------TaskSpaceStreaming Successfully Started------\n\n");
+  return true;
+}
+
+bool RobotPlanRunner::HandlePlanEndServiceCall(
+  std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res) {
+  terminate_current_plan_flag_ = true;
+  res.success = true;
+  return true;
 }
 
 RobotPlanRunner::~RobotPlanRunner() {
