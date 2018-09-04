@@ -303,6 +303,8 @@ void RobotPlanRunner::PublishCommand() {
     robot_plan_mutex_.lock();
     if (terminate_current_plan_flag_.load() == true) {
       std::cout << "Terminating current plan" << std::endl;
+      plan_local.set_plan_status(PlanStatus::STOPPED_BY_EXTERNAL_TRIGGER);
+      plan_local.SetPlanFinished();
       terminate_current_plan_flag_.store(false);
       plan_local.reset();
     } else if (new_plan_) {
