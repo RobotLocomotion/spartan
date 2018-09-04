@@ -158,9 +158,8 @@ def wsgStatusSubscriberCallback(msg):
                   robotSystem.playbackRobotModel]:
         model.model.setJointPositions(
             # divide in two (since origin is in the middle but state
-            # is total distance between), and also convert to meters
-            # from mm
-            [-msg.position_mm*0.0005, msg.position_mm*0.0005],
+            # is total distance between)
+            [-msg.width*0.5, msg.width*0.5],
             ['wsg_50_base_joint_gripper_left', 'wsg_50_base_joint_gripper_right'])
 schunkDriver = DirectorSchunkDriver(statusSubscriberCallback=wsgStatusSubscriberCallback)
 

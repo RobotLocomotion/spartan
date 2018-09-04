@@ -208,3 +208,9 @@ def compute_angle_between_poses(pose_a, pose_b):
     quat_b = transformations.quaternion_from_matrix(pose_b)
 
     return compute_angle_between_quaternions(quat_a, quat_b)
+
+def get_kuka_joint_names():
+    return [
+     'iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3',
+     'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6',
+     'iiwa_joint_7']

@@ -16,14 +16,14 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_msgs
     roscpp
     image_transport
-    wsg50_msgs
+    wsg_50_common
 )
 
 catkin_package(
 # INCLUDE_DIRS
 # CATKIN_DEPENDS message_runtime
 #  LIBRARIES perception_msgs
-  CATKIN_DEPENDS roscpp wsg50_msgs
+  CATKIN_DEPENDS roscpp wsg_50_common
 #  DEPENDS system_lib
 )
 

@@ -17,7 +17,7 @@ import tf2_ros
 
 
 # spartan
-from spartan.utils.ros_utils import SimpleSubscriber
+from spartan.utils.ros_utils import JointStateSubscriber
 from spartan.utils.ros_utils import RobotService
 import spartan.utils.ros_utils as rosUtils
 import spartan.utils.utils as spartan_utils
@@ -108,6 +108,7 @@ def make_force_guard_msg():
 class IiwaSimulationTest(unittest.TestCase):
 
     def setUp(self):
+        self.kuka_joint_names = spartan_utils.get_kuka_joint_names()
         self._all_processes = []
         self._terminate_all_processes()
         self._launch_procman_and_start_simulator()
@@ -184,20 +185,20 @@ class IiwaSimulationTest(unittest.TestCase):
 
         # Get the arm state to check sim is running
         rospy.init_node("iiwa_sim_test", anonymous=True)
-        self._robotSubscriber = SimpleSubscriber("/joint_states", sensor_msgs.msg.JointState)
-        self._robotSubscriber.start()
+        self._robotSubscriber = JointStateSubscriber("/joint_states")
 
         # wait for 5 seconds for robot movement service and /joint_states to come up
+        # with more joints than just the gripper
         wait_time = 5
         start_time = time.time()
         while (time.time() - start_time) < wait_time:
-            if self._robotSubscriber.hasNewMessage:
+            if len(self._robotSubscriber.joint_timestamps.keys()) > 2:
                 break
             print "Rostopic list: ",
             os.system("rostopic list")
             time.sleep(1)
 
-        self.assertTrue(self._robotSubscriber.hasNewMessage, "Never received robot joint positions on /joint_states topic")
+        self.assertTrue(len(self._robotSubscriber.joint_timestamps.keys()) > 2, "Never received full robot joint positions on /joint_states topic")
 
 
     def setupTF(self):
@@ -242,7 +243,7 @@ class IiwaSimulationTest(unittest.TestCase):
         self.assertTrue(success, msg="RobotService MoveToJointPosition returned failure ")
 
         # check that we actually reached the target position
-        lastRobotJointPositions = self._robotSubscriber.lastMsg.position
+        lastRobotJointPositions = self._robotSubscriber.get_position_vector_from_joint_names(self.kuka_joint_names)
         reached_target_position = np.linalg.norm(np.array(targetPosition) - np.array(lastRobotJointPositions[0:7])) < 0.1
 
         if not reached_target_position:
@@ -320,7 +321,7 @@ class IiwaSimulationTest(unittest.TestCase):
         self.assertTrue(success, msg="RobotService MoveToJointPosition returned failure ")
 
         # check that we actually reached the target position
-        lastRobotJointPositions = self._robotSubscriber.lastMsg.position
+        lastRobotJointPositions = self._robotSubscriber.get_position_vector_from_joint_names(self.kuka_joint_names)
         reached_target_position = np.linalg.norm(np.array(targetPosition) - np.array(lastRobotJointPositions[0:7])) < 0.1
 
         # now call the cartesian space plan service

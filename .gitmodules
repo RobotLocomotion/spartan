@@ -53,3 +53,6 @@
 [submodule "src/catkin_projects/iiwa_driver"]
 	path = src/catkin_projects/iiwa_driver
 	url = git@github.com:RobotLocomotion/iiwa_driver.git
+[submodule "src/catkin_projects/wsg50-ros-pkg"]
+	path = src/catkin_projects/wsg50-ros-pkg
+	url = https://github.com/gizatt/wsg50-ros-pkg

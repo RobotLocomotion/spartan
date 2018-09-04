@@ -305,6 +305,39 @@ class SimpleSubscriber(object):
             rospy.sleep(0.1)
         return self.lastMsg
 
+
+class JointStateSubscriber(object):
+    ''' Subscribes to a joint state channel (by default, /joint_states),
+        and keeps a dictionary of last-known joint values and the
+        last time those values were updated. '''
+    def __init__(self, topic="/joint_states"):
+        self.topic = topic
+        self.joint_positions = {}
+        self.joint_velocities = {}
+        self.joint_efforts = {}
+        self.joint_timestamps = {}
+        self.subscriber = SimpleSubscriber(
+            self.topic, sensor_msgs.msg.JointState, self.callback)
+        self.subscriber.start()
+
+    def callback(self, msg):
+        stamp = msg.header.stamp
+        for i, name in enumerate(msg.name):
+            self.joint_positions[name] = msg.position[i]
+            self.joint_velocities[name] = msg.velocity[i]
+            self.joint_efforts[name] = msg.effort[i]
+            self.joint_timestamps[name] = stamp
+
+    def get_position_vector_from_joint_names(self, joint_name_list):
+        q = np.zeros(len(joint_name_list))
+        for i, name in enumerate(joint_name_list):
+            if name not in self.joint_positions.keys():
+                raise ValueError("Never received state for joint %s" % name)
+            q[i] = self.joint_positions[name]
+        return q
+
+
+
 '''
 Simple wrapper around the robot_control/MoveToJointPosition service
 '''
@@ -380,16 +413,6 @@ class RobotService(object):
 
         return jointState
 
-
-
     @staticmethod
     def makeKukaRobotService():
-        jointNames = ['iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3',
-     'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6',
-     'iiwa_joint_7']
-
-        return RobotService(jointNames)
-
-
-
-
+        return RobotService(spartanUtils.get_kuka_joint_names())

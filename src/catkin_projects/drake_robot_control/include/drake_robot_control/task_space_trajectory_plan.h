@@ -2,7 +2,7 @@
 #include <string>
 
 #include <drake/math/roll_pitch_yaw.h>
-#include <drake/math/transform.h>
+#include <drake/math/rigid_transform.h>
 #include <drake_robot_control/trajectory_plan_base.h>
 
 namespace drake {
@@ -48,8 +48,8 @@ class EndEffectorOriginTrajectoryPlan : public TrajectoryPlanBase {
 public:
   EndEffectorOriginTrajectoryPlan(std::shared_ptr<const RigidBodyTreed> tree,
                                   const PPType &xyz_ee_traj,
-                                  const math::RotationMatrixd &R_WE_initial,
-                                  const math::RotationMatrixd &R_WE_final,
+                                  const drake::math::RotationMatrixd &R_WE_initial,
+                                  const drake::math::RotationMatrixd &R_WE_final,
                                   const Eigen::Vector3d &kp_rotation,
                                   const Eigen::Vector3d &kp_translation,
                                   const std::string &ee_body_name,
@@ -118,12 +118,12 @@ private:
   drake::TwistMatrix<double> J_ee_E_;
   drake::TwistMatrix<double> J_ee_W_;
   Eigen::Isometry3d H_WE_; // ee to world, current homogeneous transform
-  math::Transform<double>
+  drake::math::RigidTransform<double>
       H_WEr_; // end-effector to world, reference homogeneous transform
 
   // reference orientation trajectory for EE
-  const math::RotationMatrixd R_WE_inital_;
-  const math::RotationMatrixd R_WE_final_;
+  const drake::math::RotationMatrixd R_WE_inital_;
+  const drake::math::RotationMatrixd R_WE_final_;
   Eigen::Quaterniond quat_WE_initial_;
   Eigen::Quaterniond quat_WE_final_;
 
