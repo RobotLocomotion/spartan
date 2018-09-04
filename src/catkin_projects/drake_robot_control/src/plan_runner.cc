@@ -158,7 +158,7 @@ RobotPlanRunner::RobotPlanRunner(
   cartesian_trajectory_action_->start(); // start the ROS action
 
   // Set up the streaming plan management services and channels
-  plan_end_server = std::make_shared<ros::ServiceServer>(
+  plan_end_server_ = std::make_shared<ros::ServiceServer>(
       nh_.advertiseService(
         "/plan_runner/stop_plan",
         &RobotPlanRunner::HandlePlanEndServiceCall, this));

@@ -230,7 +230,7 @@ private:
       cartesian_trajectory_action_;
 
   std::shared_ptr<ros::ServiceServer>
-    plan_end_server;
+    plan_end_server_;
   std::shared_ptr<ros::ServiceServer>
     joint_space_streaming_plan_init_server_;
   std::shared_ptr<ros::ServiceServer>
