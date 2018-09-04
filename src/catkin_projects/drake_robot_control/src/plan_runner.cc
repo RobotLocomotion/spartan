@@ -297,7 +297,7 @@ void RobotPlanRunner::PublishCommand() {
       prev_torque_command = Eigen::VectorXd::Zero(kNumJoints_);
     }
 
-    // see if ther eare any new plans
+    // see if there are any new plans
     robot_plan_mutex_.lock();
     if (terminate_current_plan_flag_.load() == true) {
       std::cout << "Terminating current plan" << std::endl;
