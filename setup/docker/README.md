@@ -29,8 +29,7 @@ and then restart your machine.
 git clone git@github.com:RobotLocomotion/spartan.git
 cd spartan
 git submodule sync
-git submodule update --init --remote
-git submodule update
+git submodule update --init
 ./setup/docker/docker_build.py
 ./setup/docker/docker_run.py
 mkdir build && cd build && use_ros && cmake .. && use_spartan && make -j8
