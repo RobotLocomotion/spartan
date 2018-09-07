@@ -186,33 +186,6 @@ Director relies on LCM for message passing. Since LCM uses UDP multicast a valid
 
 After restarting your computer these settings can be lost depending on your network configuration.
 
-Testing
-=======
-
-You can run ``ctest`` in the build directory to run tests. Additionally, the
-environment file adds some commands to run tests for sub-projects::
-
-    run_tests_drake
-    run_tests_director
-
-The above commands move into the build directory of the sub-project and run
-its tests.  You can pass additional arguments to the test driver (ctest). For
-example, to print a list of available tests::
-
-    run_tests_director -N
-
-To run tests in verbose mode::
-
-    run_tests_director -V
-
-To run a specific test matching a name or regex::
-
-    run_tests_director -R testPyDrakeIk
-
-To run tests in parallel::
-
-    run_tests_drake -j12
-
 
 Drake and Director submodules
 =============================
@@ -270,7 +243,8 @@ Eventually, we'll be able to test a full simulation stack too!
 
 Other useful documentation
 ==========================
+- `Testing <doc/testing.md>`_
 - `Camera Calibration <modules/spartan/calibration/README.md>`_
-- `Razer Hydra teleop guide <docs/hydra_guide.md>`_
-- `Schunk driving and usage guide <docs/schunk_driving_guide.md>`_
-- `Fusion server notes <docs/fusion_server_notes.md>`_
+- `Razer Hydra teleop guide <doc/hydra_guide.md>`_
+- `Schunk driving and usage guide <doc/schunk_driving_guide.md>`_
+- `Fusion server notes <doc/fusion_server_notes.md>`_
