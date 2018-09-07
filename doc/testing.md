@@ -35,7 +35,7 @@ run_tests_drake -j12
 ```
     
 
-## Whole Stack Tests
+## Iiwa Whole Stack Simulation Testing
 The following tests launch the whole simulation stack. The tests involve moving the arm to different positions using
 the various ROS services that are available. To run the tests
 
