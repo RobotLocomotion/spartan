@@ -268,7 +268,7 @@ which contains its own error checking on the CMake configuration and the build.
 Eventually, we'll be able to test a full simulation stack too!
 
 
-Useful other documentation
+Other useful documentation
 ==========================
 - `Camera Calibration <modules/spartan/calibration/README.md>`_
 - `Razer Hydra teleop guide <docs/hydra_guide.md>`_
