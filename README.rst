@@ -270,6 +270,7 @@ Eventually, we'll be able to test a full simulation stack too!
 
 Useful other documentation
 ==========================
+- `Camera Calibration <modules/spartan/calibration/README.md>`_
 - `Razer Hydra teleop guide <docs/hydra_guide.md>`_
 - `Schunk driving and usage guide <docs/schunk_driving_guide.md>`_
 - `Fusion server notes <docs/fusion_server_notes.md>`_
