@@ -37,4 +37,10 @@ run_tests_drake -j12
 
 ## Whole Stack Tests
 The following tests launch the whole simulation stack. The tests involve moving the arm to different positions using
-the various ROS services that are available
+the various ROS services that are available. To run the tests
+
+```
+pyunit --forked modules/spartan/test/
+```
+
+Note the `--forked` keyword is critical to make sure that `procman` doesn't leave around any hanging processes.
