@@ -389,17 +389,21 @@ void RobotPlanRunner::PublishCommand() {
     // Calling unlock is necessary because when cv_.wait() returns, this
     // thread acquires the mutex, preventing the receiver thread from
     // executing.
-    status_lock.unlock();
+    
 
-    if (!has_published_command) {
-      prev_position_command = current_robot_state.head(kNumJoints_);
-      prev_torque_command = Eigen::VectorXd::Zero(kNumJoints_);
+    if (!has_published_command) {      
+      prev_position_command = current_position_commanded_;
+      prev_torque_command = current_torque_commanded_;
     }
 
-    // see if ther eare any new plans
+    status_lock.unlock();
+
+    // see if there are any new plans
     robot_plan_mutex_.lock();
     if (terminate_current_plan_flag_.load() == true) {
       std::cout << "Terminating current plan" << std::endl;
+      plan_local->set_plan_status(PlanStatus::STOPPED_BY_EXTERNAL_TRIGGER);
+      plan_local->SetPlanFinished();
       terminate_current_plan_flag_.store(false);
       plan_local.reset();
     } else if (new_plan_) {
@@ -417,8 +421,10 @@ void RobotPlanRunner::PublishCommand() {
     if (!plan_local) {
       std::cout << "plan_local == nullptr, holding current position..."
                 << std::endl;
+
+      // use the last commanded robot position
       plan_local = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(
-          tree_, current_robot_state.head(kNumJoints_));
+          tree_, current_position_commanded_);
     }
 
     // special logic if the plan is new, i.e. not yet in state RUNNING
@@ -566,6 +572,8 @@ void RobotPlanRunner::HandleStatus(const lcm::ReceiveBuffer *,
     current_robot_state_[i] = iiwa_status_.joint_position_measured[i];
     current_robot_state_[i + kNumJoints_] =
         iiwa_status_.joint_velocity_estimated[i];
+    current_position_commanded_[i] = iiwa_status_.joint_position_commanded[i];
+    current_torque_commanded_[i] = iiwa_status_.joint_torque_commanded[i];
   }
   lock.unlock();
   cv_.notify_all();
