@@ -91,7 +91,7 @@ class SchunkDriver(object):
 	"""
 	Closes the gripper and checks whether or not their is an object in gripper
 	"""
-	def closeGripper(self, sleepTime=0.5, gripperPositionWhenEmpty=0.5):
+	def closeGripper(self, sleepTime=1.5, gripperPositionWhenEmpty=0.5):
 		self.sendCloseGripperCommand()
 		rospy.sleep(sleepTime) # wait for gripper to close
 		objectInGripper = True
