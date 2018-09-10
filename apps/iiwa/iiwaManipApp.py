@@ -37,6 +37,12 @@ import bot_core as lcmbotcore
 
 from spartan.manipulation.director_schunk_driver import DirectorSchunkDriver
 
+useROS = True
+if useROS:
+    import rospy
+    rospy.init_node('director', anonymous=True)
+
+
 def setTagToWorld(pos, rpy):
     global tagToWorld
     tagToWorld = transformUtils.frameFromPositionAndRPY(pos, rpy)
@@ -161,7 +167,8 @@ def wsgStatusSubscriberCallback(msg):
             # is total distance between)
             [-msg.width*0.5, msg.width*0.5],
             ['wsg_50_base_joint_gripper_left', 'wsg_50_base_joint_gripper_right'])
-schunkDriver = DirectorSchunkDriver(statusSubscriberCallback=wsgStatusSubscriberCallback)
+
+
 
 
 def onOpenTaskPanel():
@@ -243,6 +250,8 @@ roboturdf.addPathsFromPackageMap(packageMap)
 
 robotSystem = makeRobotSystem(view)
 
+schunkDriver = DirectorSchunkDriver(statusSubscriberCallback=wsgStatusSubscriberCallback)
+
 
 # TODO: move this to director/robotsystem.py as optional feature
 if useOptitrackVisualizer:
@@ -321,10 +330,7 @@ app.restoreDefaultWindowState()
 app.initWindowSettings()
 applogic.resetCamera(viewDirection=[-1,1,-0.5], view=view)
 
-useROS = True
-if useROS:
-    import rospy
-    rospy.init_node('director', anonymous=True)
+
 
 useKukaRLGDev = True
 if useKukaRLGDev:
