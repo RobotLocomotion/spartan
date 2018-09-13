@@ -6,6 +6,7 @@ import copy
 
 # ROS
 import rospy
+import std_msgs.msg
 import sensor_msgs.msg
 import geometry_msgs.msg
 import visualization_msgs.msg
@@ -26,6 +27,7 @@ import fusion_server.srv
 # spartan
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
+import spartan.utils.director_utils as director_utils
 from spartan.manipulation.schunk_driver import SchunkDriver
 import fusion_server
 from fusion_server.srv import *
@@ -85,6 +87,8 @@ class GraspSupervisor(object):
             self.taskRunner.callOnThread(self.setup)
         else:
             self.setup()
+
+        self.ggcnn_state = dict() # where we store state info related to ggcnn
 
         self.debugMode = False
         if self.debugMode:
@@ -178,6 +182,9 @@ class GraspSupervisor(object):
         self.clicked_point_subscriber = rosUtils.SimpleSubscriber("/clicked_point", geometry_msgs.msg.PointStamped, self.on_clicked_point)
         self.clicked_point_subscriber.start()
 
+
+        self.ggcnn_subscriber = rosUtils.SimpleSubscriber('ggcnn/out/command', std_msgs.msg.Float32MultiArray)
+
     def setupPublishers(self):
         """
         Sets up some ROS publishers
@@ -251,6 +258,7 @@ class GraspSupervisor(object):
         if self.tfBuffer is None:
             self.tfBuffer = tf2_ros.Buffer()
             self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
+            self.tfBroadcaster = tf2_ros.TransformBroadcaster()
 
 
     def getDepthOpticalFrameToGraspFrameTransform(self):
@@ -259,8 +267,18 @@ class GraspSupervisor(object):
         print depthOpticalFrameToGraspFrame
         return depthOpticalFrameToGraspFrame
 
-    def getRgbOpticalFrameToGraspFrameTransform(self):
-        rgbOpticalFrameToGraspFrame = self.tfBuffer.lookup_transform(self.graspFrameName, self.rgbOpticalFrameName, rospy.Time(0))
+    def getRgbOpticalFrameToGraspFrameTransform(self, time=None):
+        """
+
+        :param time:
+        :type time:
+        :return: geometry_msgs/TransformStamped
+        :rtype:
+        """
+        if time is None:
+            time = rospy.Time(0)
+
+        rgbOpticalFrameToGraspFrame = self.tfBuffer.lookup_transform(self.graspFrameName, self.rgbOpticalFrameName, time)
 
         print  rgbOpticalFrameToGraspFrame
         return rgbOpticalFrameToGraspFrame
@@ -1077,6 +1095,79 @@ class GraspSupervisor(object):
         self.moveHome()
         result = self.wait_for_grasp_3D_location_result()
         grasp_found = self.processGenerateGraspsResult(result)
+
+    def get_ggcnn_grasp(self):
+        """
+        Gets the candidate grasp from the ggcnn
+        :return:
+        :rtype:
+        """
+        msg = self.ggcnn_subscriber.waitForNextMessage()
+        self.ggcnn_state['grasp_msg'] = msg
+
+        self.ggcnn_state['grasp'] = dict()
+        self.ggcnn_state['grasp']['x'] = msg.data[0]
+        self.ggcnn_state['grasp']['y'] = msg.data[1]
+        self.ggcnn_state['grasp']['z'] = msg.data[2]
+        self.ggcnn_state['grasp']['theta'] = msg.data[3]
+        self.ggcnn_state['grasp']['width'] = msg.data[4]
+
+
+    def convert_ggcnn_grasp_to_world_frame(self, msg):
+        """
+        Mapping from camera optical frame to gripper frame. The axes
+        are aligned, they just need to be rotated
+
+        camera --> gripper
+        x          y
+        y          z
+        z          x
+        :param msg:
+        :type msg:
+        :return:
+        :rtype:
+        """
+
+        x, y, z, theta = msg.data[0:4]
+        camera_to_world_ros = self.getRgbOpticalFrameToGraspFrameTransform()
+        camera_to_world = 2 # vtkTransform
+
+
+        # frames involved
+        # C = camera optical frame
+        # GC = gripper, in camera axis convention
+        # G = camera optical frame, aligned with gripper
+        # G = grasp frame
+
+        # translate by (x,y,z), rotate by theta about z-axis
+        pos = [x,y,z]
+        rpy = [0,0,np.rad2deg(theta)]
+        T_C_GC = transformUtils.frameFromPositionAndRPY(pos, rpy)
+
+        x_axis = [0,0,1]
+        y_axis = [1,0,0]
+        z_axis = [0,1,0]
+        T_GC_G = transformUtils.getTransformFromAxes(x_axis, y_axis, z_axis) # just switch axis labelling according to above table
+
+        T_W_C = director_utils.transformFromROSTransformMsg(camera_to_world_ros.transform)  # camera to world transform
+
+        # grasp to world
+        # T_W_G = T_W_C * T_C_GC * T_GC_G
+        T_W_G = transformUtils.concatenateTransforms([T_GC_G, T_C_GC, T_W_C])
+
+        debug = True
+
+        if debug:
+            # publish this frame to RVIZ
+            grasp_to_world = geometry_msgs.TransformStamped()
+            grasp_to_world.header.stamp = rospy.Time.now()
+
+            d = director_utils.poseFromTransform(T_W_G)
+            grasp_to_world.transform = rosUtils.ROSTransformMsgFromPose(d)
+
+            self.tfBroadcaster.sendTransform(grasp_to_world)
+
+
 
     def start_bagging(self):
         print "Waiting for 'start_bagging_fusion_data' service..."
