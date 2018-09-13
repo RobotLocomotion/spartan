@@ -44,7 +44,6 @@ RUN yes "Y" | /tmp/install_handical_dependencies.sh
 
 # install ggcnn requirements
 # this supposes TensorFlow has already been installed
-COPY 
 COPY ./setup/docker/ggcnn_requirements.txt /tmp/ggcnn_requirements.txt
 RUN pip install -r /tmp/ggcnn_requirements.txt
 
