@@ -45,8 +45,12 @@ if USING_DIRECTOR:
 
 class GraspSupervisorState(object):
 
+    STATUS_LIST = ["ABOVE_TABLE", "PRE_GRASP", "GRASP", "IK_FAILED"]
+
     def __init__(self):
         self.setPickFront()
+        self._grasp_data = None
+        self._status = None
 
     def setPickFront(self):
         self.graspingLocation = "front"
@@ -55,6 +59,107 @@ class GraspSupervisorState(object):
     def setPickLeft(self):
         self.graspingLocation = "left"
         self.stowLocation = "front"
+
+    @property
+    def grasp_data(self):
+        return self._grasp_data
+
+    @grasp_data.setter
+    def grasp_data(self, value):
+        """
+
+        :param value: GraspData
+        :return:
+        """
+        self._grasp_data = value
+
+    def clear(self):
+        self._grasp_data = None
+        self._status = None
+
+    def set_status(self, status):
+        assert status in GraspSupervisorState.STATUS_LIST
+        self._status = status
+
+    @property
+    def status(self):
+        return self._status
+
+    @status.setter
+    def status(self, status):
+        assert status in GraspSupervisorState.STATUS_LIST
+        self._status = status
+
+    def set_status_ik_failed(self):
+        self.status = "IK_FAILED"
+
+
+
+class GraspData(object):
+    """
+    Class to store some grasp data
+
+    Mapping from camera optical frame to gripper frame. The axes
+    are aligned, they just need to be rotated
+
+    camera --> gripper
+    x          y
+    y          z
+    z          x
+
+    # frame names
+    T_W_G: grasp to world
+    T_W_PG: pre-grasp to world
+
+    """
+
+    # gripper frame (G) to gripper frame camera axes (GC)
+    T_GC_G = transformUtils.getTransformFromAxes([0,0,1], [1,0,0], [0,1,0])
+
+    def __init__(self, T_W_G=None):
+        self._T_W_G = T_W_G
+        self._T_W_PG = None
+        self._gripper_width = None
+        self._type = None # either ggcnn or spartan_grasp
+        self._data = dict() # random additional info you might want to store
+
+    def compute_pre_grasp_frame(self, distance=0.15):
+        """
+        Computes the pre-grasp frame gotten by pushing this grasp back
+        along the x-direction by distance (in meters).
+        :param distance: distasnce to push back frame along the x-direction
+        :return: vtkTransform. Also stores this in self._pre_grasp_frame
+        """
+        pos = [-1.0*distance, 0, 0]
+        quat = [1, 0, 0, 0]
+        T_G_PG = transformUtils.transformFromPose(pos, quat)
+
+        # T_W_PG = T_W_G * T_G_PG
+        self._T_W_PG = transformUtils.concatenateTransforms([T_G_PG, self._T_W_G])
+
+        return self._T_W_PG
+
+
+    @staticmethod
+    def from_ggcnn_grasp_frame_camera_axes(T_W_GC):
+        """
+
+        :param T_W_GC: vtkTransform. grasp (in camera axes convention) to world transform
+        :return:
+        """
+        T_W_G = transformUtils.concatenateTransforms([GraspData.T_GC_G, T_W_GC])
+        return GraspData(T_W_G)
+
+    @property
+    def grasp_frame(self):
+        return self._T_W_G
+
+
+    @property
+    def pre_grasp_frame(self):
+        return self._T_W_PG
+
+
 
 
 class GraspSupervisor(object):
@@ -70,6 +175,7 @@ class GraspSupervisor(object):
         self.depthImageTopic = '/' + str(self.cameraName) + '/depth_registered/sw_registered/image_rect'
         self.camera_info_topic = '/' + str(self.cameraName) + '/rgb/camera_info'
         self.graspFrameName = 'base'
+        self.ggcnn_grasp_frame_camera_axes_id = "ggcnn_grasp"
         self.depthOpticalFrameName = self.cameraName + "_depth_optical_frame"
         self.rgbOpticalFrameName = self.cameraName + "_rgb_optical_frame"
 
@@ -88,11 +194,9 @@ class GraspSupervisor(object):
         else:
             self.setup()
 
-        self.ggcnn_state = dict() # where we store state info related to ggcnn
-
         self.debugMode = False
         if self.debugMode:
-            print "\n\n----------WARGNING GRASP SUPERVISOR IN DEBUG MODE----------\n"
+            print "\n\n----------WARNING GRASP SUPERVISOR IN DEBUG MODE----------\n"
         # if self.debugMode:
         #     self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
 
@@ -583,7 +687,73 @@ class GraspSupervisor(object):
         return poseStamped
 
 
-    
+    def execute_grasp(self, grasp_data=None):
+        """
+        Moves to pre-grasp frame, then grasp frame
+        attemps to close gripper as well
+        :return: bool (whether or not grasp was successful)
+        """
+        self.gripperDriver.sendOpenGripperCommand()
+        rospy.sleep(0.5) # wait for 0.5 for gripper to open
+        if grasp_data is None:
+            grasp_data = self.state.grasp_data
+
+
+        # compute the pre-grasp frame
+        pre_grasp_distance = self.graspingParams['pre_grasp_distance']
+        pre_grasp_frame_gripper = grasp_data.compute_pre_grasp_frame(distance=pre_grasp_distance)
+
+
+        pre_grasp_ee_pose_stamped = self.makePoseStampedFromGraspFrame(pre_grasp_frame_gripper)
+
+        # run the ik for moving to pre-grasp location
+        graspLocationData = self.graspingParams[self.state.graspingLocation]
+        above_table_pre_grasp = graspLocationData['poses']['above_table_pre_grasp']
+        pre_grasp_ik_response = self.robotService.runIK(pre_grasp_ee_pose_stamped,
+                                                       seedPose=above_table_pre_grasp,
+                                                       nominalPose=above_table_pre_grasp)
+
+        pre_grasp_pose = pre_grasp_ik_response.position
+
+        if not pre_grasp_ik_response.success:
+            rospy.loginfo("pre grasp pose ik failed, returning")
+            self.state.set_status_ik_failed()
+            return False
+
+
+
+        # run the ik for moving to grasp location
+        # for now just do IK, otherwise use cartesian space plan with force guards
+        grasp_frame_ee_pose_stamped = self.makePoseStampedFromGraspFrame(grasp_data.grasp_frame)
+        grasp_ik_response = self.robotService.runIK(grasp_frame_ee_pose_stamped,
+                                                       seedPose=above_table_pre_grasp,
+                                                       nominalPose=above_table_pre_grasp)
+
+        grasp_pose = grasp_ik_response.position
+        if not grasp_ik_response.success:
+            rospy.loginfo("pre grasp pose ik failed, returning")
+            self.state.set_status_ik_failed()
+            return False
+
+        # store for later use
+        self._cache['grasp_ik_response'] = grasp_ik_response
+        self._cache['pre_grasp_ik_response'] = pre_grasp_ik_response
+
+
+        # move to pre-grasp position
+        self.robotService.moveToJointPosition(pre_grasp_pose,
+                                              maxJointDegreesPerSecond=
+                                              self.graspingParams['speed']['pre_grasp'])
+
+        # move to grasp position
+        self.robotService.moveToJointPosition(grasp_pose,
+                                              maxJointDegreesPerSecond=
+                                              self.graspingParams['speed']['grasp'])
+
+
+
+
+
     def attemptGrasp(self, graspFrame):
         """
         Attempt a grasp
@@ -1098,20 +1268,29 @@ class GraspSupervisor(object):
 
     def get_ggcnn_grasp(self):
         """
-        Gets the candidate grasp from the ggcnn
-        :return:
+        Looks up the ggcnn grasp frame from the tf server
+        :return: tuple (bool, dict)
         :rtype:
         """
-        msg = self.ggcnn_subscriber.waitForNextMessage()
-        self.ggcnn_state['grasp_msg'] = msg
+        # just do a transform lookup
+        return_data = dict()
+        self.state.clear()
+        try:
+            ggcnn_grasp_frame_camera_axes = self.tfBuffer.lookup_transform(self.config["base_frame_id"], self.ggcnn_grasp_frame_camera_axes_id, rospy.Time.now(), rospy.Duration(1.0))
+        except:
+            rospy.loginfo("Unable to get ggcnn grasp frame from tf, returning")
+            return False, return_data
 
-        self.ggcnn_state['grasp'] = dict()
-        self.ggcnn_state['grasp']['x'] = msg.data[0]
-        self.ggcnn_state['grasp']['y'] = msg.data[1]
-        self.ggcnn_state['grasp']['z'] = msg.data[2]
-        self.ggcnn_state['grasp']['theta'] = msg.data[3]
-        self.ggcnn_state['grasp']['width'] = msg.data[4]
 
+        return_data['ggcnn_grasp_frame_camera_axes'] = ggcnn_grasp_frame_camera_axes
+
+        # make grasp object
+        T_W_GC = director_utils.transformFromROSTransformMsg(ggcnn_grasp_frame_camera_axes.transform)
+        grasp_data = GraspData.from_ggcnn_grasp_frame_camera_axes(T_W_GC)
+
+        self.state.grasp_data = grasp_data
+        return_data['grasp_data'] = grasp_data
+        return True, return_data
 
     def convert_ggcnn_grasp_to_world_frame(self, msg):
         """
