@@ -79,13 +79,18 @@ useful aliases for developers.
 
 ## Docker Cheatsheet
 
-Handling images
+**Handling images**
 - `docker images` - lists all docker images on machine, including REPOSITORY, TAG, IMAGE_ID, when created, size
 - `docker tag IMAGE_ID NEW_NAME` - creates a new REPOSITORY:TAG for an IMAGE_ID
 - `docker rmi REPOSITORY:TAG` - removes this tag for an image
 - `docker tag IMAGE_ID my-spartan && docker rmi spartan` -- example to combine above two commands to rename an image ID
 - clean up stale artifacts `docker system prune`.
 
-Handling containers
+**Handling containers**
 - `docker ps -a` - lists all containers on machine
 - `docker rm CONTAINER_ID` - removes container id 
+
+**Cleaning Up**
+
+See [this](https://www.digitalocean.com/community/tutorials/how-to-remove-docker-images-containers-and-volumes) link.
+- `docker system prune` prune dangling images, containes
