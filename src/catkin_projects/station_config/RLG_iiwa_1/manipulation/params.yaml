@@ -128,5 +128,8 @@ speed:
   fast: 30
   slow: 20
   stow: 30
+  cartesian_grasp: 0.05 # meters/second
 
 pre_grasp_distance: 0.15
+force_threshold_magnitude: 10
+grasp_push_in_distance: 0.03

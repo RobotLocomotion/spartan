@@ -28,6 +28,8 @@ import fusion_server.srv
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
 import spartan.utils.director_utils as director_utils
+import spartan.utils.control_utils as control_utils
+
 from spartan.manipulation.schunk_driver import SchunkDriver
 import fusion_server
 from fusion_server.srv import *
@@ -789,20 +791,48 @@ class GraspSupervisor(object):
 
 
         # move to pre-grasp position
+        # we do this using a position trajectory
         pre_grasp_speed = self.graspingParams['speed']['pre_grasp']
-        pre_grasp_speed = 10
         self.robotService.moveToJointPosition(pre_grasp_pose,
                                               maxJointDegreesPerSecond=
                                               pre_grasp_speed)
 
         # move to grasp position
+        # use a compliant plan to do this
+
+        push_distance = self.graspingParams['grasp_push_in_distance']
+        xyz_goal = (pre_grasp_distance + push_distance) * np.array([1,0,0])
+        ee_frame_id = "iiwa_link_ee"
+        expressed_in_frame = ee_frame_id
+        cartesian_grasp_speed = self.graspingParams['speed']['cartesian_grasp']
+        cartesian_traj_goal = \
+            control_utils.make_cartesian_trajectory_goal(xyz_goal,
+                                                                       ee_frame_id,
+                                                                       expressed_in_frame,
+                                                                       speed=cartesian_grasp_speed)
+
+        # add force guards
+        # -z (gripper) direction in frame iiwa_link_ee,
+        force_magnitude = self.graspingParams['force_threshold_magnitude']
+        force_vector = force_magnitude * np.array([-1,0,0])
+        force_guard = control_utils.make_force_guard_msg(force_vector)
+
+        cartesian_traj_goal.force_guard.append(force_guard)
+        action_client = self.robotService.cartesian_trajectory_action_client
+        action_client.send_goal(cartesian_traj_goal)
+
+        # wait for result
+        action_client.wait_for_result()
+        result = action_client.get_result()
+        grasp_data.data['cartesian_trajectory_result'] = result
+
+        print "Cartesian Trajectory Result\n", result
+
         # grasp_speed = 10
-        grasp_speed = 5
-        # grasp_speed = self.graspingParams['speed']['grasp']
-        self.robotService.moveToJointPosition(grasp_pose,
-                                              maxJointDegreesPerSecond=grasp_speed)
-
-
+        # grasp_speed = 5
+        # # grasp_speed = self.graspingParams['speed']['grasp']
+        # self.robotService.moveToJointPosition(grasp_pose,
+        #                                       maxJointDegreesPerSecond=grasp_speed)
 
 
 
