@@ -30,7 +30,7 @@ class SchunkDriver(object):
         self._config = dict()
         self._config['gripper_closed_width_when_empty'] = 0.0134
         self._config["gripper_open_width"] = 0.1
-        self._config['tol'] = 0.003
+        self._config['tol'] = 0.0003
 
     def setupSubscribers(self):
         self.lastStatusMsg = None
@@ -100,7 +100,7 @@ class SchunkDriver(object):
         Returns true if gripper has object in had. This is done by checking position
         :return: True if gripper has object
         """
-        status = self.gripper_status()
+        status = self.gripper_status
         width = status.width
 
         gripper_is_open = width > (self._config['gripper_open_width'] - self._config['tol'])
