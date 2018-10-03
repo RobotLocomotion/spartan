@@ -1,4 +1,5 @@
 # Grasping
 
 ## Coordinate Convention
-![alt text](gripper_frame.png "Grasp Frame")
+Shows the gripper palm frame and the gripper fingertip frame
+![alt text](gripper_frames.png "Gripper Frames")
