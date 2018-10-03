@@ -28,9 +28,9 @@ class SchunkDriver(object):
 
     def _setup_config(self):
         self._config = dict()
-        self._config['gripper_closed_width_when_empty'] = 0.018
+        self._config['gripper_closed_width_when_empty'] = 0.0134
         self._config["gripper_open_width"] = 0.1
-        self._config['tol'] = 0.005
+        self._config['tol'] = 0.003
 
     def setupSubscribers(self):
         self.lastStatusMsg = None
@@ -73,7 +73,7 @@ class SchunkDriver(object):
         self.closeGripperGoal.command.command_id = wsg_50_common.msg.Command.MOVE
         self.closeGripperGoal.command.width = 0.0
         self.closeGripperGoal.command.speed = 0.1
-        self.closeGripperGoal.command.force = 40
+        self.closeGripperGoal.command.force = 80
         self.closeGripperGoal.command.stop_on_block = False
 
     @property
@@ -103,15 +103,15 @@ class SchunkDriver(object):
         status = self.gripper_status()
         width = status.width
 
-        gripper_is_open = width < (self._config['gripper_open_width'] + self._config['tol'])
+        gripper_is_open = width > (self._config['gripper_open_width'] - self._config['tol'])
 
 
-        gripper_fully_closed = width > (self._config['gripper_closed_width_when_empty'] - self._config['tol'])
+        gripper_fully_closed = width < (self._config['gripper_closed_width_when_empty'] + self._config['tol'])
 
         gripper_has_object = (not gripper_is_open) and (not gripper_fully_closed)
         return gripper_has_object
 
-    def closeGripper(self, ):
+    def closeGripper(self):
         """
         Closes the gripper and checks whether or not their is an object in gripper
         :return: True if gripper has object
