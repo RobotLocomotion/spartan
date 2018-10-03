@@ -130,6 +130,18 @@ speed:
   stow: 30
   cartesian_grasp: 0.05 # meters/second
 
+gripper_fingertip_to_ee:
+  translation:
+    x: 0.157
+    y: 0
+    z: 0
+  orientation:
+    w: 0.97921432
+    x: -0.20277454
+    y: 0.00454233
+    z: -0.00107904
+
+
 pre_grasp_distance: 0.15
 force_threshold_magnitude: 10
 grasp_push_in_distance: 0.03

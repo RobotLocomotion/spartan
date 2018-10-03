@@ -2,8 +2,8 @@ import rospy
 import std_msgs.msg
 import visualization_msgs.msg
 
-class GripperParams:
 
+class GripperParams:
     @staticmethod
     def make_schunk_params():
         params = dict()
@@ -12,13 +12,12 @@ class GripperParams:
         params['hand_depth'] = 0.06
         params['hand_height'] = 0.023
         # params['palm_depth'] = 0.075 # this is accurate
-        params['palm_depth'] = 0.02 # better for vis
+        params['palm_depth'] = 0.02  # better for vis
         params['init_bite'] = 0.02
         return params
 
 
 class Gripper(object):
-
     def __init__(self, params):
         """
         :param params: dict of parameters of the type produced by GripperParams class
@@ -65,8 +64,8 @@ class Gripper(object):
         marker.id = 0
         marker.type = marker.CUBE
         marker.header = Gripper.make_header(frame_id, stamp)
-        marker.pose.position.x = self.params['hand_depth']/2.0
-        marker.pose.position.y = -(self.params['hand_inner_diameter'] + self.params['finger_width'])/2.0
+        marker.pose.position.x = self.params['hand_depth'] / 2.0
+        marker.pose.position.y = -(self.params['hand_inner_diameter'] + self.params['finger_width']) / 2.0
         marker.pose.position.z = 0
 
         marker.pose.orientation.x = 0.0
@@ -130,7 +129,7 @@ class Gripper(object):
         marker.id = 2
         marker.type = marker.CUBE
         marker.header = Gripper.make_header(frame_id, stamp)
-        marker.pose.position.x = -self.params['palm_depth']/2.0
+        marker.pose.position.x = -self.params['palm_depth'] / 2.0
         marker.pose.position.y = 0
         marker.pose.position.z = 0
 
@@ -140,7 +139,7 @@ class Gripper(object):
         marker.pose.orientation.w = 1.0
 
         marker.scale.x = self.params['palm_depth']
-        marker.scale.y = self.params['hand_inner_diameter'] + 2*self.params['finger_width']
+        marker.scale.y = self.params['hand_inner_diameter'] + 2 * self.params['finger_width']
         marker.scale.z = self.params['hand_height']
 
         marker.color.a = 1.0
@@ -189,7 +188,3 @@ class Gripper(object):
     @staticmethod
     def make_schunk_gripper():
         return Gripper(GripperParams.make_schunk_params())
-
-
-
-
