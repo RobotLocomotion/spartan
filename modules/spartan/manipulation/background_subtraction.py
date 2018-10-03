@@ -11,7 +11,6 @@ import tf2_ros
 import rosbag
 import actionlib
 
-
 # spartan ROS
 import spartan_grasp_msgs.msg
 import spartan_grasp_msgs.srv
@@ -26,15 +25,15 @@ from spartan.manipulation.schunk_driver import SchunkDriver
 from director import transformUtils
 from director import visualization as vis
 
-
 USING_DIRECTOR = True
 if USING_DIRECTOR:
     from spartan.utils.taskrunner import TaskRunner
 
-class BackgroundSubtractionDataCapture(object):
 
-    def __init__(self, jointNames, poseData, cameraInfoDict, cameraSerialNumber=1112170110, poseFilename=None, cameraInfoFilename=None, tfBuffer=None):
-        
+class BackgroundSubtractionDataCapture(object):
+    def __init__(self, jointNames, poseData, cameraInfoDict, cameraSerialNumber=1112170110, poseFilename=None,
+                 cameraInfoFilename=None, tfBuffer=None):
+
         self.jointNames = jointNames
         self.poseData = poseData
         self.cameraInfoDict = cameraInfoDict
@@ -59,7 +58,7 @@ class BackgroundSubtractionDataCapture(object):
         self.config['maxJointDegreesPerSecond'] = 60
 
         self.config['encoding'] = dict()
-        self.config['encoding']['rgb'] ='bgr8'
+        self.config['encoding']['rgb'] = 'bgr8'
         # self.config['encoding']['depth'] = 'mono16'
 
     def loadConfigFromFiles(self):
@@ -78,7 +77,6 @@ class BackgroundSubtractionDataCapture(object):
             self.tfBuffer = tf2_ros.Buffer()
             self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
 
-
     def startImageSubscribers(self):
         self.imageSubscribers = dict()
         msgType = sensor_msgs.msg.Image
@@ -87,18 +85,16 @@ class BackgroundSubtractionDataCapture(object):
             sub.start()
             self.imageSubscribers[key] = sub
 
-
     def stopImageSubscribers(self):
         for key, value in self.imageTopics.iteritems():
             self.imageSubscribers[key].stop()
 
-
     def setupDataCapture(self, objectName):
         unique_name = time.strftime("%Y%m%d-%H%M%S")
-        self.folderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox','background_subtraction_data', unique_name)
+        self.folderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'background_subtraction_data',
+                                       unique_name)
         os.system("mkdir -p " + self.folderName)
         os.chdir(self.folderName)
-
 
         self.startImageSubscribers()
         self.data = dict()
@@ -109,11 +105,11 @@ class BackgroundSubtractionDataCapture(object):
         for poseName in self.poseData['pose_scan_order']:
             self.data['images'][poseName] = dict()
 
-
     def runDataCapture(self, filenameExtension='background'):
         for poseName in self.poseData['pose_scan_order']:
             pose = self.poseData['poses'][poseName]
-            self.robotService.moveToJointPosition(pose, maxJointDegreesPerSecond=self.config['maxJointDegreesPerSecond'])
+            self.robotService.moveToJointPosition(pose,
+                                                  maxJointDegreesPerSecond=self.config['maxJointDegreesPerSecond'])
 
             self.captureImages(poseName, filenameExtension=filenameExtension)
             self.captureCameraPose(poseName)
@@ -122,7 +118,8 @@ class BackgroundSubtractionDataCapture(object):
 
     def captureCameraPose(self, poseName):
         # tf stuff
-        cameraOpticalFrameToBase = self.tfBuffer.lookup_transform("base", self.cameraInfoDict['rgb_optical_frame'], rospy.Time(0))
+        cameraOpticalFrameToBase = self.tfBuffer.lookup_transform("base", self.cameraInfoDict['rgb_optical_frame'],
+                                                                  rospy.Time(0))
 
         # convert it to yaml
         cameraOpticalFrameToBaseVTK = directorUtils.transformFromROSTransformMsg(cameraOpticalFrameToBase.transform)
@@ -131,11 +128,9 @@ class BackgroundSubtractionDataCapture(object):
         self.data['images'][poseName]['camera_pose'] = cameraPoseDict
         return cameraPoseDict
 
-
     def captureImages(self, poseName, filenameExtension='background'):
         d = dict()
 
-        
         for imageType, topic in self.imageTopics.iteritems():
 
             rospy.loginfo("capture image on topic " + topic)
@@ -148,14 +143,12 @@ class BackgroundSubtractionDataCapture(object):
                 filetype = self.cameraInfoDict['filename_type'][imageType]
 
             filename = str(poseName) + "_" + imageType + "_" + filenameExtension + '.' + filetype
-            fullFilename =  os.path.join(self.folderName, filename)
-
+            fullFilename = os.path.join(self.folderName, filename)
 
             encoding = None
 
             if (self.cameraInfoDict['encoding'] is not None) and (imageType in self.cameraInfoDict['encoding']):
                 encoding = self.cameraInfoDict['encoding'][imageType]
-
 
             # depth images need special treatment
             if imageType == "depth":
@@ -166,9 +159,7 @@ class BackgroundSubtractionDataCapture(object):
             d[imageType] = dict()
             d[imageType]['filename'] = filename
 
-
         self.data['images'][poseName][filenameExtension] = d
-        
 
     def saveData(self):
         filename = os.path.join(self.folderName, 'data.yaml')
@@ -184,12 +175,15 @@ class BackgroundSubtractionDataCapture(object):
 
     @staticmethod
     def makeDefault(**kwargs):
-        storedPosesFile = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'station_config','RLG_iiwa_1','background_subtraction', 'stored_poses.yaml')
+        storedPosesFile = os.path.join(spartanUtils.getSpartanSourceDir(), 'src', 'catkin_projects', 'station_config',
+                                       'RLG_iiwa_1', 'background_subtraction', 'stored_poses.yaml')
 
-        cameraInfoFilename =  os.path.join(spartanUtils.getSpartanSourceDir(), 'src/catkin_projects/camera_config/data/1112170110/master/camera_ros_data.yaml')
+        cameraInfoFilename = os.path.join(spartanUtils.getSpartanSourceDir(),
+                                          'src/catkin_projects/camera_config/data/1112170110/master/camera_ros_data.yaml')
 
         poseData = spartanUtils.getDictFromYamlFilename(storedPosesFile)
         cameraInfoDict = spartanUtils.getDictFromYamlFilename(cameraInfoFilename)
 
-
-        return BackgroundSubtractionDataCapture(poseData['header']['joint_names'], poseData, cameraInfoDict, poseFilename=storedPosesFile, cameraInfoFilename=cameraInfoFilename, **kwargs)
+        return BackgroundSubtractionDataCapture(poseData['header']['joint_names'], poseData, cameraInfoDict,
+                                                poseFilename=storedPosesFile, cameraInfoFilename=cameraInfoFilename,
+                                                **kwargs)
