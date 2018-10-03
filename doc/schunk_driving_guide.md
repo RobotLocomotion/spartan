@@ -16,3 +16,7 @@ The actual gripper driver is a submodule at `spartan/src/catkin_projects/wsg50-r
 
 The Python Schunk control module *does not* use the actionlib interface, instead sending `wsg_50_common::CommandActionGoal` messages directly. This ought to be fixed up, but it generally works.
 
+## Schunk Settings to Get Desired Behavior
+
+Seems that to apply force you need to "know" the width of the part. As evidenced by using their web interface. If you nmatch `Part Width` to the actual part and increase `Clamping Range` then it will apply a force.
+
