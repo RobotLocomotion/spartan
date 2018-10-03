@@ -1,5 +1,6 @@
 # ROS
 import rospy
+import actionlib
 
 # ROS custom
 import wsg_50_common.msg
@@ -8,91 +9,114 @@ import wsg_50_common.msg
 import spartan.utils.ros_utils as rosUtils
 
 
-
-
 class SchunkDriver(object):
+    def __init__(self, commandTopic="/wsg50_driver/wsg50/gripper_control", statusTopic="/wsg50_driver/wsg50/status",
+                 statusSubscriberCallback=None):
+        self.commandTopic = commandTopic
+        self.statusTopic = statusTopic
+        self.statusSubscriberCallback = statusSubscriberCallback
 
-	def __init__(self, commandTopic="/wsg50_driver/wsg50/gripper_control/goal", statusTopic="/wsg50_driver/wsg50/status", statusSubscriberCallback=None):
-		self.commandTopic = commandTopic
-		self.statusTopic = statusTopic
-		self.statusSubscriberCallback = statusSubscriberCallback
-		self.initialize()
+        self.initialize()
 
-	def initialize(self):
-		self.setupDefaultMessages()
-		self.setupPublishers()
-		self.setupSubscribers()
+    def initialize(self):
+        self.setupDefaultMessages()
+        self.setupPublishers()
+        self.setupSubscribers()
+        self.setupActions()
+        self._setup_config()
+        self._last_result = None
 
-	def setupSubscribers(self):
-		self.lastStatusMsg = None
-		self.statusSubscriber = rosUtils.SimpleSubscriber(self.statusTopic, wsg_50_common.msg.Status, self.handleStatusCallback)
-		self.statusSubscriber.start(queue_size=1)
+    def _setup_config(self):
+        self._config = dict()
+        self._config['gripper_closed_width_when_empty'] = 0.0134
+        self._config["gripper_open_width"] = 0.1
+        self._config['tol'] = 0.0003
 
-	def setupPublishers(self):
-		self.commandPublisher = rospy.Publisher(self.commandTopic, wsg_50_common.msg.CommandActionGoal, queue_size=1)
+    def setupSubscribers(self):
+        self.lastStatusMsg = None
+        self.statusSubscriber = rosUtils.SimpleSubscriber(self.statusTopic, wsg_50_common.msg.Status)
+        self.statusSubscriber.start(queue_size=1)
 
-	def setupDefaultMessages(self):
-		# TODO(gizatt): Actually use the actionlib interface
-		# rather than brute-forcing this.
-		self.openGripperMsg = wsg_50_common.msg.CommandActionGoal()
-		self.openGripperMsg.goal.command.command_id = wsg_50_common.msg.Command.MOVE
-		self.openGripperMsg.goal.command.width = 0.1
-		self.openGripperMsg.goal.command.speed = 0.1
-		self.openGripperMsg.goal.command.force = 40
-		self.openGripperMsg.goal.command.stop_on_block = False
+    def setupPublishers(self):
+        pass
 
-		self.closeGripperMsg = wsg_50_common.msg.CommandActionGoal()
-		self.closeGripperMsg.goal.command.command_id = wsg_50_common.msg.Command.MOVE
-		self.closeGripperMsg.goal.command.width = 0.0
-		self.closeGripperMsg.goal.command.speed = 0.1
-		self.closeGripperMsg.goal.command.force = 40
-		self.closeGripperMsg.goal.command.stop_on_block = False
+    def setupActions(self):
+        self.command_action_client = actionlib.SimpleActionClient(self.commandTopic, wsg_50_common.msg.CommandAction)
 
-	def handleStatusCallback(self, msg):
-		self.lastStatusMsg = msg
-		# If the width, speed, and force are all *exactly*
-		# zero, the gripper hasn't been home'd, and won't work
-		# until it is homed.
-		# TODO(gizatt): Can we detected home'd-ness without
-		# relying on this hack?
-		if (self.lastStatusMsg.width == 0.0 and
-		    self.lastStatusMsg.current_speed == 0.0 and
-		    self.lastStatusMsg.current_force == 0.0):
-			self.reset_and_home()
-		if self.statusSubscriberCallback is not None:
-			self.statusSubscriberCallback(msg)
+    def send_goal(self, goal, timeout=2.0):
+        """
 
-	def sendOpenGripperCommand(self):
-		self.openGripperMsg.header.stamp = rospy.Time.now()
-		self.commandPublisher.publish(self.openGripperMsg)
+        :param goal: The CommandGoal for the action service
+        :type goal: wsg_50_common.msg.CommandGoal
+        :param timeout: The timout in seconds for use during this action client
+        call
+        :return: wsg_50_common.msg.CommandResult
+        """
 
-	def sendCloseGripperCommand(self):
-		self.closeGripperMsg.header.stamp = rospy.Time.now()
-		self.commandPublisher.publish(self.closeGripperMsg)
+        self.command_action_client.send_goal(goal)
+        self.command_action_client.wait_for_result(timeout=rospy.Duration.from_sec(timeout))
+        result = self.command_action_client.get_result()
+        self._last_result = result
+        return result
 
-	def reset_and_home(self):
-		resetMsg = wsg_50_common.msg.CommandActionGoal()
-		resetMsg.goal.command.command_id = wsg_50_common.msg.Command.ACKNOWLEDGE_ERROR
-		self.commandPublisher.publish(resetMsg)
-		homeMsg = wsg_50_common.msg.CommandActionGoal()
-		homeMsg.goal.command.command_id = wsg_50_common.msg.Command.HOMING
-		self.commandPublisher.publish(homeMsg)
+    def setupDefaultMessages(self):
+        # TODO(gizatt): Actually use the actionlib interface
+        # rather than brute-forcing this.
+        self.openGripperGoal = wsg_50_common.msg.CommandGoal()
+        self.openGripperGoal.command.command_id = wsg_50_common.msg.Command.MOVE
+        self.openGripperGoal.command.width = 0.1
+        self.openGripperGoal.command.speed = 0.1
+        self.openGripperGoal.command.force = 40
+        self.openGripperGoal.command.stop_on_block = False
 
-	def sendGripperCommand(self, position, force=40., speed=0.1, stop_on_block=False):
-		msg = wsg_50_common.msg.CommandActionGoal()
-		msg.header.stamp = rospy.Time.now()
-		msg.goal.command.command_id = wsg_50_common.msg.Command.MOVE
-		msg.goal.command.width = position
-		msg.goal.command.speed = speed
-		msg.goal.command.force = force
-		msg.goal.command.stop_on_block = stop_on_block
-		self.commandPublisher.publish(msg)
+        self.closeGripperGoal = wsg_50_common.msg.CommandGoal()
+        self.closeGripperGoal.command.command_id = wsg_50_common.msg.Command.MOVE
+        self.closeGripperGoal.command.width = 0.0
+        self.closeGripperGoal.command.speed = 0.1
+        self.closeGripperGoal.command.force = 80
+        self.closeGripperGoal.command.stop_on_block = False
 
-	"""
-	Closes the gripper and checks whether or not their is an object in gripper
-	"""
-	def closeGripper(self, sleepTime=1.5, gripperPositionWhenEmpty=0.5):
-		self.sendCloseGripperCommand()
-		rospy.sleep(sleepTime) # wait for gripper to close
-		objectInGripper = True
-		return objectInGripper
+    @property
+    def gripper_status(self):
+        return self.statusSubscriber.waitForNextMessage()
+
+    def sendOpenGripperCommand(self):
+        return self.send_goal(self.openGripperGoal)
+
+    def sendCloseGripperCommand(self):
+        return self.send_goal(self.closeGripperGoal)
+
+    def sendGripperCommand(self, width, force=40., speed=0.1, stop_on_block=False):
+        goal = wsg_50_common.msg.CommandGoal()
+        goal.command.command_id = wsg_50_common.msg.Command.MOVE
+        goal.command.width = width
+        goal.command.speed = speed
+        goal.command.force = force
+        goal.command.stop_on_block = stop_on_block
+        return self.send_goal(goal)
+
+    def gripper_has_object(self):
+        """
+        Returns true if gripper has object in had. This is done by checking position
+        :return: True if gripper has object
+        """
+        status = self.gripper_status
+        width = status.width
+
+        gripper_is_open = width > (self._config['gripper_open_width'] - self._config['tol'])
+
+
+        gripper_fully_closed = width < (self._config['gripper_closed_width_when_empty'] + self._config['tol'])
+
+        gripper_has_object = (not gripper_is_open) and (not gripper_fully_closed)
+        return gripper_has_object
+
+    def closeGripper(self):
+        """
+        Closes the gripper and checks whether or not their is an object in gripper
+        :return: True if gripper has object
+        """
+
+        result = self.sendCloseGripperCommand()
+        return self.gripper_has_object()
+

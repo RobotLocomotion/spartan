@@ -305,6 +305,10 @@ class SimpleSubscriber(object):
             rospy.sleep(sleep_duration)
         return self.lastMsg
 
+    @property
+    def last_message(self):
+        return self.lastMsg
+
 
 class JointStateSubscriber(object):
     ''' Subscribes to a joint state channel (by default, /joint_states),
