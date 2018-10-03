@@ -8,7 +8,7 @@ To control the Schunk from code, your best bet is to use `spartan/modules/sparta
 
 ## Some misc notes about wsg50-ros-pkg
 
-The actual gripper driver is a submodule at `spartan/src/catkin_projects/wsg50-ros-pkg`. It has a complicated history (it's a [spartan-specific fork](https://github.com/gizatt/wsg50-ros-pkg) of the [Xamla fork](https://github.com/Xamla/wsg50-ros-pkg) of the [nalt WSG50 driver](https://github.com/nalt/wsg50-ros-pkg), which itself forks [a Robotnik WSG50 ROS driver](https://code.google.com/archive/p/wsg50-ros-pkg/). In reverse order:
+The actual gripper driver is a submodule at `spartan/src/catkin_projects/wsg50-ros-pkg`. It has a complicated history (it's a [spartan-specific fork](https://github.com/RobotLocomotion/wsg50-ros-pkg) of the [Xamla fork](https://github.com/Xamla/wsg50-ros-pkg) of the [nalt WSG50 driver](https://github.com/nalt/wsg50-ros-pkg), which itself forks [a Robotnik WSG50 ROS driver](https://code.google.com/archive/p/wsg50-ros-pkg/). In reverse order:
 
 - The nalt driver offers reasonable and reliable position control of the driver with continuous state reporting but does not allow on-the-fly max-force-setpoint control.
 - The Xamla driver adds continuous max-force-setpoint control and formalizes the driver into two actionlib interfaces: `/wsg50_driver/wsg50/gripper_command` (GripperStandardActionServer, with commands of type `control_msgs::GripperCommandActionGoal`) and `/wsg50_driver/wsg50/gripper_control` (GripperActionServer, with commands of type `wsg_50_common::Command`).
