@@ -293,6 +293,7 @@ class GraspSupervisor(object):
 
         self.gripper_fingertip_to_iiwa_link_ee = spartanUtils.transformFromPose(
             self.graspingParams['gripper_fingertip_to_ee'])
+        self.T_gripper_fingertip__iiwa_link_ee = self.gripper_fingertip_to_iiwa_link_ee.GetLinearInverse()
 
         pos = [-0.15, 0, 0]
         quat = [1, 0, 0, 0]
@@ -695,7 +696,15 @@ class GraspSupervisor(object):
     def getIiwaLinkEEFrameFromGraspFrame(self, graspFrame):
         return transformUtils.concatenateTransforms([self.iiwaLinkEEToGraspFrame, graspFrame])
 
-        # print "response ", response
+
+    def get_iiwa_link_ee_from_gripper_fingertip_frame(self, T_W__gripper_fingertip):
+        """
+
+        :param T_gripper_fingertip__W: gripper fingertip to world transform
+        :return:
+        """
+
+        return transformUtils.concatenateTransforms([self.T_gripper_fingertip__iiwa_link_ee, T_W__gripper_fingertip])
 
     def moveToFrame(self, graspFrame, speed=None):
         if speed is None:
@@ -719,15 +728,26 @@ class GraspSupervisor(object):
 
         return poseStamped
 
-    def make_ee_pose_stamped_from_grasp(self, grasp_frame):
+    def make_ee_pose_stamped_from_grasp(self, T_W__gripper_fingertip):
         """
         Make PoseStamped message for the end effector frame from a given grasp frame.
 
-        :param grasp_frame: The position of the tips of the fingers, move down 3 cm to get
-        :return:
+        :param T_W__gripper_fingertip: The position of the tips of the fingers, move down 3 cm to get
+        :return : pose of the end-effector for that grasp frame location
+        :rtype : geometry_msgs/PoseStamped
         """
 
-    def execute_grasp(self, grasp_data=None):
+        iiwaLinkEEFrame = self.get_iiwa_link_ee_from_gripper_fingertip_frame(T_W__gripper_fingertip)
+        poseDict = spartanUtils.poseFromTransform(iiwaLinkEEFrame)
+        poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
+        poseStamped = geometry_msgs.msg.PoseStamped()
+        poseStamped.pose = poseMsg
+        poseStamped.header.frame_id = "base"
+
+        return poseStamped
+
+
+    def execute_grasp(self, grasp_data=None, close_gripper=True):
         """
         Moves to pre-grasp frame, then grasp frame
         attemps to close gripper as well
@@ -742,7 +762,8 @@ class GraspSupervisor(object):
         pre_grasp_distance = self.graspingParams['pre_grasp_distance']
         pre_grasp_frame_gripper = grasp_data.compute_pre_grasp_frame(distance=pre_grasp_distance)
 
-        pre_grasp_ee_pose_stamped = self.makePoseStampedFromGraspFrame(pre_grasp_frame_gripper)
+        # pre_grasp_ee_pose_stamped = self.makePoseStampedFromGraspFrame(pre_grasp_frame_gripper)
+        pre_grasp_ee_pose_stamped = self.make_ee_pose_stamped_from_grasp(pre_grasp_frame_gripper)
 
         # run the ik for moving to pre-grasp location
         graspLocationData = self.graspingParams[self.state.graspingLocation]
@@ -760,7 +781,8 @@ class GraspSupervisor(object):
 
         # run the ik for moving to grasp location
         # for now just do IK, otherwise use cartesian space plan with force guards
-        grasp_frame_ee_pose_stamped = self.makePoseStampedFromGraspFrame(grasp_data.grasp_frame)
+        # grasp_frame_ee_pose_stamped = self.makePoseStampedFromGraspFrame(grasp_data.grasp_frame)
+        grasp_frame_ee_pose_stamped = self.make_ee_pose_stamped_from_grasp(grasp_data.grasp_frame)
         grasp_ik_response = self.robotService.runIK(grasp_frame_ee_pose_stamped,
                                                     seedPose=above_table_pre_grasp,
                                                     nominalPose=above_table_pre_grasp)
@@ -812,6 +834,15 @@ class GraspSupervisor(object):
         grasp_data.data['cartesian_trajectory_result'] = result
 
         print "Cartesian Trajectory Result\n", result
+
+        # record current location of gripper (in world frame)
+        # before closing the gripper
+
+
+        if close_gripper:
+            has_object = self.gripperDriver.closeGripper()
+
+        return has_object
 
         # grasp_speed = 10
         # grasp_speed = 5
