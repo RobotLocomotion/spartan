@@ -524,7 +524,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.ignore_live is True:
-        scans_dir = "/home/gizatt/spartan/data_volume/carrot_scans/"
+        scans_dir = "/home/gizatt/spartan/data_volume/"\
+                    "carrot_scans/2018-08-29-real-carrots"
         scans = []
         for (dir, _, files) in os.walk(scans_dir):
             for f in files:
