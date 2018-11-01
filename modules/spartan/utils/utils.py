@@ -134,6 +134,11 @@ def homogenous_transform_from_dict(d):
 
     return transform_matrix
 
+def apply_homogenous_transform_to_points(tf, pts):
+    ''' Given a homogenous tf matrix and a 3xN NP array
+    of points, apply the tf to the points to produce
+    a new 3xN array of points. '''
+    return ((tf[:3, :3].dot(pts).T) + tf[:3, 3]).T
 
 def get_current_YYYY_MM_DD_hh_mm_ss():
     """
