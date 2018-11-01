@@ -29,8 +29,14 @@ from PyQt5.QtGui import QIcon, QPixmap
 
 import rospy
 import sensor_msgs.msg
+import std_msgs.msg
 import ros_numpy
 import tf
+import interactive_markers.interactive_marker_server as ros_im
+from visualization_msgs.msg import (
+    Marker,
+    InteractiveMarkerControl
+)
 
 #import icp
 #import cpd
@@ -63,11 +69,124 @@ def convertDepthImageToPointCloud(depth_im, camera_matrix):
                               np.ones(XYZ.shape[1])])
     return pc
 
+
+class CarrotHypothesis():
+    def __init__(self, tf, height, radius, name, color, im_server):
+        self.tf = tf.copy()
+        self.height = height
+        self.radius = radius
+        self.color = color
+
+        # Users provide feedback to refine the mesh
+        # position + configuration through RViz
+        # InteractiveMarkers
+
+        self.im_marker = ros_im.InteractiveMarker()
+        self.im_marker.header.frame_id = "base"
+        self.im_marker.name = name
+        self.im_marker.description = "Hypothesized Carrot"
+        self.im_marker.scale = 0.15
+
+        # Visualize current carrot mesh
+        self.mesh_marker = Marker()
+        self.mesh_marker.type = Marker.TRIANGLE_LIST
+        self.mesh_marker.color.r = color[0]
+        self.mesh_marker.color.g = color[1]
+        self.mesh_marker.color.b = color[2]
+        if len(color) > 3:
+            self.mesh_marker.color.a = color[3]
+        else:
+            self.mesh_marker.color.a = 1.
+        mesh_control = InteractiveMarkerControl()
+        mesh_control.always_visible = True
+        mesh_control.markers.append(self.mesh_marker)
+        self.im_marker.controls.append(mesh_control)
+        
+        # Insert 6DOF control
+        control = InteractiveMarkerControl()
+        control.orientation.w = 1
+        control.orientation.x = 1
+        control.orientation.y = 0
+        control.orientation.z = 0
+        control.name = "rotate_x"
+        control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
+        self.im_marker.controls.append(control)
+
+        control = InteractiveMarkerControl()
+        control.orientation.w = 1
+        control.orientation.x = 1
+        control.orientation.y = 0
+        control.orientation.z = 0
+        control.name = "move_x"
+        control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
+        self.im_marker.controls.append(control)
+
+        control = InteractiveMarkerControl()
+        control.orientation.w = 1
+        control.orientation.x = 0
+        control.orientation.y = 1
+        control.orientation.z = 0
+        control.name = "rotate_z"
+        control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
+        self.im_marker.controls.append(control)
+
+        control = InteractiveMarkerControl()
+        control.orientation.w = 1
+        control.orientation.x = 0
+        control.orientation.y = 1
+        control.orientation.z = 0
+        control.name = "move_z"
+        control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
+        self.im_marker.controls.append(control)
+
+        control = InteractiveMarkerControl()
+        control.orientation.w = 1
+        control.orientation.x = 0
+        control.orientation.y = 0
+        control.orientation.z = 1
+        control.name = "rotate_y"
+        control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
+        self.im_marker.controls.append(control)
+
+        control = InteractiveMarkerControl()
+        control.orientation.w = 1
+        control.orientation.x = 0
+        control.orientation.y = 0
+        control.orientation.z = 1
+        control.name = "move_y"
+        control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
+        self.im_marker.controls.append(control)
+
+        self.im_server = im_server
+        self.im_server.insert(self.im_marker)
+        self._regenerateMesh()
+
+    def _regenerateMesh(self):
+        self.mesh = mesh_creation.create_cut_cylinder(
+              radius=self.radius,
+              height=self.height,
+              cutting_planes=[([0., 0., 0.], [1., 0., 0.])],
+              sections=10)
+        if self.mesh_marker is not None:
+            tris = self.mesh.faces.ravel()
+            verts = self.mesh.vertices[tris, :]
+            self.mesh_marker.points = ros_utils.arrayToPointMsgs(verts.T)
+            self.mesh_marker.colors = [
+                std_msgs.msg.ColorRGBA(
+                    self.color[0], self.color[1], self.color[2], self.color[3])
+                ] * tris.shape[0]
+            self.im_server.applyChanges()
+
+
 class App(QWidget):
 
     def __init__(self):
         super(App, self).__init__()
         rospy.init_node('carrot_perception_dashboard')
+        self.im_server = ros_im.InteractiveMarkerServer("carrot_perception_dashboard")
+
+        test = CarrotHypothesis(np.eye(4), 0.05, 0.05, "test", [1., 0., 0., 0.8], self.im_server)
+
         self.vis = None
         #self.vis = meshcat.Visualizer(zmq_url="tcp://127.0.0.1:6000")["fitting_util"]
         #self.vis.delete()
