@@ -33,9 +33,11 @@ import std_msgs.msg
 import ros_numpy
 import tf
 import interactive_markers.interactive_marker_server as ros_im
+import interactive_markers.menu_handler as ros_mh
 from visualization_msgs.msg import (
     Marker,
-    InteractiveMarkerControl
+    InteractiveMarkerControl,
+    InteractiveMarkerFeedback
 )
 
 #import icp
@@ -76,6 +78,7 @@ class CarrotHypothesis():
         self.height = height
         self.radius = radius
         self.color = color
+        self.pose = None
 
         # Users provide feedback to refine the mesh
         # position + configuration through RViz
@@ -86,6 +89,7 @@ class CarrotHypothesis():
         self.im_marker.name = name
         self.im_marker.description = "Hypothesized Carrot"
         self.im_marker.scale = 0.15
+        self.im_marker.pose = ros_utils.ROSPoseMsgFromPose(spartanUtils.dict_from_homogenous_transform(tf))
 
         # Visualize current carrot mesh
         self.mesh_marker = Marker()
@@ -101,7 +105,47 @@ class CarrotHypothesis():
         mesh_control.always_visible = True
         mesh_control.markers.append(self.mesh_marker)
         self.im_marker.controls.append(mesh_control)
+
+        # Menu
+        control = InteractiveMarkerControl()
+        control.interaction_mode = InteractiveMarkerControl.MENU
+        control.name = "menu_only_control"
+        control.always_visible = True
+        control.markers.append(self.mesh_marker)
+        self.im_marker.controls.append(control)
         
+        # Give it a context menu to enable switching between
+        # pose + scaling modes.
+        self.menu_handler = ros_mh.MenuHandler()
+        self.menu_visible_entry = self.menu_handler.insert(
+            "Edit Pose", callback=self._menu_edit_pose_cb)
+        #self.menu_visible_entry = self.menu_handler.insert(
+        #    "Edit Scale", callback=self._menu_edit_scale_cb)
+
+        self.im_server = im_server
+        self.im_server.insert(self.im_marker, self._process_feedback_cb)
+        self.menu_handler.apply(self.im_server, name)
+        self._regenerateMesh()
+        self.im_server.applyChanges()
+
+    def _process_feedback_cb(self, feedback):
+        if feedback.marker_name == self.im_marker.name:
+            if feedback.event_type == InteractiveMarkerFeedback.POSE_UPDATE:
+                self.pose = feedback.pose
+                print feedback.pose
+            #if feedback.event_type == InteractiveMarkerFeedback.MOUSE_DOWN:
+            #    self.pose = feedback.pose
+            #    rospy.loginfo("Updated pose to ", self.pose)
+            #elif feedback.event_type == InteractiveMarkerFeedback.POSE_UPDATE:
+            #    if self.pose is None:
+            #        rospy.logdebug("Didn't have a pose even though we're in a pose update.")
+            #        self.pose = feedback.pose
+            #    feedback.pose = self.pose
+            #    self.im_server.setPose(feedback.marker_name, feedback.pose)
+            #    self.im_server.applyChanges()
+
+    def _add_6dof_controls(self):
+        self.axis_controls = []
         # Insert 6DOF control
         control = InteractiveMarkerControl()
         control.orientation.w = 1
@@ -111,6 +155,7 @@ class CarrotHypothesis():
         control.name = "rotate_x"
         control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
         self.im_marker.controls.append(control)
+        self.axis_controls.append(control)
 
         control = InteractiveMarkerControl()
         control.orientation.w = 1
@@ -120,6 +165,7 @@ class CarrotHypothesis():
         control.name = "move_x"
         control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
         self.im_marker.controls.append(control)
+        self.axis_controls.append(control)
 
         control = InteractiveMarkerControl()
         control.orientation.w = 1
@@ -129,6 +175,7 @@ class CarrotHypothesis():
         control.name = "rotate_z"
         control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
         self.im_marker.controls.append(control)
+        self.axis_controls.append(control)
 
         control = InteractiveMarkerControl()
         control.orientation.w = 1
@@ -138,6 +185,7 @@ class CarrotHypothesis():
         control.name = "move_z"
         control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
         self.im_marker.controls.append(control)
+        self.axis_controls.append(control)
 
         control = InteractiveMarkerControl()
         control.orientation.w = 1
@@ -147,6 +195,7 @@ class CarrotHypothesis():
         control.name = "rotate_y"
         control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
         self.im_marker.controls.append(control)
+        self.axis_controls.append(control)
 
         control = InteractiveMarkerControl()
         control.orientation.w = 1
@@ -156,10 +205,39 @@ class CarrotHypothesis():
         control.name = "move_y"
         control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
         self.im_marker.controls.append(control)
+        self.axis_controls.append(control)
 
-        self.im_server = im_server
-        self.im_server.insert(self.im_marker)
-        self._regenerateMesh()
+    def _menu_edit_pose_cb(self, feedback):
+        handle = feedback.menu_entry_id
+        state = self.menu_handler.getCheckState(handle)
+
+        if state == ros_mh.MenuHandler.CHECKED:
+            self.menu_handler.setCheckState( handle, ros_mh.MenuHandler.UNCHECKED )
+            for control in self.axis_controls:
+                self.im_marker.controls.remove(control)
+            self.axis_controls = []
+        else:
+            self.menu_handler.setCheckState( handle, ros_mh.MenuHandler.CHECKED )
+            self._add_6dof_controls()
+
+        self.menu_handler.reApply( self.im_server )
+        self.im_server.applyChanges()
+
+    def _menu_edit_scale_cb(self, feedback):
+        handle = feedback.menu_entry_id
+        state = self.menu_handler.getCheckState(handle)
+
+        if state == ros_mh.MenuHandler.CHECKED:
+            self.menu_handler.setCheckState( handle, ros_mh.MenuHandler.UNCHECKED )
+            for control in self.axis_controls:
+                self.im_marker.controls.remove(control)
+            self.axis_controls = []
+        else:
+            self.menu_handler.setCheckState( handle, ros_mh.MenuHandler.CHECKED )
+            self._add_6dof_controls()
+
+        self.menu_handler.reApply( self.im_server )
+        self.im_server.applyChanges()
 
     def _regenerateMesh(self):
         self.mesh = mesh_creation.create_cut_cylinder(
@@ -175,7 +253,6 @@ class CarrotHypothesis():
                 std_msgs.msg.ColorRGBA(
                     self.color[0], self.color[1], self.color[2], self.color[3])
                 ] * tris.shape[0]
-            self.im_server.applyChanges()
 
 
 class App(QWidget):
@@ -184,8 +261,6 @@ class App(QWidget):
         super(App, self).__init__()
         rospy.init_node('carrot_perception_dashboard')
         self.im_server = ros_im.InteractiveMarkerServer("carrot_perception_dashboard")
-
-        test = CarrotHypothesis(np.eye(4), 0.05, 0.05, "test", [1., 0., 0., 0.8], self.im_server)
 
         self.vis = None
         #self.vis = meshcat.Visualizer(zmq_url="tcp://127.0.0.1:6000")["fitting_util"]
@@ -207,9 +282,13 @@ class App(QWidget):
         self.registered_cloud_subscriber = ros_utils.SimpleSubscriber(
             self.camera_base_channel + "/depth_registered/points",
             sensor_msgs.msg.PointCloud2)
+        self.rgb_camera_info_subscriber = ros_utils.SimpleSubscriber(
+            self.camera_base_channel + "/depth_registered/sw_registered/camera_info",
+            sensor_msgs.msg.CameraInfo)
 
         all_subscribers = [
-            self.registered_cloud_subscriber
+            self.registered_cloud_subscriber,
+            self.rgb_camera_info_subscriber
         ]
 
         for subscriber in all_subscribers:
@@ -218,6 +297,10 @@ class App(QWidget):
             subscriber.waitForNextMessage()
         rospy.loginfo("All channels are alive.")
 
+        camera_matrix_msg = self.rgb_camera_info_subscriber.waitForNextMessage()
+        self.camera_matrix = np.array(camera_matrix_msg.K).reshape(3, 3)
+
+        self.hypotheses = []
         
     def initUI(self):
         self.setWindowTitle(self.title)
@@ -321,6 +404,20 @@ class App(QWidget):
             return
         # Project x, y into the depth cloud
         print "Clicked depth: ", self.current_depth_image[y, x]
+
+        camera_frame_point = convertImagePointsToPointCloud(
+            [x, y, self.current_depth_image[y, x]],
+            self.camera_matrix)
+        # And transform to world frame
+        world_frame_point = spartanUtils.apply_homogenous_transform_to_points(
+            self.current_camera_pose, camera_frame_point)        
+        print "Clicked world frame point: ", world_frame_point
+
+        tf = np.eye(4)
+        tf[:3, 3] = world_frame_point[:, 0]
+        self.hypotheses.append(
+            CarrotHypothesis(tf, 0.05, 0.05, "carrot_%d" % (len(self.hypotheses)+1),
+                            [1., 0., 0., 0.8], self.im_server))
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

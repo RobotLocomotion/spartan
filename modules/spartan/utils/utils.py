@@ -134,6 +134,14 @@ def homogenous_transform_from_dict(d):
 
     return transform_matrix
 
+def dict_from_homogenous_transform(tf):
+    """
+    Returns standard encoding in dict format from 4x4 transform matrix
+    :param tf:
+    :return:
+    """
+    return dictFromPosQuat(tf[:3, 3], transformations.quaternion_from_matrix(tf))
+
 def apply_homogenous_transform_to_points(tf, pts):
     ''' Given a homogenous tf matrix and a 3xN NP array
     of points, apply the tf to the points to produce
