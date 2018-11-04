@@ -22,7 +22,7 @@ cd spartan/build
 make catkin_projects/fast
 ```
 - When you launch the sensor via `roslaunch camera_config openni2.launch`, pass the serial_number/camera_name you chose.
-
+- **Note**: You cannot stream RGB and IR at the same time due to usb 2.
 
 ### Intrinsics calibration with ROS Camera Calibration
 First we do intrinsics.
