@@ -10,6 +10,20 @@ There should already be a calibration target setup which looks like
 
 The pdf of this target is in `spartan/src/catkin_projects/camera_config/data/calibration_targets/check_7x6_108mm.pdf`. When sized to print on letter size paper the edge length of an individual square was measured to be 25.6 mm.
 
+### Prepare to capture images
+
+- Decide the device's serial number or name
+- Create a new folder in `src/catkin_projects/station_config/<robot_name>/hand_eye_calibration` and create a new `.yaml` file.  Copy over the structure from another yaml file. `<robot_name>` should be something like `RLG_iiwa_1` or `RLG_iiwa_2`.
+- Specify in `iiwamanipdev.py` what the name of this `.yaml` file is within `station_config`
+- Create a new folder in `camera_config` and copy over the structure from other folders
+- Rebuild catkin_project/fast
+```
+cd spartan/build
+make catkin_projects/fast
+```
+- When you launch the sensor via `roslaunch camera_config openni2.launch`, pass the serial_number/camera_name you chose.
+
+
 ### Intrinsics calibration with ROS Camera Calibration
 First we do intrinsics.
 - Open director, put the robot into the `Calibration - intrinsics calibtration pose`
@@ -45,18 +59,7 @@ make catkin-projects/fast
 
 You'll be sad if you don't rebuild.
 
-### Prepare to capture images
 
-- Decide the device's serial number or name
-- Create a new folder in `src/catkin_projects/station_config/hand_eye_calibration` and create a new `.yaml` file.  Copy over the structure from another yaml file.
-- Specify in `iiwamanipdev.py` what the name of this `.yaml` file is within `station_config`
-- Create a new folder in `camera_config` and copy over the structure from other folders
-- Rebuild catkin_project/fast
-```
-cd spartan/build
-make catkin_projects/fast
-```
-- When you launch the sensor via `roslaunch camera_config openni2.launch`, pass the serial_number you chose
 
 ---
 
