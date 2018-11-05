@@ -1,7 +1,18 @@
-## Camera calibration in Spartan
+# Camera calibration in Spartan
+
+
+The goal of all the following steps is to produce the following files. Suppose your camera is named `<camera_name>` then the following proceduce will result in 3 files being created in the folder 
+`spartan/src/catkin_projects/camera_config/data/<camera_name>/master`
+
+- `rgb_camera_info.yaml` contains intrinsics for RGB camera
+- `depth_camera_info.yaml` contains intrinsics for depth camera.
+- `camera_info.yaml` contains extrinsics for both rgb and ir cameras.
+
+
+See `carmine_1` as an example of a camera that has already been calibrated.
 
 ---
-
+## Setup
 ### Calibration Target
 There should already be a calibration target setup which looks like
 <p align="center">
@@ -24,31 +35,39 @@ make catkin_projects/fast
 - When you launch the sensor via `roslaunch camera_config openni2.launch`, pass the serial_number/camera_name you chose.
 - **Note**: You cannot stream RGB and IR at the same time due to usb 2.
 
+## Intrinsics Calibration
+
 ### Intrinsics calibration with ROS Camera Calibration
 First we do intrinsics.
 - Open director, put the robot into the `Calibration - intrinsics calibtration pose`
 - Open rviz, view the rgb topic, make sure you can walk around with the calibration plate in it
 
-In order to calibration intrinsics for rgb camera, execute the following command, replacing `xtion_pro` with the name of your camera.
+In order to calibration intrinsics for rgb camera, execute the following command, replacing `<camera_name>` with the name of your camera.
 ```
-rosrun camera_calibration cameracalibrator.py --size 7x6 --square 0.0256 image:=/camera_xtion_pro/rgb/image_raw camera:=/camera_xtion_pro/rgb
+rosrun camera_calibration cameracalibrator.py --size 7x6 --square 0.0256 image:=/<camera_name>/rgb/image_raw camera:=/<camera_name>/rgb
 ```
 
 To run the calibration for the ir camera execute
 ```
-rosrun camera_calibration cameracalibrator.py --size 7x6 --square 0.0256 image:=/camera_xtion_pro/ir/image camera:=/camera_xtion_pro/ir
+rosrun camera_calibration cameracalibrator.py --size 7x6 --square 0.0256 image:=/<camera_name>/ir/image camera:=/<camera_name>/ir
 ```
 - A window will pop out, you should move the calibration plate around until the `CALIBRATE` button gets colored.
 - Click the `CALIBRATE` button, the calibration process might take a few seconds, during which the window might gray out, but it is working
 - After the calibration is done. Click the `SAVE` button, the calibrated results will be saved to `/tmp/calibrationdata.tar.gz`. Run the following command to move the camera info file to the right place
 ```
-python intrinsics_calibration.py --rgb --camera_name xtion_pro
+python intrinsics_calibration.py --rgb --camera_name <camera_name>
 ```
+
+This will create the file `spartan/src/catkin_projects/camera_config/data/<camera_name>/master/rgb_camera_info.yaml` which
+holds the RGB intrinsics.
 
 And for IR do:
 ```
-python intrinsics_calibration.py --ir --camera_name xtion_pro
+python intrinsics_calibration.py --ir --camera_name <camera_name>
 ```
+
+This will create the file `spartan/src/catkin_projects/camera_config/data/<camera_name>/master/depth_camera_info.yaml` which 
+stores the depth camera intrinsics.
 
 Make sure to rebuild!
 
@@ -62,6 +81,7 @@ You'll be sad if you don't rebuild.
 
 
 ---
+## Extrinsics Calibration
 
 ### Capture images
 
@@ -98,15 +118,9 @@ spartan/calibration_data/20180201-2335959_ir/
 
 Remember to remove the projector-covering device!!
 
-### Run calibration optimization on images
+### Optimize Extrinsics using Handical
 
-- Find the folder names of the `_rgb` and `_ir` images
-- copy those folders (`cp -r`) into a subdirectory of spartan_grasp (for examples `spartan_grasp/sandbox`)
-- Edit `test_run_camera_calibration.py` to point to the folder paths, and also edit the name and serail number of the camera
-- `./test_run_camera_calibration.py`
-- Calibration results will be stored in `spartan_grasp/sandbox/calibration_results`
-- Copy the calibration results over back into `spartan` directory world (under `camera_config` -- copy the other folder structures)
-- Remember to rebuild catkin_projects with `make catkin_projects/fast`
+## Testing
 
 ### Test the calibration quality
 
