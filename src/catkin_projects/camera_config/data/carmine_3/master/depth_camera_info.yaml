@@ -1,0 +1,55 @@
+camera_matrix:
+  cols: 3
+  data:
+  - 568.681471
+  - 0.0
+  - 317.334911
+  - 0.0
+  - 567.928998
+  - 234.968645
+  - 0.0
+  - 0.0
+  - 1.0
+  rows: 3
+camera_name: carmine_3
+distortion_coefficients:
+  cols: 5
+  data:
+  - -0.000504
+  - -0.01266
+  - -0.001651
+  - -0.010851
+  - 0.0
+  rows: 1
+distortion_model: plumb_bob
+image_height: 480
+image_width: 640
+projection_matrix:
+  cols: 4
+  data:
+  - 568.104004
+  - 0.0
+  - 310.952736
+  - 0.0
+  - 0.0
+  - 572.857666
+  - 234.169228
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  rows: 3
+rectification_matrix:
+  cols: 3
+  data:
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  rows: 3
