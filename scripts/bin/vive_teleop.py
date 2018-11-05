@@ -31,6 +31,7 @@ from spartan.manipulation.schunk_driver import SchunkDriver
 import robot_msgs.msg
 import geometry_msgs.msg
 import sensor_msgs.msg
+import tf2_msgs.msg
 
 import math
 
@@ -149,6 +150,12 @@ def build_rbt_from_ros_environment():
         robot)
     return robot
 
+def poseFromTFMessage(msg, id):
+    for transform in msg.transforms:
+        if transform.child_frame_id == id:
+            return ros_utils.poseFromROSTransformMsg(transform.transform)
+    return False
+
 def do_main():
     rospy.init_node('sandbox', anonymous=True)
 
@@ -162,24 +169,16 @@ def do_main():
         rospy.sleep(0.1)
     print("got full state")
 
-    rightControllerPoseSubscriber = SimpleSubscriber("/right_controller_as_posestamped", geometry_msgs.msg.PoseStamped)
-    rightControllerPoseSubscriber.start()
-    print("Waiting for vive pose...")
-    rightControllerPoseSubscriber.waitForNextMessage()
-    print("Got vive pose.")
-
     rightControllerState = SimpleSubscriber("/vive_right", sensor_msgs.msg.Joy)
     rightControllerState.start()
-    print("Waiting for vive controller state...")
+    print("Waiting for vive...")
     rightControllerState.waitForNextMessage()
     print("Got vive controller state")
 
     #init constants 
-    grip_button_id = 2
+    move_button_id = 2 # press trackpad
+    callibrate_button_id = 4 # side buttons
     trigger_axis_id = 0
-
-    # Printing out data from vive
-
 
     handDriver = SchunkDriver()
     gripper_goal_pos = 0.1
@@ -255,19 +254,19 @@ def do_main():
 
     rospy.on_shutdown(cleanup)
     br = tf.TransformBroadcaster()
+    rate = rospy.Rate(100)
     try:
         last_gripper_update_time = time.time()
-        last_grip_pressed = False
+        last_move_pressed = False
         while not rospy.is_shutdown():
             # get controller data
-            latest_pose_msg = rightControllerPoseSubscriber.waitForNextMessage(sleep_duration=0.0001)
             latest_state_msg = rightControllerState.last_message
 
             # Gripper 
             dt = time.time() - last_gripper_update_time
             if dt > 0.2:
                 last_gripper_update_time = time.time()
-                gripper_goal_pos = 0.1 * (1-latest_pose_msg.axes[trigger_axis_id])
+                gripper_goal_pos = 0.1 * (1-latest_state_msg.axes[trigger_axis_id])
                 handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1)
                 print "Gripper goal pos: ", gripper_goal_pos
                 br.sendTransform(origin_tf[0:3, 3],
@@ -276,39 +275,67 @@ def do_main():
                                  "origin_tf",
                                  frame_name)
 
-            # get robot pose
+            # get current tf from ros world to ee
             try:
-                current_pose_ee = ros_utils.poseFromROSTransformMsg(
+                pose_current_ros_ee = ros_utils.poseFromROSTransformMsg(
                     tfBuffer.lookup_transform("base", frame_name, rospy.Time()).transform)
+                tf_current_ros_ee = tf_matrix_from_pose(pose_current_ros_ee)
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                print("Troubling looking up tf...")
+                rate.sleep()
+                continue
+
+            # get current tf from vr world to controller
+            try:
+                pose_current_vr_controller = ros_utils.poseFromROSTransformMsg(
+                    tfBuffer.lookup_transform("world", "right_controller", rospy.Time()).transform)
+                tf_current_vr_controller = tf_matrix_from_pose(pose_current_vr_controller)
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                print("Troubling looking up tf...")
+                rate.sleep()
+                continue
+
+            # get tf from ros world to vr world (should be constant while moving)
+            try:
+                pose_ros_vr = ros_utils.poseFromROSTransformMsg(
+                    tfBuffer.lookup_transform("base", "world", rospy.Time()).transform)
+                tf_ros_vr = tf_matrix_from_pose(pose_ros_vr)
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 print("Troubling looking up tf...")
                 rate.sleep()
                 continue
 
             # Check if move button pressed
-            grip_pressed = (latest_state_msg.buttons[grip_button_id] == 1)
-
-            if grip_pressed:
-                if last_grip_pressed is False:
+            move_pressed = (latest_state_msg.buttons[move_button_id] == 1)
+            
+            if move_pressed:
+                if last_move_pressed is False:
                     print("begin motion")
-                    start_pose_controller = latest_pose_msg.pose
-                    start_tf_controlller = tf_matrix_from_pose(start_pose_controller)
-                    start_pose_ee = current_pose_ee
-                    start_tf_ee = tf_matrix_from_pose(start_pose_ee)
+                    tf_start_ros_ee = tf_current_ros_ee
+                    tf_start_vr_controller = tf_current_vr_controller
 
-                current_pose_controller = latest_pose_msg.pose
-                tf_controller = get_relative_tf_between_poses(start_pose_controller, current_pose_controller)
-                tf_in_ee_frame = origin_tf.dot(tf_controller).dot(origin_tf_inv)
+                # calculate starting tf from controller to ee 
+                tf_start_controller_vr = np.linalg.inv(tf_start_vr_controller)
+                tf_vr_ros = np.linalg.inv(tf_ros_vr)
+                tf_start_controller_ee = tf_start_controller_vr.dot(tf_vr_ros).dot(tf_start_ros_ee)
 
-                start_tf_ee_inv = np.linalg.inv(start_tf_ee)
-                target_tf_ee = start_tf_ee.copy()
-                target_tf_ee[0:3, 3] += tf_in_ee_frame[0:3, 3] # copy position change in world frame
-                target_tf_ee[0:3, 0:3] = tf_in_ee_frame[0:3, 0:3].dot(target_tf_ee[0:3, 0:3])
+                # we want tf from controller to ee to be constant for intuitive control
+                # thus, use this to find tf from ros world to target ee
+                tf_target_ros_ee = tf_ros_vr.dot(tf_current_vr_controller).dot(tf_start_controller_ee)
 
-                target_trans_ee = trans_slerp_amount*target_tf_ee[:3, 3]
-                target_quat_ee = transformations.quaternion_from_matrix(target_tf_ee)
+                # calculate positions of controllers in ros frame
+                tf_start_ros_controller = tf_ros_vr.dot(tf_start_vr_controller)
+                tf_current_ros_controller = tf_ros_vr.dot(tf_current_vr_controller)
+
+                # subtract to get movement vector
+                controller_trans = tf_current_ros_controller[:3, 3] - tf_start_ros_controller[:3, 3]
+
+                # convert tf to trans and quat
+                target_trans_ee = tf_start_ros_ee[:3, 3] + controller_trans # start position + movement vector
+                target_quat_ee = transformations.quaternion_from_matrix(tf_target_ros_ee)
                 target_quat_ee = np.array(target_quat_ee) / np.linalg.norm(target_quat_ee)
 
+                # publish target pose ase cartesian goal point
                 new_msg = robot_msgs.msg.CartesianGoalPoint()
                 new_msg.xyz_point.header.frame_id = "world"
                 new_msg.xyz_point.point.x = target_trans_ee[0]
@@ -324,9 +351,11 @@ def do_main():
                 new_msg.gain = make_cartesian_gains_msg(5., 10.)
                 new_msg.ee_frame_id = frame_name
                 pub.publish(new_msg)
+                print(new_msg)
 
 
-            last_grip_pressed = grip_pressed
+            last_move_pressed = move_pressed
+            rate.sleep()
 
 
 
