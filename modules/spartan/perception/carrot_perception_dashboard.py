@@ -113,18 +113,17 @@ class CarrotHypothesis():
         control.always_visible = True
         control.markers.append(self.mesh_marker)
         self.im_marker.controls.append(control)
-        
+        self._add_6dof_controls()
+
         # Give it a context menu to enable switching between
         # pose + scaling modes.
-        self.menu_handler = ros_mh.MenuHandler()
-        self.menu_visible_entry = self.menu_handler.insert(
-            "Edit Pose", callback=self._menu_edit_pose_cb)
+        #self.menu_handler = ros_mh.MenuHandler()
         #self.menu_visible_entry = self.menu_handler.insert(
-        #    "Edit Scale", callback=self._menu_edit_scale_cb)
+        #    "Edit Pose", callback=self._menu_edit_pose_cb)
 
         self.im_server = im_server
         self.im_server.insert(self.im_marker, self._process_feedback_cb)
-        self.menu_handler.apply(self.im_server, name)
+        #self.menu_handler.apply(self.im_server, name)
         self._regenerateMesh()
         self.im_server.applyChanges()
 
@@ -223,22 +222,6 @@ class CarrotHypothesis():
         self.menu_handler.reApply( self.im_server )
         self.im_server.applyChanges()
 
-    def _menu_edit_scale_cb(self, feedback):
-        handle = feedback.menu_entry_id
-        state = self.menu_handler.getCheckState(handle)
-
-        if state == ros_mh.MenuHandler.CHECKED:
-            self.menu_handler.setCheckState( handle, ros_mh.MenuHandler.UNCHECKED )
-            for control in self.axis_controls:
-                self.im_marker.controls.remove(control)
-            self.axis_controls = []
-        else:
-            self.menu_handler.setCheckState( handle, ros_mh.MenuHandler.CHECKED )
-            self._add_6dof_controls()
-
-        self.menu_handler.reApply( self.im_server )
-        self.im_server.applyChanges()
-
     def _regenerateMesh(self):
         self.mesh = mesh_creation.create_cut_cylinder(
               radius=self.radius,
@@ -259,7 +242,7 @@ class App(QWidget):
 
     def __init__(self):
         super(App, self).__init__()
-        rospy.init_node('carrot_perception_dashboard')
+        rospy.init_node('carrot_perception_dashboard', anonymous=True)
         self.im_server = ros_im.InteractiveMarkerServer("carrot_perception_dashboard")
 
         self.vis = None
@@ -274,9 +257,10 @@ class App(QWidget):
         self.initUI()
 
     def initData(self):
-        self.base_frame = "base"
-        self.rgb_camera_frame = "camera_carmine_1_rgb_optical_frame"
+        self.base_frame = "/base"
+        self.rgb_camera_frame = "/camera_carmine_1_rgb_optical_frame"
         self.tf_listener = tf.TransformListener()
+        rospy.sleep(1.0)
 
         self.camera_base_channel = "/camera_carmine_1"
         self.registered_cloud_subscriber = ros_utils.SimpleSubscriber(
@@ -369,9 +353,9 @@ class App(QWidget):
         self.current_depth_image = points[:, :, 2]
         try:
             (trans, rot) = self.tf_listener.lookupTransform(self.base_frame, self.rgb_camera_frame, rospy.Time(0))
-            self.current_camera_pose = transformations.euler_matrix(rot[0], rot[1], rot[2])
+            self.current_camera_pose = transformations.quaternion_matrix(np.array([rot[3], rot[0], rot[1], rot[2]]))
             self.current_camera_pose[:3, 3] = trans[:]
-        except:
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             self.current_camera_pose = np.eye(4)
             rospy.logwarn("Couldn't get TF from %s to %s" % (self.base_frame, self.rgb_camera_frame))
 
