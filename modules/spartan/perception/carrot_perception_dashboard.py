@@ -24,8 +24,11 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QSpinBox,
+    QListView,
     )
-from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtGui import (
+    QIcon, QPixmap, QStandardItemModel, QStandardItem
+)
 
 import rospy
 import sensor_msgs.msg
@@ -79,6 +82,7 @@ class CarrotHypothesis():
         self.radius = radius
         self.color = color
         self.pose = None
+        self.name = name
 
         # Users provide feedback to refine the mesh
         # position + configuration through RViz
@@ -237,6 +241,37 @@ class CarrotHypothesis():
                     self.color[0], self.color[1], self.color[2], self.color[3])
                 ] * tris.shape[0]
 
+    def makeStandardItem(self):
+        self.item = QStandardItem(self.name)
+        self.item.owner = self
+        return self.item
+
+class LabeledDoubleSpinBox(QWidget):
+    def __init__(self, dmin, dmax, singlestep, decimals, label):
+        super(LabeledDoubleSpinBox, self).__init__()
+        layout = QHBoxLayout()
+        self.label = QLabel(label)
+        layout.addWidget(self.label)
+        self.spinbox = QDoubleSpinBox(self)
+        self.spinbox.setRange(dmin, dmax)
+        self.spinbox.setSingleStep(singlestep)
+        self.spinbox.setDecimals(decimals)
+        layout.addWidget(self.spinbox)
+        self.setLayout(layout)
+
+
+class CarrotHypothesisWidget(QWidget):
+    def __init__(self):
+        super(CarrotHypothesisWidget, self).__init__()
+        layout = QVBoxLayout()
+        self.length_spinbox = LabeledDoubleSpinBox(
+            dmin=0.0, dmax=0.1, singlestep=0.001, decimals=3, label="Length")
+        layout.addWidget(self.length_spinbox)
+        self.radius_spinbox = LabeledDoubleSpinBox(
+            dmin=0.0, dmax=0.1, singlestep=0.001, decimals=3, label="Radius")
+        layout.addWidget(self.radius_spinbox)
+        self.setLayout(layout)
+
 
 class App(QWidget):
 
@@ -260,7 +295,8 @@ class App(QWidget):
         self.base_frame = "/base"
         self.rgb_camera_frame = "/camera_carmine_1_rgb_optical_frame"
         self.tf_listener = tf.TransformListener()
-        rospy.sleep(1.0)
+        self.hypothesis_k = 0
+        self.current_depth_image = None
 
         self.camera_base_channel = "/camera_carmine_1"
         self.registered_cloud_subscriber = ros_utils.SimpleSubscriber(
@@ -302,7 +338,7 @@ class App(QWidget):
             " font-family: Courier New;")
         mainLayout.addWidget(instruction_label)
 
-        # Create widget
+        viewerLayout = QHBoxLayout()
         self.viewer = QtImageViewer()
         self.viewer.aspectRatioMode = QtCore.Qt.KeepAspectRatio
         self.viewer.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
@@ -312,7 +348,19 @@ class App(QWidget):
         self.viewer.canPan = True
 
         self.viewer.leftMouseButtonPressed.connect(self.handleLeftClickOnImage)
-        mainLayout.addWidget(self.viewer)
+        viewerLayout.addWidget(self.viewer)
+
+        listviewLayout = QVBoxLayout()
+        self.listview = QListView()
+        self.listview_model = QStandardItemModel(self.listview)
+        self.listview.setModel(self.listview_model)
+        self.listview.selectionModel().selectionChanged.connect(self.onSelectionChange)
+        listviewLayout.addWidget(self.listview)
+        self.carrotHypothesisWidget = CarrotHypothesisWidget()
+        listviewLayout.addWidget(self.carrotHypothesisWidget)
+
+        viewerLayout.addLayout(listviewLayout)        
+        mainLayout.addLayout(viewerLayout)
 
         dataControlLayout = QHBoxLayout()
         self.button_grab = QPushButton('Grab Current RGBD Frame')
@@ -359,14 +407,6 @@ class App(QWidget):
             self.current_camera_pose = np.eye(4)
             rospy.logwarn("Couldn't get TF from %s to %s" % (self.base_frame, self.rgb_camera_frame))
 
-        # Make entire depth point cloud for this perspective...
-        #pc = convertDepthImageToPointCloud(self.current_depth_image, self.camera_matrix)
-        #self.current_camera_pose = spartanUtils.homogenous_transform_from_dict(
-        #    self.pose_data[self.curr_image_index]["camera_to_world"])
-        #pc = spartanUtils.apply_homogenous_transform_to_points(
-        #    self.current_camera_pose, pc)
-        #self.current_colors = self.current_rgb_image.reshape(480*640, 3, order='A').astype(np.float64) / 255.
-
     def handleGrabButton(self):
         rospy.loginfo("Waiting for next pointcloud...")
         new_pc2 = self.registered_cloud_subscriber.waitForNextMessage()
@@ -379,13 +419,18 @@ class App(QWidget):
         self.selected_camera_poses = []
         self.selected_depth_images = []
 
+    def onSelectionChange(self):
+        print self.listview.selectedItems()
+
     def handleLeftClickOnImage(self, x, y):
         print "Clicked ", x, y
         x = int(x)
         y = int(y)
         if x >= 640 or x < 0 or y >= 480 or y < 0:
-            print "Clicked out of bounds, ignoring."
             return
+        if self.current_depth_image is None:
+            return
+
         # Project x, y into the depth cloud
         print "Clicked depth: ", self.current_depth_image[y, x]
 
@@ -399,9 +444,16 @@ class App(QWidget):
 
         tf = np.eye(4)
         tf[:3, 3] = world_frame_point[:, 0]
-        self.hypotheses.append(
-            CarrotHypothesis(tf, 0.05, 0.05, "carrot_%d" % (len(self.hypotheses)+1),
-                            [1., 0., 0., 0.8], self.im_server))
+        name = "carrot_%d" % self.hypothesis_k
+        self.hypothesis_k += 1
+        color = plt.cm.jet(np.random.random())
+        height = 0.05
+        radius = 0.05 
+        new_hyp = CarrotHypothesis(tf, height, radius, name,
+                                   color, self.im_server)
+        self.hypotheses.append(new_hyp)
+        self.listview_model.appendRow(new_hyp.makeStandardItem())
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
