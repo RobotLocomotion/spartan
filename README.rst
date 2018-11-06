@@ -13,7 +13,7 @@ Spartan
 
 
 This is a project repository for robotics research and applications using
-Drake_ and Director_. This repository is meant as an internal tool for the Robot Locomotion Group and **is not supported for external use**. Documentation on how to operate the Kuka robot hardware `can be found here`_.
+Drake_ and Director_. This repository is meant as an internal tool for the Robot Locomotion Group. **It contains private submodules and is not supported for external use**. Documentation on how to operate the Kuka robot hardware `can be found here`_.
 
 .. _Drake: https://www.github.com/RobotLocomotion/drake
 .. _Director: https://www.github.com/RobotLocomotion/director
@@ -248,3 +248,4 @@ Other useful documentation
 - `Razer Hydra teleop guide <doc/hydra_guide.md>`_
 - `Schunk driving and usage guide <doc/schunk_driving_guide.md>`_
 - `Fusion server notes <doc/fusion_server_notes.md>`_
+- `Vive teleop guide <doc/vive_guide.md>`_

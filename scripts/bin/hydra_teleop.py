@@ -170,8 +170,6 @@ def do_main():
 
     handDriver = SchunkDriver()
     gripper_goal_pos = 0.1
-    handDriver.reset_and_home()
-    handDriver.reset_and_home()
 
     # Start by moving to an above-table pregrasp pose that we know
     # EE control will work well from (i.e. far from singularity)
@@ -254,7 +252,7 @@ def do_main():
                 last_gripper_update_time = time.time()
                 gripper_goal_pos += latest_hydra_msg.paddles[0].joy[0]*dt*0.05
                 gripper_goal_pos = max(min(gripper_goal_pos, 0.1), 0.0)
-                handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1)
+                handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
                 print "Gripper goal pos: ", gripper_goal_pos
                 br.sendTransform(origin_tf[0:3, 3],
                                  ro(transformations.quaternion_from_matrix(origin_tf)),
