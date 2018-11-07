@@ -102,19 +102,19 @@ class CarrotHypothesisWidget(QWidget):
         self.height_spinbox = LabeledDoubleSpinBox(
             height, dmin=0.001, dmax=0.1, singlestep=0.001, decimals=3, label="height")
         layout.addWidget(self.height_spinbox)
-        self.height_spinbox.spinbox.valueChanged.connect(owner_hypothesis.handleParameterChange)
+        self.height_spinbox.spinbox.valueChanged.connect(owner_hypothesis._handleParameterChangeCb)
 
         self.radius_spinbox = LabeledDoubleSpinBox(
             radius, dmin=0.001, dmax=0.1, singlestep=0.001, decimals=3, label="Radius")
         layout.addWidget(self.radius_spinbox)
-        self.radius_spinbox.spinbox.valueChanged.connect(owner_hypothesis.handleParameterChange)
+        self.radius_spinbox.spinbox.valueChanged.connect(owner_hypothesis._handleParameterChangeCb)
 
         self.setLayout(layout)
 
-    def get_radius(self):
+    def getRadius(self):
         return self.radius_spinbox.spinbox.value()
 
-    def get_height(self):
+    def getHeight(self):
         return self.height_spinbox.spinbox.value()
 
 
@@ -143,10 +143,10 @@ class CarrotHypothesis():
         self._regenerateMesh()
 
         # Add some control widgets
-        self._add_6dof_controls()
+        self._add6DofControls()
 
         self.im_server = im_server
-        self.im_server.insert(self.im_marker, self._process_feedback_cb)
+        self.im_server.insert(self.im_marker, self._processImMarkerFeedbackCb)
         self.im_server.applyChanges()
 
         # Make control interface + add to list widget
@@ -157,10 +157,7 @@ class CarrotHypothesis():
         listwidget.addItem(self.control_widget_listwidgetitem)
         listwidget.setItemWidget(self.control_widget_listwidgetitem, self.control_widget)
 
-    def handleParameterChange(self):
-        self.height = self.control_widget.get_height()
-        self.radius = self.control_widget.get_radius()
-        self._regenerateMesh()
+    def _forceIntMarkerUpdate(self):
         # Force update of the mesh
         update = ros_im.UpdateContext()
         update.update_type = ros_im.UpdateContext.FULL_UPDATE
@@ -168,13 +165,18 @@ class CarrotHypothesis():
         self.im_server.pending_updates[self.name] = update 
         self.im_server.applyChanges()
 
+    def _handleParameterChangeCb(self):
+        self.height = self.control_widget.getHeight()
+        self.radius = self.control_widget.getRadius()
+        self._regenerateMesh()
+        self._forceIntMarkerUpdate()
 
-    def _process_feedback_cb(self, feedback):
+    def _processImMarkerFeedbackCb(self, feedback):
         if feedback.marker_name == self.im_marker.name:
             if feedback.event_type == InteractiveMarkerFeedback.POSE_UPDATE:
                 self.im_marker.pose = feedback.pose
 
-    def _add_6dof_controls(self):
+    def _add6DofControls(self):
         self.axis_controls = []
         # Insert 6DOF control
         control = InteractiveMarkerControl()
