@@ -18,14 +18,17 @@ from PyQt5 import (
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
+    QCheckBox,
     QDoubleSpinBox,
     QLabel,
+    QGridLayout,
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
     QSpinBox,
     QListWidget,
-    QListWidgetItem
+    QListWidgetItem,
+    QStyle
     )
 from PyQt5.QtGui import (
     QIcon, QPixmap, QFont
@@ -92,21 +95,32 @@ class LabeledDoubleSpinBox(QWidget):
 class CarrotHypothesisWidget(QWidget):
     def __init__(self, name, height, radius, owner_hypothesis):
         super(CarrotHypothesisWidget, self).__init__()
-        layout = QVBoxLayout()
+        layout = QGridLayout()
         self.name_label = QLabel(name)
         font = QFont()
         font.setBold(True)
         self.name_label.setFont(font)
-        layout.addWidget(self.name_label)
+        layout.addWidget(self.name_label, 0, 0)
+
+        self.edit_toggle = QCheckBox("Edit")
+        self.edit_toggle.setTristate(False)
+        self.edit_toggle.setChecked(True)
+        self.edit_toggle.toggled.connect(owner_hypothesis._handleEditClicked)
+        layout.addWidget(self.edit_toggle, 0, 1)
+
+        self.remove_button = QPushButton()
+        self.remove_button.setIcon(self.style().standardIcon(QStyle.SP_DialogCloseButton))
+        self.remove_button.clicked.connect(owner_hypothesis._handleRemove)
+        layout.addWidget(self.remove_button, 0, 2)
 
         self.height_spinbox = LabeledDoubleSpinBox(
             height, dmin=0.001, dmax=0.1, singlestep=0.001, decimals=3, label="height")
-        layout.addWidget(self.height_spinbox)
+        layout.addWidget(self.height_spinbox, 1, 0, 1, 3)
         self.height_spinbox.spinbox.valueChanged.connect(owner_hypothesis._handleParameterChangeCb)
 
         self.radius_spinbox = LabeledDoubleSpinBox(
             radius, dmin=0.001, dmax=0.1, singlestep=0.001, decimals=3, label="Radius")
-        layout.addWidget(self.radius_spinbox)
+        layout.addWidget(self.radius_spinbox, 2, 0, 1, 3)
         self.radius_spinbox.spinbox.valueChanged.connect(owner_hypothesis._handleParameterChangeCb)
 
         self.setLayout(layout)
@@ -117,14 +131,18 @@ class CarrotHypothesisWidget(QWidget):
     def getHeight(self):
         return self.height_spinbox.spinbox.value()
 
+    def getEditState(self):
+        return self.edit_toggle.isChecked()
+
 
 class CarrotHypothesis():
-    def __init__(self, tf, height, radius, name, color, im_server, listwidget):
+    def __init__(self, tf, height, radius,
+                 name, color, im_server, listwidget,
+                 remove_callback):
         self.tf = tf.copy()
         self.height = height
         self.radius = radius
         self.color = color
-        self.pose = None
         self.name = name
 
         # Users provide feedback to refine the mesh
@@ -154,8 +172,28 @@ class CarrotHypothesis():
             name=name, radius=radius, height=height, owner_hypothesis=self)
         self.control_widget_listwidgetitem = QListWidgetItem(listwidget)
         self.control_widget_listwidgetitem.setSizeHint(self.control_widget.sizeHint())
-        listwidget.addItem(self.control_widget_listwidgetitem)
-        listwidget.setItemWidget(self.control_widget_listwidgetitem, self.control_widget)
+
+        self.listwidget = listwidget
+        self.listwidget.addItem(self.control_widget_listwidgetitem)
+        self.listwidget.setItemWidget(self.control_widget_listwidgetitem, self.control_widget)
+        self.remove_callback = remove_callback
+
+    def _handleRemove(self):
+        self.im_server.erase(self.name)
+        self.im_server.applyChanges()
+        self.listwidget.takeItem(self.listwidget.row(self.control_widget_listwidgetitem))
+        self.remove_callback(self)
+
+    def _handleEditClicked(self):
+        in_edit_mode = self.control_widget.getEditState()
+        if in_edit_mode:
+            # Add the 6DOF controls
+            self._add6DofControls()
+        else:
+            for control in self.axis_controls:
+                self.im_marker.controls.remove(control)
+            self.axis_controls = []
+        self._forceIntMarkerUpdate()
 
     def _forceIntMarkerUpdate(self):
         # Force update of the mesh
@@ -324,7 +362,7 @@ class App(QWidget):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
     
-        mainLayout = QVBoxLayout()
+        mainLayout = QGridLayout()
 
         instruction_label = QLabel(
             "RIGHT CLICK AND DRAG to zoom in.\n"
@@ -334,9 +372,8 @@ class App(QWidget):
             " font-size: 20px; "
             " qproperty-alignment: AlignJustify; "
             " font-family: Courier New;")
-        mainLayout.addWidget(instruction_label)
+        mainLayout.addWidget(instruction_label, 0, 0, 1, 2)
 
-        viewerLayout = QHBoxLayout()
         self.viewer = QtImageViewer()
         self.viewer.aspectRatioMode = QtCore.Qt.KeepAspectRatio
         self.viewer.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
@@ -346,21 +383,47 @@ class App(QWidget):
         self.viewer.canPan = True
 
         self.viewer.leftMouseButtonPressed.connect(self.handleLeftClickOnImage)
-        viewerLayout.addWidget(self.viewer)
+        mainLayout.addWidget(self.viewer, 1, 0, 1, 1)
         self.listwidget = QListWidget()
-        viewerLayout.addWidget(self.listwidget)
+        mainLayout.addWidget(self.listwidget, 1, 1, 1, 1)
 
-        mainLayout.addLayout(viewerLayout)
-
-        dataControlLayout = QHBoxLayout()
         self.button_grab = QPushButton('Grab Current RGBD Frame')
         self.button_grab.clicked.connect(partial(
             self.handleGrabButton))
-        dataControlLayout.addWidget(self.button_grab)
-        mainLayout.addLayout(dataControlLayout)
+        mainLayout.addWidget(self.button_grab, 2, 0, 1, 1)
  
+
+        export_layout = QVBoxLayout()
+        self.button_publish = QPushButton('Publish Pose Bundle')
+        self.button_publish.clicked.connect(partial(
+            self.handlePublishButton))
+        export_layout.addWidget(self.button_publish)
+
+        self.button_quick_export = QPushButton('Export Quick')
+        self.button_quick_export.clicked.connect(partial(
+            self.handleExportQuick))
+        export_layout.addWidget(self.button_quick_export)
+
+        self.button_export = QPushButton('Export As')
+        self.button_export.clicked.connect(partial(
+            self.handleExportAs))
+        export_layout.addWidget(self.button_export)
+
+        export_widget = QWidget()
+        export_widget.setLayout(export_layout)
+        mainLayout.addWidget(export_widget, 2, 1, 1, 1)
+
         self.setLayout(mainLayout)
         self.show()
+
+    def handlePublishButton(self):
+        print "Publish!"
+
+    def handleExportQuick(self):
+        print "Export Quick"
+
+    def handleExportAs(self):
+        print "Export As"
 
     def updateData(self, new_pc2):
         pc = ros_numpy.numpify(new_pc2)
@@ -409,8 +472,10 @@ class App(QWidget):
         self.selected_camera_poses = []
         self.selected_depth_images = []
 
+    def removeHypothesis(self, hyp):
+        self.hypotheses.remove(hyp)
+
     def handleLeftClickOnImage(self, x, y):
-        print "Clicked ", x, y
         x = int(x)
         y = int(y)
         if x >= 640 or x < 0 or y >= 480 or y < 0:
@@ -418,16 +483,12 @@ class App(QWidget):
         if self.current_depth_image is None:
             return
 
-        # Project x, y into the depth cloud
-        print "Clicked depth: ", self.current_depth_image[y, x]
-
         camera_frame_point = convertImagePointsToPointCloud(
             [x, y, self.current_depth_image[y, x]],
             self.camera_matrix)
         # And transform to world frame
         world_frame_point = spartanUtils.apply_homogenous_transform_to_points(
             self.current_camera_pose, camera_frame_point)        
-        print "Clicked world frame point: ", world_frame_point
 
         tf = np.eye(4)
         tf[:3, 3] = world_frame_point[:, 0]
@@ -438,7 +499,8 @@ class App(QWidget):
         radius = 0.05 
         new_hyp = CarrotHypothesis(tf, height, radius, name,
                                    color, self.im_server,
-                                   self.listwidget)
+                                   self.listwidget,
+                                   self.removeHypothesis)
         self.hypotheses.append(new_hyp)
 
 if __name__ == '__main__':
