@@ -24,10 +24,11 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QSpinBox,
-    QListView,
+    QListWidget,
+    QListWidgetItem
     )
 from PyQt5.QtGui import (
-    QIcon, QPixmap, QStandardItemModel, QStandardItem
+    QIcon, QPixmap, QFont
 )
 
 import rospy
@@ -74,9 +75,51 @@ def convertDepthImageToPointCloud(depth_im, camera_matrix):
                               np.ones(XYZ.shape[1])])
     return pc
 
+class LabeledDoubleSpinBox(QWidget):
+    def __init__(self, value, dmin, dmax, singlestep, decimals, label):
+        super(LabeledDoubleSpinBox, self).__init__()
+        layout = QHBoxLayout()
+        self.label = QLabel(label)
+        layout.addWidget(self.label)
+        self.spinbox = QDoubleSpinBox(self)
+        self.spinbox.setRange(dmin, dmax)
+        self.spinbox.setSingleStep(singlestep)
+        self.spinbox.setDecimals(decimals)
+        self.spinbox.setValue(value)
+        layout.addWidget(self.spinbox)
+        self.setLayout(layout)
+
+class CarrotHypothesisWidget(QWidget):
+    def __init__(self, name, height, radius, owner_hypothesis):
+        super(CarrotHypothesisWidget, self).__init__()
+        layout = QVBoxLayout()
+        self.name_label = QLabel(name)
+        font = QFont()
+        font.setBold(True)
+        self.name_label.setFont(font)
+        layout.addWidget(self.name_label)
+
+        self.height_spinbox = LabeledDoubleSpinBox(
+            height, dmin=0.001, dmax=0.1, singlestep=0.001, decimals=3, label="height")
+        layout.addWidget(self.height_spinbox)
+        self.height_spinbox.spinbox.valueChanged.connect(owner_hypothesis.handleParameterChange)
+
+        self.radius_spinbox = LabeledDoubleSpinBox(
+            radius, dmin=0.001, dmax=0.1, singlestep=0.001, decimals=3, label="Radius")
+        layout.addWidget(self.radius_spinbox)
+        self.radius_spinbox.spinbox.valueChanged.connect(owner_hypothesis.handleParameterChange)
+
+        self.setLayout(layout)
+
+    def get_radius(self):
+        return self.radius_spinbox.spinbox.value()
+
+    def get_height(self):
+        return self.height_spinbox.spinbox.value()
+
 
 class CarrotHypothesis():
-    def __init__(self, tf, height, radius, name, color, im_server):
+    def __init__(self, tf, height, radius, name, color, im_server, listwidget):
         self.tf = tf.copy()
         self.height = height
         self.radius = radius
@@ -96,56 +139,40 @@ class CarrotHypothesis():
         self.im_marker.pose = ros_utils.ROSPoseMsgFromPose(spartanUtils.dict_from_homogenous_transform(tf))
 
         # Visualize current carrot mesh
-        self.mesh_marker = Marker()
-        self.mesh_marker.type = Marker.TRIANGLE_LIST
-        self.mesh_marker.color.r = color[0]
-        self.mesh_marker.color.g = color[1]
-        self.mesh_marker.color.b = color[2]
-        if len(color) > 3:
-            self.mesh_marker.color.a = color[3]
-        else:
-            self.mesh_marker.color.a = 1.
-        mesh_control = InteractiveMarkerControl()
-        mesh_control.always_visible = True
-        mesh_control.markers.append(self.mesh_marker)
-        self.im_marker.controls.append(mesh_control)
+        self.mesh_control = None
+        self._regenerateMesh()
 
-        # Menu
-        control = InteractiveMarkerControl()
-        control.interaction_mode = InteractiveMarkerControl.MENU
-        control.name = "menu_only_control"
-        control.always_visible = True
-        control.markers.append(self.mesh_marker)
-        self.im_marker.controls.append(control)
+        # Add some control widgets
         self._add_6dof_controls()
-
-        # Give it a context menu to enable switching between
-        # pose + scaling modes.
-        #self.menu_handler = ros_mh.MenuHandler()
-        #self.menu_visible_entry = self.menu_handler.insert(
-        #    "Edit Pose", callback=self._menu_edit_pose_cb)
 
         self.im_server = im_server
         self.im_server.insert(self.im_marker, self._process_feedback_cb)
-        #self.menu_handler.apply(self.im_server, name)
-        self._regenerateMesh()
         self.im_server.applyChanges()
+
+        # Make control interface + add to list widget
+        self.control_widget = CarrotHypothesisWidget(
+            name=name, radius=radius, height=height, owner_hypothesis=self)
+        self.control_widget_listwidgetitem = QListWidgetItem(listwidget)
+        self.control_widget_listwidgetitem.setSizeHint(self.control_widget.sizeHint())
+        listwidget.addItem(self.control_widget_listwidgetitem)
+        listwidget.setItemWidget(self.control_widget_listwidgetitem, self.control_widget)
+
+    def handleParameterChange(self):
+        self.height = self.control_widget.get_height()
+        self.radius = self.control_widget.get_radius()
+        self._regenerateMesh()
+        # Force update of the mesh
+        update = ros_im.UpdateContext()
+        update.update_type = ros_im.UpdateContext.FULL_UPDATE
+        update.int_marker = self.im_marker
+        self.im_server.pending_updates[self.name] = update 
+        self.im_server.applyChanges()
+
 
     def _process_feedback_cb(self, feedback):
         if feedback.marker_name == self.im_marker.name:
             if feedback.event_type == InteractiveMarkerFeedback.POSE_UPDATE:
-                self.pose = feedback.pose
-                print feedback.pose
-            #if feedback.event_type == InteractiveMarkerFeedback.MOUSE_DOWN:
-            #    self.pose = feedback.pose
-            #    rospy.loginfo("Updated pose to ", self.pose)
-            #elif feedback.event_type == InteractiveMarkerFeedback.POSE_UPDATE:
-            #    if self.pose is None:
-            #        rospy.logdebug("Didn't have a pose even though we're in a pose update.")
-            #        self.pose = feedback.pose
-            #    feedback.pose = self.pose
-            #    self.im_server.setPose(feedback.marker_name, feedback.pose)
-            #    self.im_server.applyChanges()
+                self.im_marker.pose = feedback.pose
 
     def _add_6dof_controls(self):
         self.axis_controls = []
@@ -210,74 +237,43 @@ class CarrotHypothesis():
         self.im_marker.controls.append(control)
         self.axis_controls.append(control)
 
-    def _menu_edit_pose_cb(self, feedback):
-        handle = feedback.menu_entry_id
-        state = self.menu_handler.getCheckState(handle)
-
-        if state == ros_mh.MenuHandler.CHECKED:
-            self.menu_handler.setCheckState( handle, ros_mh.MenuHandler.UNCHECKED )
-            for control in self.axis_controls:
-                self.im_marker.controls.remove(control)
-            self.axis_controls = []
-        else:
-            self.menu_handler.setCheckState( handle, ros_mh.MenuHandler.CHECKED )
-            self._add_6dof_controls()
-
-        self.menu_handler.reApply( self.im_server )
-        self.im_server.applyChanges()
-
     def _regenerateMesh(self):
         self.mesh = mesh_creation.create_cut_cylinder(
               radius=self.radius,
               height=self.height,
               cutting_planes=[([0., 0., 0.], [1., 0., 0.])],
               sections=10)
-        if self.mesh_marker is not None:
-            tris = self.mesh.faces.ravel()
-            verts = self.mesh.vertices[tris, :]
-            self.mesh_marker.points = ros_utils.arrayToPointMsgs(verts.T)
-            self.mesh_marker.colors = [
-                std_msgs.msg.ColorRGBA(
-                    self.color[0], self.color[1], self.color[2], self.color[3])
-                ] * tris.shape[0]
 
-    def makeStandardItem(self):
-        self.item = QStandardItem(self.name)
-        self.item.owner = self
-        return self.item
+        mesh_marker = Marker()
+        mesh_marker.type = Marker.TRIANGLE_LIST
+        mesh_marker.color.r = self.color[0]
+        mesh_marker.color.g = self.color[1]
+        mesh_marker.color.b = self.color[2]
+        if len(self.color) > 3:
+            mesh_marker.color.a = self.color[3]
+        else:
+            mesh_marker.color.a = 1.
+        tris = self.mesh.faces.ravel()
+        verts = self.mesh.vertices[tris, :]
+        mesh_marker.points = ros_utils.arrayToPointMsgs(verts.T)
+        mesh_marker.colors = [
+            std_msgs.msg.ColorRGBA(
+                self.color[0], self.color[1], self.color[2], self.color[3])
+            ] * tris.shape[0]
 
-class LabeledDoubleSpinBox(QWidget):
-    def __init__(self, dmin, dmax, singlestep, decimals, label):
-        super(LabeledDoubleSpinBox, self).__init__()
-        layout = QHBoxLayout()
-        self.label = QLabel(label)
-        layout.addWidget(self.label)
-        self.spinbox = QDoubleSpinBox(self)
-        self.spinbox.setRange(dmin, dmax)
-        self.spinbox.setSingleStep(singlestep)
-        self.spinbox.setDecimals(decimals)
-        layout.addWidget(self.spinbox)
-        self.setLayout(layout)
-
-
-class CarrotHypothesisWidget(QWidget):
-    def __init__(self):
-        super(CarrotHypothesisWidget, self).__init__()
-        layout = QVBoxLayout()
-        self.length_spinbox = LabeledDoubleSpinBox(
-            dmin=0.0, dmax=0.1, singlestep=0.001, decimals=3, label="Length")
-        layout.addWidget(self.length_spinbox)
-        self.radius_spinbox = LabeledDoubleSpinBox(
-            dmin=0.0, dmax=0.1, singlestep=0.001, decimals=3, label="Radius")
-        layout.addWidget(self.radius_spinbox)
-        self.setLayout(layout)
-
+        if self.mesh_control is not None:
+            self.im_marker.controls.remove(self.mesh_control)
+        self.mesh_control = InteractiveMarkerControl()
+        self.mesh_control.always_visible = True
+        self.mesh_control.markers.append(mesh_marker)
+        self.im_marker.controls.append(self.mesh_control)
+            
 
 class App(QWidget):
 
     def __init__(self):
         super(App, self).__init__()
-        rospy.init_node('carrot_perception_dashboard', anonymous=True)
+        rospy.init_node('carrot_perception_dashboard')
         self.im_server = ros_im.InteractiveMarkerServer("carrot_perception_dashboard")
 
         self.vis = None
@@ -349,17 +345,9 @@ class App(QWidget):
 
         self.viewer.leftMouseButtonPressed.connect(self.handleLeftClickOnImage)
         viewerLayout.addWidget(self.viewer)
+        self.listwidget = QListWidget()
+        viewerLayout.addWidget(self.listwidget)
 
-        listviewLayout = QVBoxLayout()
-        self.listview = QListView()
-        self.listview_model = QStandardItemModel(self.listview)
-        self.listview.setModel(self.listview_model)
-        self.listview.selectionModel().selectionChanged.connect(self.onSelectionChange)
-        listviewLayout.addWidget(self.listview)
-        self.carrotHypothesisWidget = CarrotHypothesisWidget()
-        listviewLayout.addWidget(self.carrotHypothesisWidget)
-
-        viewerLayout.addLayout(listviewLayout)        
         mainLayout.addLayout(viewerLayout)
 
         dataControlLayout = QHBoxLayout()
@@ -419,9 +407,6 @@ class App(QWidget):
         self.selected_camera_poses = []
         self.selected_depth_images = []
 
-    def onSelectionChange(self):
-        print self.listview.selectedItems()
-
     def handleLeftClickOnImage(self, x, y):
         print "Clicked ", x, y
         x = int(x)
@@ -450,10 +435,9 @@ class App(QWidget):
         height = 0.05
         radius = 0.05 
         new_hyp = CarrotHypothesis(tf, height, radius, name,
-                                   color, self.im_server)
+                                   color, self.im_server,
+                                   self.listwidget)
         self.hypotheses.append(new_hyp)
-        self.listview_model.appendRow(new_hyp.makeStandardItem())
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
