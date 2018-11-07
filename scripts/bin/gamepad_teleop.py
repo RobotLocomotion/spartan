@@ -224,6 +224,8 @@ def do_main():
             #time.sleep(0.5)
 
             # Gamepad: Logitech 310
+            # DPad: Axis 1 +1 is down
+            #       Axis 0 +1 is right
             # Left stick: Axis 7 +1 is down
             #             Axis 6 +1 is right
             # Right stick: Axis 3 +1 is right
@@ -259,9 +261,16 @@ def do_main():
                     tf_ee = tf_matrix_from_pose(current_pose_ee)
                     
 
-                tf_ee[0, 3] += -1.*joystick.get_axis(7)*dt*0.1
-                tf_ee[1, 3] += -1.*joystick.get_axis(6)*dt*0.1
-                tf_ee[2, 3] += -1.*joystick.get_axis(4)*dt*0.1
+                tf_ee[0, 3] += -1.*joystick.get_axis(7)*dt*0.25
+                tf_ee[1, 3] += -1.*joystick.get_axis(6)*dt*0.25
+                tf_ee[2, 3] += -1.*joystick.get_axis(4)*dt*0.25
+
+                dr = -1.*joystick.get_axis(0)*dt
+                dp = 1.*joystick.get_axis(1)*dt
+                dy = -1.*joystick.get_axis(3)*dt
+                tf_ee = tf_ee.dot(transformations.euler_matrix(dr, 0., 0.))
+                tf_ee = tf_ee.dot(transformations.euler_matrix(0, dp, 0.))
+                tf_ee = tf_ee.dot(transformations.euler_matrix(0., 0., dy))
 
                 target_trans_ee = tf_ee[:3, 3]
                 target_quat_ee = transformations.quaternion_from_matrix(tf_ee)
