@@ -1,0 +1,13 @@
+lcm_status_channel: "IIWA_STATUS"
+lcm_command_channel: "IIWA_COMMAND"
+lcm_plan_channel: "COMMITTED_ROBOT_PLAN"
+lcm_stop_channel: "STOP"
+num_joints: 7
+robot_ee_body_name: "iiwa_link_ee"
+robot_urdf_path: "${SPARTAN_SOURCE_DIR}/drake/manipulation/models/iiwa_description/urdf/iiwa14_no_collision.urdf"
+joint_speed_limit_degree_per_sec: 30000000.0 # Very large, to account for slowdowns in the simulated robot.
+control_period_s: 0.005
+
+task_space_plan:
+  kp_rotation: [10, 10, 10] # orientation P gains
+  kp_translation: [5, 5, 5] # translation P gains
