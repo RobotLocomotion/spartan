@@ -54,7 +54,7 @@ import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as ros_utils
 import spartan.utils.transformations as transformations
 from spartan.utils.QtImageViewer import QtImageViewer
-
+import carrot_msgs.msg
 
 def convertImagePointsToPointCloud(pt, camera_matrix):
     pt = np.array(pt).reshape(3, -1)
@@ -177,6 +177,12 @@ class CarrotHypothesis():
         self.listwidget.addItem(self.control_widget_listwidgetitem)
         self.listwidget.setItemWidget(self.control_widget_listwidgetitem, self.control_widget)
         self.remove_callback = remove_callback
+
+    def populateCarrotConfigurationMessage(self, msg):
+        msg.radius = self.radius
+        msg.height = self.height
+        msg.pose = self.im_marker.pose
+        return msg
 
     def _handleRemove(self):
         self.im_server.erase(self.name)
@@ -315,6 +321,7 @@ class App(QWidget):
         super(App, self).__init__()
         rospy.init_node('carrot_perception_dashboard')
         self.im_server = ros_im.InteractiveMarkerServer("carrot_perception_dashboard")
+        self.pub = rospy.Publisher('/carrot_configs', carrot_msgs.msg.CarrotConfigurationBundle, queue_size=1)
 
         self.vis = None
         #self.vis = meshcat.Visualizer(zmq_url="tcp://127.0.0.1:6000")["fitting_util"]
@@ -417,7 +424,25 @@ class App(QWidget):
         self.show()
 
     def handlePublishButton(self):
-        print "Publish!"
+        if len(self.hypotheses) > 0:
+            print "Publishing..."
+            msg = carrot_msgs.msg.CarrotConfigurationBundle()
+            msg.header = std_msgs.msg.Header()
+            msg.header.frame_id = "base"
+            msg.header.stamp = rospy.Time.now()
+            msg.header.seq = 0
+
+            for hyp in self.hypotheses:
+                config_msg = carrot_msgs.msg.CarrotConfiguration()
+                config_msg.header = msg.header
+                config_msg = hyp.populateCarrotConfigurationMessage(config_msg)
+                msg.configurations.append(config_msg)
+
+            rospy.loginfo(msg)
+            self.pub.publish(msg)
+        else:
+            rospy.logwarn("Not publishing, because there are no hypotheses.")
+
 
     def handleExportQuick(self):
         print "Export Quick"
