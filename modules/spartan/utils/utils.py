@@ -73,6 +73,11 @@ def transformFromPose(d):
 """
 msg: geometry_msgs/Pose
 """
+def posQuatFromROSPoseMsg(msg):
+    pos = [msg.position.x, msg.position.y, msg.position.z]
+    quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]
+    return pos, quat
+
 def transformFromROSPoseMsg(msg):
     pos = [msg.position.x, msg.position.y, msg.position.z]
     quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]

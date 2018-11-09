@@ -505,7 +505,8 @@ class App(QWidget):
         y = int(y)
         if x >= 640 or x < 0 or y >= 480 or y < 0:
             return
-        if self.current_depth_image is None:
+        if (self.current_depth_image is None
+            or not np.isfinite(self.current_depth_image[y, x])):
             return
 
         camera_frame_point = convertImagePointsToPointCloud(

@@ -309,7 +309,7 @@ class SimpleSubscriber(object):
 
     def waitForNextMessage(self, sleep_duration=0.1):
         self.hasNewMessage = False
-        while not self.hasNewMessage:
+        while not self.hasNewMessage and not rospy.is_shutdown():
             rospy.sleep(sleep_duration)
         return self.lastMsg
 
