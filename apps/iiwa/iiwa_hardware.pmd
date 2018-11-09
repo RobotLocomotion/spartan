@@ -1,21 +1,8 @@
-group "7.ContactParticleFilter" {
-    cmd "1.contact-filter" {
-        exec = "directorPython $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/contact_filter_app.py --director_config $SPARTAN_SOURCE_DIR/drake/drake/examples/kuka_iiwa_arm/director_config.json";
-        host = "localhost";
-    }
-    cmd "3.signal-scope" {
-        exec = "signal-scope $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/config/contact_filter_plotting.py";
-        host = "localhost";
-    }
-    cmd "0.drake-visualizer with CPF" {
-        exec = "python $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/director_cpf_launch.py";
-        host = "localhost";
-    }
-    cmd "2.iiwa_status_to_residual_translator_python" {
-        exec = "directorPython $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/kuka_iiwa_joint_torque_external_translator.py";
-        host = "localhost";
-    }
-}
+group "0.sim" {
+  cmd "0.LCM->ROS State Translator" {
+    exec = "rosrun robot_server pub_joint_state.py";
+    host = "localhost";
+  }
 
 group "2.iiwa-drivers" {
     cmd "2.state-translator" {
@@ -180,10 +167,16 @@ script "3.sim_pybullet_startup" {
     wait ms 2000;
     start cmd "0.LCM->ROS State Translator";
     start cmd "2.ROS-OpenNI-sim";
-    start cmd "1.plan-runner";
+    start cmd "6.plan-runner-pybullet-sim";
     start cmd "5.state-translator-sim";
+
     start cmd "2.ROS Model and TF Publisher";
+    start cmd "4.Robot Movement Service";
+    start cmd "5.IK Service";
+    start cmd "8.fusion_server";
+    
     start cmd "3.rviz";
+    start cmd "4.director";
 }
 
 script "4.sim_pybullet_startup_for_ci" {
@@ -192,7 +185,7 @@ script "4.sim_pybullet_startup_for_ci" {
     wait ms 3000;
     start cmd "0.LCM->ROS State Translator";
     start cmd "2.ROS-OpenNI-sim";
-    start cmd "1.plan-runner";
+    start cmd "6.plan-runner-pybullet-sim";
     start cmd "5.state-translator-sim";
     start cmd "2.ROS Model and TF Publisher";
     start cmd "1.ROS Trajectory Server";

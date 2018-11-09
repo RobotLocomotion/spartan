@@ -269,7 +269,7 @@ if (WITH_TRIMESH)
     endif()
 
     SET(TRIMESH_GIT_REPOSITORY https://github.com/gizatt/trimesh.git)
-    SET(TRIMESH_GIT_TAG 1f6d10850d5a1f667385f3776d0b9d71df92fac3)
+    SET(TRIMESH_GIT_TAG 2.35.15)
     # Installs our customized version of trimesh
     # to the project's site-packages build folder.
     # I use the setup.py to run the build step,
