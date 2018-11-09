@@ -97,7 +97,7 @@ def make_downward_force_guard_msg(scale):
     return msg
 
     
-def make_world_move_goal(xyz, duration=5.0):
+def make_world_move_goal(xyz, duration=5.0, max_force=15.):
     # TODO: yaw / rotations
     if (xyz[0] > 0.45 and xyz[0] < 0.8 and 
         xyz[1] > -0.3 and xyz[1] < 0.3 and
@@ -110,7 +110,7 @@ def make_world_move_goal(xyz, duration=5.0):
             frame_id="base",
             ee_frame_id="iiwa_link_ee")
         goal.gains.append(make_cartesian_gains_msg(20., 20.))
-        goal.force_guard.append(make_downward_force_guard_msg(15.))
+        goal.force_guard.append(make_downward_force_guard_msg(max_force))
         return goal
     else:
         rospy.logwarn("Out out bounds xyz: %f, %f, %f" % (xyz[0], xyz[1], xyz[2]))
@@ -175,7 +175,7 @@ if __name__ == "__main__":
             height = config.height
             radius = config.radius
 
-            goal = make_world_move_goal(np.array(pos) + np.array([0., 0., 0.3]), duration=3.0)
+            goal = make_world_move_goal(np.array(pos) + np.array([0., 0., 0.3]), duration=3.0, max_force=15.)
             if goal is None:
                 continue
             client.send_goal(goal)
@@ -183,7 +183,7 @@ if __name__ == "__main__":
             client.wait_for_result()
             result = client.get_result()
 
-            goal = make_world_move_goal(np.array(pos) + np.array([0., 0., 0.1]), duration=5.0)
+            goal = make_world_move_goal(np.array(pos) + np.array([0., 0., 0.1]), duration=4.0, max_force=15.)
             if goal is None:
                 continue
             client.send_goal(goal)
@@ -194,7 +194,7 @@ if __name__ == "__main__":
             # That should force-block against the table. Back off a tiny bit vertically.
             goal = make_relative_gripper_movement_goal(
                 np.array([0., 0., -0.005]),
-                np.array([1., 0., 0., 0.]), duration=1.0)
+                np.array([1., 0., 0., 0.]), duration=0.5)
             if goal is None:
                 continue
             client.send_goal(goal)
@@ -202,13 +202,12 @@ if __name__ == "__main__":
             client.wait_for_result()
             result = client.get_result()
 
-            rospy.sleep(1.0)
-            has_object = schunkDriver.closeGripper()
             rospy.sleep(0.5)
+            has_object = schunkDriver.closeGripper()
 
             if has_object:
                 rospy.loginfo("Got an object, picking to the bowl.")
-                goal = make_world_move_goal(np.array(pos) + np.array([0., 0., 0.3]), duration=2.0)
+                goal = make_world_move_goal(np.array(pos) + np.array([0., 0., 0.3]), duration=1.0, max_force=50.)
                 if goal is None:
                     continue
                 client.send_goal(goal)
@@ -217,7 +216,7 @@ if __name__ == "__main__":
                 result = client.get_result()
 
                 bowl_pos = [0.57, -0.2, 0.0]
-                goal = make_world_move_goal(np.array(bowl_pos)+ np.array([0., 0., 0.2]), duration=2.0)
+                goal = make_world_move_goal(np.array(bowl_pos)+ np.array([0., 0., 0.25]), duration=1.0, max_force=15.)
                 if goal is None:
                     continue
                 client.send_goal(goal)
