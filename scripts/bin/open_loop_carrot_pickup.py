@@ -124,7 +124,7 @@ def make_relative_gripper_movement_goal(xyz, quat, duration=5.0):
         frame_id="iiwa_link_ee",
         ee_frame_id="iiwa_link_ee")
     # TODO: deal with rotations not being right
-    goal.gains.append(make_cartesian_gains_msg(0., 20.))
+    goal.gains.append(make_cartesian_gains_msg(0., 500.))
     goal.force_guard.append(make_downward_force_guard_msg(25.))
     return goal
 
