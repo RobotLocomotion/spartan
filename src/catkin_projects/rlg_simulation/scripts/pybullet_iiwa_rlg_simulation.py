@@ -466,7 +466,7 @@ class IiwaRlgSimulator():
         self.schunk_command_lock.acquire()
         try:
             self.last_schunk_position_command = [-msg.goal.command.width*0.5, msg.goal.command.width*0.5]
-            self.last_schunk_torque_command = [msg.goal.command.force*10, msg.goal.command.force*10]
+            self.last_schunk_torque_command = [msg.goal.command.force, msg.goal.command.force]
         except Exception as e:
             print "Exception ", e, " in ros schunk command handler"
         self.schunk_command_lock.release()
@@ -698,7 +698,7 @@ class IiwaRlgSimulator():
                 controlMode=pybullet.POSITION_CONTROL,
                 targetPositions=schunk_position_command,
                 forces=schunk_torque_command,
-                positionGains=[1000., 1000.]
+                positionGains=[5., 5.]
                 )
 
             # Do a sim step
