@@ -495,8 +495,8 @@ class App(QWidget):
         name = "carrot_%d" % self.hypothesis_k
         self.hypothesis_k += 1
         color = plt.cm.jet(np.random.random())
-        height = 0.05
-        radius = 0.05 
+        height = 0.02
+        radius = 0.02 
         new_hyp = CarrotHypothesis(tf, height, radius, name,
                                    color, self.im_server,
                                    self.listwidget,
