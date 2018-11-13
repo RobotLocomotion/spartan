@@ -18,7 +18,8 @@ apt install --no-install-recommends \
   dialog \
   python-pip \
   python-pytest \
-  libav-tools
+  libav-tools \
+  openscad
 
 # these following three are ElasticFusion dependencies
 apt install --no-install-recommends \
@@ -29,7 +30,6 @@ apt install --no-install-recommends \
 pip install --upgrade pip==9.0.3
 pip install -U setuptools
 
-# Dependencies of trimesh
 pip install \
   numpy \
   scipy \
@@ -38,4 +38,5 @@ pip install \
   plyfile \
   matplotlib==1.5.3 \
   scikit-image \
-  pytest-xdist
+  pytest-xdist \
+  vispy
