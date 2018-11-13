@@ -267,7 +267,7 @@ def do_main():
             if dt > 0.2:
                 last_gripper_update_time = time.time()
                 gripper_goal_pos = 0.1 * (1-latest_state_msg.axes[trigger_axis_id])
-                handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1)
+                handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
                 print "Gripper goal pos: ", gripper_goal_pos
                 br.sendTransform(origin_tf[0:3, 3],
                                  ro(transformations.quaternion_from_matrix(origin_tf)),

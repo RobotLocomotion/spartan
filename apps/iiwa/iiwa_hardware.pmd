@@ -4,155 +4,198 @@ group "0.sim" {
     host = "localhost";
   }
 
-group "2.iiwa-drivers" {
-    cmd "2.state-translator" {
-        exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py";
-        host = "localhost";
-    }
-    cmd "0.kuka-driver" {
-        exec = "kuka_driver";
-        host = "localhost";
-    }
-    cmd "1.plan-runner" {
-        exec = "roslaunch drake_robot_control plan_runner.launch";
-        host = "localhost";
-    }
+  cmd "1a.pybullet_kuka_simulation_single_object" {
+    exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object.yaml";
+    host = "localhost";
+  }
+  
+  cmd "1b.pybullet_kuka_simulation_single_object_ci" {
+    exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object_ci.yaml --headless";
+    host = "localhost";
+  }
+
+  cmd "2.ROS-OpenNI-sim" {
+    exec = "roslaunch camera_config openni2_pybullet_sim.launch camera_serial_number:=carmine_1";
+    host = "localhost";
+  }
+
+  cmd "3.drake_kuka_simulation" {
+    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/kuka_simulation";
+    host = "localhost";
+  }
+
+  cmd "4.drake_kuka_simulation_w_schunk_gripper" {
+    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/iiwa_wsg_simulation";
+    host = "localhost";
+  }
+
+  cmd "5.state-translator-sim" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py --basePosition '0.0, 0.0, 0.7645, 0., 0., 0.'";
+    host = "localhost";
+  }
 }
 
 group "1.vision-drivers" {
-    cmd "0.openni-driver" {
-        exec = "openni2-camera-lcm";
-        host = "localhost";
-    }
-    cmd "3.rgbd-viewer" {
-        exec = "directorPython -m director.imageviewapp --bot-config $SPARTAN_SOURCE_DIR/apps/iiwa/iiwaManip.cfg --channel OPENNI_FRAME --rgbd --pointcloud";
-        host = "localhost";
-    }
-    cmd "2.optitrack-driver" {
-        exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/external/optitrack_driver/src/optitrack_client";
-        host = "localhost";
-    }
-    cmd "1.apriltag-driver" {
-        exec = "drc-apriltags-driver --quiet=true --window=false --config=$SPARTAN_SOURCE_DIR/apps/iiwa/tri_iiwa_apriltags.yaml";
-        host = "localhost";
-    }
+
+  cmd "0.openni-driver" {
+    exec = "openni2-camera-lcm";
+    host = "localhost";
+  }
+
+  cmd "1.apriltag-driver" {
+    exec = "drc-apriltags-driver --quiet=true --window=false --config=$SPARTAN_SOURCE_DIR/apps/iiwa/tri_iiwa_apriltags.yaml";
+    host = "localhost";
+  }
+
+  cmd "2.optitrack-driver" {
+    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/external/optitrack_driver/src/optitrack_client";
+    host = "localhost";
+  }
+
+  cmd "3.rgbd-viewer" {
+    exec = "directorPython -m director.imageviewapp --bot-config $SPARTAN_SOURCE_DIR/apps/iiwa/iiwaManip.cfg --channel OPENNI_FRAME --rgbd --pointcloud";
+    host = "localhost";
+  }
 }
 
-group "9.iiwa_sim" {
-    cmd "0.drake_iiwa_sim" {
-        exec = "$SPARTAN_INSTALL_DIR/lib/drake_iiwa_sim/iiwa_sim";
-        host = "localhost";
-    }
-    cmd "1.ROS-state-translator" {
-        exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_ros_state_translator.py";
-        host = "localhost";
-    }
+group "2.iiwa-drivers" {
+
+  cmd "0.kuka-driver" {
+    exec = "kuka_driver";
+    host = "localhost";
+  }
+
+  cmd "1.plan-runner" {
+    exec = "roslaunch drake_robot_control plan_runner.launch";
+    host = "localhost";
+  }
+
+  cmd "2.state-translator" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py";
+    host = "localhost";
+  }
+}
+
+cmd "4.director" {
+  exec = "kuka_iiwa_app";
+  host = "localhost";
+}
+
+cmd "5.drake-lcm-spy" {
+  exec = "drake-lcm-spy";
+  host = "localhost";
+}
+
+cmd "6.signal-scope" {
+  exec = "signal-scope $SPARTAN_SOURCE_DIR/config/iiwa/kuka_iiwa_signal_scope.py";
+  host = "localhost";
+}
+
+group "7.ContactParticleFilter" {
+
+  cmd "0.drake-visualizer with CPF" {
+    exec = "python $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/director_cpf_launch.py";
+    host = "localhost";
+  }
+
+  cmd "1.contact-filter" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/contact_filter_app.py --director_config $SPARTAN_SOURCE_DIR/drake/drake/examples/kuka_iiwa_arm/director_config.json";
+    host = "localhost";
+  }
+
+  cmd "2.iiwa_status_to_residual_translator_python" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/python/kuka_iiwa_joint_torque_external_translator.py";
+    host = "localhost";
+  }
+
+  cmd "3.signal-scope" {
+    exec = "signal-scope $SPARTAN_SOURCE_DIR/src/ContactParticleFilter/config/contact_filter_plotting.py";
+    host = "localhost";
+  }
+
 }
 
 group "8.ROS" {
-    cmd "0.roscore" {
-        exec = "roscore";
-        host = "localhost";
-    }
-    cmd "3.rviz" {
-        exec = "rosrun rviz rviz -d $SPARTAN_SOURCE_DIR/src/catkin_projects/station_config/RLG_iiwa_1/rviz.rviz";
-        host = "localhost";
-    }
-    cmd "7.schunk_driver" {
-        exec = "roslaunch wsg_50_driver wsg_50_tcp.launch";
-        host = "localhost";
-    }
-    cmd "9.razer_hydra" {
-        exec = "roslaunch razer_hydra hydra.launch";
-        host = "localhost";
-    }
-    cmd "6.ROS-OpenNI" {
-        exec = "roslaunch camera_config openni2.launch camera_serial_number:=carmine_1";
-        host = "localhost";
-    }
-    cmd "4.Robot Movement Service" {
-        exec = "roslaunch robot_control robot_movement_service.launch";
-        host = "localhost";
-    }
-    cmd "8.fusion_server" {
-        exec = "roslaunch fusion_server fusion_server.launch camera_serial_number:=carmine_1";
-        host = "localhost";
-    }
-    cmd "2.ROS Model and TF Publisher" {
-        exec = "roslaunch robot_server robot_state_publisher.launch";
-        host = "localhost";
-    }
-    cmd "5.IK Service" {
-        exec = "directorPython $SPARTAN_SOURCE_DIR/src/catkin_projects/robot_control/src/robot_control/ikserviceapp.py --director-config $SPARTAN_SOURCE_DIR/models/iiwa/director/director_config.json";
-        host = "localhost";
-    }
+
+  cmd "0.roscore" {
+    exec = "roscore";
+    host = "localhost";
+  }
+
+  cmd "2.ROS Model and TF Publisher" {
+    exec = "roslaunch robot_server robot_state_publisher.launch";
+    host = "localhost";
+  }
+
+  cmd "3.rviz" {
+    exec = "rosrun rviz rviz -d $SPARTAN_SOURCE_DIR/src/catkin_projects/station_config/RLG_iiwa_1/rviz.rviz";
+    host = "localhost";
+  }
+
+  cmd "4.Robot Movement Service" {
+    exec = "roslaunch robot_control robot_movement_service.launch";
+    host = "localhost";
+  }
+
+  cmd "5.IK Service" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/src/catkin_projects/robot_control/src/robot_control/ikserviceapp.py --director-config $SPARTAN_SOURCE_DIR/models/iiwa/director/director_config.json";
+    host = "localhost";
+  }
+
+  cmd "6.ROS-OpenNI" {
+    exec = "roslaunch camera_config openni2.launch camera_serial_number:=carmine_1";
+    host = "localhost";
+  }
+
+  cmd "7.schunk_driver" {
+    exec = "roslaunch wsg_50_driver wsg_50_tcp.launch";
+    host = "localhost";
+  }
+
+  cmd "8.fusion_server" {
+    exec = "roslaunch fusion_server fusion_server.launch camera_serial_number:=carmine_1";
+    host = "localhost";
+  }
+
+  cmd "9.razer_hydra" {
+    exec = "roslaunch razer_hydra hydra.launch";
+    host = "localhost";
+  }
+
 }
 
-group "0.sim" {
-    cmd "1b.pybullet_kuka_simulation_single_object_ci" {
-        exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object_ci.yaml --headless";
-        host = "localhost";
-    }
-    cmd "5.state-translator-sim" {
-        exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py --basePosition '0.0, 0.0, 0.7645, 0., 0., 0.'";
-        host = "localhost";
-    }
-    cmd "2.ROS-OpenNI-sim" {
-        exec = "roslaunch camera_config openni2_pybullet_sim.launch camera_serial_number:=carmine_1";
-        host = "localhost";
-    }
-    cmd "0.LCM->ROS State Translator" {
-        exec = "rosrun robot_server pub_joint_state.py";
-        host = "localhost";
-    }
-    cmd "3.drake_kuka_simulation" {
-        exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/kuka_simulation";
-        host = "localhost";
-    }
-    cmd "1a.pybullet_kuka_simulation_single_object" {
-        exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object.yaml";
-        host = "localhost";
-    }
-    cmd "4.drake_kuka_simulation_w_schunk_gripper" {
-        exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/examples/kuka_iiwa_arm/iiwa_wsg_simulation";
-        host = "localhost";
-    }
-}
-cmd "5.drake-lcm-spy" {
-    exec = "drake-lcm-spy";
+group "9.iiwa_sim" {
+
+  cmd "0.drake_iiwa_sim" {
+    exec = "$SPARTAN_INSTALL_DIR/lib/drake_iiwa_sim/iiwa_sim";
     host = "localhost";
-}
-cmd "4.director" {
-    exec = "kuka_iiwa_app";
+  }
+
+  cmd "1.ROS-state-translator" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_ros_state_translator.py";
     host = "localhost";
-}
-cmd "6.signal-scope" {
-    exec = "signal-scope $SPARTAN_SOURCE_DIR/config/iiwa/kuka_iiwa_signal_scope.py";
-    host = "localhost";
-}
-cmd "vive-teleop" {
-    exec = "python $SPARTAN_SOURCE_DIR/scripts/bin/vive_teleop.py";
-    host = "localhost";
+  }
+
 }
 
 script "1.1.robot_full_startup" {
-    run_script "1.2.robot_noui_startup";
-    wait ms 5000;
-    start cmd "4.director";
-    start cmd "3.rviz";
+  run_script "1.2.robot_noui_startup";
+  wait ms 5000;
+  start cmd "4.director";
+  start cmd "3.rviz";
 }
 
 script "1.2.robot_noui_startup" {
-    start cmd "0.roscore";
-    wait ms 3000;
-    start group "2.iiwa-drivers";
-    start cmd "2.ROS Model and TF Publisher";
-    start cmd "4.Robot Movement Service";
-    start cmd "5.IK Service";
-    start cmd "6.ROS-OpenNI";
-    start cmd "7.schunk_driver";
-    start cmd "8.fusion_server";
-    start cmd "9.razer_hydra";
+  start cmd "0.roscore";
+  wait ms 3000;
+  start group "2.iiwa-drivers";
+  start cmd "2.ROS Model and TF Publisher";
+  start cmd "4.Robot Movement Service";
+  start cmd "5.IK Service";
+  start cmd "6.ROS-OpenNI";
+  start cmd "7.schunk_driver";
+  start cmd "8.fusion_server";
+  start cmd "9.razer_hydra";
 }
 
 script "2.restart_controller" {
@@ -164,28 +207,25 @@ script "2.restart_controller" {
 script "3.sim_pybullet_startup" {
     start cmd "0.roscore";
     start cmd "1a.pybullet_kuka_simulation_single_object";
+
     wait ms 2000;
     start cmd "0.LCM->ROS State Translator";
     start cmd "2.ROS-OpenNI-sim";
-    start cmd "6.plan-runner-pybullet-sim";
+    start cmd "1.plan-runner";
     start cmd "5.state-translator-sim";
-
     start cmd "2.ROS Model and TF Publisher";
-    start cmd "4.Robot Movement Service";
-    start cmd "5.IK Service";
-    start cmd "8.fusion_server";
-    
     start cmd "3.rviz";
-    start cmd "4.director";
+
 }
 
 script "4.sim_pybullet_startup_for_ci" {
     start cmd "0.roscore";
     start cmd "1b.pybullet_kuka_simulation_single_object_ci";
+
     wait ms 3000;
     start cmd "0.LCM->ROS State Translator";
     start cmd "2.ROS-OpenNI-sim";
-    start cmd "6.plan-runner-pybullet-sim";
+    start cmd "1.plan-runner";
     start cmd "5.state-translator-sim";
     start cmd "2.ROS Model and TF Publisher";
     start cmd "1.ROS Trajectory Server";
@@ -195,17 +235,19 @@ script "4.sim_pybullet_startup_for_ci" {
 }
 
 script "5.start_ROS" {
-    start cmd "0.roscore";
-    wait ms 3000;
-    start group "8.ROS";
+  start cmd "0.roscore";
+  wait ms 3000;
+  start group "8.ROS";
 }
 
-script "6.start_drake_iiwa_sim" {
-    start cmd "0.roscore";
-    wait ms 3000;
-    start group "8.ROS";
-    start group "9.iiwa_sim";
-    start cmd "1.plan-runner";
-    start cmd "2.state-translator";
-    start cmd "4.director";
+script "6.start_drake_iiwa_sim"
+{
+  start cmd "0.roscore";
+  wait ms 3000;
+  start group "8.ROS";
+
+  start group "9.iiwa_sim";
+  start cmd "1.plan-runner";
+  start cmd "2.state-translator";
+  start cmd "4.director";
 }
