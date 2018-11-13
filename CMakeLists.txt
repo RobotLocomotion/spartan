@@ -209,7 +209,7 @@ ExternalProject_Add(spartan_lcmtypes
 
 if (WITH_BULLET3)
   set(BULLET3_GIT_REPOSITORY
-  "https://github.com/bulletphysics/bullet3.git"
+  "git@github.com:bulletphysics/bullet3.git"
   CACHE STRING
   "Location of bullet3 repo.")
 
@@ -268,7 +268,7 @@ if (WITH_TRIMESH)
       message(FATAL_ERROR "Not using linux, don't know how to install v-hacd.")
     endif()
 
-    SET(TRIMESH_GIT_REPOSITORY https://github.com/gizatt/trimesh.git)
+    SET(TRIMESH_GIT_REPOSITORY git@github.com:mikedh/trimesh.git)
     SET(TRIMESH_GIT_TAG 2.35.15)
     # Installs our customized version of trimesh
     # to the project's site-packages build folder.

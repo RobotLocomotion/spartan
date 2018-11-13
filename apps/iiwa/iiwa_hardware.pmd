@@ -5,7 +5,7 @@ group "0.sim" {
   }
 
   cmd "1a.pybullet_kuka_simulation_single_object" {
-    exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object.yaml";
+    exec = "rosrun rlg_simulation pybullet_iiwa_rlg_simulation.py $SPARTAN_SOURCE_DIR/src/catkin_projects/rlg_simulation/config/iiwa_workstation_with_object.yaml --headless";
     host = "localhost";
   }
   
@@ -31,6 +31,11 @@ group "0.sim" {
 
   cmd "5.state-translator-sim" {
     exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_state_translator.py --basePosition '0.0, 0.0, 0.7645, 0., 0., 0.'";
+    host = "localhost";
+  }
+
+  cmd "6.plan-runner-pybullet-sim" {
+    exec = "bash -c 'roslaunch drake_robot_control plan_runner.launch param_filename:=$(rospack find drake_robot_control)/config/iiwa_plan_runner_config_sim.yaml'";
     host = "localhost";
   }
 }
@@ -178,6 +183,11 @@ group "9.iiwa_sim" {
 
 }
 
+cmd "vive_teleop" {
+  exec = "python $SPARTAN_SOURCE_DIR/scripts/bin/vive_teleop.py";
+  host = "localhost";
+}
+
 script "1.1.robot_full_startup" {
   run_script "1.2.robot_noui_startup";
   wait ms 5000;
@@ -211,11 +221,16 @@ script "3.sim_pybullet_startup" {
     wait ms 2000;
     start cmd "0.LCM->ROS State Translator";
     start cmd "2.ROS-OpenNI-sim";
-    start cmd "1.plan-runner";
+    start cmd "6.plan-runner-pybullet-sim";
     start cmd "5.state-translator-sim";
-    start cmd "2.ROS Model and TF Publisher";
-    start cmd "3.rviz";
 
+    start cmd "2.ROS Model and TF Publisher";
+    start cmd "4.Robot Movement Service";
+    start cmd "5.IK Service";
+    start cmd "8.fusion_server";
+    
+    start cmd "3.rviz";
+    start cmd "4.director";
 }
 
 script "4.sim_pybullet_startup_for_ci" {
@@ -225,7 +240,7 @@ script "4.sim_pybullet_startup_for_ci" {
     wait ms 3000;
     start cmd "0.LCM->ROS State Translator";
     start cmd "2.ROS-OpenNI-sim";
-    start cmd "1.plan-runner";
+    start cmd "6.plan-runner-pybullet-sim";
     start cmd "5.state-translator-sim";
     start cmd "2.ROS Model and TF Publisher";
     start cmd "1.ROS Trajectory Server";

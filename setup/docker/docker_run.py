@@ -22,6 +22,8 @@ if __name__=="__main__":
 
 	parser.add_argument("-nodudp", "--no_udp", action='store_true', help="(optional) don't expose the udp ports")
 
+	parser.add_argument("-nethost", "--net_host", action='store_true', help="(optional) Makes docker run on host network ")
+
 	args = parser.parse_args()
 	print("running docker container derived from image %s" %args.image)
 	source_dir=os.getcwd()
@@ -63,7 +65,8 @@ if __name__=="__main__":
 		cmd += " -p 1500:1500/udp " # expose udp ports for schunk
 		cmd += " -p 1501:1501/udp " # expose udp ports for schunk
 
-	cmd += " --net=host"
+	if args.net_host:
+		cmd += " --net=host"
 
 	cmd += " " + args.passthrough + " "
 
