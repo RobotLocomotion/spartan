@@ -675,7 +675,7 @@ class FusionServer(object):
 
         return full_path_to_bagfile
 
-    def extract_data_from_rosbag(self, bag_filepath, rgb_only=False):
+    def extract_data_from_rosbag(self, bag_filepath, images_dir=None, rgb_only=False):
         """
         This wraps the ImageCapture calls to load and process the raw rosbags, to prepare for fusion.
 
@@ -692,14 +692,13 @@ class FusionServer(object):
         depth_topic = self.topics_dict['depth']
         camera_info_topic = self.topics_dict['camera_info']
 
-        log_dir = os.path.dirname(os.path.dirname(bag_filepath))
-        processed_dir = os.path.join(log_dir, 'processed')
-        images_dir = os.path.join(processed_dir, 'rgbd_images')
-
-        if rgb_only:
+        if images_dir is None:
+            log_dir = os.path.dirname(os.path.dirname(bag_filepath))
+            processed_dir = os.path.join(log_dir, 'processed')
             images_dir = os.path.join(processed_dir, 'images')
 
-        print "Using log dir %s, processed_dir %s, and images_dir %s" % (log_dir, processed_dir, images_dir)
+
+        print "Using images_dir %s" % (images_dir)
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
             self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
         image_capture.load_ros_bag(bag_filepath)
@@ -707,7 +706,7 @@ class FusionServer(object):
 
         rospy.loginfo("Finished writing images to disk")
 
-        return processed_dir, images_dir
+        return images_dir
 
     def handle_capture_scene(self, req):
         print "handling capture_scene"

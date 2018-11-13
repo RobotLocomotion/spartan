@@ -6,6 +6,7 @@ import time
 import gc
 import multiprocessing as mp
 import resource
+import shutil
 
 
 from fusion_server.fusion import FusionServer
@@ -13,6 +14,9 @@ import fusion_server.tsdf_fusion as tsdf_fusion
 
 import spartan.utils.utils as spartanUtils
 
+# this is necessary to avoid getting an error about /unnamed/tf2_server in the construction
+# of the tf2buffer in ROS
+fs = FusionServer()
 
 def mem():
     print('Memory usage         : % 2.2f MB' % round(
@@ -35,9 +39,10 @@ def already_downsampled(log_full_path):
     file_to_check_2 = os.path.join(images_dir, "000001_rgb.png")
     return not (os.path.exists(file_to_check_1) and os.path.exists(file_to_check_2))
 
-def extract_data_from_rosbag(bag_filepath):
-    fs = FusionServer()    
-    processed_dir, images_dir = fs.extract_data_from_rosbag(bag_filepath)
+def extract_data_from_rosbag(bag_filepath, images_dir):
+    images_dir = fs.extract_data_from_rosbag(bag_filepath, images_dir=images_dir)
+
+
 
 def extract_and_fuse_single_scene(log_full_path, downsample=False):
 
@@ -46,25 +51,30 @@ def extract_and_fuse_single_scene(log_full_path, downsample=False):
 
     mem()
 
+    processed_dir = os.path.join(log_full_path, 'processed')
+    images_dir = os.path.join(processed_dir, 'images')
+    raw_dir = os.path.join(log_full_path, 'raw')
+    raw_close_up_dir = os.path.join(log_full_path, 'raw_close_up')
+    bag_filepath = os.path.join(log_full_path, 'raw', 'fusion_' + log + '.bag')
+    bag_close_up_filepath = os.path.join(raw_close_up_dir, 'fusion_' + log + '.bag')
+    pose_data_filename = os.path.join(images_dir, 'pose_data.yaml')
+    metadata_filename = os.path.join(images_dir, 'metadata.yaml')
+
+
     if not already_extracted_rosbag(log_full_path):
-        print "extracting", log_full_path
-        bag_filepath = os.path.join(log_full_path, 'raw', 'fusion_'+log+'.bag')
+        print "extracting", bag_filepath
 
         # run this memory intensive step in a process, to allow
         # it to release memory back to the operating system
         # when finished
-        proc = mp.Process(target=extract_data_from_rosbag, args=(bag_filepath,))
+        proc = mp.Process(target=extract_data_from_rosbag, args=(bag_filepath,images_dir))
         proc.start()
         proc.join()
 
-        print "finished extracting", log_full_path
+        print "finished extracting", bag_filepath
         # counter_new_extracted += 1
     else:
-        print "already extracted", log_full_path
-
-
-    processed_dir = os.path.join(log_full_path, 'processed')
-    images_dir    = os.path.join(processed_dir, 'images')
+        print "already extracted", bag_filepath
     
     # we need to free some memory
     gc.collect()
@@ -89,16 +99,110 @@ def extract_and_fuse_single_scene(log_full_path, downsample=False):
         print "already ran tsdf_fusion for", log_full_path
 
     if not already_downsampled(log_full_path) and downsample:
-        fs = FusionServer()
         print "downsampling image folder"
         linear_distance_threshold = 0.03
         angle_distance_threshold = 10 # in degrees
+        # fs = FusionServer()
         fs.downsample_by_pose_difference_threshold(images_dir, linear_distance_threshold, angle_distance_threshold)
         # counter_new_downsampled += 1
+
+        # create metadata.yaml file if it doesn't yet exist
+        if not os.path.exists(metadata_filename):
+            pose_data = spartanUtils.getDictFromYamlFilename(pose_data_filename)
+            original_image_indices = pose_data.keys()
+
+            metadata = dict()
+            metadata['original_image_indices'] = original_image_indices
+            metadata['close_up_image_indices'] = []
+            spartanUtils.saveToYaml(metadata, metadata_filename)
+
+
     else:
         print "already downsampled for", log_full_path
 
- 
+
+
+    # this is for combining with close up data
+    pose_data = spartanUtils.getDictFromYamlFilename(pose_data_filename)
+    num_images = len(pose_data)
+    original_image_indices = pose_data.keys()
+    close_up_image_indices = []
+
+    def already_extracted_close_up_log():
+
+        if not os.path.exists(metadata_filename):
+            return False
+
+        metadata_temp = spartanUtils.getDictFromYamlFilename(metadata_filename)
+        return (len(metadata_temp['close_up_image_indices']) > 0)
+
+    # extract the up close up log if it exists
+    if os.path.exists(bag_close_up_filepath) and not already_extracted_close_up_log():
+        print "\n\n-----------extracting close up images----------\n\n"
+        print "extracting", bag_close_up_filepath
+        close_up_temp_dir = os.path.join(processed_dir, 'images_close_up')
+
+
+        # run this memory intensive step in a process, to allow
+        # it to release memory back to the operating system
+        # when finished
+        proc = mp.Process(target=extract_data_from_rosbag, args=(bag_close_up_filepath, close_up_temp_dir))
+        proc.start()
+        proc.join()
+
+        print "downsampling image folder %s" %(close_up_temp_dir)
+        linear_distance_threshold = 0.03
+        angle_distance_threshold = 10  # in degrees
+        fs.downsample_by_pose_difference_threshold(close_up_temp_dir, linear_distance_threshold, angle_distance_threshold)
+
+        pose_data_close_up_filename = os.path.join(close_up_temp_dir, 'pose_data.yaml')
+
+
+        pose_data_close_up = spartanUtils.getDictFromYamlFilename(pose_data_close_up_filename)
+
+
+        for img_idx, data in pose_data_close_up.iteritems():
+            # just to give some buffer and avoid edge cases in some checks
+            img_idx_new = img_idx + num_images + 4
+            rgb_filename = "%06i_%s.png" % (img_idx_new, "rgb")
+            depth_filename = "%06i_%s.png" % (img_idx_new, "depth")
+
+            rgb_filename_prev = data['rgb_image_filename']
+            depth_filename_prev = data['depth_image_filename']
+
+            data['rgb_image_filename'] = rgb_filename
+            data['depth_image_filename'] = depth_filename
+
+            pose_data[img_idx_new] = data
+            close_up_image_indices.append(img_idx_new)
+
+            # move images around
+            shutil.move(os.path.join(close_up_temp_dir, rgb_filename_prev),
+                        os.path.join(images_dir, rgb_filename))
+
+            shutil.move(os.path.join(close_up_temp_dir, depth_filename_prev),
+                        os.path.join(images_dir, depth_filename))
+
+
+        shutil.rmtree(close_up_temp_dir)
+
+        original_image_indices.sort()
+        close_up_image_indices.sort()
+        spartanUtils.saveToYaml(pose_data, pose_data_filename)
+
+        metadata = dict()
+        metadata['normal_image_indices'] = original_image_indices
+        metadata['close_up_image_indices'] = close_up_image_indices
+        spartanUtils.saveToYaml(metadata, metadata_filename)
+
+    else:
+        if os.path.exists(bag_close_up_filepath):
+            print "already extracted close up log, skipping"
+        else:
+            print "raw_close_up doesn't exist, skipping"
+
+
+
 if __name__ == "__main__":
 
     start = time.time()
