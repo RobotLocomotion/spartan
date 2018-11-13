@@ -138,9 +138,13 @@ void TaskSpaceStreamingPlan::Step(
   TwistVectord T_WE_E_cmd = twist_pd + T_WEr_E;
 
   // q_dot_cmd = J_ee.pseudo_inverse()*T_WE_E_cmd
-  Eigen::VectorXd q_dot_cmd =
-      J_ee_E_.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV)
-          .solve(T_WE_E_cmd);
+  auto svd = J_ee_E_.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV);
+  // When computing the pseudoinverse, this ignores all singular
+  // values smaller than this threshold. This is raised
+  // from the Eigen default to create less jerky movements near
+  // singularities.
+  svd.setThreshold(0.01);
+  Eigen::VectorXd q_dot_cmd = svd.solve(T_WE_E_cmd);
   std::cout << "Final q dot cmd: " << q_dot_cmd << std::endl;
   *q_commanded = q + q_dot_cmd * dt;
   *v_commanded = q_dot_cmd; // This is ignored when constructing iiwa_command.
