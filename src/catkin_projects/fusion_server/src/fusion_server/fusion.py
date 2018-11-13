@@ -650,9 +650,9 @@ class FusionServer(object):
 
         print "moving robot through regular scan poses"
         self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
-        pose_list = self.config['scan']['pose_list']
+        pose_list = self.config['scan']['pose_list_quick']
         rospy.sleep(3.0)
-        # self._move_robot_through_pose_list(pose_list, randomize_wrist=True)
+        self._move_robot_through_pose_list(pose_list, randomize_wrist=True)
         self._stop_bagging()
 
 
@@ -663,9 +663,17 @@ class FusionServer(object):
         full_path_to_bagfile = os.path.join(bagfile_directory, bagfile_name)
         #
         print "moving robot through close up scan poses"
+        pose_list = self.config['scan']['close_up']
+
+        # move to first pose before we start bagging
+        first_pose = pose_list[0]
+        joint_positions = copy.copy(self.storedPoses[self.config['scan']['pose_group']][first_pose])
+        self.robotService.moveToJointPosition(joint_positions,
+                                              maxJointDegreesPerSecond=self.config['speed']['scan'])
+
+        # now start bagging and move the robot through the poses
         self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
-        pose_list = self.config['scan']['pose_list']
-        # self._move_robot_through_pose_list(pose_list, randomize_wrist=True)
+        self._move_robot_through_pose_list(pose_list, randomize_wrist=True)
         rospy.sleep(3.0)
         self._stop_bagging()
         rospy.sleep(1.0)

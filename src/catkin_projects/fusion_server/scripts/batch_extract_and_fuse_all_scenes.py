@@ -122,12 +122,6 @@ def extract_and_fuse_single_scene(log_full_path, downsample=False):
 
 
 
-    # this is for combining with close up data
-    pose_data = spartanUtils.getDictFromYamlFilename(pose_data_filename)
-    num_images = len(pose_data)
-    original_image_indices = pose_data.keys()
-    close_up_image_indices = []
-
     def already_extracted_close_up_log():
 
         if not os.path.exists(metadata_filename):
@@ -156,14 +150,20 @@ def extract_and_fuse_single_scene(log_full_path, downsample=False):
         fs.downsample_by_pose_difference_threshold(close_up_temp_dir, linear_distance_threshold, angle_distance_threshold)
 
         pose_data_close_up_filename = os.path.join(close_up_temp_dir, 'pose_data.yaml')
-
-
         pose_data_close_up = spartanUtils.getDictFromYamlFilename(pose_data_close_up_filename)
+
+        pose_data = spartanUtils.getDictFromYamlFilename(pose_data_filename)
+        original_image_indices = pose_data.keys()
+        largest_original_image_idx = max(original_image_indices)
+
+        close_up_image_indices = []
+
+        print "num_original_"
 
 
         for img_idx, data in pose_data_close_up.iteritems():
             # just to give some buffer and avoid edge cases in some checks
-            img_idx_new = img_idx + num_images + 4
+            img_idx_new = img_idx + largest_original_image_idx + 4
             rgb_filename = "%06i_%s.png" % (img_idx_new, "rgb")
             depth_filename = "%06i_%s.png" % (img_idx_new, "depth")
 
