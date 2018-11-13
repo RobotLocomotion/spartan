@@ -47,6 +47,11 @@ def terminate_ros_node(s):
             os.system("rosnode kill " + str)
 
 
+ROS_BAGGING_NODE_NAME = "spartan_rosbag_node"
+
+
+
+
 class TFWrapper(object):
 
     def __init__(self):
@@ -437,8 +442,6 @@ class FusionServer(object):
         if not os.path.exists(parent_folder):
             os.makedirs(parent_folder)
 
-        # redundantly tag on the string name, so we have extra defense on tracking its ID
-        bagfile_name = "fusion_" + log_id_name
 
         topics_to_bag = [
             "/tf",
@@ -462,7 +465,7 @@ class FusionServer(object):
         transform_stamped = self.cache['point_cloud_to_world_stamped']
         
         # build up command string
-        rosbag_cmd = "rosbag record"
+        rosbag_cmd = "rosbag record __name:=" + ROS_BAGGING_NODE_NAME
         rosbag_cmd += " -O " + full_path_to_bag_file
         for i in topics_to_bag:
             rosbag_cmd += " " + i
@@ -471,11 +474,12 @@ class FusionServer(object):
         print rosbag_cmd
 
         # start bagging
+        self.bagging = True
         rosbag_proc = subprocess.Popen(rosbag_cmd, stdin=subprocess.PIPE, shell=True, cwd=parent_folder)
 
         rospy.loginfo("started image subscribers, sleeping for %d seconds", self.config['sleep_time_before_bagging'])
         
-        return os.path.join(bagfile_directory, bagfile_name+".bag"), rosbag_proc
+        return os.path.join(full_path_to_bag_file), rosbag_proc
 
     def _stop_bagging(self):
         """
@@ -483,9 +487,10 @@ class FusionServer(object):
         :return:
         :rtype:
         """
-        ## stop bagging
-        terminate_ros_node("/record")  # this is heavier weight but will not create a .active
-        # self.rosbag_proc.send_signal(subprocess.signal.SIGINT) # this is a more direct way of stopping the rosbag, but will terminate it with a .active
+        cmd = "rosnode kill /" + ROS_BAGGING_NODE_NAME
+        print "cmd", cmd
+        os.system(cmd)
+
         self.bagging = False
         self.stopImageSubscribers()
 
@@ -640,27 +645,30 @@ class FusionServer(object):
         log_id_name = spartanUtils.get_current_YYYY_MM_DD_hh_mm_ss()
         log_subdir = "raw"
         bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
-        bagfile_name = "fusion_" + log_id_name
+        bagfile_name = "fusion_" + log_id_name + ".bag"
         full_path_to_bagfile = os.path.join(bagfile_directory, bagfile_name)
 
         print "moving robot through regular scan poses"
         self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
         pose_list = self.config['scan']['pose_list']
-        self._move_robot_through_pose_list(pose_list, randomize_wrist=True)
+        rospy.sleep(3.0)
+        # self._move_robot_through_pose_list(pose_list, randomize_wrist=True)
         self._stop_bagging()
 
 
-        # move robot through close up scan poses
+        # # move robot through close up scan poses
         log_subdir = "raw_close_up"
         bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
-        bagfile_name = "fusion_" + log_id_name
+        bagfile_name = "fusion_" + log_id_name + ".bag"
         full_path_to_bagfile = os.path.join(bagfile_directory, bagfile_name)
-
+        #
         print "moving robot through close up scan poses"
         self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
         pose_list = self.config['scan']['pose_list']
-        self._move_robot_through_pose_list(pose_list, randomize_wrist=True)
+        # self._move_robot_through_pose_list(pose_list, randomize_wrist=True)
+        rospy.sleep(3.0)
         self._stop_bagging()
+        rospy.sleep(1.0)
 
         # move back home
         self.robotService.moveToJointPosition(home_pose_joint_positions, maxJointDegreesPerSecond=self.config['speed']['fast'])
