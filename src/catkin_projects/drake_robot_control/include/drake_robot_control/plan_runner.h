@@ -82,6 +82,7 @@ public:
                   const std::string &lcm_stop_channel,
                   const std::string &robot_ee_body_name, int num_joints,
                   double joint_speed_limit_deg_per_sec, double control_period,
+                  YAML::Node config,
                   std::unique_ptr<const RigidBodyTreed> tree,
                   ros::NodeHandle &nh);
   ~RobotPlanRunner();
@@ -124,6 +125,12 @@ public:
       const math::RotationMatrixd &R_WE_ref, double duration);
 
 private:
+  // load joint limits
+  void LoadJointLimits();
+
+  // applies the joint limits
+  Eigen::VectorXd ApplyJointLimits(const Eigen::VectorXd & q_commanded);
+
   // worker method of lcm status receiver thread.
   void ReceiveRobotStatus();
 
@@ -214,6 +221,11 @@ private:
   Eigen::VectorXd current_robot_state_;
   Eigen::VectorXd current_position_commanded_; // joint_position_commanded from
                                                // iiwa_status msg
+
+  Eigen::VectorXd joint_limits_min_;
+  Eigen::VectorXd joint_limits_max_;
+  double joint_limit_tolerance_; // tolerance on joint limits
+
   Eigen::VectorXd
       current_torque_commanded_; // joint_torque_commanded from iiwa_status msg
   std::shared_ptr<PlanBase> new_plan_;
