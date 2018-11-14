@@ -53,16 +53,33 @@ target_link_libraries(iiwa_sim
         drake::drake
         gflags_shared)
 
+add_library(kuka_schunk_station
+        kuka_schunk_station.cc ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/kuka_schunk_station.h)
+add_dependencies(kuka_schunk_station ${catkin_EXPORTED_TARGETS})
+target_link_libraries(kuka_schunk_station
+        drake::drake
+        gflags_shared)
+
+add_executable(kuka_schunk_station_simulation
+               kuka_schunk_station_simulation.cc)
+add_dependencies(kuka_schunk_station_simulation ${catkin_EXPORTED_TARGETS})
+target_link_libraries(kuka_schunk_station_simulation
+        kuka_schunk_station
+        drake::drake
+        gflags_shared)
+
+
 # install library
 install(TARGETS iiwa_lcm
  iiwa_qp_inverse_dynamics_controller
+ kuka_schunk_station
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 # install executable
-install(TARGETS iiwa_sim
+install(TARGETS iiwa_sim kuka_schunk_station_simulation
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
