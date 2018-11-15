@@ -334,16 +334,80 @@ class FusionServer(object):
         #self.config['scan']['pose_list'] = ['scan_left_close', 'scan_left', 'scan_left_center', 'scan_above_table_far', 'scan_right_center', 'scan_right', 'scan_right_close']
 
 
-        self.config['scan']['pose_group'] = 'Elastic Fusion'
-        self.config['scan']['pose_list'] = ['home', 'home_closer', 'center_right', 'right', 'right_low', 'right_low_closer', 'center_right', 'home_closer', 'center_left_closer', 'center_left_low_closer', 'left_low', 'left_mid', 'center_left_low', 'center_left_low_closer', 'center_left_closer', 'home_closer', 'top_down', 'top_down_right', 'top_down_left']
-        self.config['scan']['pose_list_quick'] = ['home_closer', 'top_down', 'top_down_right', 'top_down_left', 'home']
+        
+        # regular far out scanning poses
+        pose_list = []
+        pose_list.append(["Elastic Fusion", 'home'])
+        pose_list.append(["Elastic Fusion", 'home_closer'])
+        pose_list.append(["Elastic Fusion", 'center_right'])
+        pose_list.append(["Elastic Fusion", 'right'])
+        pose_list.append(["Elastic Fusion", 'right_low'])
+        pose_list.append(["Elastic Fusion", 'right_low_closer'])
+        pose_list.append(["Elastic Fusion", 'center_right'])
+        pose_list.append(["Elastic Fusion", 'home_closer'])
+        pose_list.append(["Elastic Fusion", 'center_left_closer'])
+        pose_list.append(["Elastic Fusion", 'center_left_low_closer'])
+        pose_list.append(["Elastic Fusion", 'left_low'])
+        pose_list.append(["Elastic Fusion", 'left_mid'])
+        pose_list.append(["Elastic Fusion", 'center_left_low'])
+        pose_list.append(["Elastic Fusion", 'center_left_low_closer'])
+        pose_list.append(["Elastic Fusion", 'center_left_closer'])
+        pose_list.append(["Elastic Fusion", 'home_closer'])
+        pose_list.append(["Elastic Fusion", 'top_down'])
+        pose_list.append(["Elastic Fusion", 'top_down_right'])
+        pose_list.append(["Elastic Fusion", 'top_down_left'])
 
-        # just for testing purposes right now
-        self.config['scan']['close_up'] = ['home']
+        self.config['scan']['pose_list'] = pose_list
+
+
+        # quick scan for testing purposes
+        pose_list = []
+        pose_list.append(["Elastic Fusion", 'home'])
+        pose_list.append(["Elastic Fusion", 'home_closer'])
+        pose_list.append(["Elastic Fusion", 'top_down'])
+        pose_list.append(["Elastic Fusion", 'top_down_right'])
+        pose_list.append(["Elastic Fusion", 'top_down_left'])
+        pose_list.append(["Elastic Fusion", 'home'])
+        self.config['scan']['pose_list_quick'] = pose_list
+
+
+
+        # close up scanning
+        pose_list = []
+        pose_list.append(["close_up_scan", "center"])
+        pose_list.append(["close_up_scan", "center_2"])
+        pose_list.append(["close_up_scan", "center_3"])
+        pose_list.append(["close_up_scan", "center_back_1"])
+        pose_list.append(["close_up_scan", "center_back_2"])
+        pose_list.append(["close_up_scan", "center_back_3"])
+        pose_list.append(["close_up_scan", "center"])
+        pose_list.append(["close_up_scan", "right_1"])
+        pose_list.append(["close_up_scan", "right_2"])
+        pose_list.append(["close_up_scan", "right_3"])
+        pose_list.append(["close_up_scan", "right_4"])
+        pose_list.append(["close_up_scan", "far_right_1"])
+        pose_list.append(["close_up_scan", "far_right_2"])
+        pose_list.append(["close_up_scan", "far_right_1"])
+        pose_list.append(["close_up_scan", "right_1"])
+        pose_list.append(["close_up_scan", "center"])
+        pose_list.append(["close_up_scan", "left_1"])
+        pose_list.append(["close_up_scan", "left_2"])
+        pose_list.append(["close_up_scan", "left_3"])
+        pose_list.append(["close_up_scan", "far_left_1"])
+        pose_list.append(["close_up_scan", "far_left_2"])
+        pose_list.append(["close_up_scan", "extreme_left_1"])
+        pose_list.append(["close_up_scan", "extreme_left_2"])
+        pose_list.append(["close_up_scan", "extreme_left_3"])
+        pose_list.append(["close_up_scan", "left_1"])
+        pose_list.append(["close_up_scan", "center"])
+
+        self.config['scan']['close_up'] = pose_list
+
 
         self.config['speed'] = dict()
         self.config['speed']['scan'] = 25
         self.config['speed']['fast'] = 30
+        self.config['speed']['wrist_rotation'] = 45
 
         self.config['spin_rate'] = 1
 
@@ -562,38 +626,21 @@ class FusionServer(object):
         w = quat["w"]
         return np.asarray([w,x,y,z])
 
-
-    def move_robot_through_scan_poses(self, with_randomize_wrist=True):
+    def get_joint_positions_for_pose(self, pose_data):
         """
-        Moves the robot to the different scan poses
-        :return:
-        :rtype:
+        Looks up the joint positions for a given pose
+        :param pose_data: list of strings [group_name, pose_name]. e.g.
+        ["General", "q_nom"]
+        :return: list[double] of joint angles
         """
+        return copy.copy(self.storedPoses[pose_data[0]][pose_data[1]])
 
-        joint_limit_safety_factor = 0.9
-        wrist_joint_limit_degrees = 175.0
-        safe_wrist_joint_limit_radians = (wrist_joint_limit_degrees * np.pi/180.0) * joint_limit_safety_factor
-
-        # Move robot around
-        pose_list = self.config['scan']['pose_list']
-        #pose_list = self.config['scan']['pose_list_quick']
-        for poseName in pose_list:
-            print "moving to", poseName
-            joint_positions = copy.copy(self.storedPoses[self.config['scan']['pose_group']][poseName])
-            if with_randomize_wrist:
-                print "before randomize wrist", joint_positions
-                joint_positions[-1] = np.random.uniform(-safe_wrist_joint_limit_radians, safe_wrist_joint_limit_radians)
-                print "after randomize wrist", joint_positions
-            self.robotService.moveToJointPosition(joint_positions,
-                                                  maxJointDegreesPerSecond=self.config['speed']['scan'])
-            rospy.sleep(self.config['sleep_time_at_each_pose'])
-
-    def _move_robot_through_pose_list(self, pose_list, randomize_wrist=False):
+    def _move_robot_through_pose_list(self, pose_list, randomize_wrist=False, hit_original_poses=True):
         """
         Moves robot through the given list of poses
-        :param pose_list: list of strings, which are pose names
+        :param pose_list: list of list of strings of form [pose_group, pose_name]
         :type pose_list:
-        :param with_randomize_write:
+        :param with_randomize_wrist: boolean flag on whether to randomizde wrist or not
         :type with_randomize_write:
         :return:
         :rtype:
@@ -603,15 +650,27 @@ class FusionServer(object):
         wrist_joint_limit_degrees = 175.0
         safe_wrist_joint_limit_radians = (wrist_joint_limit_degrees * np.pi / 180.0) * joint_limit_safety_factor
 
-        for poseName in pose_list:
-            print "moving to", poseName
-            joint_positions = copy.copy(self.storedPoses[self.config['scan']['pose_group']][poseName])
+        for pose_data in pose_list:
+            print "moving to", pose_data[1]
+            joint_positions = self.get_joint_positions_for_pose(pose_data)
+
             if randomize_wrist:
                 print "before randomize wrist", joint_positions
-                joint_positions[-1] = np.random.uniform(-safe_wrist_joint_limit_radians, safe_wrist_joint_limit_radians)
+                joint_positions_random_wrist = copy.copy(joint_positions)
+                joint_positions_random_wrist[-1] = np.random.uniform(-safe_wrist_joint_limit_radians, safe_wrist_joint_limit_radians)
                 print "after randomize wrist", joint_positions
-            self.robotService.moveToJointPosition(joint_positions,
-                                                  maxJointDegreesPerSecond=self.config['speed']['scan'])
+                self.robotService.moveToJointPosition(joint_positions_random_wrist,
+                                                      maxJointDegreesPerSecond=self.config['speed']['scan'])
+
+                if hit_original_poses:
+                    self.robotService.moveToJointPosition(joint_positions,
+                                                          maxJointDegreesPerSecond=self.config['speed']['wrist_rotation'])
+
+
+            else:
+                self.robotService.moveToJointPosition(joint_positions,
+                                                      maxJointDegreesPerSecond=self.config['speed']['scan'])
+
             rospy.sleep(self.config['sleep_time_at_each_pose'])
 
 
@@ -633,7 +692,7 @@ class FusionServer(object):
         """
 
         # first move home
-        home_pose_joint_positions = self.storedPoses[self.config['scan']['pose_group']][self.config['home_pose_name']]
+        home_pose_joint_positions = self.storedPoses["Elastic Fusion"][self.config['home_pose_name']]
         print home_pose_joint_positions
         self.robotService.moveToJointPosition(home_pose_joint_positions, maxJointDegreesPerSecond=self.config['speed']['fast'])
 
@@ -651,8 +710,12 @@ class FusionServer(object):
         print "moving robot through regular scan poses"
         self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
         pose_list = self.config['scan']['pose_list_quick']
+
+        joint_positions = self.get_joint_positions_for_pose(pose_list[0])
+        self.robotService.moveToJointPosition(joint_positions,
+                                              maxJointDegreesPerSecond=self.config['speed']['scan'])
         rospy.sleep(3.0)
-        self._move_robot_through_pose_list(pose_list, randomize_wrist=True)
+        # self._move_robot_through_pose_list(pose_list, randomize_wrist=True, hit_original_poses=True)
         self._stop_bagging()
 
 
@@ -666,14 +729,13 @@ class FusionServer(object):
         pose_list = self.config['scan']['close_up']
 
         # move to first pose before we start bagging
-        first_pose = pose_list[0]
-        joint_positions = copy.copy(self.storedPoses[self.config['scan']['pose_group']][first_pose])
+        joint_positions = self.get_joint_positions_for_pose(pose_list[0])
         self.robotService.moveToJointPosition(joint_positions,
                                               maxJointDegreesPerSecond=self.config['speed']['scan'])
 
         # now start bagging and move the robot through the poses
         self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
-        self._move_robot_through_pose_list(pose_list, randomize_wrist=True)
+        self._move_robot_through_pose_list(pose_list, randomize_wrist=True, hit_original_poses=True)
         rospy.sleep(3.0)
         self._stop_bagging()
         rospy.sleep(1.0)
