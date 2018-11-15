@@ -163,7 +163,7 @@ KukaSchunkStation<T>::KukaSchunkStation(double time_step,
   const RigidTransform<double> tool0_pose(RollPitchYaw<double>(0, -M_PI_2, 0),
                                         Vector3d(0, 0, 0.045));
   const RigidTransform<double> wsg_pose(RollPitchYaw<double>(M_PI, 0.3926, M_PI_2),
-                                        Vector3d(0.05, 0, 0.0));
+                                        Vector3d(0.04, 0, 0.0));
 
   plant_->WeldFrames(plant_->GetFrameByName("iiwa_link_7", iiwa_model_),
                      plant_->GetFrameByName("body", wsg_model_),
