@@ -39,11 +39,21 @@ target_link_libraries(kuka_schunk_station
         drake::drake
         gflags_shared)
 
+add_library(schunk_wsg_ros_actionserver
+        schunk_wsg_ros_actionserver.cc
+        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/schunk_wsg_ros_actionserver.h)
+add_dependencies(schunk_wsg_ros_actionserver ${catkin_EXPORTED_TARGETS})
+target_link_libraries(schunk_wsg_ros_actionserver
+        drake::drake
+        gflags_shared)
+
+
 add_executable(kuka_schunk_station_simulation
                kuka_schunk_station_simulation.cc)
 add_dependencies(kuka_schunk_station_simulation ${catkin_EXPORTED_TARGETS})
 target_link_libraries(kuka_schunk_station_simulation
         kuka_schunk_station
+        schunk_wsg_ros_actionserver
         drake::drake
         gflags_shared)
 

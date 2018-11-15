@@ -3,6 +3,7 @@
 #include <gflags/gflags.h>
 
 #include "drake_iiwa_sim/kuka_schunk_station.h"
+#include "drake_iiwa_sim/schunk_wsg_ros_actionserver.h"
 
 #include "drake/common/eigen_types.h"
 #include "drake/common/find_resource.h"
@@ -109,26 +110,16 @@ int do_main(int argc, char* argv[]) {
   builder.Connect(iiwa_status->get_output_port(0),
                   iiwa_status_publisher->get_input_port());
 
-  // Receive the WSG commands.
-  auto wsg_command_subscriber = builder.AddSystem(
-      systems::lcm::LcmSubscriberSystem::Make<drake::lcmt_schunk_wsg_command>(
-          "SCHUNK_WSG_COMMAND", &lcm));
-  auto wsg_command =
-      builder.AddSystem<manipulation::schunk_wsg::SchunkWsgCommandReceiver>();
-  builder.Connect(wsg_command_subscriber->get_output_port(),
-                  wsg_command->get_input_port(0));
-  builder.Connect(wsg_command->get_position_output_port(),
+  auto wsg_ros_actionserver = builder.AddSystem(
+    SchunkWsgActionServer());
+  builder.Connect(wsg_ros_actionserver->get_position_output_port(),
                   station->GetInputPort("wsg_position"));
-  builder.Connect(wsg_command->get_force_limit_output_port(),
+  builder.Connect(wsg_ros_actionserver->get_force_limit_output_port(),
                   station->GetInputPort("wsg_force_limit"));
-
-  // Publish the WSG status.
-  auto wsg_status =
-      builder.AddSystem<manipulation::schunk_wsg::SchunkWsgStatusSender>();
   builder.Connect(station->GetOutputPort("wsg_state_measured"),
-                  wsg_status->get_state_input_port());
+                  wsg_ros_actionserver->get_measured_state_input_port());
   builder.Connect(station->GetOutputPort("wsg_force_measured"),
-                  wsg_status->get_force_input_port());
+                  wsg_ros_actionserver->get_measured_force_input_port());
   auto wsg_status_publisher = builder.AddSystem(
       systems::lcm::LcmPublisherSystem::Make<drake::lcmt_schunk_wsg_status>(
           "SCHUNK_WSG_STATUS", &lcm));
