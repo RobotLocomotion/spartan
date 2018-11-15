@@ -32,27 +32,6 @@
 
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 
-add_library(iiwa_lcm
-        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/iiwa_lcm.h
-        iiwa_lcm.cc)
-target_link_libraries(iiwa_lcm
-        drake::drake)
-
-add_library(iiwa_qp_inverse_dynamics_controller
-        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h
-        iiwa_qp_inverse_dynamics_controller.cc)
-target_link_libraries(iiwa_qp_inverse_dynamics_controller
-        drake::drake)
-
-add_executable(iiwa_sim
-        kuka_simulation.cc)
-add_dependencies(iiwa_sim ${catkin_EXPORTED_TARGETS})
-target_link_libraries(iiwa_sim
-        iiwa_lcm
-        iiwa_qp_inverse_dynamics_controller
-        drake::drake
-        gflags_shared)
-
 add_library(kuka_schunk_station
         kuka_schunk_station.cc ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/kuka_schunk_station.h)
 add_dependencies(kuka_schunk_station ${catkin_EXPORTED_TARGETS})
@@ -68,18 +47,8 @@ target_link_libraries(kuka_schunk_station_simulation
         drake::drake
         gflags_shared)
 
-
-# install library
-install(TARGETS iiwa_lcm
- iiwa_qp_inverse_dynamics_controller
- kuka_schunk_station
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
 # install executable
-install(TARGETS iiwa_sim kuka_schunk_station_simulation
+install(TARGETS kuka_schunk_station_simulation
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
