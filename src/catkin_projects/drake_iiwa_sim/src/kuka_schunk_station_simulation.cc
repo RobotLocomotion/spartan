@@ -51,11 +51,14 @@ int do_main(int argc, char* argv[]) {
   auto station = builder.AddSystem<KukaSchunkStation>(
     0.002, IiwaCollisionModel::kPolytopeCollision);
   // TODO: scripted loading of additional objects?
+  /*
   auto object = multibody::parsing::AddModelFromSdfFile(
       FindResourceOrThrow(
           "drake/examples/manipulation_station/models/061_foam_brick.sdf"),
       "brick", &station->get_mutable_multibody_plant(),
       &station->get_mutable_scene_graph());
+  */
+
   station->Finalize();
 
   geometry::ConnectDrakeVisualizer(&builder, station->get_scene_graph(),
@@ -151,6 +154,7 @@ int do_main(int argc, char* argv[]) {
   station->SetIiwaVelocity(qdot0, &station_context);
 
   // Place the object in the center of the table in front of the robot.
+  /*
   Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
   pose.translation() = Eigen::Vector3d(.6, 0, 0);
   station->get_multibody_plant().tree().SetFreeBodyPoseOrThrow(
@@ -158,7 +162,7 @@ int do_main(int argc, char* argv[]) {
                                                            object),
       pose, &station->GetMutableSubsystemContext(
                 station->get_multibody_plant(), &station_context));
-
+    */
   simulator.set_publish_every_time_step(false);
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.StepTo(FLAGS_duration);

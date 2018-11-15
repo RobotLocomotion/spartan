@@ -155,11 +155,19 @@ KukaSchunkStation<T>::KukaSchunkStation(double time_step,
       "wsg_50_description/sdf/schunk_wsg_50.sdf");
   wsg_model_ =
       AddModelFromSdfFile(wsg_sdf_path, "gripper", plant_);
-  const RigidTransform<double> wsg_pose(RollPitchYaw<double>(M_PI_2, 0, M_PI_2),
-                                        Vector3d(0, 0, 0.114));
+
+  // Inspired by iiwa14_schunk_gripper but hand-tuned to get visible
+  // alignment of sim + actual robot meshes in Director.
+  // Underlying frames might be slightly different between the SDF this
+  // sim uses + the URDFs Spartan uses...
+  const RigidTransform<double> tool0_pose(RollPitchYaw<double>(0, -M_PI_2, 0),
+                                        Vector3d(0, 0, 0.045));
+  const RigidTransform<double> wsg_pose(RollPitchYaw<double>(M_PI, 0.3926, M_PI_2),
+                                        Vector3d(0.05, 0, 0.0));
+
   plant_->WeldFrames(plant_->GetFrameByName("iiwa_link_7", iiwa_model_),
                      plant_->GetFrameByName("body", wsg_model_),
-                     wsg_pose.GetAsIsometry3());
+                     (tool0_pose*wsg_pose).GetAsIsometry3());
 
   plant_->template AddForceElement<multibody::UniformGravityFieldElement>(
       -9.81 * Vector3d::UnitZ());
