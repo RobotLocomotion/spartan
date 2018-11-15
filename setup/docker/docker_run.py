@@ -59,7 +59,7 @@ if __name__=="__main__":
 		cmd += " -v %s:%s/data_volume " %(data_directory_host_machine, spartan_source_dir)
 
 	# expose UDP ports
-	if not args.no_udp:
+	if not args.no_udp and not args.net_host:
 		cmd += " -p 30200:30200/udp " # expose udp ports for kuka
 		cmd += " -p 30201:30201/udp " # expose udp ports for kuka
 		cmd += " -p 1500:1500/udp " # expose udp ports for schunk
