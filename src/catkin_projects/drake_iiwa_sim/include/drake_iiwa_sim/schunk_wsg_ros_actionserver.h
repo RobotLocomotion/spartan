@@ -27,7 +27,9 @@ class SchunkWsgActionServer : public drake::systems::LeafSystem<double> {
   ///
   /// @param initial_force the commanded force limit to output if no command
   /// message has been received yet.
-  SchunkWsgActionServer(double initial_position = 0.02,
+  SchunkWsgActionServer(std::string name,
+                        std::string status_channel = "",
+                        double initial_position = 0.02,
                         double initial_force_limit = 40);
 
   const drake::systems::InputPort<double>& get_measured_state_input_port() const {
@@ -46,13 +48,16 @@ class SchunkWsgActionServer : public drake::systems::LeafSystem<double> {
     return this->get_output_port(force_limit_output_port_);
   }
 
+  drake::optional<bool> DoHasDirectFeedthrough(int, int) const final { return false; }
+
  protected:
   void SetDefaultState(const drake::systems::Context<double>& context,
                        drake::systems::State<double>* state) const override;
 
-  void DoCalcUnrestrictedUpdate(const systems::Context<double>& context,
-            const std::vector<const systems::UnrestrictedUpdateEvent<double>*>&,
-            systems::State<double>* state) const override;
+  void DoCalcDiscreteVariableUpdates(
+    const drake::systems::Context<double>& context,
+    const std::vector<const drake::systems::DiscreteUpdateEvent<double>*>&,
+    drake::systems::DiscreteValues<double>* discrete_state) const override;
 
  private:
   void CalcPositionOutput(const drake::systems::Context<double>& context,
@@ -62,17 +67,18 @@ class SchunkWsgActionServer : public drake::systems::LeafSystem<double> {
                             drake::systems::BasicVector<double>* output) const;
 
  private:
-  double initial_position_;
-  double initial_force_limit_;
-  double max_commanded_position_;
-  double min_commanded_position_;
+  const double initial_position_;
+  const double initial_force_limit_;
+  const double max_commanded_position_;
+  const double min_commanded_position_;
   const drake::systems::InputPortIndex measured_state_input_port_{};
   const drake::systems::InputPortIndex measured_force_input_port_{};
   const drake::systems::OutputPortIndex position_output_port_{};
   const drake::systems::OutputPortIndex force_limit_output_port_{};
-  ros::NodeHandle nh_;
-  actionlib::SimpleActionServer<wsg_50_common::CommandAction> as_;
-
+  mutable ros::NodeHandle nh_;
+  mutable actionlib::SimpleActionServer<wsg_50_common::CommandAction> as_;
+  mutable ros::Publisher pb_;
+  bool do_publish_;
 };
 
 }  // namespace drake_iiwa_sim

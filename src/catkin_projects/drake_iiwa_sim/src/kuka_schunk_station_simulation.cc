@@ -25,6 +25,8 @@
 #include "drake/systems/primitives/demultiplexer.h"
 #include "drake/systems/primitives/matrix_gain.h"
 
+#include <ros/ros.h>
+
 namespace drake_iiwa_sim {
 namespace {
 
@@ -44,6 +46,8 @@ DEFINE_double(duration, std::numeric_limits<double>::infinity(),
               "Simulation duration.");
 
 int do_main(int argc, char* argv[]) {
+  ros::init(argc, argv, "kuka_schunk_station_simulation");
+
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   systems::DiagramBuilder<double> builder;
@@ -110,8 +114,9 @@ int do_main(int argc, char* argv[]) {
   builder.Connect(iiwa_status->get_output_port(0),
                   iiwa_status_publisher->get_input_port());
 
-  auto wsg_ros_actionserver = builder.AddSystem(
-    SchunkWsgActionServer());
+  auto wsg_ros_actionserver = builder.AddSystem<SchunkWsgActionServer>(
+    "/wsg50_driver/wsg50/gripper_control/",
+    "/wsg50_driver/wsg50/status");
   builder.Connect(wsg_ros_actionserver->get_position_output_port(),
                   station->GetInputPort("wsg_position"));
   builder.Connect(wsg_ros_actionserver->get_force_limit_output_port(),
@@ -120,13 +125,6 @@ int do_main(int argc, char* argv[]) {
                   wsg_ros_actionserver->get_measured_state_input_port());
   builder.Connect(station->GetOutputPort("wsg_force_measured"),
                   wsg_ros_actionserver->get_measured_force_input_port());
-  auto wsg_status_publisher = builder.AddSystem(
-      systems::lcm::LcmPublisherSystem::Make<drake::lcmt_schunk_wsg_status>(
-          "SCHUNK_WSG_STATUS", &lcm));
-  wsg_status_publisher->set_publish_period(0.05);
-  builder.Connect(wsg_status->get_output_port(0),
-                  wsg_status_publisher->get_input_port());
-
   auto diagram = builder.Build();
 
   systems::Simulator<double> simulator(*diagram);

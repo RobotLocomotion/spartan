@@ -55,7 +55,15 @@ target_link_libraries(kuka_schunk_station_simulation
         kuka_schunk_station
         schunk_wsg_ros_actionserver
         drake::drake
-        gflags_shared)
+        gflags_shared
+        ${catkin_LIBRARIES})
+
+# install library
+install(TARGETS schunk_wsg_ros_actionserver kuka_schunk_station
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 # install executable
 install(TARGETS kuka_schunk_station_simulation
