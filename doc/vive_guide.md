@@ -51,7 +51,7 @@ source devel/setup.bash
   1. `source devel/setup.bash`
   2. cd to your spartan folder and run `source build/setup_environment.sh`
   3. `rosrun rviz rviz -d $SPARTAN_SOURCE_DIR/src/catkin_projects/station_config/RLG_iiwa_1/rviz_vive.rviz`
-6. Put on the vive headset and look around. Press and hold the trackpad to move the arm and hold the trigger to close the gripper.
+6. Put on the vive headset and look around. Press and hold the trackpad to move the arm and hold the trigger to close the gripper. Press the menu button (above trackpad) to play / pause point clouds.
 
 # Run Vive Teleop on Robot
 On robot computer:
@@ -61,18 +61,17 @@ On robot computer:
 4. Through procman start the process *vive-teleop*
 
 On VR computer:
-1. Run `hostname -i` and look at the first entry to determine your ip address (should be 128.30.xx.xxx). Write this number anywhere you see YOUR_IP_HERE.
+1. Run `hostname -I` and look at the first entry to determine your ip address (should be 128.30.xx.xxx). Write this number anywhere you see YOUR_IP_HERE.
 2. Start SteamVR and ensure that headset and controllers are tracking
 3. In a new terminal, navigate to your catkin workspace
   1. `export ROS_MASTER_URI=http://128.30.27.155:11311`
   2. `export ROS_IP=YOUR_IP_HERE`
   3. `source devel/setup.bash`
   4. `roslaunch htc_vive_teleop_stuff htc_vive_tf_and_joy.launch`
-4. Close the instance of rviz opened by procman
-5. In a new terminal, navigate to your catkin workspace
+4. In a new terminal, navigate to your catkin workspace
   1. `export ROS_MASTER_URI=http://128.30.27.155:11311`
   2. `export ROS_IP=YOUR_IP_HERE`
   3. `source devel/setup.bash`
   4. cd to your spartan folder and run `source build/setup_environment.sh`
   5. `rosrun rviz rviz -d $SPARTAN_SOURCE_DIR/src/catkin_projects/station_config/RLG_iiwa_1/rviz_vive.rviz`
-6. Put on the vive headset and look around. Press and hold the trackpad to move the arm and hold the trigger to close the gripper.
+5. Put on the vive headset and look around. Press and hold the trackpad to move the arm and hold the trigger to close the gripper. Press the menu button (above trackpad) to play / pause point clouds.
