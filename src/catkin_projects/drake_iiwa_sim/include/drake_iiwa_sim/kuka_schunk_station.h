@@ -22,7 +22,7 @@
 namespace drake_iiwa_sim {
 
 /// Determines which sdf is loaded for the IIWA in the KukaSchunkStation.
-enum class IiwaCollisionModel { kNoCollision, kBoxCollision };
+enum class IiwaCollisionModel { kNoCollision, kPolytopeCollision };
 
 using namespace drake;
 

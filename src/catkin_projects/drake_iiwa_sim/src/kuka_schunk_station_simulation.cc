@@ -48,7 +48,8 @@ int do_main(int argc, char* argv[]) {
   systems::DiagramBuilder<double> builder;
 
   // Create the Kuka + Schunk.
-  auto station = builder.AddSystem<KukaSchunkStation>();
+  auto station = builder.AddSystem<KukaSchunkStation>(
+    0.002, IiwaCollisionModel::kPolytopeCollision);
   // TODO: scripted loading of additional objects?
   auto object = multibody::parsing::AddModelFromSdfFile(
       FindResourceOrThrow(

@@ -133,13 +133,13 @@ KukaSchunkStation<T>::KukaSchunkStation(double time_step,
   switch (collision_model) {
     case IiwaCollisionModel::kNoCollision:
       iiwa_sdf_path = FindResourceOrThrow(
-          "drake/manipulation/models/iiwa_description/iiwa7/"
-          "iiwa7_no_collision.sdf");
+          "drake/manipulation/models/iiwa_description/sdf/"
+          "iiwa14_no_collision.urdf");
       break;
-    case IiwaCollisionModel::kBoxCollision:
+    case IiwaCollisionModel::kPolytopeCollision:
       iiwa_sdf_path = FindResourceOrThrow(
-          "drake/manipulation/models/iiwa_description/iiwa7/"
-          "iiwa7_with_box_collision.sdf");
+          "drake/manipulation/models/iiwa_description/sdf/"
+          "iiwa14_polytope_collision.sdf");
       break;
     default:
       DRAKE_ABORT_MSG("Unrecognized collision_model.");
