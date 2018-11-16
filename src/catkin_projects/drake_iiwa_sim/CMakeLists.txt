@@ -18,6 +18,9 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   actionlib
+  interactive_markers
+  visualization_msgs
+  tf
 )
 
 ## System dependencies are found with CMake's conventions

@@ -4,6 +4,7 @@
 
 #include "drake_iiwa_sim/kuka_schunk_station.h"
 #include "drake_iiwa_sim/schunk_wsg_ros_actionserver.h"
+#include "drake_iiwa_sim/ros_scene_graph_visualizer.h"
 
 #include "drake/common/eigen_types.h"
 #include "drake/common/find_resource.h"
@@ -66,8 +67,13 @@ int do_main(int argc, char* argv[]) {
 
   station->Finalize();
 
+  // Visualizers
   geometry::ConnectDrakeVisualizer(&builder, station->get_scene_graph(),
                                    station->GetOutputPort("pose_bundle"));
+  auto ros_visualizer = builder.AddSystem<RosSceneGraphVisualizer>(
+    station->get_scene_graph());
+  builder.Connect(station->GetOutputPort("pose_bundle"),
+                  ros_visualizer->get_pose_bundle_input_port());
 
   drake::lcm::DrakeLcm lcm;
   lcm.StartReceiveThread();
@@ -154,6 +160,7 @@ int do_main(int argc, char* argv[]) {
     */
   simulator.set_publish_every_time_step(false);
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
+  simulator.Initialize();
   simulator.StepTo(FLAGS_duration);
 
   return 0;
