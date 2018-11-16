@@ -37,6 +37,7 @@ class RosSceneGraphVisualizer : public drake::systems::LeafSystem<double> {
   }
 
  protected:
+  std::string MakeFullName(const std::string& input_name, int robot_num) const;
   void DoInitialization() const;
   void DoPublish(
       const drake::systems::Context<double>& context,

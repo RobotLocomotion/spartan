@@ -35,10 +35,13 @@ namespace {
 // the setup used in Spartan by:
 // Exposing the LCM command ports of the robot
 // Exposing the ROS control ports of the Schunk gripper
-// Spoofing camera info + images on appropriate camera channels
+// TODO: Spoofing camera info + images on appropriate camera channels
+
+using namespace drake;
 
 using Eigen::VectorXd;
-using namespace drake;
+using math::RigidTransform;
+using multibody::parsing::AddModelFromSdfFile;
 
 DEFINE_double(target_realtime_rate, 1.0,
               "Playback speed.  See documentation for "
@@ -56,14 +59,34 @@ int do_main(int argc, char* argv[]) {
   // Create the Kuka + Schunk.
   auto station = builder.AddSystem<KukaSchunkStation>(
     0.002, IiwaCollisionModel::kPolytopeCollision);
+
+  // Add a work table in front of the robot, and to its side.
+  const double dz_table_top_robot_base = 0.736 + 0.057 / 2.;
+  const std::string table_sdf_path = FindResourceOrThrow(
+      "drake/examples/kuka_iiwa_arm/models/table/extra_heavy_duty_table_surface_only_collision.sdf");
+  auto * plant = &station->get_mutable_multibody_plant();
+  const auto table_front =
+      AddModelFromSdfFile(table_sdf_path, "table_front", plant);
+  plant->WeldFrames(
+      plant->world_frame(), plant->GetFrameByName("link", table_front),
+      RigidTransform<double>(
+          Eigen::Vector3d(0.75, 0, -dz_table_top_robot_base))
+          .GetAsIsometry3());
+  const auto table_left =
+      AddModelFromSdfFile(table_sdf_path, "table_left", plant);
+  plant->WeldFrames(
+      plant->world_frame(), plant->GetFrameByName("link", table_left),
+      RigidTransform<double>(
+          Eigen::Vector3d(0.0, 0.8, -dz_table_top_robot_base))
+          .GetAsIsometry3());
+
+
   // TODO: scripted loading of additional objects?
-  /*
   auto object = multibody::parsing::AddModelFromSdfFile(
       FindResourceOrThrow(
           "drake/examples/manipulation_station/models/061_foam_brick.sdf"),
       "brick", &station->get_mutable_multibody_plant(),
       &station->get_mutable_scene_graph());
-  */
 
   station->Finalize();
 
@@ -149,7 +172,6 @@ int do_main(int argc, char* argv[]) {
   station->SetIiwaVelocity(qdot0, &station_context);
 
   // Place the object in the center of the table in front of the robot.
-  /*
   Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
   pose.translation() = Eigen::Vector3d(.6, 0, 0);
   station->get_multibody_plant().tree().SetFreeBodyPoseOrThrow(
@@ -157,7 +179,7 @@ int do_main(int argc, char* argv[]) {
                                                            object),
       pose, &station->GetMutableSubsystemContext(
                 station->get_multibody_plant(), &station_context));
-    */
+
   simulator.set_publish_every_time_step(false);
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.Initialize();

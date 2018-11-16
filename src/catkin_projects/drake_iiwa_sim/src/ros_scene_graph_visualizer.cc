@@ -42,6 +42,29 @@ RosSceneGraphVisualizer::RosSceneGraphVisualizer(
   printf("Constructed, initialization declared\n");
 }
 
+std::string RosSceneGraphVisualizer::MakeFullName(const std::string& input_name,
+                                                  int robot_num) const {
+  std::string source_name, frame_name;
+  if (input_name == "world") {
+    // Not sure the history of this, but all geometry *but*
+    // world geometry comes in with "source_name::frame_name",
+    // while world geometry is just named "world".
+    source_name = "world";
+    frame_name = "world";
+  } else {
+    auto offset = input_name.find("::");
+    if (offset == std::string::npos) {
+      return "";
+    }
+    source_name = input_name.substr(0, offset);
+    frame_name = input_name.substr(offset + 2);
+  }
+
+  std::stringstream full_name;
+  full_name << source_name << "::" << robot_num << "::" << frame_name;
+  return full_name.str();
+}
+
 void RosSceneGraphVisualizer::DoInitialization() const {
   drake::lcm::DrakeMockLcm mock_lcm;
   drake::geometry::DispatchLoadMessage(scene_graph_, &mock_lcm);
@@ -49,18 +72,17 @@ void RosSceneGraphVisualizer::DoInitialization() const {
     <drake::lcmt_viewer_load_robot>("DRAKE_VIEWER_LOAD_ROBOT");
 
   for (const auto link : load_robot_msg.link){
-    auto offset = link.name.find("::");
-    if (offset == std::string::npos){
-      printf("Couldn't find separator, this link message is malformed. Skipping...\n");
+    std::string full_name = MakeFullName(link.name, link.robot_num);
+    if (full_name == ""){
+      printf("Couldn't find separator, this name is malformed. Skipping...\n");
+      printf("Name in question was: %s\n", link.name.c_str());
       continue;
     }
-    std::string source_name = link.name.substr(0, offset);
-    std::string frame_name = link.name.substr(offset+2);
 
     visualization_msgs::InteractiveMarker int_marker;
     int_marker.header.frame_id = "base";
     int_marker.header.stamp = ros::Time();
-    int_marker.name = link.name;
+    int_marker.name = full_name.c_str();
 
     visualization_msgs::InteractiveMarkerControl control_marker;
     control_marker.always_visible = true;
@@ -190,7 +212,6 @@ void RosSceneGraphVisualizer::DoPublish(
   const auto& pose_bundle = input->GetValue<PoseBundle<double>>();
 
   for (int frame_i=0; frame_i<pose_bundle.get_num_poses(); frame_i++){
-    const std::string name = pose_bundle.get_name(frame_i);
     const RigidTransform<double> tf(pose_bundle.get_pose(frame_i));
     const Eigen::Vector3d t = tf.translation();
     const Quaternion<double> q = tf.rotation().ToQuaternion();
@@ -202,7 +223,10 @@ void RosSceneGraphVisualizer::DoPublish(
     pose_msg.orientation.x = q.x();
     pose_msg.orientation.y = q.y();
     pose_msg.orientation.z = q.z();
-    server_.setPose(name, pose_msg);    
+
+    int robot_num = pose_bundle.get_model_instance_id(frame_i);
+    std::string full_name = MakeFullName(pose_bundle.get_name(frame_i), robot_num);
+    server_.setPose(full_name, pose_msg);    
   }
   server_.applyChanges();
   ros::spinOnce();

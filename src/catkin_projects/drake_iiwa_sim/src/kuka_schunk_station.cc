@@ -36,8 +36,10 @@ using math::RigidTransform;
 using math::RollPitchYaw;
 using math::RotationMatrix;
 using multibody::Joint;
+using multibody::ModelInstanceIndex;
 using multibody::PrismaticJoint;
 using multibody::RevoluteJoint;
+using multibody::RigidBody;
 using multibody::SpatialInertia;
 using multibody::multibody_plant::MultibodyPlant;
 using multibody::parsing::AddModelFromSdfFile;
@@ -127,6 +129,21 @@ KukaSchunkStation<T>::KukaSchunkStation(double time_step,
       RigidTransform<double>(
           Vector3d(dx_table_center_to_robot_base, 0, -dz_table_top_robot_base))
           .GetAsIsometry3());
+
+  // Add big (but non-infinite) flat floor.
+  const double dz_floor = 2.0;
+  drake::geometry::Box floor_shape(20., 20., dz_floor);
+  auto floor_pose = RigidTransform<double>(
+    Vector3d(0., 0., -dz_table_top_robot_base - dz_floor/2.)).GetAsIsometry3();
+  
+  /* Don't draw floor, it's really ugly in Rviz.
+  plant_->RegisterVisualGeometry(
+    plant_->world_body(), floor_pose, floor_shape, "floor_visual",
+    drake::geometry::VisualMaterial({0.2, 0.4, 0.2, 1.0}));
+  */
+  plant_->RegisterCollisionGeometry(
+    plant_->world_body(), floor_pose, floor_shape, "floor_collision",
+    drake::multibody::multibody_plant::CoulombFriction<double>(0.9, 0.7));
 
   // Add the Kuka IIWA.
   std::string iiwa_sdf_path;
