@@ -7,6 +7,7 @@ import gc
 import multiprocessing as mp
 import resource
 import shutil
+import argparse
 
 
 from fusion_server.fusion import FusionServer
@@ -204,12 +205,18 @@ def extract_and_fuse_single_scene(log_full_path, downsample=False):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--logs_dir", type=str, required=False)
+    args = parser.parse_args()
 
     start = time.time()
-
-    fs = FusionServer()
     
-    logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_special', 'static_scenes')
+
+    if args.logs_dir:
+        logs_proto_path = args.logs_dir
+    else:
+        logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_special', 'static_scenes')
+        # logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_shoes')
 
     logs_proto_list = sorted(os.listdir(logs_proto_path))
 
@@ -220,16 +227,16 @@ if __name__ == "__main__":
     for log in logs_proto_list:
 
         log_full_path = os.path.join(logs_proto_path, log)
-
+        print "log_full_path", log_full_path
         extract_and_fuse_single_scene(log_full_path)
 
 
     print "finished extracting and fusing all logs in logs_proto"
 
     print "SUMMARY:"
-    # print "number new logs extracted:  ", counter_new_extracted
-    # print "number new logs fused:      ", counter_new_fused
-    # print "number new logs downsampled:", counter_new_downsampled
+    print "number new logs extracted:  ", counter_new_extracted
+    print "number new logs fused:      ", counter_new_fused
+    print "number new logs downsampled:", counter_new_downsampled
 
     end = time.time()
     hours, rem = divmod(end-start, 3600)
