@@ -19,6 +19,9 @@ import spartan.utils.utils as spartanUtils
 # of the tf2buffer in ROS
 fs = FusionServer()
 
+LINEAR_DISTANCE_THRESHOLD = 0.03 # 3cm
+ANGLE_DISTANCE_THRESHOLD = 10 # 10 degrees
+
 def mem():
     print('Memory usage         : % 2.2f MB' % round(
         resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0,1)
@@ -45,7 +48,17 @@ def extract_data_from_rosbag(bag_filepath, images_dir):
 
 
 
-def extract_and_fuse_single_scene(log_full_path, downsample=False):
+def extract_and_fuse_single_scene(log_full_path, downsample=True,
+                        linear_distance_threshold=LINEAR_DISTANCE_THRESHOLD,
+                        angle_distance_threshold=ANGLE_DISTANCE_THRESHOLD):
+    """
+    Extracts all the images from the rosbag.
+    :param log_full_path:
+    :param downsample: whether or not to downsample
+    :param linear_distance_threshold: threshold used in downsampling
+    :param angle_distance_threshold: threshold used in downsampling
+    :return:
+    """
 
     print "extracting and fusing scene:", log_full_path 
     log = os.path.split(log_full_path)[-1]
@@ -101,8 +114,7 @@ def extract_and_fuse_single_scene(log_full_path, downsample=False):
 
     if not already_downsampled(log_full_path) and downsample:
         print "downsampling image folder"
-        linear_distance_threshold = 0.03
-        angle_distance_threshold = 10 # in degrees
+        
         # fs = FusionServer()
         fs.downsample_by_pose_difference_threshold(images_dir, linear_distance_threshold, angle_distance_threshold)
         # counter_new_downsampled += 1
@@ -120,7 +132,6 @@ def extract_and_fuse_single_scene(log_full_path, downsample=False):
 
     else:
         print "already downsampled for", log_full_path
-
 
 
     def already_extracted_close_up_log():
@@ -146,9 +157,8 @@ def extract_and_fuse_single_scene(log_full_path, downsample=False):
         proc.join()
 
         print "downsampling image folder %s" %(close_up_temp_dir)
-        linear_distance_threshold = 0.03
-        angle_distance_threshold = 10  # in degrees
-        fs.downsample_by_pose_difference_threshold(close_up_temp_dir, linear_distance_threshold, angle_distance_threshold)
+        if downsample:
+            fs.downsample_by_pose_difference_threshold(close_up_temp_dir, linear_distance_threshold, angle_distance_threshold)
 
         pose_data_close_up_filename = os.path.join(close_up_temp_dir, 'pose_data.yaml')
         pose_data_close_up = spartanUtils.getDictFromYamlFilename(pose_data_close_up_filename)
@@ -159,7 +169,7 @@ def extract_and_fuse_single_scene(log_full_path, downsample=False):
 
         close_up_image_indices = []
 
-        print "num_original_"
+        print "largest_original_image_idx", largest_original_image_idx
 
 
         for img_idx, data in pose_data_close_up.iteritems():
@@ -215,8 +225,8 @@ if __name__ == "__main__":
     if args.logs_dir:
         logs_proto_path = args.logs_dir
     else:
-        logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_special', 'static_scenes')
-        # logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_shoes')
+        # logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_special', 'static_scenes')
+        logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_shoes')
 
     logs_proto_list = sorted(os.listdir(logs_proto_path))
 
@@ -225,11 +235,8 @@ if __name__ == "__main__":
     counter_new_downsampled = 0
 
     for log in logs_proto_list:
-
         log_full_path = os.path.join(logs_proto_path, log)
-        print "log_full_path", log_full_path
-        extract_and_fuse_single_scene(log_full_path)
-
+        extract_and_fuse_single_scene(log_full_path, downsample=True)
 
     print "finished extracting and fusing all logs in logs_proto"
 

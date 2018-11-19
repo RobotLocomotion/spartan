@@ -925,15 +925,21 @@ class FusionServer(object):
         previous_pose_quat = FusionServer.get_quaternion_from_pose(pose_dict[0])
 
         print "Using downsampling by pose difference threshold... "
-        print "Previously: ", len(pose_dict), " images"
+        
 
         num_kept_images    = 0
         num_deleted_images = 0
 
-        for i in range(0,len(pose_dict)):
+        pose_dict_downsampled = dict()
+
+        img_indices = pose_dict.keys()
+        img_indices.sort()
+        num_original_images = len(img_indices)
+
+        for i in img_indices:
             single_frame_data = pose_dict[i]
-            this_pose_pos = FusionServer.get_numpy_position_from_pose(pose_dict[i])
-            this_pose_quat = FusionServer.get_quaternion_from_pose(pose_dict[i])
+            this_pose_pos = FusionServer.get_numpy_position_from_pose(single_frame_data)
+            this_pose_quat = FusionServer.get_quaternion_from_pose(single_frame_data)
 
             linear_distance = np.linalg.norm(this_pose_pos - previous_pose_pos)
 
@@ -949,12 +955,11 @@ class FusionServer(object):
                 previous_pose_quat = this_pose_quat
                 num_kept_images += 1
             else:
-                # delete pose from forward kinematics
-                del pose_dict[i]
+                # the pose wasn't sufficiently different
                 continue
 
             # if we have gotten here, then move the images over to the new directory
-
+            pose_dict_downsampled[i] = single_frame_data
             rgb_filename = os.path.join(images_dir_full_path, single_frame_data['rgb_image_filename'])
             rgb_filename_temp = os.path.join(images_dir_temp_path, single_frame_data['rgb_image_filename'])
 
@@ -969,7 +974,7 @@ class FusionServer(object):
 
         
         # write downsamples pose_data.yaml (forward kinematics)
-        spartanUtils.saveToYaml(pose_dict, os.path.join(images_dir_temp_path,'pose_data.yaml'))
+        spartanUtils.saveToYaml(pose_dict_downsampled, os.path.join(images_dir_temp_path,'pose_data.yaml'))
 
         # remove old images
         shutil.move(os.path.join(images_dir_full_path, 'camera_info.yaml'), os.path.join(images_dir_temp_path, 'camera_info.yaml'))
@@ -980,4 +985,5 @@ class FusionServer(object):
         # rename temp images to images
         os.rename(images_dir_temp_path, images_dir_full_path)
 
-        print "After: ", num_kept_images, " images"
+        print "Previously: %d images" %(num_original_images)
+        print "After: %d images" %(num_kept_images)
