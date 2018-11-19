@@ -12,3 +12,4 @@
 	foreground_color = "#eee8d5"
 	background_color = "#002b36"
 	cursor_color = "#eee8d5"
+    scrollback_infinite = True
