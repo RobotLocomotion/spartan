@@ -91,37 +91,48 @@ int do_main(int argc, char* argv[]) {
           .GetAsIsometry3());
 
   // TODO(gizatt) Merge into Schunk station, or its own class?
-  {
-    for (const auto& node : station_config["instances"]) {
-	const auto pose = node["q0"].as<std::vector<double>>();
-	Eigen::Vector3d xyz(pose[0], pose[1], pose[2]);
-	Eigen::Vector3d rpy(pose[3], pose[4], pose[5]);
-	RigidTransform<double> object_tf(RollPitchYaw<double>(rpy), xyz);
+  // Assembly a list of initializations
+  typedef struct {
+    drake::multibody::ModelInstanceIndex model_instance;
+    std::string body_name;
+    Eigen::Isometry3d tf;
+  } ObjectInitializationInfo;
 
-	const auto object_class = node["model"].as<std::string>();
-        auto object_class_node = station_config["models"][object_class];
-        DRAKE_DEMAND(object_class_node);
-        std::string full_path = expandEnvironmentVariables(object_class_node.as<std::string>());
-        // TODO: replace with unique name
-	std::string model_name = node["model"].as<std::string>();
-        // TODO: handle URDFs too
-        const auto object = AddModelFromUrdfFile(full_path, model_name, plant);
-        
-	if (node["fixed"].as<bool>()) {
-	 
-	     // Cludgy, but default behavior in AddModelFromSdfFile is to
-             // make a frame at the root of the added model with the same name
-             // as the added model.
-	     plant->WeldFrames(plant->world_frame(), plant->GetFrameByName(model_name),
-			       object_tf.GetAsIsometry3());
-	}
+  std::vector<ObjectInitializationInfo> initializations_to_do;
+  int k = 0;
+  for (const auto& node : station_config["instances"]) {
+  	const auto pose = node["q0"].as<std::vector<double>>();
+  	Eigen::Vector3d xyz(pose[0], pose[1], pose[2]);
+  	Eigen::Vector3d rpy(pose[3], pose[4], pose[5]);
+  	Eigen::Isometry3d object_tf(RigidTransform<double>(RollPitchYaw<double>(rpy), xyz).GetAsIsometry3());
+
+  	const auto object_class = node["model"].as<std::string>();
+          auto object_class_node = station_config["models"][object_class];
+          DRAKE_DEMAND(object_class_node);
+          std::string full_path = expandEnvironmentVariables(object_class_node.as<std::string>());
+          // TODO: replace with unique name
+    std::stringstream model_name;
+    model_name << node["model"].as<std::string>() << "_" << k++;
+  	std::string body_name = node["body_name"].as<std::string>();
+    printf("Substr: %s", full_path.substr(full_path.size()-4).c_str());
+    drake::multibody::ModelInstanceIndex model_instance;
+    if (full_path.substr(full_path.size()-4) == "urdf"){  
+      model_instance = AddModelFromUrdfFile(full_path, model_name.str(), plant, scene_graph);
+    } else {
+      model_instance = AddModelFromSdfFile(full_path, model_name.str(), plant, scene_graph);
+    }
+          
+  	if (node["fixed"].as<bool>()) {
+  	     // Cludgy, but default behavior in AddModelFromSdfFile is to
+         // make a frame at the root of the added model with the same name
+         // as the added model.
+  	     plant->WeldFrames(plant->world_frame(), plant->GetBodyByName(body_name, model_instance).body_frame(),
+  			       object_tf);
+  	} else {
+      initializations_to_do.push_back(
+        ObjectInitializationInfo({model_instance, body_name, object_tf}));
     }
   }
-
-  auto object = multibody::parsing::AddModelFromSdfFile(
-      FindResourceOrThrow(
-          "drake/examples/manipulation_station/models/061_foam_brick.sdf"),
-      "brick", plant, scene_graph);
 
   station->Finalize();
 
@@ -263,36 +274,16 @@ int do_main(int argc, char* argv[]) {
   const VectorXd qdot0 = VectorXd::Zero(7);
   station->SetIiwaVelocity(qdot0, &station_context);
 
-  // Place the object in the center of the table in front of the robot.
-  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-  pose.translation() = Eigen::Vector3d(.6, 0, 0);
-  station->get_multibody_plant().tree().SetFreeBodyPoseOrThrow(
-      station->get_multibody_plant().GetBodyByName("base_link",
-                                                           object),
-      pose, &station->GetMutableSubsystemContext(
-                station->get_multibody_plant(), &station_context));
-
 // Yuck, repeating this iteration from above is unfortunate.
 // Maybe store a dict up above of initial poses we should set,
 // or see if I can do this before finalization is done on the plant diagram?
-    for (const auto& node : station_config["instances"]) {
-	const auto pose = node["q0"].as<std::vector<double>>();
-	Eigen::Vector3d xyz(pose[0], pose[1], pose[2]);
-	Eigen::Vector3d rpy(pose[3], pose[4], pose[5]);
-	RigidTransform<double> object_tf(RollPitchYaw<double>(rpy), xyz);
-
-	const auto object_class = node["model"].as<std::string>();
-        auto object_class_node = station_config["models"][object_class];
-	std::string model_name = node["model"].as<std::string>();
-        
-	if (!node["fixed"].as<bool>()) {
-	 plant->tree().SetFreeBodyPoseOrThrow(
-		plant->GetBodyByName(model_name),
-		object_tf.GetAsIsometry3(),
-		&station->GetMutableSubsystemContext(
-                	*plant, &station_context));
-	}
-    }
+  for (const auto& initialization : initializations_to_do) {
+      plant->tree().SetFreeBodyPoseOrThrow(
+  		  plant->GetBodyByName(initialization.body_name, initialization.model_instance),
+  		  initialization.tf,
+  		  &station->GetMutableSubsystemContext(
+                  	*plant, &station_context));
+  }
 
   simulator.set_publish_every_time_step(false);
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);

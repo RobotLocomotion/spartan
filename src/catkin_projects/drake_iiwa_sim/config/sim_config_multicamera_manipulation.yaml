@@ -18,15 +18,35 @@ models:
   white_bin: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/white_bin.urdf"
   apriltag_cube: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/apriltag_cube.urdf"
   companion_cube: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/companion_cube.urdf"
+  061_foam_brick: "${SPARTAN_SOURCE_DIR}/drake/examples/manipulation_station/models/061_foam_brick.sdf"
 
 
 robot:
   base_pose: [0.0, 0.0, 0.7645, 0.0, 0.0, 0.0]
 
 instances:
-  - model: "cabinet_with_desktop"
-    q0: [0.6, 0.0, 0.0, 0, 0, 1.57]
-    fixed: true
+   - model: "061_foam_brick"
+     q0: [0.62, 0.0, 0.3, 0.0, 0.0, 0.0]
+     fixed: false
+     # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
+     body_name: "base_link"
+   - model: "061_foam_brick"
+     q0: [0.65, 0.0, 0.4, 0.0, 0.0, 0.0]
+     fixed: false
+     # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
+     body_name: "base_link"
+   - model: "061_foam_brick"
+     q0: [0.69, 0.0, 0.5, 0.0, 0.0, 0.0]
+     fixed: false
+     # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
+     body_name: "base_link"
+   - model: "apriltag_cube"
+     q0: [0.5, 0.2, 0.35, 0.0, 0.0, 0.7]
+     fixed: false
+     body_name: "cube"
+#  - model: "cabinet_with_desktop"
+#    q0: [0.6, 0.0, 0.0, 0, 0, 1.57]
+#    fixed: true
 #  - model: "white_bin"
 #    q0: [0.0, 0.8, 0.7, 0, 0, 1.57]
 #    fixed: true
