@@ -66,6 +66,7 @@ target_link_libraries(kuka_schunk_station_simulation
         ros_scene_graph_visualizer
         drake::drake
         gflags_shared
+	yaml-cpp
         ${catkin_LIBRARIES})
 
 # install library

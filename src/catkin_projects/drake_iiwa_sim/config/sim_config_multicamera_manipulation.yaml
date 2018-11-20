@@ -1,0 +1,44 @@
+
+with_ground: true
+
+#cameras:
+#  - name: "carmine_1"
+#    channel: "/test"
+#    config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/carmine_1/master"
+
+
+# Not used yet
+models:
+  plate_11in: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_11in_decomp/plate_11in_decomp.urdf"
+  plate_8p5in: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_8p5in_decomp/plate_8p5in_decomp.urdf"
+  bowl_6p25in: "${SPARTAN_SOURCE_DIR}/models/dish_models/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf"
+  dish_rack: "${SPARTAN_SOURCE_DIR}/models/dish_models/dish_rack_simple.urdf"
+#  robot_table: "${SPARTAN_SOURCE_DIR}/drake/examples/kuka_iiwa_arm/models/table/extra_heavy_duty_table_surface_only_collision.sdf"
+  cabinet_with_desktop: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/cabinet_with_desktop.urdf"
+  white_bin: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/white_bin.urdf"
+  apriltag_cube: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/apriltag_cube.urdf"
+  companion_cube: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/companion_cube.urdf"
+
+
+robot:
+  base_pose: [0.0, 0.0, 0.7645, 0.0, 0.0, 0.0]
+
+instances:
+  - model: "cabinet_with_desktop"
+    q0: [0.6, 0.0, 0.0, 0, 0, 1.57]
+    fixed: true
+#  - model: "white_bin"
+#    q0: [0.0, 0.8, 0.7, 0, 0, 1.57]
+#    fixed: true
+#  - model: "bowl_6p25in"
+#    q0: [0.6, -0.2, 0.85, 1.5, 0, 0]
+#    fixed: false
+
+dynamic_instances:
+  - class: "half_carrot"
+    n_range: [3, 10]
+    radius_range: [0.012, 0.025]
+    height_range: [0.015, 0.04]
+    x_range: [0.5, 0.7]
+    y_range: [-0.1, 0.25]
+    z_range: [0.85, 0.85]

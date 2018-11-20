@@ -22,7 +22,6 @@
 #include "drake/systems/primitives/linear_system.h"
 #include "drake/systems/primitives/matrix_gain.h"
 #include "drake/systems/primitives/pass_through.h"
-#include "drake/systems/sensors/dev/rgbd_camera.h"
 
 namespace drake_iiwa_sim {
 
@@ -105,11 +104,13 @@ SpatialInertia<double> MakeCompositeGripperInertia(
 }
 
 template <typename T>
-KukaSchunkStation<T>::KukaSchunkStation(double time_step,
-                                            IiwaCollisionModel collision_model)
+KukaSchunkStation<T>::KukaSchunkStation(const YAML::Node& station_config, 
+                                        double time_step,
+                                        IiwaCollisionModel collision_model)
     : owned_plant_(std::make_unique<MultibodyPlant<T>>(time_step)),
       owned_scene_graph_(std::make_unique<SceneGraph<T>>()),
       owned_controller_plant_(std::make_unique<MultibodyPlant<T>>()) {
+  station_config_ = station_config;
   // This class holds the unique_ptrs explicitly for plant and scene_graph
   // until Finalize() is called (when they are moved into the Diagram). Grab
   // the raw pointers, which should stay valid for the lifetime of the Diagram.
@@ -130,20 +131,23 @@ KukaSchunkStation<T>::KukaSchunkStation(double time_step,
           Vector3d(dx_table_center_to_robot_base, 0, -dz_table_top_robot_base))
           .GetAsIsometry3());
 
-  // Add big (but non-infinite) flat floor.
-  const double dz_floor = 2.0;
-  drake::geometry::Box floor_shape(20., 20., dz_floor);
-  auto floor_pose = RigidTransform<double>(
-    Vector3d(0., 0., -dz_table_top_robot_base - dz_floor/2.)).GetAsIsometry3();
-  
-  /* Don't draw floor, it's really ugly in Rviz.
-  plant_->RegisterVisualGeometry(
-    plant_->world_body(), floor_pose, floor_shape, "floor_visual",
-    drake::geometry::VisualMaterial({0.2, 0.4, 0.2, 1.0}));
-  */
-  plant_->RegisterCollisionGeometry(
-    plant_->world_body(), floor_pose, floor_shape, "floor_collision",
-    drake::multibody::multibody_plant::CoulombFriction<double>(0.9, 0.7));
+  if (station_config_["with_ground"] &&
+      station_config_["with_ground"].as<bool>() == true) {
+    // Add big (but non-infinite) flat floor.
+    const double dz_floor = 2.0;
+    drake::geometry::Box floor_shape(20., 20., dz_floor);
+    auto floor_pose = RigidTransform<double>(
+      Vector3d(0., 0., -dz_table_top_robot_base - dz_floor/2.)).GetAsIsometry3();
+    
+    /* Don't draw floor, it's really ugly in Rviz.
+    plant_->RegisterVisualGeometry(
+      plant_->world_body(), floor_pose, floor_shape, "floor_visual",
+      drake::geometry::VisualMaterial({0.2, 0.4, 0.2, 1.0}));
+    */
+    plant_->RegisterCollisionGeometry(
+      plant_->world_body(), floor_pose, floor_shape, "floor_collision",
+      drake::multibody::multibody_plant::CoulombFriction<double>(0.9, 0.7));
+  }
 
   // Add the Kuka IIWA.
   std::string iiwa_sdf_path;
@@ -214,6 +218,8 @@ KukaSchunkStation<T>::KukaSchunkStation(double time_step,
   owned_controller_plant_
       ->template AddForceElement<multibody::UniformGravityFieldElement>(
           -9.81 * Vector3d::UnitZ());
+
+  // TODO(gizatt): Add manipulands
 }
 
 template <typename T>
@@ -344,7 +350,7 @@ void KukaSchunkStation<T>::Finalize() {
       plant_->get_generalized_contact_forces_output_port(iiwa_model_),
       "iiwa_torque_external");
 
-  {  // Scene graph
+  {  // Scene graph and RGB-D Cameras
     auto render_scene_graph =
         builder.template AddSystem<geometry::dev::SceneGraph>(*scene_graph_);
 

@@ -8,6 +8,7 @@ add_compile_options(-std=c++11)
 # so that we end up using the Eigen version supplied by drake, rather
 # than the one that comes in as part of tf2_eigen
 find_package(drake REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)

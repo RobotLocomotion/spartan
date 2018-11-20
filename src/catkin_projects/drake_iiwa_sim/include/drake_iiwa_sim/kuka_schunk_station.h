@@ -13,6 +13,7 @@
 ***/
 
 #include <memory>
+#include "yaml-cpp/yaml.h"
 
 #include "drake/common/eigen_types.h"
 #include "drake/geometry/scene_graph.h"
@@ -38,6 +39,7 @@ class KukaSchunkStation : public systems::Diagram<T> {
   ///   command inputs.
   /// @param collision_model Determines which sdf is loaded for the IIWA.
   KukaSchunkStation(
+      const YAML::Node& station_config,
       double time_step = 0.002,
       IiwaCollisionModel collision_model = IiwaCollisionModel::kNoCollision);
 
@@ -139,6 +141,8 @@ class KukaSchunkStation : public systems::Diagram<T> {
 
   multibody::ModelInstanceIndex iiwa_model_;
   multibody::ModelInstanceIndex wsg_model_;
+
+  YAML::Node station_config_;
 };
 
 }  // namespace drake_iiwa_sim
