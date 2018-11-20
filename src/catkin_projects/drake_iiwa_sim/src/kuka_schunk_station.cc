@@ -349,6 +349,9 @@ void KukaSchunkStation<T>::Finalize() {
   builder.ExportOutput(
       plant_->get_generalized_contact_forces_output_port(iiwa_model_),
       "iiwa_torque_external");
+  builder.ExportOutput(
+      plant_->get_geometry_poses_output_port(),
+      "geometry_poses");
 
   {  // Scene graph and RGB-D Cameras
     auto render_scene_graph =

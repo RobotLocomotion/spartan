@@ -4,9 +4,9 @@
 #include "common_utils/system_utils.h"
 
 #include "drake_iiwa_sim/kuka_schunk_station.h"
+#include "drake_iiwa_sim/ros_rgbd_camera_publisher.h"
 #include "drake_iiwa_sim/ros_scene_graph_visualizer.h"
 #include "drake_iiwa_sim/schunk_wsg_ros_actionserver.h"
-#include "drake_iiwa_sim/ros_rgbd_camera_publisher.h"
 
 #include "drake/common/eigen_types.h"
 #include "drake/common/find_resource.h"
@@ -75,7 +75,6 @@ int do_main(int argc, char* argv[]) {
       "drake/examples/kuka_iiwa_arm/models/table/"
       "extra_heavy_duty_table_surface_only_collision.sdf");
   auto plant = &station->get_mutable_multibody_plant();
-  auto scene_graph = &station->get_mutable_scene_graph();
   const auto table_front =
       AddModelFromSdfFile(table_sdf_path, "table_front", plant);
   plant->WeldFrames(
@@ -117,7 +116,6 @@ int do_main(int argc, char* argv[]) {
     std::stringstream model_name;
     model_name << node["model"].as<std::string>() << "_" << k++;
     std::string body_name = node["body_name"].as<std::string>();
-    printf("Substr: %s", full_path.substr(full_path.size() - 4).c_str());
     drake::multibody::ModelInstanceIndex model_instance;
     if (full_path.substr(full_path.size() - 4) == "urdf") {
       model_instance = AddModelFromUrdfFile(full_path, model_name.str(), plant);
@@ -146,7 +144,10 @@ int do_main(int argc, char* argv[]) {
   {
     auto render_scene_graph =
         builder.template AddSystem<drake::geometry::dev::SceneGraph>(
-            *scene_graph);
+            station->get_scene_graph());
+    builder.Connect(station->GetOutputPort("geometry_poses"),
+                    render_scene_graph->get_source_pose_port(
+                        plant->get_source_id().value()));
 
     if (station_config["cameras"]) {
       for (const auto camera_config : station_config["cameras"]) {
@@ -207,7 +208,7 @@ int do_main(int argc, char* argv[]) {
 
         auto camera_publisher =
             builder.template AddSystem<RosRgbdCameraPublisher>(
-                *camera, "camera_" + camera_name);
+                *camera, "camera_" + camera_name, 0.25);
         builder.Connect(camera->color_image_output_port(),
                         camera_publisher->color_image_input_port());
         builder.Connect(camera->depth_image_output_port(),
