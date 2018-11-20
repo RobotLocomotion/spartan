@@ -39,7 +39,6 @@ RosSceneGraphVisualizer::RosSceneGraphVisualizer(
   drake::systems::PublishEvent<double> init_event(
       drake::systems::Event<double>::TriggerType::kInitialization);
   DeclareInitializationEvent(init_event);
-  printf("Constructed, initialization declared\n");
 }
 
 std::string RosSceneGraphVisualizer::MakeFullName(const std::string& input_name,

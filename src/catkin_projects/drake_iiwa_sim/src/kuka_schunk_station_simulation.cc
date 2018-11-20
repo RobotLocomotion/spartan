@@ -6,6 +6,7 @@
 #include "drake_iiwa_sim/kuka_schunk_station.h"
 #include "drake_iiwa_sim/ros_scene_graph_visualizer.h"
 #include "drake_iiwa_sim/schunk_wsg_ros_actionserver.h"
+#include "drake_iiwa_sim/ros_rgbd_camera_publisher.h"
 
 #include "drake/common/eigen_types.h"
 #include "drake/common/find_resource.h"
@@ -166,8 +167,16 @@ int do_main(int argc, char* argv[]) {
                 "/depth_camera_info.yaml"));
 
         auto camera_name = camera_config["name"].as<std::string>();
+        // TODO(gizatt) Load this from the instrinsics yamls
+        // specified above.
         drake::geometry::dev::render::DepthCameraProperties camera_properties(
             640, 480, M_PI_4, geometry::dev::render::Fidelity::kLow, 0.1, 2.0);
+
+        // I'm currently loading in the model + body name for the camera
+        // mount directly from the sim configuration, as they're specified
+        // in a non-unique way in the Spartan camera calibration files
+        // (i.e. only frame name, no model, and assuming we're using Spartan
+        // version of the WSG URDF...)
         const auto body_node_index =
             plant
                 ->GetBodyByName(
@@ -177,7 +186,6 @@ int do_main(int argc, char* argv[]) {
                 .index();
         const auto depth_camera_frame_id =
             plant->GetBodyFrameIdOrThrow(body_node_index);
-
         const auto tf_yaml =
             camera_extrinsics_yaml["depth"]["extrinsics"]
                                   ["transform_to_reference_link"];
@@ -190,18 +198,24 @@ int do_main(int argc, char* argv[]) {
                             tf_yaml["translation"]["y"].as<double>(),
                             tf_yaml["translation"]["z"].as<double>()));
         auto camera =
-            builder.template AddSystem<systems::sensors::dev::RgbdCamera>(
-                camera_name, depth_camera_frame_id,
-                depth_camera_tf.GetAsIsometry3(), camera_properties, false);
+            builder
+                .template AddSystem<drake::systems::sensors::dev::RgbdCamera>(
+                    camera_name, depth_camera_frame_id,
+                    depth_camera_tf.GetAsIsometry3(), camera_properties, false);
         builder.Connect(render_scene_graph->get_query_output_port(),
                         camera->query_object_input_port());
 
-        builder.ExportOutput(camera->color_image_output_port(),
-                             camera_name + "_rgb_image");
-        builder.ExportOutput(camera->depth_image_output_port(),
-                             camera_name + "_depth_image");
-        builder.ExportOutput(camera->label_image_output_port(),
-                             camera_name + "_label_image");
+        auto camera_publisher =
+            builder.template AddSystem<RosRgbdCameraPublisher>(
+                *camera, "camera_" + camera_name);
+        builder.Connect(camera->color_image_output_port(),
+                        camera_publisher->color_image_input_port());
+        builder.Connect(camera->depth_image_output_port(),
+                        camera_publisher->depth_image_input_port());
+        builder.Connect(camera->label_image_output_port(),
+                        camera_publisher->label_image_input_port());
+        builder.Connect(camera->camera_base_pose_output_port(),
+                        camera_publisher->camera_base_pose_input_port());
       }
     }
   }
@@ -288,9 +302,8 @@ int do_main(int argc, char* argv[]) {
   const VectorXd qdot0 = VectorXd::Zero(7);
   station->SetIiwaVelocity(qdot0, &station_context);
 
-  // Yuck, repeating this iteration from above is unfortunate.
-  // Maybe store a dict up above of initial poses we should set,
-  // or see if I can do this before finalization is done on the plant diagram?
+  // Initialize object poses uses initialization list
+  // generated when loading them in.
   for (const auto& initialization : initializations_to_do) {
     plant->tree().SetFreeBodyPoseOrThrow(
         plant->GetBodyByName(initialization.body_name,

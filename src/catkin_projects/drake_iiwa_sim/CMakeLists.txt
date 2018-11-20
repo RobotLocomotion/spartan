@@ -22,6 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
   interactive_markers
   visualization_msgs
   tf
+  image_transport
 )
 
 ## System dependencies are found with CMake's conventions

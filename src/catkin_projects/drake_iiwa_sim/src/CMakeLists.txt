@@ -57,6 +57,15 @@ target_link_libraries(ros_scene_graph_visualizer
         ${catkin_LIBRARIES}
         gflags_shared)
 
+add_library(ros_rgbd_camera_publisher
+        ros_rgbd_camera_publisher.cc
+        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/ros_rgbd_camera_publisher.h)
+add_dependencies(ros_rgbd_camera_publisher ${catkin_EXPORTED_TARGETS})
+target_link_libraries(ros_rgbd_camera_publisher
+        drake::drake
+        ${catkin_LIBRARIES}
+        gflags_shared)
+
 add_executable(kuka_schunk_station_simulation
                kuka_schunk_station_simulation.cc)
 add_dependencies(kuka_schunk_station_simulation ${catkin_EXPORTED_TARGETS})
@@ -64,13 +73,15 @@ target_link_libraries(kuka_schunk_station_simulation
         kuka_schunk_station
         schunk_wsg_ros_actionserver
         ros_scene_graph_visualizer
+        ros_rgbd_camera_publisher
         drake::drake
         gflags_shared
 	yaml-cpp
         ${catkin_LIBRARIES})
 
 # install library
-install(TARGETS schunk_wsg_ros_actionserver kuka_schunk_station ros_scene_graph_visualizer
+install(TARGETS schunk_wsg_ros_actionserver kuka_schunk_station
+    ros_scene_graph_visualizer ros_rgbd_camera_publisher
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
