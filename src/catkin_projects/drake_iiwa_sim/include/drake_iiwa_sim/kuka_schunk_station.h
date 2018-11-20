@@ -16,7 +16,7 @@
 #include "yaml-cpp/yaml.h"
 
 #include "drake/common/eigen_types.h"
-#include "drake/geometry/scene_graph.h"
+#include "drake/geometry/dev/scene_graph.h"
 #include "drake/multibody/multibody_tree/multibody_plant/multibody_plant.h"
 #include "drake/systems/framework/diagram.h"
 

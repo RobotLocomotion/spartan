@@ -1,10 +1,12 @@
 
 with_ground: true
 
-#cameras:
-#  - name: "carmine_1"
-#    channel: "/test"
-#    config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/carmine_1/master"
+cameras:
+  - name: "carmine_1"
+    channel: "/test"
+    config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/carmine_1/master"    
+    mounting_model_name: "gripper"
+    mounting_body_name: "body"
 
 
 # Not used yet

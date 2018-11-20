@@ -1,4 +1,4 @@
-#include "drake_iiwa_sim/kuka_schunk_station.h"
+  #include "drake_iiwa_sim/kuka_schunk_station.h"
 
 #include <memory>
 #include <string>
@@ -361,6 +361,8 @@ void KukaSchunkStation<T>::Finalize() {
 
   builder.ExportOutput(scene_graph_->get_pose_bundle_output_port(),
                        "pose_bundle");
+  builder.ExportOutput(scene_graph_->get_query_output_port(),
+                       "query");
 
   builder.ExportOutput(plant_->get_contact_results_output_port(),
       "contact_results");

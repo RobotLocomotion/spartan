@@ -101,34 +101,34 @@ int do_main(int argc, char* argv[]) {
   std::vector<ObjectInitializationInfo> initializations_to_do;
   int k = 0;
   for (const auto& node : station_config["instances"]) {
-  	const auto pose = node["q0"].as<std::vector<double>>();
-  	Eigen::Vector3d xyz(pose[0], pose[1], pose[2]);
-  	Eigen::Vector3d rpy(pose[3], pose[4], pose[5]);
-  	Eigen::Isometry3d object_tf(RigidTransform<double>(RollPitchYaw<double>(rpy), xyz).GetAsIsometry3());
+    const auto pose = node["q0"].as<std::vector<double>>();
+    Eigen::Vector3d xyz(pose[0], pose[1], pose[2]);
+    Eigen::Vector3d rpy(pose[3], pose[4], pose[5]);
+    Eigen::Isometry3d object_tf(RigidTransform<double>(RollPitchYaw<double>(rpy), xyz).GetAsIsometry3());
 
-  	const auto object_class = node["model"].as<std::string>();
+    const auto object_class = node["model"].as<std::string>();
           auto object_class_node = station_config["models"][object_class];
           DRAKE_DEMAND(object_class_node);
           std::string full_path = expandEnvironmentVariables(object_class_node.as<std::string>());
           // TODO: replace with unique name
     std::stringstream model_name;
     model_name << node["model"].as<std::string>() << "_" << k++;
-  	std::string body_name = node["body_name"].as<std::string>();
+    std::string body_name = node["body_name"].as<std::string>();
     printf("Substr: %s", full_path.substr(full_path.size()-4).c_str());
     drake::multibody::ModelInstanceIndex model_instance;
     if (full_path.substr(full_path.size()-4) == "urdf"){  
-      model_instance = AddModelFromUrdfFile(full_path, model_name.str(), plant, scene_graph);
+      model_instance = AddModelFromUrdfFile(full_path, model_name.str(), plant);
     } else {
-      model_instance = AddModelFromSdfFile(full_path, model_name.str(), plant, scene_graph);
+      model_instance = AddModelFromSdfFile(full_path, model_name.str(), plant);
     }
           
-  	if (node["fixed"].as<bool>()) {
-  	     // Cludgy, but default behavior in AddModelFromSdfFile is to
+    if (node["fixed"].as<bool>()) {
+         // Cludgy, but default behavior in AddModelFromSdfFile is to
          // make a frame at the root of the added model with the same name
          // as the added model.
-  	     plant->WeldFrames(plant->world_frame(), plant->GetBodyByName(body_name, model_instance).body_frame(),
-  			       object_tf);
-  	} else {
+         plant->WeldFrames(plant->world_frame(), plant->GetBodyByName(body_name, model_instance).body_frame(),
+               object_tf);
+    } else {
       initializations_to_do.push_back(
         ObjectInitializationInfo({model_instance, body_name, object_tf}));
     }
@@ -139,6 +139,10 @@ int do_main(int argc, char* argv[]) {
   // TODO(gizatt) Merge this into the Schunk Station, or its own
   // class?
   {
+
+    auto render_scene_graph =
+        builder.template AddSystem<drake::geometry::dev::SceneGraph>(*scene_graph);
+
     if (station_config["cameras"]) {
       for (const auto camera_config : station_config["cameras"]) {
         DRAKE_DEMAND(camera_config["name"]);
@@ -146,33 +150,33 @@ int do_main(int argc, char* argv[]) {
         DRAKE_DEMAND(camera_config["config_base_dir"]);
         YAML::Node camera_extrinsics_yaml =
             YAML::LoadFile(expandEnvironmentVariables(
-		camera_config["config_base_dir"].as<std::string>() +
+    camera_config["config_base_dir"].as<std::string>() +
                            "/camera_info.yaml"));
         YAML::Node rgb_camera_info_yaml =
             YAML::LoadFile(expandEnvironmentVariables(
-		camera_config["config_base_dir"].as<std::string>() +
+    camera_config["config_base_dir"].as<std::string>() +
                            "/rgb_camera_info.yaml"));
         YAML::Node depth_camera_info_yaml =
             YAML::LoadFile(expandEnvironmentVariables(
-		camera_config["config_base_dir"].as<std::string>() +
+    camera_config["config_base_dir"].as<std::string>() +
                            "/depth_camera_info.yaml"));
 
         auto camera_name = camera_config["name"].as<std::string>();
         drake::geometry::dev::render::DepthCameraProperties camera_properties(
             640, 480, M_PI_4, geometry::dev::render::Fidelity::kLow, 0.1, 2.0);
-	const auto body_node_index = plant->GetBodyByName(
-		camera_extrinsics_yaml["depth"]["extrinsics"]["reference_link_name"]
-		.as<std::string>()).index();
-        const auto depth_camera_frame_id = plant->GetBodyFrameIdOrThrow(body_node_index);
+  const auto body_node_index = plant->GetBodyByName(
+    camera_config["mounting_body_name"].as<std::string>(),
+    plant->GetModelInstanceByName(camera_config["mounting_model_name"].as<std::string>())).index();
+    const auto depth_camera_frame_id = plant->GetBodyFrameIdOrThrow(body_node_index);
 
         const auto tf_yaml =
             camera_extrinsics_yaml["depth"]["extrinsics"]
                                   ["transform_to_reference_link"];
         RigidTransform<double> depth_camera_tf(
-            Quaternion<double>(tf_yaml["rotation"]["w"].as<double>(),
-                               tf_yaml["rotation"]["x"].as<double>(),
-                               tf_yaml["rotation"]["y"].as<double>(),
-                               tf_yaml["rotation"]["z"].as<double>()),
+            Quaternion<double>(tf_yaml["quaternion"]["w"].as<double>(),
+                               tf_yaml["quaternion"]["x"].as<double>(),
+                               tf_yaml["quaternion"]["y"].as<double>(),
+                               tf_yaml["quaternion"]["z"].as<double>()),
             Eigen::Vector3d(tf_yaml["translation"]["x"].as<double>(),
                             tf_yaml["translation"]["y"].as<double>(),
                             tf_yaml["translation"]["z"].as<double>()));
@@ -180,7 +184,7 @@ int do_main(int argc, char* argv[]) {
             builder.template AddSystem<systems::sensors::dev::RgbdCamera>(
                 camera_name, depth_camera_frame_id, depth_camera_tf.GetAsIsometry3(),
                 camera_properties, false);
-        builder.Connect(scene_graph->get_query_output_port(),
+        builder.Connect(render_scene_graph->get_query_output_port(),
                         camera->query_object_input_port());
 
         builder.ExportOutput(camera->color_image_output_port(),
@@ -279,10 +283,10 @@ int do_main(int argc, char* argv[]) {
 // or see if I can do this before finalization is done on the plant diagram?
   for (const auto& initialization : initializations_to_do) {
       plant->tree().SetFreeBodyPoseOrThrow(
-  		  plant->GetBodyByName(initialization.body_name, initialization.model_instance),
-  		  initialization.tf,
-  		  &station->GetMutableSubsystemContext(
-                  	*plant, &station_context));
+        plant->GetBodyByName(initialization.body_name, initialization.model_instance),
+        initialization.tf,
+        &station->GetMutableSubsystemContext(
+                    *plant, &station_context));
   }
 
   simulator.set_publish_every_time_step(false);
