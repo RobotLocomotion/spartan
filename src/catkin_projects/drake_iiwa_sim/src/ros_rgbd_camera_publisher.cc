@@ -6,12 +6,13 @@
 namespace drake_iiwa_sim {
 
 using drake::systems::Context;
-using drake::systems::sensors::dev::RgbdCamera;
-using drake::systems::Value;
 using drake::systems::sensors::CameraInfo;
+using drake::systems::sensors::dev::RgbdCamera;
 using drake::systems::sensors::ImageRgba8U;
 using drake::systems::sensors::ImageDepth32F;
 using drake::systems::sensors::ImageLabel16I;
+using drake::systems::rendering::PoseVector;
+using drake::systems::Value;
 
 RosRgbdCameraPublisher::RosRgbdCameraPublisher(const RgbdCamera& rgbd_camera,
                                                const std::string& camera_name,
@@ -55,17 +56,18 @@ sensor_msgs::CameraInfo RosRgbdCameraPublisher::MakeCameraInfoMsg(
   info_msg.width = camera_info.width();
   info_msg.height = camera_info.height();
   info_msg.distortion_model = "plumb_bob";
-  // Default from carmine, what do I do instead of this? TODO(gizatt)
-  info_msg.D = std::vector<double>({-0.05031626410741169, -0.2754641106388708,
-                                    0.0003722647488938247,
-                                    0.0003210956898043667, 0.2978803215933795});
-  const auto K = camera_info.intrinsic_matrix();
+  // Default no distortion TODO(gizatt)
+  info_msg.D = std::vector<double>({0., 0., 0., 0., 0.});
+  // Row-major ordering to make serialization come out in the
+  // correct order.
+  Eigen::Matrix<double, 3, 3, Eigen::RowMajor> K =
+      camera_info.intrinsic_matrix();
   std::copy_n(K.data(), 9, info_msg.K.begin());
-  const Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
+  Eigen::Matrix<double, 3, 3, Eigen::RowMajor> R = Eigen::Matrix3d::Identity();
   std::copy_n(R.data(), 9, info_msg.R.begin());
-  Eigen::MatrixXd P(3, 4);
-  P.block<3, 3>(0, 0) = K;
-  P.block<3, 1>(0, 3) = Eigen::Vector3d(0, 0, 1.);
+  Eigen::Matrix<double, 3, 4, Eigen::RowMajor> P =
+      Eigen::Matrix<double, 3, 4, Eigen::RowMajor>::Zero();
+  P.block<3, 3>(0, 0) = camera_info.intrinsic_matrix();
   std::copy_n(P.data(), 12, info_msg.P.begin());
   return info_msg;
 }
@@ -83,6 +85,7 @@ void RosRgbdCameraPublisher::DoPublish(
   const auto& label_image_abstract =
       this->EvalAbstractInput(context, label_image_input_port_.get_index());
   */
+
   if (!(color_image_abstract && depth_image_abstract)) {
     printf("Full frame not rendered yet? Skipping.");
     return;
@@ -90,6 +93,20 @@ void RosRgbdCameraPublisher::DoPublish(
 
   std_msgs::Header now_header;
   now_header.stamp = ros::Time::now();
+
+  const PoseVector<double>* const pose_vector =
+      dynamic_cast<const PoseVector<double>*>(this->EvalVectorInput(
+          context, camera_base_pose_input_port_.get_index()));
+  DRAKE_DEMAND(pose_vector);
+  auto translation = pose_vector->get_translation();
+  auto rotation = pose_vector->get_rotation();
+  tf::Transform transform;
+  transform.setOrigin(
+      tf::Vector3(translation.x(), translation.y(), translation.z()));
+  tf::Quaternion q(rotation.x(), rotation.y(), rotation.z(), rotation.w());
+  transform.setRotation(q);
+  br_.sendTransform(tf::StampedTransform(
+      transform, ros::Time::now(), "base", "drake_iiwa_camera_origin"));
 
   const auto& color_image = color_image_abstract->GetValue<ImageRgba8U>();
   sensor_msgs::Image color_image_msg;
@@ -115,15 +132,24 @@ void RosRgbdCameraPublisher::DoPublish(
   sensor_msgs::Image depth_image_msg;
   depth_image_msg.height = depth_image.height();
   depth_image_msg.width = depth_image.width();
-  depth_image_msg.encoding = "32FC1";
+  depth_image_msg.encoding = "16UC1";
   depth_image_msg.is_bigendian = false;
-  depth_image_msg.step = depth_image_msg.width * 4;
+  depth_image_msg.step = depth_image_msg.width * 2;
   depth_image_msg.data.clear();
-  depth_image_msg.data.insert(
-      depth_image_msg.data.end(), (unsigned char*)&depth_image.at(0, 0)[0],
-      (unsigned char*)(&(depth_image.at(depth_image_msg.width - 1,
-                                        depth_image_msg.height - 1)[0]) +
-                       1));
+  // Convert to 16-bit unsigned int, with millimeter units.
+  // (This appears to be the standard, at least for the OpenNI driver.)
+  depth_image_msg.data.resize(depth_image_msg.width * depth_image_msg.height *
+                              2);
+  int ind = 0;
+  for (int i = 0; i < depth_image_msg.height; i++) {
+    for (int j = 0; j < depth_image_msg.width; j++) {
+      uint16_t depth_pixel = (uint16_t)(depth_image.at(j, i)[0] * 1000);
+      // Little-endian, as set above.
+      depth_image_msg.data[ind] = depth_pixel & 0xff;
+      depth_image_msg.data[ind + 1] = (depth_pixel >> 8) & 0xff;
+      ind += 2;
+    }
+  }
 
   depth_image_msg.header = now_header;
   now_header.frame_id = depth_frame_name_;

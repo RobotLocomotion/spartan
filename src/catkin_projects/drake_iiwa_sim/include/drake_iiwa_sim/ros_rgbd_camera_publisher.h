@@ -4,6 +4,7 @@
 #include "drake/systems/framework/leaf_system.h"
 #include "drake/systems/sensors/dev/rgbd_camera.h"
 
+#include <tf/transform_broadcaster.h>
 #include "image_transport/image_transport.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -65,6 +66,7 @@ class RosRgbdCameraPublisher : public drake::systems::LeafSystem<double> {
 
   const drake::systems::sensors::dev::RgbdCamera& rgbd_camera_;
   mutable ros::NodeHandle nh_;
+  mutable tf::TransformBroadcaster br_;
   mutable image_transport::ImageTransport image_transport_;
   mutable image_transport::Publisher rgb_image_publisher_;
   mutable image_transport::Publisher depth_image_publisher_;

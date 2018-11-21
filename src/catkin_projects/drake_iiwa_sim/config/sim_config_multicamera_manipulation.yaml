@@ -7,7 +7,7 @@ cameras:
     config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/carmine_1/master"    
     mounting_model_name: "gripper"
     mounting_body_name: "body"
-    rotation_correction: [0., 0., 1.57]
+    rotation_correction: [3.14, 0., -1.57]
 
 
 # Not used yet

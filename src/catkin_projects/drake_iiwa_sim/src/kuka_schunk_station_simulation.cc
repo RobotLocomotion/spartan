@@ -170,9 +170,16 @@ int do_main(int argc, char* argv[]) {
 
         auto camera_name = camera_config["name"].as<std::string>();
         // TODO(gizatt) Load this from the instrinsics yamls
-        // specified above.
+        // specified above. Right now, loading defaults for a Carmine
+        // (640x480, 54 deg horizontal FOV, .3-3.0 meter range.)
+        // These don't *have* to match is downstream users only
+        // use the point cloud -- the rectification + registration driver
+        // consumes the camera_info messages that we construct based on
+        // the parameters set here, not based on the referred-to
+        // camera calibration.
         drake::geometry::dev::render::DepthCameraProperties camera_properties(
-            640, 480, M_PI_4, geometry::dev::render::Fidelity::kLow, 0.1, 2.0);
+            640, 480, 54 * 3.1412 / 180., geometry::dev::render::Fidelity::kLow,
+            0.3, 3.0);
 
         // I'm currently loading in the model + body name for the camera
         // mount directly from the sim configuration, as they're specified
@@ -197,8 +204,12 @@ int do_main(int argc, char* argv[]) {
                                tf_yaml["quaternion"]["y"].as<double>(),
                                tf_yaml["quaternion"]["z"].as<double>()));
         // Calibrated camera forward is +z and up is +y.
-        // but Drake wants it to be ?? forward and ?? up?
-        printf("WTF is this transform supposed to be\n")
+        // but Drake wants it to be +x forward and +y up.
+        // The conversion I'm currently uses works correctly, and I don't
+        // understand why... it causes rotation around a surprising axis.
+        // TODO(gizatt) Clean this up. It's partially a symptom of our
+        // underlying model
+        // disagreements between spartan + Drake.
         std::vector<double> correction =
             camera_config["rotation_correction"].as<std::vector<double>>();
         rotation *= RotationMatrix<double>(
