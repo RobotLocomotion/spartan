@@ -172,12 +172,17 @@ group "8.ROS" {
 group "9.iiwa_sim" {
 
   cmd "0.drake_iiwa_sim" {
-    exec = "$SPARTAN_INSTALL_DIR/lib/drake_iiwa_sim/kuka_schunk_station_simulation";
+    exec = "$SPARTAN_INSTALL_DIR/lib/drake_iiwa_sim/kuka_schunk_station_simulation $SPARTAN_SOURCE_DIR/src/catkin_projects/drake_iiwa_sim/config/sim_config_multicamera_manipulation.yaml";
     host = "localhost";
   }
 
   cmd "1.ROS-state-translator" {
     exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_ros_state_translator.py";
+    host = "localhost";
+  }
+
+  cmd "2.ROS-OpenNI-drake-iiwa-sim" {
+    exec = "roslaunch camera_config openni2_drake_iiwa_sim.launch camera_serial_number:=carmine_1";
     host = "localhost";
   }
 
