@@ -208,7 +208,7 @@ int do_main(int argc, char* argv[]) {
 
         auto camera_publisher =
             builder.template AddSystem<RosRgbdCameraPublisher>(
-                *camera, "camera_" + camera_name, 0.25);
+                *camera, camera_name, 0.25);
         builder.Connect(camera->color_image_output_port(),
                         camera_publisher->color_image_input_port());
         builder.Connect(camera->depth_image_output_port(),

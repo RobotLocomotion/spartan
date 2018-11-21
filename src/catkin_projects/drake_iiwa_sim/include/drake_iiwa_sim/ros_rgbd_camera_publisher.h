@@ -6,6 +6,7 @@
 
 #include "image_transport/image_transport.h"
 #include "ros/ros.h"
+#include "sensor_msgs/CameraInfo.h"
 
 namespace drake_iiwa_sim {
 
@@ -17,7 +18,7 @@ class RosRgbdCameraPublisher : public drake::systems::LeafSystem<double> {
   /// @param depth_frame_name The frame name used for depth image.
   RosRgbdCameraPublisher(
       const drake::systems::sensors::dev::RgbdCamera& rgbd_camera,
-      const std::string& channel_prefix, double draw_period = 0.033);
+      const std::string& camera_name, double draw_period = 0.033);
 
   /**
    * Sets the publishing period of this system.
@@ -49,6 +50,14 @@ class RosRgbdCameraPublisher : public drake::systems::LeafSystem<double> {
       const std::vector<const drake::systems::PublishEvent<double>*>&) const;
 
  private:
+  sensor_msgs::CameraInfo MakeCameraInfoMsg(
+      const drake::systems::sensors::CameraInfo& camera_info);
+
+  mutable sensor_msgs::CameraInfo rgb_info_msg_;
+  std::string rgb_frame_name_;
+  mutable sensor_msgs::CameraInfo depth_info_msg_;
+  std::string depth_frame_name_;
+
   const drake::systems::InputPort<double>& color_image_input_port_;
   const drake::systems::InputPort<double>& depth_image_input_port_;
   const drake::systems::InputPort<double>& label_image_input_port_;
@@ -60,6 +69,8 @@ class RosRgbdCameraPublisher : public drake::systems::LeafSystem<double> {
   mutable image_transport::Publisher rgb_image_publisher_;
   mutable image_transport::Publisher depth_image_publisher_;
   mutable image_transport::Publisher label_image_publisher_;
+  mutable ros::Publisher rgb_camera_info_publisher_;
+  mutable ros::Publisher depth_camera_info_publisher_;
 };
 
 }  // Namespace drake_iiwa_sim
