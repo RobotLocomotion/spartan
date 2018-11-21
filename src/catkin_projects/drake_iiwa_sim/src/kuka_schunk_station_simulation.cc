@@ -46,6 +46,7 @@ using namespace drake;
 using Eigen::VectorXd;
 using math::RigidTransform;
 using math::RollPitchYaw;
+using math::RotationMatrix;
 using multibody::parsing::AddModelFromSdfFile;
 using multibody::parsing::AddModelFromUrdfFile;
 
@@ -190,14 +191,24 @@ int do_main(int argc, char* argv[]) {
         const auto tf_yaml =
             camera_extrinsics_yaml["depth"]["extrinsics"]
                                   ["transform_to_reference_link"];
-        RigidTransform<double> depth_camera_tf(
+        RotationMatrix<double> rotation(
             Quaternion<double>(tf_yaml["quaternion"]["w"].as<double>(),
                                tf_yaml["quaternion"]["x"].as<double>(),
                                tf_yaml["quaternion"]["y"].as<double>(),
-                               tf_yaml["quaternion"]["z"].as<double>()),
+                               tf_yaml["quaternion"]["z"].as<double>()));
+        // Calibrated camera forward is +z and up is +y.
+        // but Drake wants it to be ?? forward and ?? up?
+        printf("WTF is this transform supposed to be\n")
+        std::vector<double> correction =
+            camera_config["rotation_correction"].as<std::vector<double>>();
+        rotation *= RotationMatrix<double>(
+            RollPitchYaw<double>(correction[0], correction[1], correction[2]));
+        RigidTransform<double> depth_camera_tf(
+            rotation,
             Eigen::Vector3d(tf_yaml["translation"]["x"].as<double>(),
                             tf_yaml["translation"]["y"].as<double>(),
                             tf_yaml["translation"]["z"].as<double>()));
+
         auto camera =
             builder
                 .template AddSystem<drake::systems::sensors::dev::RgbdCamera>(
