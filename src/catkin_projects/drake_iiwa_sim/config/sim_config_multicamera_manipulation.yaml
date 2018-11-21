@@ -7,8 +7,17 @@ cameras:
     config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/carmine_1/master"    
     mounting_model_name: "gripper"
     mounting_body_name: "body"
-    rotation_correction: [3.14, 0., -1.57]
-
+    # gripper::body doesn't align with wsg_50_base_link by approximately this tf...
+    mounting_correction:
+      quaternion:
+        w: 0.7071
+        x: -0.7071
+        y: 0.0
+        z: 0.0
+      translation:
+        x: 0.00
+        y: -0.0325
+        z: 0.0
 
 # Not used yet
 models:

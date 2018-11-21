@@ -172,7 +172,7 @@ group "8.ROS" {
 group "9.iiwa_sim" {
 
   cmd "0.drake_iiwa_sim" {
-    exec = "$SPARTAN_INSTALL_DIR/lib/drake_iiwa_sim/kuka_schunk_station_simulation $SPARTAN_SOURCE_DIR/src/catkin_projects/drake_iiwa_sim/config/sim_config_multicamera_manipulation.yaml";
+    exec = "bash -c 'rosrun drake_iiwa_sim kuka_schunk_station_simulation -config $(rospack find drake_iiwa_sim)/config/sim_config_multicamera_manipulation.yaml'";
     host = "localhost";
   }
 

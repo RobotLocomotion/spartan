@@ -57,12 +57,36 @@ DEFINE_double(duration, std::numeric_limits<double>::infinity(),
               "Simulation duration.");
 DEFINE_string(config, "", "Sim config filename (required).");
 
+RigidTransform<double> load_tf_from_yaml(YAML::Node tf_yaml) {
+  DRAKE_DEMAND(tf_yaml["quaternion"]);
+  DRAKE_DEMAND(tf_yaml["quaternion"]["w"]);
+  DRAKE_DEMAND(tf_yaml["quaternion"]["x"]);
+  DRAKE_DEMAND(tf_yaml["quaternion"]["y"]);
+  DRAKE_DEMAND(tf_yaml["quaternion"]["z"]);
+  DRAKE_DEMAND(tf_yaml["translation"]);
+  DRAKE_DEMAND(tf_yaml["translation"]["x"]);
+  DRAKE_DEMAND(tf_yaml["translation"]["y"]);
+  DRAKE_DEMAND(tf_yaml["translation"]["z"]);
+  RotationMatrix<double> rotation(
+      Quaternion<double>(tf_yaml["quaternion"]["w"].as<double>(),
+                         tf_yaml["quaternion"]["x"].as<double>(),
+                         tf_yaml["quaternion"]["y"].as<double>(),
+                         tf_yaml["quaternion"]["z"].as<double>()));
+  RigidTransform<double> tf(
+      rotation, Eigen::Vector3d(tf_yaml["translation"]["x"].as<double>(),
+                                tf_yaml["translation"]["y"].as<double>(),
+                                tf_yaml["translation"]["z"].as<double>()));
+  return tf;
+}
+
 int do_main(int argc, char* argv[]) {
   ros::init(argc, argv, "kuka_schunk_station_simulation");
 
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  YAML::Node station_config = YAML::LoadFile(FLAGS_config);
+  std::string station_config_file = expandEnvironmentVariables(FLAGS_config);
+  printf("Loading file %s\n", station_config_file.c_str());
+  YAML::Node station_config = YAML::LoadFile(station_config_file);
 
   systems::DiagramBuilder<double> builder;
 
@@ -195,36 +219,29 @@ int do_main(int argc, char* argv[]) {
                 .index();
         const auto depth_camera_frame_id =
             plant->GetBodyFrameIdOrThrow(body_node_index);
-        const auto tf_yaml =
-            camera_extrinsics_yaml["depth"]["extrinsics"]
-                                  ["transform_to_reference_link"];
-        RotationMatrix<double> rotation(
-            Quaternion<double>(tf_yaml["quaternion"]["w"].as<double>(),
-                               tf_yaml["quaternion"]["x"].as<double>(),
-                               tf_yaml["quaternion"]["y"].as<double>(),
-                               tf_yaml["quaternion"]["z"].as<double>()));
-        // Calibrated camera forward is +z and up is +y.
-        // but Drake wants it to be +x forward and +y up.
-        // The conversion I'm currently uses works correctly, and I don't
-        // understand why... it causes rotation around a surprising axis.
-        // TODO(gizatt) Clean this up. It's partially a symptom of our
-        // underlying model
-        // disagreements between spartan + Drake.
-        std::vector<double> correction =
-            camera_config["rotation_correction"].as<std::vector<double>>();
-        rotation *= RotationMatrix<double>(
-            RollPitchYaw<double>(correction[0], correction[1], correction[2]));
-        RigidTransform<double> depth_camera_tf(
-            rotation,
-            Eigen::Vector3d(tf_yaml["translation"]["x"].as<double>(),
-                            tf_yaml["translation"]["y"].as<double>(),
-                            tf_yaml["translation"]["z"].as<double>()));
+
+        auto camera_origin_correction = RigidTransform<double>::Identity();
+        if (camera_config["mounting_correction"]) {
+          camera_origin_correction =
+              load_tf_from_yaml(camera_config["mounting_correction"]);
+        }
 
         auto camera =
             builder
                 .template AddSystem<drake::systems::sensors::dev::RgbdCamera>(
                     camera_name, depth_camera_frame_id,
-                    depth_camera_tf.GetAsIsometry3(), camera_properties, false);
+                    camera_origin_correction.GetAsIsometry3(),
+                    camera_properties, false);
+
+        RigidTransform<double> depth_camera_tf = load_tf_from_yaml(
+            camera_extrinsics_yaml["depth"]["extrinsics"]
+                                  ["transform_to_reference_link"]);
+        RigidTransform<double> color_camera_tf = load_tf_from_yaml(
+            camera_extrinsics_yaml["rgb"]["extrinsics"]
+                                  ["transform_to_reference_link"]);
+        camera->set_depth_camera_optical_pose(depth_camera_tf.GetAsIsometry3());
+        camera->set_color_camera_optical_pose(color_camera_tf.GetAsIsometry3());
+
         builder.Connect(render_scene_graph->get_query_output_port(),
                         camera->query_object_input_port());
 

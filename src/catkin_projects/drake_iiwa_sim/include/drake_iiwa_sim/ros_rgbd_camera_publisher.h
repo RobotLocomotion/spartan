@@ -19,7 +19,8 @@ class RosRgbdCameraPublisher : public drake::systems::LeafSystem<double> {
   /// @param depth_frame_name The frame name used for depth image.
   RosRgbdCameraPublisher(
       const drake::systems::sensors::dev::RgbdCamera& rgbd_camera,
-      const std::string& camera_name, double draw_period = 0.033);
+      const std::string& camera_name, double draw_period = 0.033,
+      bool publish_tfs = false);
 
   /**
    * Sets the publishing period of this system.
@@ -73,6 +74,8 @@ class RosRgbdCameraPublisher : public drake::systems::LeafSystem<double> {
   mutable image_transport::Publisher label_image_publisher_;
   mutable ros::Publisher rgb_camera_info_publisher_;
   mutable ros::Publisher depth_camera_info_publisher_;
+
+  bool publish_tfs_;
 };
 
 }  // Namespace drake_iiwa_sim

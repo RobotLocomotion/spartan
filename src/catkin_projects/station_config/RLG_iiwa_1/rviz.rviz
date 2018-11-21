@@ -14,6 +14,7 @@ Panels:
         - /PointCloud23
         - /PointCloud24
         - /InteractiveMarkers1
+        - /InteractiveMarkers2
       Splitter Ratio: 0.576470613
     Tree Height: 1100
   - Class: rviz/Selection
@@ -390,6 +391,15 @@ Visualization Manager:
       Show Visual Aids: false
       Update Topic: /carrot_perception_dashboard/update
       Value: true
+    - Class: rviz/InteractiveMarkers
+      Enable Transparency: true
+      Enabled: true
+      Name: InteractiveMarkers
+      Show Axes: false
+      Show Descriptions: true
+      Show Visual Aids: false
+      Update Topic: /scene_graph/update
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -415,25 +425,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 3.61849666
+      Distance: 1.93792951
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.44766134
-        Y: 0.0628134906
-        Z: 0.181471482
+        X: 0.440048277
+        Y: 0.0599983297
+        Z: 0.232078344
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.254797578
+      Pitch: 0.0197976027
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.3556819
+      Yaw: 4.55067635
     Saved: ~
 Window Geometry:
   Displays:

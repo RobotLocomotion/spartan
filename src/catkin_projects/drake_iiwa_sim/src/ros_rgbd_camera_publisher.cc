@@ -1,11 +1,13 @@
 #include "drake_iiwa_sim/ros_rgbd_camera_publisher.h"
 
 #include "drake/common/drake_assert.h"
+#include "drake/math/rigid_transform.h"
 #include "drake/systems/rendering/pose_vector.h"
 
 namespace drake_iiwa_sim {
 
 using drake::systems::Context;
+using drake::math::RigidTransform;
 using drake::systems::sensors::CameraInfo;
 using drake::systems::sensors::dev::RgbdCamera;
 using drake::systems::sensors::ImageRgba8U;
@@ -16,8 +18,10 @@ using drake::systems::Value;
 
 RosRgbdCameraPublisher::RosRgbdCameraPublisher(const RgbdCamera& rgbd_camera,
                                                const std::string& camera_name,
-                                               double draw_period)
-    : rgbd_camera_(rgbd_camera),
+                                               double draw_period,
+                                               bool publish_tfs)
+    : publish_tfs_(publish_tfs),
+      rgbd_camera_(rgbd_camera),
       image_transport_(nh_),
       rgb_image_publisher_(image_transport_.advertise(
           "/camera_" + camera_name + "/rgb/image_raw", 1)),
@@ -94,20 +98,55 @@ void RosRgbdCameraPublisher::DoPublish(
   std_msgs::Header now_header;
   now_header.stamp = ros::Time::now();
 
-  const PoseVector<double>* const pose_vector =
-      dynamic_cast<const PoseVector<double>*>(this->EvalVectorInput(
-          context, camera_base_pose_input_port_.get_index()));
-  DRAKE_DEMAND(pose_vector);
-  auto translation = pose_vector->get_translation();
-  auto rotation = pose_vector->get_rotation();
-  tf::Transform transform;
-  transform.setOrigin(
-      tf::Vector3(translation.x(), translation.y(), translation.z()));
-  tf::Quaternion q(rotation.x(), rotation.y(), rotation.z(), rotation.w());
-  transform.setRotation(q);
-  br_.sendTransform(tf::StampedTransform(
-      transform, ros::Time::now(), "base", "drake_iiwa_camera_origin"));
+  // Visualize TFs.
+  if (publish_tfs_) {
+    {
+      const PoseVector<double>* const pose_vector =
+          dynamic_cast<const PoseVector<double>*>(this->EvalVectorInput(
+              context, camera_base_pose_input_port_.get_index()));
+      DRAKE_DEMAND(pose_vector);
+      auto translation = pose_vector->get_translation();
+      auto rotation = pose_vector->get_rotation();
+      tf::Transform transform_origin;
+      transform_origin.setOrigin(
+          tf::Vector3(translation.x(), translation.y(), translation.z()));
+      transform_origin.setRotation(tf::Quaternion(rotation.x(), rotation.y(),
+                                                  rotation.z(), rotation.w()));
+      br_.sendTransform(tf::StampedTransform(transform_origin, ros::Time::now(),
+                                             "base",
+                                             "drake_iiwa_camera_origin"));
+    }
 
+    {
+      tf::Transform transform_color;
+      const auto tf_color =
+          RigidTransform<double>(rgbd_camera_.color_camera_optical_pose());
+      auto translation = tf_color.translation();
+      auto rotation = tf_color.rotation().ToQuaternion();
+      transform_color.setOrigin(
+          tf::Vector3(translation[0], translation[1], translation[2]));
+      transform_color.setRotation(tf::Quaternion(rotation.x(), rotation.y(),
+                                                 rotation.z(), rotation.w()));
+      br_.sendTransform(tf::StampedTransform(transform_color, ros::Time::now(),
+                                             "drake_iiwa_camera_origin",
+                                             "drake_iiwa_color_camera"));
+    }
+
+    {
+      tf::Transform transform_depth;
+      const auto tf_color =
+          RigidTransform<double>(rgbd_camera_.depth_camera_optical_pose());
+      auto translation = tf_color.translation();
+      auto rotation = tf_color.rotation().ToQuaternion();
+      transform_depth.setOrigin(
+          tf::Vector3(translation[0], translation[1], translation[2]));
+      transform_depth.setRotation(tf::Quaternion(rotation.x(), rotation.y(),
+                                                 rotation.z(), rotation.w()));
+      br_.sendTransform(tf::StampedTransform(transform_depth, ros::Time::now(),
+                                             "drake_iiwa_camera_origin",
+                                             "drake_iiwa_depth_camera"));
+    }
+  }
   const auto& color_image = color_image_abstract->GetValue<ImageRgba8U>();
   sensor_msgs::Image color_image_msg;
   color_image_msg.height = color_image.height();
