@@ -334,8 +334,9 @@ int do_main(int argc, char* argv[]) {
 
   // Set initial conditions for the IIWA:
   VectorXd q0(7);
-  // A comfortable pose inside the workspace of the workcell.
-  q0 << 0, 0.6, 0, -1.75, 0, 1.0, 0;
+  // Has good view of the table.
+  q0 << -8.4, -37.3, 6.3, -91.5, 4.7, 87.4, 23.4;
+  q0 *= 3.14/180.;
   iiwa_command->set_initial_position(
       &diagram->GetMutableSubsystemContext(*iiwa_command, &context), q0);
   station->SetIiwaPosition(q0, &station_context);
