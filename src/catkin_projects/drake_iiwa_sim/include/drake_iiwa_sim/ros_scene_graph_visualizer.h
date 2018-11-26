@@ -19,14 +19,6 @@ class RosSceneGraphVisualizer : public drake::systems::LeafSystem<double> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(RosSceneGraphVisualizer)
 
-  /// Contains a SimpleActionServer server spoofing the
-  /// real WSG50 driver used in Spartan.
-
-  /// @param initial_position the commanded position to output if no command
-  /// message has been received yet.
-  ///
-  /// @param initial_force the commanded force limit to output if no command
-  /// message has been received yet.
   RosSceneGraphVisualizer(const drake::geometry::SceneGraph<double>& scene_graph,
                           std::string server_name = "scene_graph",
                           double draw_period=0.033333);
