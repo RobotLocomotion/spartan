@@ -188,6 +188,11 @@ group "9.iiwa_sim" {
 
 }
 
+cmd "vive_teleop" {
+  exec = "python $SPARTAN_SOURCE_DIR/scripts/bin/vive_teleop.py";
+  host = "localhost";
+}
+
 script "1.1.robot_full_startup" {
   run_script "1.2.robot_noui_startup";
   wait ms 5000;
