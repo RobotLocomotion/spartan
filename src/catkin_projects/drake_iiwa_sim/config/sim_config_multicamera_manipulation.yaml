@@ -19,7 +19,6 @@ cameras:
         y: -0.0325
         z: 0.0
 
-# Not used yet
 models:
   plate_11in: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_11in_decomp/plate_11in_decomp.urdf"
   plate_8p5in: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_8p5in_decomp/plate_8p5in_decomp.urdf"
@@ -31,10 +30,6 @@ models:
   apriltag_cube: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/apriltag_cube.urdf"
   companion_cube: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/companion_cube.urdf"
   061_foam_brick: "${SPARTAN_SOURCE_DIR}/drake/examples/manipulation_station/models/061_foam_brick.sdf"
-
-
-robot:
-  base_pose: [0.0, 0.0, 0.7645, 0.0, 0.0, 0.0]
 
 instances:
    - model: "061_foam_brick"
@@ -56,16 +51,12 @@ instances:
      q0: [0.5, 0.2, 0.35, 0.0, 0.0, 0.7]
      fixed: false
      body_name: "cube"
-#  - model: "cabinet_with_desktop"
-#    q0: [0.6, 0.0, 0.0, 0, 0, 1.57]
-#    fixed: true
-#  - model: "white_bin"
-#    q0: [0.0, 0.8, 0.7, 0, 0, 1.57]
-#    fixed: true
-#  - model: "bowl_6p25in"
-#    q0: [0.6, -0.2, 0.85, 1.5, 0, 0]
-#    fixed: false
 
+# Not used yet
+robot:
+  base_pose: [0.0, 0.0, 0.7645, 0.0, 0.0, 0.0]
+
+# Not used yet
 dynamic_instances:
   - class: "half_carrot"
     n_range: [3, 10]
