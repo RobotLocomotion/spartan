@@ -6,7 +6,8 @@
 #include <Eigen/Dense>
 #include <drake_robot_control/task_space_streaming_plan.h>
 #include <drake_robot_control/utils.h>
-
+#include "drake/solvers/mathematical_program.h"
+#include "drake/solvers/constraint.h"
 namespace drake {
 namespace robot_plan_runner {
 
@@ -144,7 +145,40 @@ void TaskSpaceStreamingPlan::Step(
   // from the Eigen default to create less jerky movements near
   // singularities.
   svd.setThreshold(0.01);
-  Eigen::VectorXd q_dot_cmd = svd.solve(T_WE_E_cmd);
+  // Eigen::VectorXd q_dot_cmd = svd.solve(T_WE_E_cmd);
+
+  int num_positions = this->get_num_positions();
+
+  drake::solvers::MathematicalProgram prog;
+  auto q_dot = prog.NewContinuousVariables(this->get_num_positions(), "q_dot");
+  for (int i = 0; i < this->get_num_positions(); i++) {
+    const drake::symbolic::Expression e{q_dot(i) * dt};
+    const double lb{-this->get_max_dq_per_step()};
+    const double ub{+this->get_max_dq_per_step()};
+    const auto binding = prog.AddLinearConstraint(e, lb, ub);
+  }
+  prog.AddL2NormCost(J_ee_E_, T_WE_E_cmd, q_dot);
+  prog.SetInitialGuess(q_dot, Eigen::VectorXd::Zero(this->get_num_positions()));
+  auto result = prog.Solve();
+  auto q_dot_cmd = prog.GetSolution(q_dot);
+
+
+  drake::solvers::MathematicalProgram prog2;
+  auto delta_q_dot = prog2.NewContinuousVariables(this->get_num_positions(), "delta_q_dot");
+  for (int i = 0; i < this->get_num_positions(); i++) {
+    const drake::symbolic::Expression e{(q_dot_cmd(i) - delta_q_dot(i)) * dt};
+    const double lb{-this->get_max_dq_per_step()};
+    const double ub{+this->get_max_dq_per_step()};
+    const auto binding = prog2.AddLinearConstraint(e, lb, ub);
+  }
+
+  prog2.AddLinearEqualityConstraint(J_ee_E_, Eigen::VectorXd::Zero(6).array(), delta_q_dot);
+  prog2.AddQuadraticErrorCost(Eigen::MatrixXd::Identity(num_positions, num_positions), q_dot_cmd, delta_q_dot);
+  prog2.SetInitialGuess(delta_q_dot, Eigen::VectorXd::Zero(this->get_num_positions()));
+  auto result2 = prog2.Solve();
+  q_dot_cmd = q_dot_cmd - prog2.GetSolution(delta_q_dot);
+
+
   std::cout << "Final q dot cmd: " << q_dot_cmd << std::endl;
   *q_commanded = q + q_dot_cmd * dt;
   *v_commanded = q_dot_cmd; // This is ignored when constructing iiwa_command.

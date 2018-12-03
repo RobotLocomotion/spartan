@@ -33,7 +33,6 @@ public:
             Eigen::VectorXd *const tau_commanded) override;
 
   void HandleSetpoint(const robot_msgs::CartesianGoalPoint::ConstPtr& msg);
-
  private:
     std::mutex goal_mutex_;
     Eigen::Vector3d xyz_ee_goal_;

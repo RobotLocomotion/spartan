@@ -59,8 +59,16 @@ public:
   inline void set_plan_status(PlanStatus plan_status) {
     plan_status_ = plan_status;
   }
+
   // return (a copy) of the current plan status
   PlanStatus get_plan_status() const { return plan_status_.load(); }
+
+
+  inline void set_max_dq_per_step(const double max_dq_per_step) {
+    max_dq_per_step_ = max_dq_per_step;
+  }
+
+  double get_max_dq_per_step() const { return max_dq_per_step_; }
 
   // return true if plan is stopped
   // Note: finished does not mean stopped
@@ -120,6 +128,7 @@ protected:
 private:
   int num_positions;
   int num_velocities;
+  double max_dq_per_step_;
 
   ;
 };

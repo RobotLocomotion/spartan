@@ -427,6 +427,7 @@ void RobotPlanRunner::PublishCommand() {
           tree_, current_position_commanded_);
     }
 
+
     // special logic if the plan is new, i.e. not yet in state RUNNING
     if (plan_local->get_plan_status() == PlanStatus::NOT_STARTED) {
       std::cout << "\nStarting plan No. " << plan_number_ << std::endl;
@@ -436,6 +437,7 @@ void RobotPlanRunner::PublishCommand() {
     }
 
     cur_plan_time_s = static_cast<double>(cur_time_us - start_time_us) / 1e6;
+    plan_local->set_max_dq_per_step(max_dq_per_step);
     plan_local->Step(current_robot_state, cur_tau_external, cur_plan_time_s,
                      &q_commanded, &v_commanded, &tau_commanded);
     plan_local->SetCurrentCommand(q_commanded, tau_commanded);
