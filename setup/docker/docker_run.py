@@ -52,7 +52,7 @@ if __name__=="__main__":
 
 	# mount the data volume
 	if True:
-		data_directory_host_machine = '/home/'+user_name+'/data/spartan'
+		data_directory_host_machine = '/home/'+user_name+'/data'
 		os.system("mkdir -p " + data_directory_host_machine)
 		cmd += " -v %s:%s/data_volume " %(data_directory_host_machine, spartan_source_dir)
 
