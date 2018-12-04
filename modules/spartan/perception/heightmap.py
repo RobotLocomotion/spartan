@@ -39,8 +39,8 @@ class HeightMap(object):
         self._recompute_heightmap()
 
         self._xy_grid = np.zeros([self._N, self._M, 2])
-        self._xy_grid[:,:,0] = self._dx * np.repeat(np.arange(0, self._N).reshape((self._N, 1)), self._M, axis=1)
-        self._xy_grid[:, :, 1] = self._dy * np.repeat(np.arange(0, self._M).reshape((1,self._M)), self._N, axis=0)
+        self._xy_grid[:,:,0] = self._xdim[0] + self._dx * np.repeat(np.arange(0, self._N).reshape((self._N, 1)), self._M, axis=1)
+        self._xy_grid[:, :, 1] = self._ydim[0] + self._dy * np.repeat(np.arange(0, self._M).reshape((1,self._M)), self._N, axis=0)
 
 
     @property
@@ -123,7 +123,11 @@ class HeightMap(object):
 
         K = xy_coords.shape[0]
         pc = np.concatenate((xy_coords, z_height.reshape([K,1])), axis=1)
-        pc_rec_array = np.array(pc, dtype=[('x', float), ('y', float), ('z', float)])
+        pc_rec_array = np.recarray(K, dtype=[('x', np.float32), ('y', np.float32), ('z', np.float32)])
+
+        pc_rec_array['x'] = pc[:,0]
+        pc_rec_array['y'] = pc[:, 1]
+        pc_rec_array['z'] = pc[:, 2]
 
         return pc_rec_array
 
