@@ -130,10 +130,17 @@ def do_main():
         robot_msgs.srv.StartStreamingPlan)
     init = robot_msgs.srv.StartStreamingPlanRequest()
     init.force_guard.append(make_force_guard_msg(20.))
-    print sp(init)
+    res = sp(init)
+    
+    # save plan number so we know when plan has ended
+    plan_number = res.plan_number
+
+    # set up client that checks plan number periodically
+    client = actionlib.SimpleActionClient("plan_runner/GetPlanNumber", robot_msgs.msg.GetPlanNumberAction)
+    client.wait_for_server()
+
+
     print("Started task space streaming")
-
-
     pub = rospy.Publisher('plan_runner/task_space_streaming_setpoint',
         robot_msgs.msg.CartesianGoalPoint, queue_size=1);
 
@@ -151,6 +158,9 @@ def do_main():
     rospy.on_shutdown(cleanup)
     br = tf.TransformBroadcaster()
     rate = rospy.Rate(100) # max rate at which control should happen
+
+    illegal_move = False
+
     try:
         # variables to track when we lasted updated gripper and if we are moving arm
         last_gripper_update_time = time.time()
@@ -158,6 +168,26 @@ def do_main():
 
         # control loop
         while not rospy.is_shutdown():
+
+            # Check if plan ended
+            goal = robot_msgs.msg.GetPlanNumberGoal()
+            client.send_goal(goal)   
+            client.wait_for_result()
+            result = client.get_result()
+
+            # If plan ended, restart plan
+            if (result.plan_number != plan_number):
+                print "Illegal move, restarting plan"
+                illegal_move = True
+                sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
+                    robot_msgs.srv.StartStreamingPlan)
+                init = robot_msgs.srv.StartStreamingPlanRequest()
+                init.force_guard.append(make_force_guard_msg(20.))
+                res = sp(init)
+                
+                plan_number = res.plan_number                
+
+
             # get controller button / trigger data
             latest_state_msg = rightControllerState.last_message
 
@@ -176,7 +206,7 @@ def do_main():
                     tfBuffer.lookup_transform("base", frame_name, rospy.Time()).transform)
                 ee_tf_current = tf_matrix_from_pose(ee_pose_current)
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                print("Troubling looking up tf...")
+                print("Troubling looking up robot pose...")
                 rate.sleep()
                 continue
 
@@ -186,7 +216,7 @@ def do_main():
                     tfBuffer.lookup_transform("world", "right_controller", rospy.Time()).transform)
                 tf_current_vr_controller = tf_matrix_from_pose(pose_current_vr_controller)
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                print("Troubling looking up tf...")
+                print("Troubling looking up controller pose...")
                 rate.sleep()
                 continue
 
@@ -196,7 +226,7 @@ def do_main():
                     tfBuffer.lookup_transform("base", "world", rospy.Time()).transform)
                 tf_ros_vr = tf_matrix_from_pose(pose_ros_vr)
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                print("Troubling looking up tf...")
+                print("Troubling looking up tf from vr world to ros world...")
                 rate.sleep()
                 continue
 
@@ -204,8 +234,12 @@ def do_main():
 
             # Check if move button pressed
             move_pressed = (latest_state_msg.buttons[move_button_id] == 1)
+
+            # Releasing move button clears illegal move
+            if not move_pressed and illegal_move:
+                illegal_move = False
             
-            if move_pressed:
+            if move_pressed and not illegal_move:
                 if last_move_pressed is False:
                     # save starting controller and ee poses
                     ee_tf_start = ee_tf_current

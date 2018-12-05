@@ -71,6 +71,9 @@ void RosSceneGraphVisualizer::DoInitialization() const {
     <drake::lcmt_viewer_load_robot>("DRAKE_VIEWER_LOAD_ROBOT");
 
   for (const auto link : load_robot_msg.link){
+    if (link.robot_num < 4) {
+      continue;
+    }
     std::string full_name = MakeFullName(link.name, link.robot_num);
     if (full_name == ""){
       printf("Couldn't find separator, this name is malformed. Skipping...\n");
@@ -224,6 +227,9 @@ void RosSceneGraphVisualizer::DoPublish(
     pose_msg.orientation.z = q.z();
 
     int robot_num = pose_bundle.get_model_instance_id(frame_i);
+    if (robot_num < 4) {
+      continue;
+    }
     std::string full_name = MakeFullName(pose_bundle.get_name(frame_i), robot_num);
     server_.setPose(full_name, pose_msg);    
   }
