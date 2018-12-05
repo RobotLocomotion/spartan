@@ -1625,6 +1625,11 @@ class GraspSupervisor(object):
         return graspFound
 
     def request_spartan_grasp(self):
+        """
+        - collect sensor data
+        - send request to spartan grasp
+        :return: bool, GraspData
+        """
         self.collectSensorData()
         self.moveHome()
         self.requestGrasp()
