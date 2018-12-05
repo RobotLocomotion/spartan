@@ -1,5 +1,4 @@
-FROM tensorflow/tensorflow:latest-gpu
-
+    FROM nvidia/cuda:8.0-devel-ubuntu16.04
 
 ARG USER_NAME
 ARG USER_PASSWORD
@@ -13,7 +12,7 @@ RUN usermod -aG sudo $USER_NAME
 RUN yes $USER_PASSWORD | passwd $USER_NAME
 
 # set uid and gid to match those outside the container
-RUN usermod -u $USER_ID $USER_NAME
+RUN usermod -u $USER_ID $USER_NAME 
 RUN groupmod -g $USER_GID $USER_NAME
 
 
@@ -41,11 +40,6 @@ RUN yes "Y" | TRAVIS_OS_NAME=linux /tmp/director_travis_install_prereqs.sh
 # install handical
 COPY ./setup/docker/install_handical_dependencies.sh /tmp/install_handical_dependencies.sh
 RUN yes "Y" | /tmp/install_handical_dependencies.sh
-
-# install ggcnn requirements
-# this supposes TensorFlow has already been installed
-COPY ./setup/docker/ggcnn_requirements.txt /tmp/ggcnn_requirements.txt
-RUN pip install -r /tmp/ggcnn_requirements.txt
 
 
 # set the terminator inside the docker container to be a different color

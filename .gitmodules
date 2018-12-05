@@ -56,9 +56,3 @@
 [submodule "src/catkin_projects/razer_hydra_ros"]
 	path = src/catkin_projects/razer_hydra_ros
 	url = git@github.com:aleeper/razer_hydra_ros
-[submodule "modules/spartan/ggcnn"]
-	path = modules/spartan/ggcnn
-	url = git@github.com:dougsm/ggcnn.git
-[submodule "src/catkin_projects/ggcnn_kinova_grasping"]
-	path = src/catkin_projects/ggcnn_kinova_grasping
-	url = git@github.com:manuelli/ggcnn_kinova_grasping.git
