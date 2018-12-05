@@ -188,3 +188,23 @@ class Gripper(object):
     @staticmethod
     def make_schunk_gripper():
         return Gripper(GripperParams.make_schunk_params())
+
+    @staticmethod
+    def from_spartan_grasp_params_msg(msg):
+        """
+
+        :param msg: spartan_grasp_msgs/GraspParams
+        :return:
+        """
+        params = dict()
+        params['hand_inner_diameter'] = msg.hand_inner_diameter
+        params['finger_width'] = msg.finger_width
+        params['hand_depth'] = msg.hand_depth
+        params['hand_height'] = msg.hand_height
+        params['palm_depth'] = msg.palm_depth
+        params['palm_depth'] = 0.02  # better for vis
+        params['init_bite'] = msg.init_bite
+
+        return Gripper(params)
+
+
