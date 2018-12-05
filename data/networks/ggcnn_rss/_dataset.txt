@@ -1,0 +1,1 @@
+/home/manuelli/spartan/modules/spartan/ggcnn/data/datasets/dataset_180912_1551.hdf5
