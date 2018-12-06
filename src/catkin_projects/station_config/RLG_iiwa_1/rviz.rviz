@@ -8,11 +8,8 @@ Panels:
         - /RobotModel1
         - /TF1
         - /TF1/Frames1
-        - /PointCloud21
-        - /PointCloud22
         - /MarkerArray1
-        - /PointCloud23
-        - /PointCloud24
+        - /Marker1
       Splitter Ratio: 0.576470613
     Tree Height: 1100
   - Class: rviz/Selection
@@ -166,12 +163,14 @@ Visualization Manager:
         camera_carmine_1_depth_frame:
           Value: false
         camera_carmine_1_depth_optical_frame:
-          Value: true
+          Value: false
         camera_carmine_1_link:
           Value: false
         camera_carmine_1_rgb_frame:
           Value: false
         camera_carmine_1_rgb_optical_frame:
+          Value: false
+        grasp_frame:
           Value: true
         iiwa_link_0:
           Value: false
@@ -214,6 +213,8 @@ Visualization Manager:
       Show Names: true
       Tree:
         base:
+          grasp_frame:
+            {}
           iiwa_link_0:
             iiwa_link_1:
               iiwa_link_2:
@@ -231,6 +232,12 @@ Visualization Manager:
                                   {}
                               camera_carmine_1_rgb_frame:
                                 camera_carmine_1_rgb_optical_frame:
+                                  {}
+                              wsg_50_gripper_left:
+                                wsg_50_finger_left:
+                                  {}
+                              wsg_50_gripper_right:
+                                wsg_50_finger_right:
                                   {}
                             wsg_50_old_palm:
                               {}
@@ -250,7 +257,7 @@ Visualization Manager:
       Color: 255; 0; 0
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -267,7 +274,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -280,7 +287,7 @@ Visualization Manager:
       Color: 0; 170; 0
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 0; 255; 0
       Max Intensity: 4096
@@ -297,23 +304,25 @@ Visualization Manager:
       Unreliable: true
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /spartan_grasp/visualization_marker_array
       Name: MarkerArray
       Namespaces:
-        {}
+        best_grasp/left_finger: true
+        best_grasp/palm: true
+        best_grasp/right_finger: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /spartan_grasp/visualization_marker
       Name: Marker
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -374,6 +383,44 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: ""
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: ""
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.00999999978
+      Style: Flat Squares
+      Topic: /grasp_supervisor/points
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /grasp_supervisor/visualization_marker_array
+      Name: MarkerArray
+      Namespaces:
+        gripper: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -399,25 +446,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 7.36132526
+      Distance: 3.9476757
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.041748926
-        Y: 0.0780867934
-        Z: 0.0818401426
+        X: 0.602644265
+        Y: -0.0432125777
+        Z: 0.0479337312
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.249797404
+      Pitch: 0.494796336
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.98569441
+      Yaw: 1.63355565
     Saved: ~
 Window Geometry:
   Displays:

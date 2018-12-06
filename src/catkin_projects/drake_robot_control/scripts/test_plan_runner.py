@@ -34,7 +34,7 @@ def test_joint_trajectory_action():
     result = client.get_result()
     print "result:", result
 
-# moves the "penetrate_baymax" position
+# moves to the "penetrate_baymax" position
 def test_joint_trajectory_action_with_force_guard():
     
     # penetrate baymax position
