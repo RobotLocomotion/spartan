@@ -111,6 +111,7 @@ def do_main():
 
     # init button ids 
     move_button_id = 2 # press trackpad to move
+    reset_button_id = 3 # press menu to reset
     trigger_axis_id = 0 # hold trigger to close gripper
 
     # init gripper
@@ -175,7 +176,6 @@ def do_main():
             client.wait_for_result()
             result = client.get_result()
 
-            # If plan ended, restart plan
             if (result.plan_number != plan_number):
                 print "Illegal move, restarting plan"
                 illegal_move = True
@@ -190,6 +190,16 @@ def do_main():
 
             # get controller button / trigger data
             latest_state_msg = rightControllerState.last_message
+
+            # Check if move button pressed
+            move_pressed = (latest_state_msg.buttons[move_button_id] == 1)
+            reset_pressed = (latest_state_msg.buttons[reset_button_id] == 1)
+
+            if reset_pressed and not move_pressed:
+                cleanup()
+                do_main()
+                return
+
 
             # Gripper 
             dt = time.time() - last_gripper_update_time
@@ -232,8 +242,6 @@ def do_main():
 
             controller_tf_current = tf_ros_vr.dot(tf_current_vr_controller);
 
-            # Check if move button pressed
-            move_pressed = (latest_state_msg.buttons[move_button_id] == 1)
 
             # Releasing move button clears illegal move
             if not move_pressed and illegal_move:
