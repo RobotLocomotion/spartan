@@ -116,9 +116,6 @@ RobotPlanRunner::GetInstance(ros::NodeHandle &nh,
       config["joint_speed_limit_degree_per_sec"].as<double>(),
       config["control_period_s"].as<double>(), config, std::move(tree), nh);
 
-  // store the config locally
-//  ptr->config_ = config;
-
   return std::move(ptr);
 }
 
