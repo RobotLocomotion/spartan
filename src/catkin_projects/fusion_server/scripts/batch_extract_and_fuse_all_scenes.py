@@ -46,7 +46,12 @@ def already_downsampled(log_full_path):
 def extract_data_from_rosbag(bag_filepath, images_dir):
     images_dir = fs.extract_data_from_rosbag(bag_filepath, images_dir=images_dir)
 
+def already_extracted_close_up_log(metadata_filename):
+        if not os.path.exists(metadata_filename):
+            return False
 
+        metadata_temp = spartanUtils.getDictFromYamlFilename(metadata_filename)
+        return (len(metadata_temp['close_up_image_indices']) > 0)
 
 def extract_and_fuse_single_scene(log_full_path, downsample=True,
                         linear_distance_threshold=LINEAR_DISTANCE_THRESHOLD,
@@ -134,16 +139,9 @@ def extract_and_fuse_single_scene(log_full_path, downsample=True,
         print "already downsampled for", log_full_path
 
 
-    def already_extracted_close_up_log():
-
-        if not os.path.exists(metadata_filename):
-            return False
-
-        metadata_temp = spartanUtils.getDictFromYamlFilename(metadata_filename)
-        return (len(metadata_temp['close_up_image_indices']) > 0)
 
     # extract the up close up log if it exists
-    if os.path.exists(bag_close_up_filepath) and not already_extracted_close_up_log():
+    if os.path.exists(bag_close_up_filepath) and not already_extracted_close_up_log(metadata_filename):
         print "\n\n-----------extracting close up images----------\n\n"
         print "extracting", bag_close_up_filepath
         close_up_temp_dir = os.path.join(processed_dir, 'images_close_up')
