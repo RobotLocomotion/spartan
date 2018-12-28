@@ -222,9 +222,14 @@ private:
   Eigen::VectorXd current_position_commanded_; // joint_position_commanded from
                                                // iiwa_status msg
 
+  double joint_limit_tolerance_; // tolerance on joint limits
+
+  // These are the joint limits that will be applied before the command
+  // is sent to the robot. These limits already include the joint_limit_tolerance_
+  // as defined above
   Eigen::VectorXd joint_limits_min_;
   Eigen::VectorXd joint_limits_max_;
-  double joint_limit_tolerance_; // tolerance on joint limits
+  
 
   Eigen::VectorXd
       current_torque_commanded_; // joint_torque_commanded from iiwa_status msg
