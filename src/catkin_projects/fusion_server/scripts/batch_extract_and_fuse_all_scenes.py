@@ -224,7 +224,7 @@ if __name__ == "__main__":
         logs_proto_path = args.logs_dir
     else:
         # logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_special', 'static_scenes')
-        logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_shoes')
+        logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_proto')
 
     logs_proto_list = sorted(os.listdir(logs_proto_path))
 
