@@ -35,20 +35,8 @@ import fusion_server.tsdf_fusion as tsdf_fusion
 
 
 
-# this function taken from here:
-# https://answers.ros.org/question/10714/start-and-stop-rosbag-within-a-python-script/
-def terminate_ros_node(s):
-    list_cmd = subprocess.Popen("rosnode list", shell=True, stdout=subprocess.PIPE)
-    list_output = list_cmd.stdout.read()
-    retcode = list_cmd.wait()
-    assert retcode == 0, "List command returned %d" % retcode
-    for str in list_output.split("\n"):
-        if (str.startswith(s)):
-            os.system("rosnode kill " + str)
-
 
 ROS_BAGGING_NODE_NAME = "spartan_rosbag_node"
-
 
 
 
