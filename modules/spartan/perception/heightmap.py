@@ -51,6 +51,14 @@ class HeightMap(object):
     def xy_grid(self):
         return self._xy_grid
 
+    @property
+    def dx(self):
+        return self._dx
+
+    @property
+    def dy(self):
+        return self._dy
+
     def _recompute_heightmap(self):
         """
         Updates the heightmap given the occupancy grid
