@@ -244,6 +244,10 @@ class GraspSupervisor(object):
         self.find_best_match_client = actionlib.SimpleActionClient(findBestBatchActionName,
                                                                    pdc_ros_msgs.msg.FindBestMatchAction)
 
+        poser_action_name = '/Poser'
+        self.poser_client = actionlib.SimpleActionClient(poser_action_name,
+                                                                   pdc_ros_msgs.msg.DeformableRegistrationAction)
+
     def setupTF(self):
         if self.tfBuffer is None:
             self.tfBuffer = tf2_ros.Buffer()
@@ -417,6 +421,45 @@ class GraspSupervisor(object):
             print "NO MATCH FOUND"
 
         return result
+
+    def run_poser(self):
+        """
+        Run poser code
+        """
+        """
+        This function will:
+        - collect a small handful of RGBDWithPose msgs
+        - call the FindBestMatch service (a service of pdc-ros)
+        - return what was found from FindBestMatch
+        """
+        # self.moveHome()
+
+        rgbdWithPoseMsg = self.captureRgbdAndCameraTransform()
+        listOfRgbdWithPoseMsg = [rgbdWithPoseMsg]
+        self.list_rgbd_with_pose_msg = listOfRgbdWithPoseMsg
+
+        # request via a ROS Action
+        rospy.loginfo("waiting for poser server")
+        self.poser_client.wait_for_server()
+
+        goal = pdc_ros_msgs.msg.DeformableRegistrationGoal()
+        goal.rgbd_with_pose_list = listOfRgbdWithPoseMsg
+        goal.camera_info = self.camera_info_subscriber.waitForNextMessage()
+
+        rospy.loginfo("requesting registration from poser")
+
+        self.poser_client.send_goal(goal)
+        self.moveHome()
+
+        rospy.loginfo("waiting for poser result")
+        self.poser_client.wait_for_result()
+        result = self.poser_client.get_result()
+        rospy.loginfo("received poser result")
+
+        print "result:\n", result
+
+
+        self.poser_result = result
 
     def grasp_best_match(self):
         assert self.best_match_result.match_found
@@ -1152,6 +1195,9 @@ class GraspSupervisor(object):
 
     def test_stop_bagging(self):
         self.taskRunner.callOnThread(self.stop_bagging)
+
+    def test_run_poser(self):
+        self.taskRunner.callOnThread(self.run_poser)
 
     def loadDefaultPointCloud(self):
         self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
