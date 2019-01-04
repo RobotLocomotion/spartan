@@ -623,10 +623,7 @@ class FusionServer(object):
 
         log_dir = os.path.dirname(os.path.dirname(bag_filepath))
         processed_dir = os.path.join(log_dir, 'processed')
-        images_dir = os.path.join(processed_dir, 'rgbd_images')
-
-        if rgb_only:
-            images_dir = os.path.join(processed_dir, 'images')
+        images_dir = os.path.join(processed_dir, 'images')
 
         print "Using log dir %s, processed_dir %s, and images_dir %s" % (log_dir, processed_dir, images_dir)
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
