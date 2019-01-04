@@ -33,6 +33,8 @@ from spartan.manipulation.schunk_driver import SchunkDriver
 import fusion_server
 from fusion_server.srv import *
 import spartan.manipulation.gripper
+from spartan.poser.poser_visualizer import PoserVisualizer
+
 
 # director
 from director import transformUtils
@@ -284,6 +286,8 @@ class GraspSupervisor(object):
         self._cache = dict()
 
         self._gripper = spartan.manipulation.gripper.Gripper.make_schunk_gripper()
+        self._poser_visualizer = None
+
 
         if USING_DIRECTOR:
             self.taskRunner = TaskRunner()
@@ -683,8 +687,18 @@ class GraspSupervisor(object):
 
         print "result:\n", result
 
-
         self.poser_result = result
+
+    def visualize_poser_result(self):
+        """
+        Visualize the poser output
+        """
+        path_to_poser_output = os.path.join(spartanUtils.get_sandbox_dir(), self.poser_result.poser_output_folder)
+
+        self._poser_visualizer = PoserVisualizer(path_to_poser_output)
+        poser_response = self._poser_visualizer.load_poser_response()
+        self._poser_visualizer.visualize_result(poser_response)
+
 
     def grasp_best_match(self):
         assert self.best_match_result.match_found

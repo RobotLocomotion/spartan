@@ -77,6 +77,7 @@ class PoserVisualizer(object):
         :rtype:
         """
 
+        self._clear_visualization()
         self._object_vis_containers = dict()
 
         # visualize the observation

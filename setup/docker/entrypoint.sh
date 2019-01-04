@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+export SPARTAN_SANDBOX_DIR=~/sandbox
+
+
 function use_spartan()
 {
 	. ~/spartan/build/setup_environment.sh

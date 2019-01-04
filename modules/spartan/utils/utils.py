@@ -15,6 +15,12 @@ import spartan.utils.transformations as transformations
 def getSpartanSourceDir():
     return os.getenv("SPARTAN_SOURCE_DIR")
 
+def get_sandbox_dir():
+    return os.getenv("SPARTAN_SANDBOX_DIR")
+
+def get_data_dir():
+    return os.path.join(getSpartanSourceDir(), 'data_volume')
+
 def getDictFromYamlFilename(filename):
     stream = file(filename)
     return yaml.load(stream)
