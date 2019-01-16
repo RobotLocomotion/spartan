@@ -12,6 +12,8 @@ import spartan.manipulation.grasp_supervisor
 import spartan.manipulation.background_subtraction
 import spartan.calibration.handeyecalibration
 import spartan.utils.utils as spartanUtils
+from spartan.manipulation.object_manipulation import ObjectManipulation
+from spartan.poser.poser_visualizer import PoserVisualizer
 
 from spartan.utils.taskrunner import TaskRunner
 
@@ -81,6 +83,11 @@ def setupRLGDirector(globalsDict=None):
 
 
     visualize_background()
+
+    poser_vis = PoserVisualizer.make_default()
+    object_manip = ObjectManipulation(poser_visualizer=poser_vis)
+    globalsDict['object_manip'] = object_manip
+    globalsDict['o'] = object_manip
 
 
 
