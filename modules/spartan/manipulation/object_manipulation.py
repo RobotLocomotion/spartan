@@ -1,14 +1,19 @@
 # system
 import numpy as np
+import os
 
 # director
 from director import transformUtils
 import director.objectmodel as om
 import director.visualization as vis
+from director import ioUtils
+from director import vtkAll as vtk
+from director import filterUtils
 
 # spartan
 from spartan.manipulation.gripper import Gripper
 from spartan.manipulation.grasp_data import GraspData
+import spartan.utils.utils as spartan_utils
 
 class ObjectManipulation(object):
     """
@@ -25,6 +30,8 @@ class ObjectManipulation(object):
         self._T_W_model_target = None
 
         self._setup_config()
+
+        self._debug_vis_container = om.getOrCreateContainer("Debug Object Manip")
 
     def _setup_config(self):
         self._config = dict()
@@ -221,6 +228,54 @@ class ObjectManipulation(object):
         self.compute_transforms()
         self.visualize()
 
+    @staticmethod
+    def load_mug_model():
+        """
+        Loads a mug model
+        :return:
+        :rtype:
+        """
+
+        mug_file = os.path.join(spartan_utils.get_data_dir(), "pdc/templates/mugs/mug.stl")
+        poly_data = ioUtils.readPolyData(mug_file)
+        return poly_data
+
+    def load_and_visualize_mug_model(self):
+        """
+        Loads and visualizes a mug model
+        :return:
+        :rtype:
+        """
+        poly_data = ObjectManipulation.load_mug_model()
+        # t = vtk.vtkTransform()
+        # t.Translate(0,0,-0.025)
+        # poly_data = filterUtils.transformPolyData(poly_data, t)
+        self.model = vis.updatePolyData(poly_data, "mug", parent=self._debug_vis_container)
+        vis.addChildFrame(self.model)
+
+        # Transform from model to new model
+        self._T_Mn_M = ObjectManipulation.get_affine_transform_for_mug()
+        poly_data_transformed = filterUtils.transformPolyData(poly_data, self._T_Mn_M)
+        self.transformed_model = vis.updatePolyData(poly_data_transformed, 'mug affine', parent=self._debug_vis_container)
+
+    def save_poly_data(self):
+        """
+        Saves the poly data to a file
+        :return:
+        :rtype:
+        """
+        mug_file = os.path.join(spartan_utils.get_data_dir(), "pdc/templates/mugs/mug.stl")
+        ioUtils.writePolyData(self.model.polyData, mug_file)
+
+
+    @staticmethod
+    def get_affine_transform_for_mug():
+        t = vtk.vtkTransform()
+        s_x = 1.5
+        s_y = 1.5
+        s_z = 1.5
+        t.Scale(s_x, s_y, s_z)
+        return t
 
 
 
