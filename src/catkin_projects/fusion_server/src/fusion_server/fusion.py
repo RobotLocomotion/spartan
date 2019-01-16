@@ -35,16 +35,9 @@ import fusion_server.tsdf_fusion as tsdf_fusion
 
 
 
-# this function taken from here:
-# https://answers.ros.org/question/10714/start-and-stop-rosbag-within-a-python-script/
-def terminate_ros_node(s):
-    list_cmd = subprocess.Popen("rosnode list", shell=True, stdout=subprocess.PIPE)
-    list_output = list_cmd.stdout.read()
-    retcode = list_cmd.wait()
-    assert retcode == 0, "List command returned %d" % retcode
-    for str in list_output.split("\n"):
-        if (str.startswith(s)):
-            os.system("rosnode kill " + str)
+
+ROS_BAGGING_NODE_NAME = "spartan_rosbag_node"
+
 
 
 class TFWrapper(object):
@@ -329,13 +322,80 @@ class FusionServer(object):
         #self.config['scan']['pose_list'] = ['scan_left_close', 'scan_left', 'scan_left_center', 'scan_above_table_far', 'scan_right_center', 'scan_right', 'scan_right_close']
 
 
-        self.config['scan']['pose_group'] = 'Elastic Fusion'
-        self.config['scan']['pose_list'] = ['home', 'home_closer', 'center_right', 'right', 'right_low', 'right_low_closer', 'center_right', 'home_closer', 'center_left_closer', 'center_left_low_closer', 'left_low', 'left_mid', 'center_left_low', 'center_left_low_closer', 'center_left_closer', 'home_closer', 'top_down', 'top_down_right', 'top_down_left']
-        self.config['scan']['pose_list_quick'] = ['home_closer', 'top_down', 'top_down_right', 'top_down_left', 'home']
+        
+        # regular far out scanning poses
+        pose_list = []
+        pose_list.append(["Elastic Fusion", 'home'])
+        pose_list.append(["Elastic Fusion", 'home_closer'])
+        pose_list.append(["Elastic Fusion", 'center_right'])
+        pose_list.append(["Elastic Fusion", 'right'])
+        pose_list.append(["Elastic Fusion", 'right_low'])
+        pose_list.append(["Elastic Fusion", 'right_low_closer'])
+        pose_list.append(["Elastic Fusion", 'center_right'])
+        pose_list.append(["Elastic Fusion", 'home_closer'])
+        pose_list.append(["Elastic Fusion", 'center_left_closer'])
+        pose_list.append(["Elastic Fusion", 'center_left_low_closer'])
+        pose_list.append(["Elastic Fusion", 'left_low'])
+        pose_list.append(["Elastic Fusion", 'left_mid'])
+        pose_list.append(["Elastic Fusion", 'center_left_low'])
+        pose_list.append(["Elastic Fusion", 'center_left_low_closer'])
+        pose_list.append(["Elastic Fusion", 'center_left_closer'])
+        pose_list.append(["Elastic Fusion", 'home_closer'])
+        pose_list.append(["Elastic Fusion", 'top_down'])
+        pose_list.append(["Elastic Fusion", 'top_down_right'])
+        pose_list.append(["Elastic Fusion", 'top_down_left'])
+
+        self.config['scan']['pose_list'] = pose_list
+
+
+        # quick scan for testing purposes
+        pose_list = []
+        pose_list.append(["Elastic Fusion", 'home'])
+        pose_list.append(["Elastic Fusion", 'home_closer'])
+        pose_list.append(["Elastic Fusion", 'top_down'])
+        pose_list.append(["Elastic Fusion", 'top_down_right'])
+        pose_list.append(["Elastic Fusion", 'top_down_left'])
+        pose_list.append(["Elastic Fusion", 'home'])
+        self.config['scan']['pose_list_quick'] = pose_list
+
+
+
+        # close up scanning
+        pose_list = []
+        pose_list.append(["close_up_scan", "center"])
+        pose_list.append(["close_up_scan", "center_2"])
+        pose_list.append(["close_up_scan", "center_3"])
+        pose_list.append(["close_up_scan", "center_back_1"])
+        pose_list.append(["close_up_scan", "center_back_2"])
+        pose_list.append(["close_up_scan", "center_back_3"])
+        pose_list.append(["close_up_scan", "center"])
+        pose_list.append(["close_up_scan", "right_1"])
+        pose_list.append(["close_up_scan", "right_2"])
+        pose_list.append(["close_up_scan", "right_3"])
+        pose_list.append(["close_up_scan", "right_4"])
+        pose_list.append(["close_up_scan", "far_right_1"])
+        # pose_list.append(["close_up_scan", "far_right_2"])
+        # pose_list.append(["close_up_scan", "far_right_1"])
+        pose_list.append(["close_up_scan", "right_1"])
+        pose_list.append(["close_up_scan", "center"])
+        pose_list.append(["close_up_scan", "left_1"])
+        pose_list.append(["close_up_scan", "left_2"])
+        pose_list.append(["close_up_scan", "left_3"])
+        pose_list.append(["close_up_scan", "far_left_1"])
+        pose_list.append(["close_up_scan", "far_left_2"])
+        pose_list.append(["close_up_scan", "extreme_left_1"])
+        pose_list.append(["close_up_scan", "extreme_left_2"])
+        pose_list.append(["close_up_scan", "extreme_left_3"])
+        pose_list.append(["close_up_scan", "left_1"])
+        pose_list.append(["close_up_scan", "center"])
+
+        self.config['scan']['close_up'] = pose_list
+
 
         self.config['speed'] = dict()
         self.config['speed']['scan'] = 25
         self.config['speed']['fast'] = 30
+        self.config['speed']['wrist_rotation'] = 45
 
         self.config['spin_rate'] = 1
 
@@ -406,20 +466,34 @@ class FusionServer(object):
         return rgbOpticalFrameToWorld
 
 
-    def start_bagging(self, bag_folder='logs_special'):
+    def start_bagging(self, bag_folder='logs_proto', full_path_to_bag_file=None):
+        """
+
+        :param bag_folder:
+        :type bag_folder:
+        :param full_path_to_bag_file: (optional) full path to where we save bag
+        :type full_path_to_bag_file:
+        :return:
+        :rtype:
+        """
         self.flushCache()
 
-        base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', bag_folder)
+        if full_path_to_bag_file is None:
+            base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', bag_folder)
+            log_id_name = spartanUtils.get_current_YYYY_MM_DD_hh_mm_ss()
+            log_subdir = "raw"
+            bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
+            bagfile_name = "fusion_" + log_id_name
 
-        log_id_name = spartanUtils.get_current_YYYY_MM_DD_hh_mm_ss()
-        log_subdir = "raw"
-        bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
+            full_path_to_bag_file = os.path.join(bagfile_directory, bagfile_name)
+            # make bagfile directory with name
+            os.system("mkdir -p " + bagfile_directory)
 
-        # make bagfile directory with name
-        os.system("mkdir -p " + bagfile_directory)
+        # create parent folder if it doesn't exist
+        parent_folder = os.path.dirname(full_path_to_bag_file)
+        if not os.path.exists(parent_folder):
+            os.makedirs(parent_folder)
 
-        # redundantly tag on the string name, so we have extra defense on tracking its ID
-        bagfile_name = "fusion_" + log_id_name
 
         topics_to_bag = [
             "/tf",
@@ -443,8 +517,8 @@ class FusionServer(object):
         transform_stamped = self.cache['point_cloud_to_world_stamped']
         
         # build up command string
-        rosbag_cmd = "rosbag record"
-        rosbag_cmd += " -O " + bagfile_name
+        rosbag_cmd = "rosbag record __name:=" + ROS_BAGGING_NODE_NAME
+        rosbag_cmd += " -O " + full_path_to_bag_file
         for i in topics_to_bag:
             rosbag_cmd += " " + i
 
@@ -452,11 +526,25 @@ class FusionServer(object):
         print rosbag_cmd
 
         # start bagging
-        rosbag_proc = subprocess.Popen(rosbag_cmd, stdin=subprocess.PIPE, shell=True, cwd=bagfile_directory)
+        self.bagging = True
+        rosbag_proc = subprocess.Popen(rosbag_cmd, stdin=subprocess.PIPE, shell=True, cwd=parent_folder)
 
         rospy.loginfo("started image subscribers, sleeping for %d seconds", self.config['sleep_time_before_bagging'])
         
-        return os.path.join(bagfile_directory, bagfile_name+".bag"), rosbag_proc
+        return os.path.join(full_path_to_bag_file), rosbag_proc
+
+    def _stop_bagging(self):
+        """
+        Stops ROS bagging
+        :return:
+        :rtype:
+        """
+        cmd = "rosnode kill /" + ROS_BAGGING_NODE_NAME
+        print "cmd", cmd
+        os.system(cmd)
+
+        self.bagging = False
+        self.stopImageSubscribers()
 
     def handle_start_bagging_fusion_data(self, req):
         ## check if bagging already
@@ -476,12 +564,8 @@ class FusionServer(object):
         if not self.bagging:
             return StopBaggingFusionDataResponse("ERROR: Not currently bagging! Nothing to stop...")
 
-        ## stop bagging 
-        terminate_ros_node("/record")                            # this is heavier weight but will not create a .active
-        # self.rosbag_proc.send_signal(subprocess.signal.SIGINT) # this is a more direct way of stopping the rosbag, but will terminate it with a .active
-        self.bagging = False
-        self.stopImageSubscribers()
 
+        self._stop_bagging()
         return StopBaggingFusionDataResponse("success")
 
     def handle_perform_elastic_fusion(self, req):
@@ -530,31 +614,53 @@ class FusionServer(object):
         w = quat["w"]
         return np.asarray([w,x,y,z])
 
-
-    def move_robot_through_scan_poses(self, with_randomize_wrist=True):
+    def get_joint_positions_for_pose(self, pose_data):
         """
-        Moves the robot to the different scan poses
+        Looks up the joint positions for a given pose
+        :param pose_data: list of strings [group_name, pose_name]. e.g.
+        ["General", "q_nom"]
+        :return: list[double] of joint angles
+        """
+        return copy.copy(self.storedPoses[pose_data[0]][pose_data[1]])
+
+    def _move_robot_through_pose_list(self, pose_list, randomize_wrist=False, hit_original_poses=True):
+        """
+        Moves robot through the given list of poses
+        :param pose_list: list of list of strings of form [pose_group, pose_name]
+        :type pose_list:
+        :param with_randomize_wrist: boolean flag on whether to randomizde wrist or not
+        :type with_randomize_write:
         :return:
         :rtype:
         """
 
         joint_limit_safety_factor = 0.9
         wrist_joint_limit_degrees = 175.0
-        safe_wrist_joint_limit_radians = (wrist_joint_limit_degrees * np.pi/180.0) * joint_limit_safety_factor
+        safe_wrist_joint_limit_radians = (wrist_joint_limit_degrees * np.pi / 180.0) * joint_limit_safety_factor
 
-        # Move robot around
-        pose_list = self.config['scan']['pose_list']
-        #pose_list = self.config['scan']['pose_list_quick']
-        for poseName in pose_list:
-            print "moving to", poseName
-            joint_positions = copy.copy(self.storedPoses[self.config['scan']['pose_group']][poseName])
-            if with_randomize_wrist:
+        for pose_data in pose_list:
+            print "moving to", pose_data[1]
+            joint_positions = self.get_joint_positions_for_pose(pose_data)
+
+            if randomize_wrist:
                 print "before randomize wrist", joint_positions
-                joint_positions[-1] = np.random.uniform(-safe_wrist_joint_limit_radians, safe_wrist_joint_limit_radians)
+                joint_positions_random_wrist = copy.copy(joint_positions)
+                joint_positions_random_wrist[-1] = np.random.uniform(-safe_wrist_joint_limit_radians, safe_wrist_joint_limit_radians)
                 print "after randomize wrist", joint_positions
-            self.robotService.moveToJointPosition(joint_positions,
-                                                  maxJointDegreesPerSecond=self.config['speed']['scan'])
+                self.robotService.moveToJointPosition(joint_positions_random_wrist,
+                                                      maxJointDegreesPerSecond=self.config['speed']['scan'])
+
+                if hit_original_poses:
+                    self.robotService.moveToJointPosition(joint_positions,
+                                                          maxJointDegreesPerSecond=self.config['speed']['wrist_rotation'])
+
+
+            else:
+                self.robotService.moveToJointPosition(joint_positions,
+                                                      maxJointDegreesPerSecond=self.config['speed']['scan'])
+
             rospy.sleep(self.config['sleep_time_at_each_pose'])
+
 
     def capture_scene(self):
         """
@@ -568,43 +674,67 @@ class FusionServer(object):
 
         This is not a service handler itself, but intended to be modularly called by service handlers.
 
-        :return: bag_filepath, the full path to where the rosbag (fusion-*.bag) was saved
+        :return: bag_filepath, the full path to where (one) of the rosbag (fusion-*.bag) was saved
         :rtype: string
 
         """
 
         # first move home
-        home_pose_joint_positions = self.storedPoses[self.config['scan']['pose_group']][self.config['home_pose_name']]
+        home_pose_joint_positions = self.storedPoses["Elastic Fusion"][self.config['home_pose_name']]
         print home_pose_joint_positions
         self.robotService.moveToJointPosition(home_pose_joint_positions, maxJointDegreesPerSecond=self.config['speed']['fast'])
 
         print "moved to home"
 
-        # Start bagging with own srv call
-        try:
-            start_bagging_fusion_data = rospy.ServiceProxy('start_bagging_fusion_data', StartBaggingFusionData)
-            resp1 = start_bagging_fusion_data()
-            bag_filepath = resp1.bag_filepath
-        except rospy.ServiceException, e:
-            print "Service call failed: %s"%e
 
-        # Move robot
-        self.move_robot_through_scan_poses()
+        # Start bagging for far out data collection
+        # base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_proto')
+        base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_shoes')
+        log_id_name = spartanUtils.get_current_YYYY_MM_DD_hh_mm_ss()
+        log_subdir = "raw"
+        bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
+        bagfile_name = "fusion_" + log_id_name + ".bag"
+        full_path_to_bagfile = os.path.join(bagfile_directory, bagfile_name)
 
-        # Stop bagging with own srv call
-        try:
-            stop_bagging_fusion_data = rospy.ServiceProxy('stop_bagging_fusion_data', StopBaggingFusionData)
-            resp2 = stop_bagging_fusion_data()
-            print resp2.status, "stopped bagging"
-        except rospy.ServiceException, e:
-            print "Service call failed: %s"%e
+        print "moving robot through regular scan poses"
+        self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
+        pose_list = self.config['scan']['pose_list']
+        joint_positions = self.get_joint_positions_for_pose(pose_list[0])
+        self.robotService.moveToJointPosition(joint_positions,
+                                              maxJointDegreesPerSecond=self.config['speed']['scan'])
+        # rospy.sleep(3.0)
+        self._move_robot_through_pose_list(pose_list, randomize_wrist=True, hit_original_poses=True)
+
+        self._stop_bagging()
+
+
+        # # move robot through close up scan poses
+        log_subdir = "raw_close_up"
+        bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
+        bagfile_name = "fusion_" + log_id_name + ".bag"
+        full_path_to_bagfile = os.path.join(bagfile_directory, bagfile_name)
+        #
+        print "moving robot through close up scan poses"
+        pose_list = self.config['scan']['close_up']
+
+        # move to first pose before we start bagging
+        joint_positions = self.get_joint_positions_for_pose(pose_list[0])
+        self.robotService.moveToJointPosition(joint_positions,
+                                              maxJointDegreesPerSecond=self.config['speed']['scan'])
+
+        # now start bagging and move the robot through the poses
+        self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
+        self._move_robot_through_pose_list(pose_list, randomize_wrist=True, hit_original_poses=True)
+        # rospy.sleep(3.0)
+        self._stop_bagging()
+        rospy.sleep(1.0)
 
         # move back home
         self.robotService.moveToJointPosition(home_pose_joint_positions, maxJointDegreesPerSecond=self.config['speed']['fast'])
 
-        return bag_filepath
+        return full_path_to_bagfile
 
-    def extract_data_from_rosbag(self, bag_filepath, rgb_only=False):
+    def extract_data_from_rosbag(self, bag_filepath, images_dir=None, rgb_only=False):
         """
         This wraps the ImageCapture calls to load and process the raw rosbags, to prepare for fusion.
 
@@ -621,14 +751,13 @@ class FusionServer(object):
         depth_topic = self.topics_dict['depth']
         camera_info_topic = self.topics_dict['camera_info']
 
-        log_dir = os.path.dirname(os.path.dirname(bag_filepath))
-        processed_dir = os.path.join(log_dir, 'processed')
-        images_dir = os.path.join(processed_dir, 'rgbd_images')
-
-        if rgb_only:
+        if images_dir is None:
+            log_dir = os.path.dirname(os.path.dirname(bag_filepath))
+            processed_dir = os.path.join(log_dir, 'processed')
             images_dir = os.path.join(processed_dir, 'images')
 
-        print "Using log dir %s, processed_dir %s, and images_dir %s" % (log_dir, processed_dir, images_dir)
+
+        print "Using images_dir %s" % (images_dir)
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
             self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')
         image_capture.load_ros_bag(bag_filepath)
@@ -636,7 +765,7 @@ class FusionServer(object):
 
         rospy.loginfo("Finished writing images to disk")
 
-        return processed_dir, images_dir
+        return images_dir
 
     def handle_capture_scene(self, req):
         print "handling capture_scene"
@@ -784,15 +913,21 @@ class FusionServer(object):
         previous_pose_quat = FusionServer.get_quaternion_from_pose(pose_dict[0])
 
         print "Using downsampling by pose difference threshold... "
-        print "Previously: ", len(pose_dict), " images"
+        
 
         num_kept_images    = 0
         num_deleted_images = 0
 
-        for i in range(0,len(pose_dict)):
+        pose_dict_downsampled = dict()
+
+        img_indices = pose_dict.keys()
+        img_indices.sort()
+        num_original_images = len(img_indices)
+
+        for i in img_indices:
             single_frame_data = pose_dict[i]
-            this_pose_pos = FusionServer.get_numpy_position_from_pose(pose_dict[i])
-            this_pose_quat = FusionServer.get_quaternion_from_pose(pose_dict[i])
+            this_pose_pos = FusionServer.get_numpy_position_from_pose(single_frame_data)
+            this_pose_quat = FusionServer.get_quaternion_from_pose(single_frame_data)
 
             linear_distance = np.linalg.norm(this_pose_pos - previous_pose_pos)
 
@@ -808,12 +943,11 @@ class FusionServer(object):
                 previous_pose_quat = this_pose_quat
                 num_kept_images += 1
             else:
-                # delete pose from forward kinematics
-                del pose_dict[i]
+                # the pose wasn't sufficiently different
                 continue
 
             # if we have gotten here, then move the images over to the new directory
-
+            pose_dict_downsampled[i] = single_frame_data
             rgb_filename = os.path.join(images_dir_full_path, single_frame_data['rgb_image_filename'])
             rgb_filename_temp = os.path.join(images_dir_temp_path, single_frame_data['rgb_image_filename'])
 
@@ -828,7 +962,7 @@ class FusionServer(object):
 
         
         # write downsamples pose_data.yaml (forward kinematics)
-        spartanUtils.saveToYaml(pose_dict, os.path.join(images_dir_temp_path,'pose_data.yaml'))
+        spartanUtils.saveToYaml(pose_dict_downsampled, os.path.join(images_dir_temp_path,'pose_data.yaml'))
 
         # remove old images
         shutil.move(os.path.join(images_dir_full_path, 'camera_info.yaml'), os.path.join(images_dir_temp_path, 'camera_info.yaml'))
@@ -839,4 +973,5 @@ class FusionServer(object):
         # rename temp images to images
         os.rename(images_dir_temp_path, images_dir_full_path)
 
-        print "After: ", num_kept_images, " images"
+        print "Previously: %d images" %(num_original_images)
+        print "After: %d images" %(num_kept_images)

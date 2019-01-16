@@ -5,6 +5,10 @@ import argparse
 import os
 import getpass
 
+user_name = getpass.getuser()
+
+DATA_DIRECTORY_ON_HOST = '/home/'+user_name+'/data/spartan'
+
 if __name__=="__main__":
 	user_name = getpass.getuser()
 	default_image_name = user_name + '-spartan'
@@ -52,9 +56,8 @@ if __name__=="__main__":
 
 	# mount the data volume
 	if True:
-		data_directory_host_machine = '/home/'+user_name+'/data/spartan'
-		os.system("mkdir -p " + data_directory_host_machine)
-		cmd += " -v %s:%s/data_volume " %(data_directory_host_machine, spartan_source_dir)
+		os.system("mkdir -p " + DATA_DIRECTORY_ON_HOST)
+		cmd += " -v %s:%s/data_volume " %(DATA_DIRECTORY_ON_HOST, spartan_source_dir)
 
 	# expose UDP ports
 	if not args.no_udp:
