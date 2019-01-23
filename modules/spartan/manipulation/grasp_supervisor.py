@@ -335,6 +335,10 @@ class GraspSupervisor(object):
         self.poser_client = actionlib.SimpleActionClient(poser_action_name,
                                                                    pdc_ros_msgs.msg.DeformableRegistrationAction)
 
+
+        category_manipulation_name = "/CategoryManipulation"
+        self.category_manip_client = actionlib.SimpleActionClient(category_manipulation_name, pdc_ros_msgs.msg.CategoryManipulationAction)
+
     def setupTF(self):
         if self.tfBuffer is None:
             self.tfBuffer = tf2_ros.Buffer()
@@ -520,9 +524,6 @@ class GraspSupervisor(object):
 
     def run_poser(self):
         """
-        Run poser code
-        """
-        """
         This function will:
         - collect a small handful of RGBDWithPose msgs
         - call the FindBestMatch service (a service of pdc-ros)
@@ -558,9 +559,34 @@ class GraspSupervisor(object):
 
         self.taskRunner.callOnMain(self.visualize_poser_result)
 
+    def run_category_manipulation_goal_estimation(self):
+        """
+        Calls the CategoryManipulation service of pdc-ros
+        whic is provided by category_manip_server.py
+        :return:
+        :rtype:
+        """
+
+        # don't specify poser output dir for now
+        goal = pdc_ros_msgs.msg.CategoryManipulationGoal()
+
+        rospy.loginfo("waiting for CategoryManip server")
+        self.category_manip_client.wait_for_server()
+
+        self.category_manip_client.send_goal(goal)
+        self.category_manip_client.wait_for_result()
+        result = self.category_manip_client.get_result()
+
+        T_goal_obs_flat = np.array(result.T_goal_obs)
+        T_goal_obs = np.reshape(T_goal_obs_flat, [4,4], order='C')
+
+        print "T_goal_obs:\n", T_goal_obs
+
+
     def run_manipulate_object(self, debug=False):
         """
-        Runs the object manipulation code
+        Runs the object manipulation code. Will put the object into the
+        specified target pose
         :return:
         """
 
@@ -625,10 +651,6 @@ class GraspSupervisor(object):
 
         # move home
         self.moveHome()
-
-
-
-
 
 
 
@@ -1840,6 +1862,9 @@ class GraspSupervisor(object):
 
     def test_run_manipulate_object(self):
         self.taskRunner.callOnThread(self.run_manipulate_object)
+
+    def test_run_category_manipulation_goal_estimation(self):
+        self.taskRunner.callOnThread(self.run_category_manipulation_goal_estimation)
 
 
     def loadDefaultPointCloud(self):
