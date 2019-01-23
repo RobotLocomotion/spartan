@@ -151,7 +151,7 @@ class GraspSupervisor(object):
         self._cache = dict()
 
         self._gripper = spartan.manipulation.gripper.Gripper.make_schunk_gripper()
-        self._poser_visualizer = None
+        self._poser_visualizer = PoserVisualizer.make_default()
         self.poser_result = None
         self._object_manipulation = None
 
@@ -353,6 +353,17 @@ class GraspSupervisor(object):
         print depthOpticalFrameToGraspFrame
         return depthOpticalFrameToGraspFrame
 
+    def get_transform(self, from_name, to_name, ros_time=None):
+        if ros_time is None:
+            ros_time = rospy.Time(0)
+
+        transform_stamped_msg = self.tfBuffer.lookup_transform(to_name, from_name, ros_time)
+        # convert to vtkTransform
+        pos, quat = rosUtils.poseFromROSTransformMsg(transform_stamped_msg.transform)
+
+        return pos, quat
+
+
     def getRgbOpticalFrameToGraspFrameTransform(self, time=None):
         """
 
@@ -370,11 +381,12 @@ class GraspSupervisor(object):
         print  rgbOpticalFrameToGraspFrame
         return rgbOpticalFrameToGraspFrame
 
-    """
-    Captures the current PointCloud2 from the sensor. Also records the pose of camera frame.
-    """
+
 
     def capturePointCloudAndCameraTransform(self, cameraOrigin=[0, 0, 0]):
+        """
+        Captures the current PointCloud2 from the sensor. Also records the pose of camera frame.
+        """
         # sleep to transforms can update
 
         msg = spartan_grasp_msgs.msg.PointCloudWithTransform()
@@ -538,6 +550,7 @@ class GraspSupervisor(object):
         # request via a ROS Action
         rospy.loginfo("waiting for poser server")
         self.poser_client.wait_for_server()
+        rospy.loginfo("connected to poser server")
 
         goal = pdc_ros_msgs.msg.DeformableRegistrationGoal()
         goal.rgbd_with_pose_list = listOfRgbdWithPoseMsg
@@ -556,6 +569,7 @@ class GraspSupervisor(object):
         print "result:\n", result
 
         self.poser_result = result
+        self._cache['poser_result'] = result
 
         self.taskRunner.callOnMain(self.visualize_poser_result)
 
@@ -572,6 +586,7 @@ class GraspSupervisor(object):
 
         rospy.loginfo("waiting for CategoryManip server")
         self.category_manip_client.wait_for_server()
+        rospy.loginfo("connected to CategoryManip server")
 
         self.category_manip_client.send_goal(goal)
         self.category_manip_client.wait_for_result()
@@ -581,6 +596,12 @@ class GraspSupervisor(object):
         T_goal_obs = np.reshape(T_goal_obs_flat, [4,4], order='C')
 
         print "T_goal_obs:\n", T_goal_obs
+
+        T_goal_obs_vtk = transformUtils.getTransformFromNumpy(T_goal_obs)
+        print transformUtils.poseFromTransform(T_goal_obs_vtk)
+
+        self._cache['category_manipulation_goal_result'] = result
+        self._cache['category_manipulation_T_goal_obs'] = T_goal_obs_vtk
 
 
     def run_manipulate_object(self, debug=False):
@@ -592,21 +613,32 @@ class GraspSupervisor(object):
 
         self.taskRunner.callOnMain(self._poser_visualizer.visualize_result)
 
-        self._object_manipulation = ObjectManipulation(poser_visualizer=self._poser_visualizer)
+
         if debug:
+            self._object_manipulation = ObjectManipulation()
             self._object_manipulation.assign_defaults()
             self._object_manipulation.compute_transforms()
-        else:
-            self.moveHome()
-            self.request_spartan_grasp()
-            self._object_manipulation.grasp_data = self.state.grasp_data
-            self._object_manipulation.extract_data_from_poser_visualizer()
-            self._object_manipulation.compute_transforms()
+            return
 
-        self.taskRunner.callOnMain(self._object_manipulation.visualize)
+        self.moveHome()
+        grasp_found, grasp_data = self.request_spartan_grasp()
+        if not grasp_found:
+            print "no grasp found, returning\n"
+            return False
+
 
         # execute the grasp
         object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True)
+
+        print "object_in_gripper:", object_in_gripper
+
+        T_goal_obs = self._cache['category_manipulation_T_goal_obs']
+        T_W_G = self.state.cache['gripper_frame_at_grasp']
+        self._object_manipulation = ObjectManipulation(T_goal_object=T_goal_obs, T_W_G=T_W_G)
+        self._object_manipulation.grasp_data = self.state.grasp_data
+        self._object_manipulation.compute_transforms()
+
+        self.taskRunner.callOnMain(self._object_manipulation.visualize)
 
 
         pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
@@ -616,7 +648,7 @@ class GraspSupervisor(object):
             # open the gripper and back away
             self.gripperDriver.sendOpenGripperCommand()
             self.robotService.moveToJointPosition(pre_grasp_pose,
-                                                  maxJointDegreesPerSecond=
+                                                   maxJointDegreesPerSecond=
                                                   pickup_speed)
             return False
 
@@ -852,16 +884,16 @@ class GraspSupervisor(object):
 
         return poseStamped
 
-    def make_ee_pose_stamped_from_grasp(self, T_W__gripper_fingertip):
+    def make_ee_pose_stamped_from_grasp(self, T_W_gripper_fingertip):
         """
         Make PoseStamped message for the end effector frame from a given grasp frame.
 
-        :param T_W__gripper_fingertip: The position of the tips of the fingers, move down 3 cm to get
+        :param T_W_gripper_fingertip: The position of the tips of the fingers, move down 3 cm to get
         :return : pose of the end-effector for that grasp frame location
         :rtype : geometry_msgs/PoseStamped
         """
 
-        iiwaLinkEEFrame = self.get_iiwa_link_ee_from_gripper_fingertip_frame(T_W__gripper_fingertip)
+        iiwaLinkEEFrame = self.get_iiwa_link_ee_from_gripper_fingertip_frame(T_W_gripper_fingertip)
         poseDict = spartanUtils.poseFromTransform(iiwaLinkEEFrame)
         poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
         poseStamped = geometry_msgs.msg.PoseStamped()
@@ -984,15 +1016,22 @@ class GraspSupervisor(object):
         # record current location of gripper (in world frame)
         # before closing the gripper
 
+        pos, quat = self.get_transform("iiwa_link_ee", "base")
+        T_world_ee = transformUtils.transformFromPose(pos, quat)
+        T_world_grasp = transformUtils.concatenateTransforms([self.graspToIiwaLinkEE, T_world_ee])
+        self.state.cache['gripper_frame_at_grasp'] = T_world_grasp
 
         has_object = False
         if close_gripper:
+            print "closing gripper"
             has_object = self.gripperDriver.closeGripper()
 
             if has_object:
                 self.state.set_status("OBJECT_IN_GRIPPER")
+                print "object in gripper"
             else:
                 self.state.set_status("GRASP_FAILED")
+                print "grasp failed"
 
 
 

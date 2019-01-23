@@ -8,6 +8,7 @@ import director.objectmodel as om
 import director.visualization as vis
 from director import ioUtils
 from director import transformUtils
+import director.vtkNumpy as vnp
 
 
 
@@ -95,23 +96,35 @@ class PoserVisualizer(object):
             # transform from template to observation
             T_obs_template = PoserVisualizer.parse_transform(data['rigid_transform'])
 
+
+
             # usually a pcd
             template_file = self._convert_relative_path_to_absolute(data['image_1']['save_template'])
-            template_poly_data = ioUtils.readPolyData(template_file)
+            template_poly_data = PoserVisualizer.readPolyData(template_file)
             vis_dict['template'] = vis.updatePolyData(template_poly_data, 'template', parent=vis_dict['container'],
                                color=[0,1,0])
 
-            T = T_obs_template.GetLinearInverse()
             vis_dict['template'].actor.SetUserTransform(T_obs_template)
+
+            # transform from template to observation
+            T_nonrigid_obs_template = PoserVisualizer.parse_transform(data['affine_transform'])
+            template_file = self._convert_relative_path_to_absolute(data['image_1']['save_template'])
+            template_poly_data = PoserVisualizer.readPolyData(template_file)
+            vis_dict['template_affine'] = vis.updatePolyData(template_poly_data, 'template affine', parent=vis_dict['container'],
+                                                      color=[1, 0, 1])
+
+
+            vis_dict['template_affine'].actor.SetUserTransform(T_nonrigid_obs_template)
+
 
 
 
             # usually a pcd
             observation_file = self._convert_relative_path_to_absolute(data['image_1']['save_processed_cloud'])
 
-            observation_poly_data = ioUtils.readPolyData(observation_file)
+            observation_poly_data = PoserVisualizer.readPolyData(observation_file)
             vis_dict['observation'] = vis.updatePolyData(observation_poly_data, 'observation',
-                                                       parent=vis_dict['container'], color=[1,0,0])
+                                                       parent=vis_dict['container'])
 
 
 
@@ -142,6 +155,12 @@ class PoserVisualizer(object):
         """
         return self._object_vis_containers[object_name]['observation'].polyData
 
+
+    def test(self):
+        import dense_correspondence_manipulation.utils.director_utils as director_utils
+        polyData = director_utils.readPlyFile("/home/manuelli/sandbox/poser/template.ply")
+        vis.showPolyData(polyData, 'test')
+
     @staticmethod
     def parse_transform(transform_matrix_list):
         """
@@ -157,7 +176,7 @@ class PoserVisualizer(object):
         return transformUtils.getTransformFromNumpy(mat)
 
     @staticmethod
-    def make_default():
+    def make_default_spartan():
         """
         Makes poser
         :return:
@@ -171,3 +190,45 @@ class PoserVisualizer(object):
             raise ValueError("poser output folder %s doesn't exist" %(path_to_poser_output))
 
         return PoserVisualizer(path_to_poser_output)
+
+    @staticmethod
+    def make_default():
+        """
+        Makes poser
+        :return:
+        """
+        # spartan
+
+
+        path_to_poser_output = os.getenv("POSER_OUTPUT_DIR")
+        if path_to_poser_output is None:
+            path_to_poser_output = os.path.join(os.path.expanduser("~"), "sandbox", "poser")
+
+        # if not os.path.exists(path_to_poser_output):
+        #     raise ValueError("poser output folder %s doesn't exist" % (path_to_poser_output))
+
+        return PoserVisualizer(path_to_poser_output)
+
+    @staticmethod
+    def readPolyData(file):
+        """
+        Read poly data while correctly dispatching to special
+        handler for ply files
+        """
+        extension = os.path.splitext(file)[1]
+
+        if extension == ".ply":
+
+            from plyfile import PlyData
+
+            plydata = PlyData.read(file)
+            vertex_data = plydata['vertex'].data  # numpy array with fields ['x', 'y', 'z']
+            pts = np.zeros([vertex_data.size, 3])
+            pts[:, 0] = vertex_data['x']
+            pts[:, 1] = vertex_data['y']
+            pts[:, 2] = vertex_data['z']
+
+            return vnp.numpyToPolyData(pts)
+
+        else:
+            return ioUtils.readPolyData(file)

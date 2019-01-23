@@ -85,9 +85,10 @@ def setupRLGDirector(globalsDict=None):
     visualize_background()
 
     poser_vis = PoserVisualizer.make_default()
-    object_manip = ObjectManipulation(poser_visualizer=poser_vis)
+    object_manip = ObjectManipulation()
     globalsDict['object_manip'] = object_manip
     globalsDict['o'] = object_manip
+    globalsDict['poser_vis'] = poser_vis
 
 
 

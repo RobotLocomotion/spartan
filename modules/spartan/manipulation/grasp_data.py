@@ -25,7 +25,7 @@ class GraspData(object):
     z          x
 
     # frame names
-    T_W_G: grasp to world
+    T_W_G: grasp to world (palm of gripper)
     T_W_PG: pre-grasp to world
 
     """
@@ -36,6 +36,7 @@ class GraspData(object):
     def __init__(self, T_W_G=None):
         """
         T_W_G transform from gripper frame (palm) to world
+        See https://github.com/RobotLocomotion/spartan/blob/master/doc/grasping.md
         :param T_W_G:
         """
         # Palm Frame as shown in this README
