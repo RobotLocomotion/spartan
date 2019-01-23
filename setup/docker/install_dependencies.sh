@@ -4,6 +4,12 @@ set -euxo pipefail
 
 apt-get update
 apt install --no-install-recommends \
+  software-properties-common
+
+add-apt-repository ppa:openscad/releases
+
+apt-get update
+apt install --no-install-recommends \
   terminator \
   tmux \
   nano \
@@ -18,7 +24,7 @@ apt install --no-install-recommends \
   dialog \
   python-pip \
   python-pytest \
-  libav-tools \
+  ffmpeg \
   openscad
 
 # these following three are ElasticFusion dependencies
