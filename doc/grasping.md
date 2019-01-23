@@ -5,4 +5,4 @@ Shows the gripper palm frame and the gripper fingertip frame. They are aligned b
 ![alt text](gripper_frames.png "Gripper Frames")
 
 
-The gripper fingetip frame is what is referred to as `T_G_W` in the `GraspData` class. 
+The gripper palm frame is what is referred to as `T_G_W` in the `GraspData` class. 
