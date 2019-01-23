@@ -259,7 +259,12 @@ script "6.start_drake_iiwa_sim"
 {
   start cmd "0.roscore";
   wait ms 3000;
-  start group "8.ROS";
+
+  start cmd "2.ROS Model and TF Publisher";
+  start cmd "3.rviz";
+  start cmd "4.Robot Movement Service";
+  start cmd "5.IK Service";
+  start cmd "8.fusion_server";
 
   start group "9.iiwa_sim";
   start cmd "1.plan-runner";
