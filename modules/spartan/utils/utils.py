@@ -73,6 +73,11 @@ def transformFromPose(d):
 """
 msg: geometry_msgs/Pose
 """
+def posQuatFromROSPoseMsg(msg):
+    pos = [msg.position.x, msg.position.y, msg.position.z]
+    quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]
+    return pos, quat
+
 def transformFromROSPoseMsg(msg):
     pos = [msg.position.x, msg.position.y, msg.position.z]
     quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]
@@ -134,6 +139,19 @@ def homogenous_transform_from_dict(d):
 
     return transform_matrix
 
+def dict_from_homogenous_transform(tf):
+    """
+    Returns standard encoding in dict format from 4x4 transform matrix
+    :param tf:
+    :return:
+    """
+    return dictFromPosQuat(tf[:3, 3], transformations.quaternion_from_matrix(tf))
+
+def apply_homogenous_transform_to_points(tf, pts):
+    ''' Given a homogenous tf matrix and a 3xN NP array
+    of points, apply the tf to the points to produce
+    a new 3xN array of points. '''
+    return ((tf[:3, :3].dot(pts).T) + tf[:3, 3]).T
 
 def get_current_YYYY_MM_DD_hh_mm_ss():
     """

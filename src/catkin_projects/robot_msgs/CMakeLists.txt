@@ -73,6 +73,7 @@ add_action_files(
   FILES
   JointTrajectory.action
   CartesianTrajectory.action
+  GetPlanNumber.action
 )
 
 ## Generate added messages and services with any dependencies listed here

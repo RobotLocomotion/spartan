@@ -69,6 +69,14 @@ def listToPointMsg(l):
 
     return msg
 
+def arrayToPointMsgs(pts):
+    # Takes 3xN array of points,
+    # and produces list of Point messages
+    
+    return [geometry_msgs.msg.Point(
+        pts[0, i], pts[1, i], pts[2, i])
+        for i in range(pts.shape[1])]
+
 """
 @param msg: geometry_msgs.msg.Point
 @return list of [x,y,z] position
@@ -301,7 +309,7 @@ class SimpleSubscriber(object):
 
     def waitForNextMessage(self, sleep_duration=0.1):
         self.hasNewMessage = False
-        while not self.hasNewMessage:
+        while not self.hasNewMessage and not rospy.is_shutdown():
             rospy.sleep(sleep_duration)
         return self.lastMsg
 

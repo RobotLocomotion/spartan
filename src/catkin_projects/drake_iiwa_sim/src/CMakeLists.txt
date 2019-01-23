@@ -32,37 +32,63 @@
 
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 
-add_library(iiwa_lcm
-        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/iiwa_lcm.h
-        iiwa_lcm.cc)
-target_link_libraries(iiwa_lcm
-        drake::drake)
-
-add_library(iiwa_qp_inverse_dynamics_controller
-        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/iiwa_qp_inverse_dynamics_controller.h
-        iiwa_qp_inverse_dynamics_controller.cc)
-target_link_libraries(iiwa_qp_inverse_dynamics_controller
-        drake::drake)
-
-add_executable(iiwa_sim
-        kuka_simulation.cc)
-add_dependencies(iiwa_sim ${catkin_EXPORTED_TARGETS})
-target_link_libraries(iiwa_sim
-        iiwa_lcm
-        iiwa_qp_inverse_dynamics_controller
+add_library(kuka_schunk_station
+        kuka_schunk_station.cc ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/kuka_schunk_station.h)
+add_dependencies(kuka_schunk_station ${catkin_EXPORTED_TARGETS})
+target_link_libraries(kuka_schunk_station
         drake::drake
         gflags_shared)
 
+add_library(schunk_wsg_ros_actionserver
+        schunk_wsg_ros_actionserver.cc
+        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/schunk_wsg_ros_actionserver.h)
+add_dependencies(schunk_wsg_ros_actionserver ${catkin_EXPORTED_TARGETS})
+target_link_libraries(schunk_wsg_ros_actionserver
+        drake::drake
+        ${catkin_LIBRARIES}
+        gflags_shared)
+
+add_library(ros_scene_graph_visualizer
+        ros_scene_graph_visualizer.cc
+        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/ros_scene_graph_visualizer.h)
+add_dependencies(ros_scene_graph_visualizer ${catkin_EXPORTED_TARGETS})
+target_link_libraries(ros_scene_graph_visualizer
+        drake::drake
+        ${catkin_LIBRARIES}
+        gflags_shared)
+
+add_library(ros_rgbd_camera_publisher
+        ros_rgbd_camera_publisher.cc
+        ${PROJECT_INCLUDE_DIR}/drake_iiwa_sim/ros_rgbd_camera_publisher.h)
+add_dependencies(ros_rgbd_camera_publisher ${catkin_EXPORTED_TARGETS})
+target_link_libraries(ros_rgbd_camera_publisher
+        drake::drake
+        ${catkin_LIBRARIES}
+        gflags_shared)
+
+add_executable(kuka_schunk_station_simulation
+               kuka_schunk_station_simulation.cc)
+add_dependencies(kuka_schunk_station_simulation ${catkin_EXPORTED_TARGETS})
+target_link_libraries(kuka_schunk_station_simulation
+        kuka_schunk_station
+        schunk_wsg_ros_actionserver
+        ros_scene_graph_visualizer
+        ros_rgbd_camera_publisher
+        drake::drake
+        gflags_shared
+	yaml-cpp
+        ${catkin_LIBRARIES})
+
 # install library
-install(TARGETS iiwa_lcm
- iiwa_qp_inverse_dynamics_controller
+install(TARGETS schunk_wsg_ros_actionserver kuka_schunk_station
+    ros_scene_graph_visualizer ros_rgbd_camera_publisher
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 # install executable
-install(TARGETS iiwa_sim
+install(TARGETS kuka_schunk_station_simulation
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
