@@ -19,8 +19,7 @@
 #include "drake/lcmt_schunk_wsg_command.hpp"
 #include "drake/lcmt_schunk_wsg_status.hpp"
 #include "drake/manipulation/schunk_wsg/schunk_wsg_lcm.h"
-#include "drake/multibody/multibody_tree/parsing/multibody_plant_sdf_parser.h"
-#include "drake/multibody/multibody_tree/parsing/multibody_plant_urdf_parser.h"
+#include "drake/multibody/parsing/parser.h"
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/diagram.h"
 #include "drake/systems/framework/diagram_builder.h"
@@ -42,13 +41,13 @@ namespace {
 // TODO: Spoofing camera info + images on appropriate camera channels
 
 using namespace drake;
+using namespace drake::examples;
 
 using Eigen::VectorXd;
 using math::RigidTransform;
 using math::RollPitchYaw;
 using math::RotationMatrix;
-using multibody::parsing::AddModelFromSdfFile;
-using multibody::parsing::AddModelFromUrdfFile;
+using multibody::Parser;
 
 DEFINE_double(target_realtime_rate, 1.0,
               "Playback speed.  See documentation for "
@@ -100,14 +99,14 @@ int do_main(int argc, char* argv[]) {
       "drake/examples/kuka_iiwa_arm/models/table/"
       "extra_heavy_duty_table_surface_only_collision.sdf");
   auto plant = &station->get_mutable_multibody_plant();
+  Parser parser(plant);
   const auto table_front =
-      AddModelFromSdfFile(table_sdf_path, "table_front", plant);
+      parser.AddModelFromFile(table_sdf_path, "table_front");
   plant->WeldFrames(
       plant->world_frame(), plant->GetFrameByName("link", table_front),
       RigidTransform<double>(Eigen::Vector3d(0.75, 0, -dz_table_top_robot_base))
           .GetAsIsometry3());
-  const auto table_left =
-      AddModelFromSdfFile(table_sdf_path, "table_left", plant);
+  const auto table_left = parser.AddModelFromFile(table_sdf_path, "table_left");
   plant->WeldFrames(plant->world_frame(),
                     plant->GetFrameByName("link", table_left),
                     RigidTransform<double>(
@@ -142,14 +141,10 @@ int do_main(int argc, char* argv[]) {
     model_name << node["model"].as<std::string>() << "_" << k++;
     std::string body_name = node["body_name"].as<std::string>();
     drake::multibody::ModelInstanceIndex model_instance;
-    if (full_path.substr(full_path.size() - 4) == "urdf") {
-      model_instance = AddModelFromUrdfFile(full_path, model_name.str(), plant);
-    } else {
-      model_instance = AddModelFromSdfFile(full_path, model_name.str(), plant);
-    }
+    model_instance = parser.AddModelFromFile(full_path, model_name.str());
 
     if (node["fixed"].as<bool>()) {
-      // Cludgy, but default behavior in AddModelFromSdfFile is to
+      // Cludgy, but default behavior in AddModelFromFile is to
       // make a frame at the root of the added model with the same name
       // as the added model.
       plant->WeldFrames(
@@ -247,7 +242,7 @@ int do_main(int argc, char* argv[]) {
 
         auto camera_publisher =
             builder.template AddSystem<RosRgbdCameraPublisher>(
-                *camera, camera_name, 0.25);
+                *camera, camera_name, 0.0333);
         builder.Connect(camera->color_image_output_port(),
                         camera_publisher->color_image_input_port());
         builder.Connect(camera->depth_image_output_port(),
@@ -271,15 +266,14 @@ int do_main(int argc, char* argv[]) {
   drake::lcm::DrakeLcm lcm;
   lcm.StartReceiveThread();
 
-  // TODO(russt): IiwaCommandReceiver should output positions, not
+   // TODO(russt): IiwaCommandReceiver should output positions, not
   // state.  (We are adding delay twice in this current implementation).
   auto iiwa_command_subscriber = builder.AddSystem(
-      systems::lcm::LcmSubscriberSystem::Make<drake::lcmt_iiwa_command>(
-          "IIWA_COMMAND", &lcm));
-  auto iiwa_command =
-      builder.AddSystem<examples::kuka_iiwa_arm::IiwaCommandReceiver>();
+      kuka_iiwa_arm::MakeIiwaCommandLcmSubscriberSystem(
+          kuka_iiwa_arm::kIiwaArmNumJoints, "IIWA_COMMAND", &lcm));
+  auto iiwa_command = builder.AddSystem<kuka_iiwa_arm::IiwaCommandReceiver>();
   builder.Connect(iiwa_command_subscriber->get_output_port(),
-                  iiwa_command->get_input_port(0));
+                  iiwa_command->GetInputPort("command_message"));
 
   // Pull the positions out of the state.
   auto demux = builder.AddSystem<systems::Demultiplexer>(14, 7);
@@ -290,8 +284,7 @@ int do_main(int argc, char* argv[]) {
   builder.Connect(iiwa_command->get_commanded_torque_output_port(),
                   station->GetInputPort("iiwa_feedforward_torque"));
 
-  auto iiwa_status =
-      builder.AddSystem<examples::kuka_iiwa_arm::IiwaStatusSender>();
+  auto iiwa_status = builder.AddSystem<kuka_iiwa_arm::IiwaStatusSender>();
   // The IiwaStatusSender input port wants size 14, but only uses the first 7.
   // TODO(russt): Consider cleaning up the IiwaStatusSender.
   auto zero_padding =
@@ -310,8 +303,7 @@ int do_main(int argc, char* argv[]) {
                   iiwa_status->get_external_torque_input_port());
   auto iiwa_status_publisher = builder.AddSystem(
       systems::lcm::LcmPublisherSystem::Make<drake::lcmt_iiwa_status>(
-          "IIWA_STATUS", &lcm));
-  iiwa_status_publisher->set_publish_period(0.005);
+          "IIWA_STATUS", &lcm, 0.005 /* publish period */));
   builder.Connect(iiwa_status->get_output_port(0),
                   iiwa_status_publisher->get_input_port());
 
@@ -325,6 +317,8 @@ int do_main(int argc, char* argv[]) {
                   wsg_ros_actionserver->get_measured_state_input_port());
   builder.Connect(station->GetOutputPort("wsg_force_measured"),
                   wsg_ros_actionserver->get_measured_force_input_port());
+
+
   auto diagram = builder.Build();
 
   systems::Simulator<double> simulator(*diagram);
@@ -336,21 +330,23 @@ int do_main(int argc, char* argv[]) {
   VectorXd q0(7);
   // Has good view of the table.
   q0 << -8.4, -37.3, 6.3, -91.5, 4.7, 87.4, 23.4;
-  q0 *= 3.14/180.;
+  q0 *= 3.14 / 180.;
+
   iiwa_command->set_initial_position(
       &diagram->GetMutableSubsystemContext(*iiwa_command, &context), q0);
-  station->SetIiwaPosition(q0, &station_context);
+
+  station->SetIiwaPosition(&station_context, q0);
   const VectorXd qdot0 = VectorXd::Zero(7);
-  station->SetIiwaVelocity(qdot0, &station_context);
+  station->SetIiwaVelocity(&station_context, qdot0);
 
   // Initialize object poses uses initialization list
   // generated when loading them in.
   for (const auto& initialization : initializations_to_do) {
-    plant->tree().SetFreeBodyPoseOrThrow(
+    plant->SetFreeBodyPose(
+        &station->GetMutableSubsystemContext(*plant, &station_context),
         plant->GetBodyByName(initialization.body_name,
                              initialization.model_instance),
-        initialization.tf,
-        &station->GetMutableSubsystemContext(*plant, &station_context));
+        initialization.tf);
   }
 
   simulator.set_publish_every_time_step(false);

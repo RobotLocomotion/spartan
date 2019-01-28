@@ -23,6 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   tf
   image_transport
+  wsg_50_common
 )
 
 ## System dependencies are found with CMake's conventions
