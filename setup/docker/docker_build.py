@@ -17,6 +17,7 @@ if __name__=="__main__":
 		help="name for the newly created docker image", default=default_image_name)
 
 	parser.add_argument("-d", "--dry_run", action='store_true', help="(optional) perform a dry_run, print the command that would have been executed but don't execute it.")
+	parser.add_argument('-B','--no_cache', action='store_true', help="(optional) don't use docker build cache")
 
 	parser.add_argument("-p", "--password", type=str,
                         help="(optional) password for the user", default="password")
@@ -31,6 +32,8 @@ if __name__=="__main__":
 			--build-arg USER_ID=%(user_id)s \
 			--build-arg USER_GID=%(group_id)s" \
 			%{'user_name': user_name, 'password': args.password, 'user_id': args.user_id, 'group_id': args.group_id}
+	if args.no_cache:
+	    cmd += " --no-cache"
 	cmd += " -t %s -f setup/docker/spartan.dockerfile ." % args.image
 	
 
