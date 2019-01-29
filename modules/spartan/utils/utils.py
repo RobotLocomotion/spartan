@@ -70,10 +70,9 @@ def transformFromPose(d):
 
     return transformUtils.transformFromPose(pos, quat)
 
-"""
-msg: geometry_msgs/Pose
-"""
 def posQuatFromROSPoseMsg(msg):
+    ''' Returns a pose in [x, y, z] and a quaternion in [w x y z] order,
+    given a ROS Pose message (geometry_msgs/Pose). '''
     pos = [msg.position.x, msg.position.y, msg.position.z]
     quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]
     return pos, quat
