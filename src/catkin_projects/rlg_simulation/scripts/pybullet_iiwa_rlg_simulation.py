@@ -57,7 +57,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 # Visualization to Director
 import pydrake
-import pydrake.rbtree
+import pydrake.multibody.rigid_body_tree
 #import RemoteTreeViewerWrapper_pybind as Rtv
 
 # Loading URDFs from ROS package paths
@@ -155,7 +155,7 @@ def load_pybullet_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = 
 
 def load_drake_from_urdf_or_sdf(inp_path):
     full_path = os.path.expandvars(inp_path)
-    return pydrake.rbtree.RigidBodyTree(full_path, floating_base_type=pydrake.rbtree.kRollPitchYaw)
+    return pydrake.multibody.rigid_body_tree.RigidBodyTree(full_path, floating_base_type=pydrake.multibody.rigid_body_tree.kRollPitchYaw)
 
 class RgbdCameraMetaInfo():
     def __init__(self, camera_serial, linkNameToJointIdMap):
