@@ -349,8 +349,8 @@ int do_main(int argc, char* argv[]) {
         initialization.tf);
   }
 
-  simulator.set_publish_every_time_step(false);
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
+  simulator.set_publish_every_time_step(false);
   simulator.Initialize();
   simulator.StepTo(FLAGS_duration);
 
