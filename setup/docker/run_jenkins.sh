@@ -41,12 +41,12 @@ fi
 use_spartan
 
 # Launch a fake X-server in the background
-Xvfb :100 -screen 0 1280x1024x24 -ac +extension GLX +render -noreset &
+#Xvfb :100 -screen 0 1280x1024x24 -ac +extension GLX +render -noreset &
 
 # Run Spartan modules test.
 # These tests *must* be run forked (as in, each test
 # in its own process)
-DISPLAY=:100 pytest --forked --junitxml results.xml ~/spartan/modules/spartan/test/
+pytest --forked --junitxml results.xml ~/spartan/modules/spartan/test/
 exit_status=$?
 if [ ! $exit_status -eq 0 ]; then
   echo "Error code when running tests: " $exit_status
