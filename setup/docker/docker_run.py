@@ -26,6 +26,8 @@ if __name__=="__main__":
 
 	parser.add_argument("-nodudp", "--no_udp", action='store_true', help="(optional) don't expose the udp ports")
 
+	parser.add_argument("--no_nvidia", action='store_true', help="(optional) use docker rather than nvidia-docker (for CI)")
+
 	args = parser.parse_args()
 	print("running docker container derived from image %s" %args.image)
 	source_dir=os.getcwd()
@@ -35,7 +37,10 @@ if __name__=="__main__":
 	spartan_source_dir = os.path.join(home_directory, 'spartan')
 
 	cmd = "xhost +local:root \n"
-	cmd += "nvidia-docker run "
+	if args.no_nvidia:
+		cmd += "docker run "
+	else:
+		cmd += "nvidia-docker run "
 	if args.container:
 		cmd += " --name %(container_name)s " % {'container_name': args.container}
 

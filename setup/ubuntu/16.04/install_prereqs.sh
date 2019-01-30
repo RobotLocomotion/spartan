@@ -50,4 +50,5 @@ apt install -y --no-install-recommends \
   ros-kinetic-moveit \
   ros-kinetic-openni2-launch \
   ros-kinetic-image-pipeline \
-  ros-kinetic-perception-pcl
+  ros-kinetic-perception-pcl \
+  ros-kinetic-ros-numpy

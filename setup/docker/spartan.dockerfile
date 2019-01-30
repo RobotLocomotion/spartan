@@ -27,8 +27,8 @@ RUN yes "Y" | /tmp/install_dependencies.sh
 COPY ./setup/ubuntu/16.04/install_prereqs.sh /tmp/spartan_install_prereqs.sh
 RUN yes "Y" | /tmp/spartan_install_prereqs.sh
 
-COPY ./drake/setup/ubuntu/16.04 /tmp/drake_setup_16.04
-RUN yes "Y" | /tmp/drake_setup_16.04/install_prereqs.sh
+COPY ./drake/setup/ubuntu /tmp/drake_setup
+RUN yes "Y" | /tmp/drake_setup/install_prereqs.sh
 
 # Hack needed to deal with bazel issue, see https://github.com/bazelbuild/bazel/issues/4483
 #COPY ./setup/docker/install_dependencies_drake.sh /tmp/drake_install_prereqs.sh
