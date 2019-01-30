@@ -101,6 +101,10 @@ def quatMsgToList(msg):
 
     return quat
 
+def poseFromROSPoseMsg(msg):
+    pos = [msg.position.x, msg.position.y, msg.position.z]
+    quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]
+    return pos, quat
 
 def poseFromROSTransformMsg(msg):
     pos = [msg.translation.x, msg.translation.y, msg.translation.z]
