@@ -56,6 +56,3 @@
 [submodule "src/catkin_projects/razer_hydra_ros"]
 	path = src/catkin_projects/razer_hydra_ros
 	url = git@github.com:aleeper/razer_hydra_ros
-[submodule "src/catkin_projects/ros_numpy"]
-	path = src/catkin_projects/ros_numpy
-	url = https://github.com/eric-wieser/ros_numpy
