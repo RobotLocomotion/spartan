@@ -64,7 +64,6 @@ std::string RosSceneGraphVisualizer::MakeFullName(const std::string& input_name,
 }
 
 EventStatus RosSceneGraphVisualizer::DoInitialization(const Context<double>& context) const {
-  printf("DOINIT CALLED\n");
   drake::lcm::DrakeMockLcm mock_lcm;
   drake::geometry::DispatchLoadMessage(scene_graph_, &mock_lcm);
   auto load_robot_msg = mock_lcm.DecodeLastPublishedMessageAs
