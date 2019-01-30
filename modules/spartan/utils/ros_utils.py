@@ -102,11 +102,21 @@ def quatMsgToList(msg):
     return quat
 
 def poseFromROSPoseMsg(msg):
+    """
+    :param msg: A populated ROS Pose message.
+    :return: (pos, quat), where pos is a 3-element list of positions [x, y, z],
+             and quat is a 4-element list of quaternion elems [w, x, y, z]
+    """
     pos = [msg.position.x, msg.position.y, msg.position.z]
     quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]
     return pos, quat
 
 def poseFromROSTransformMsg(msg):
+    """
+    :param msg: A populated ROS Transform message.
+    :return: (pos, quat), where pos is a 3-element list of positions [x, y, z],
+             and quat is a 4-element list of quaternion elems [w, x, y, z]
+    """
     pos = [msg.translation.x, msg.translation.y, msg.translation.z]
     quat = [msg.rotation.w, msg.rotation.x, msg.rotation.y, msg.rotation.z]
     return pos, quat
