@@ -36,6 +36,9 @@ import tf2_msgs.msg
 import math
 
 
+from teleop_mouse_manager import TeleopMouseManager
+
+
 # Control of robot works like this:
 #   When the user is pressing no buttons on the right
 #   controller, nothing happens.
@@ -102,14 +105,12 @@ def do_main():
         rospy.sleep(0.1)
     print("got full state")
 
-    # init button ids 
-    move_button_id = 2 # press trackpad to move
-    reset_button_id = 3 # press menu to reset
-    trigger_axis_id = 0 # hold trigger to close gripper
-
     # init gripper
     handDriver = SchunkDriver()
     gripper_goal_pos = 0.1
+
+    # init mouse manager
+    mouse_manager = TeleopMouseManager()
 
 
     # Start by moving to an above-table pregrasp pose that we know
@@ -118,6 +119,18 @@ def do_main():
     robotService = ros_utils.RobotService.makeKukaRobotService()
     success = robotService.moveToJointPosition(above_table_pre_grasp, timeout=5)
     print("Moved to position")
+
+    frame_name = "iiwa_link_ee" # end effector frame name
+
+    for i in range(10):
+        try:
+            ee_pose_above_table = ros_utils.poseFromROSTransformMsg(
+                tfBuffer.lookup_transform("base", frame_name, rospy.Time()).transform)
+            ee_tf_above_table = tf_matrix_from_pose(ee_pose_above_table)
+            break
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            print("Troubling looking up robot pose...")
+            time.sleep(0.1)
 
     # Then kick off task space streaming
     sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
@@ -147,7 +160,6 @@ def do_main():
         print sp(init)
         print("Done cleaning up and stopping streaming plan")
 
-    frame_name = "iiwa_link_ee" # end effector frame name
 
     rospy.on_shutdown(cleanup)
     br = tf.TransformBroadcaster()
@@ -199,15 +211,28 @@ def do_main():
                 rate.sleep()
                 continue
 
+            # get teleop mouse
+            mouse_events = mouse_manager.get_mouse_events()
+            
+            scale_down = 0.01
+            delta_x = mouse_events["delta_x"]*scale_down
+            delta_y = mouse_events["delta_y"]*-scale_down
+
+            delta_forward = 0.0
+            forward_scale = 0.03
+            if mouse_events["w"]:
+                delta_forward -= forward_scale
+            if mouse_events["s"]:
+                delta_forward += forward_scale
+
             # extract and normalize quat from tf
-            current_quat_ee = transformations.quaternion_from_matrix(ee_tf_current)
-            current_quat_ee = np.array(current_quat_ee) / np.linalg.norm(current_quat_ee)
+            above_table_quat_ee = transformations.quaternion_from_matrix(ee_tf_above_table)
+            above_table_quat_ee = np.array(above_table_quat_ee) / np.linalg.norm(above_table_quat_ee)
 
             # calculate controller position delta and add to start position to get target ee position
-
-            # THIS IS JUST FOR A SIMPLE DEMO!
-            constant_drift_offset = np.asarray([0.0,0.01,0.0])
-            target_trans_ee = ee_tf_current[:3, 3] + constant_drift_offset
+            target_translation = np.asarray([delta_forward, delta_x, delta_y])
+            print target_translation
+            target_trans_ee = ee_tf_current[:3, 3] + target_translation
 
             # publish target pose as cartesian goal point
             new_msg = robot_msgs.msg.CartesianGoalPoint()
@@ -215,13 +240,13 @@ def do_main():
             new_msg.xyz_point.point.x = target_trans_ee[0]
             new_msg.xyz_point.point.y = target_trans_ee[1]
             new_msg.xyz_point.point.z = target_trans_ee[2]
-            new_msg.xyz_d_point.x = 0.
-            new_msg.xyz_d_point.y = 0.
+            new_msg.xyz_d_point.x = 0.0
+            new_msg.xyz_d_point.y = 0.0
             new_msg.xyz_d_point.z = 0.0
-            new_msg.quaternion.w = current_quat_ee[0]
-            new_msg.quaternion.x = current_quat_ee[1]
-            new_msg.quaternion.y = current_quat_ee[2]
-            new_msg.quaternion.z = current_quat_ee[3]
+            new_msg.quaternion.w = above_table_quat_ee[0]
+            new_msg.quaternion.x = above_table_quat_ee[1]
+            new_msg.quaternion.y = above_table_quat_ee[2]
+            new_msg.quaternion.z = above_table_quat_ee[3]
             new_msg.gain = make_cartesian_gains_msg(5., 10.)
             new_msg.ee_frame_id = frame_name
             pub.publish(new_msg)
