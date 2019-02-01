@@ -118,6 +118,7 @@ def do_main():
 
     # init mouse manager
     mouse_manager = TeleopMouseManager()
+    roll_goal = 0.0
 
 
     # Start by moving to an above-table pregrasp pose that we know
@@ -224,7 +225,18 @@ def do_main():
                 delta_forward += forward_scale
 
             # extract and normalize quat from tf
-            above_table_quat_ee = transformations.quaternion_from_matrix(ee_tf_above_table)
+            if mouse_events["rotate_left"]:
+                roll_goal += 0.01
+            if mouse_events["rotate_right"]:
+                roll_goal -= 0.01
+            roll_goal = np.clip(roll_goal, a_min = -0.5, a_max = 0.5)
+
+            R = transformations.euler_matrix(0.0, roll_goal, 0.0, 'syxz')
+            # third is "yaw", when in above table pre-grasp
+            # second is "roll", ''
+            # first must be "pitch"
+
+            above_table_quat_ee = transformations.quaternion_from_matrix(R.dot(ee_tf_above_table))
             above_table_quat_ee = np.array(above_table_quat_ee) / np.linalg.norm(above_table_quat_ee)
 
             # calculate controller position delta and add to start position to get target ee position
