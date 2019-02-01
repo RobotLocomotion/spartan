@@ -107,19 +107,10 @@ def do_main():
 
     # init gripper
     handDriver = SchunkDriver()
-    time.sleep(1)
-    gripper_goal_pos = 0.0
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.0001, timeout=0.01)
-    print("sent close goal to gripper")
-    time.sleep(1)
-    gripper_goal_pos = 0.1
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.0001, timeout=0.01)
-    print("sent open goal to gripper")
-
+    
     # init mouse manager
     mouse_manager = TeleopMouseManager()
     roll_goal = 0.0
-
 
     # Start by moving to an above-table pregrasp pose that we know
     # EE control will work well from (i.e. far from singularity)
@@ -127,6 +118,14 @@ def do_main():
     robotService = ros_utils.RobotService.makeKukaRobotService()
     success = robotService.moveToJointPosition(above_table_pre_grasp, timeout=5)
     print("Moved to position")
+
+    gripper_goal_pos = 0.0
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.0001, timeout=0.01)
+    print("sent close goal to gripper")
+    time.sleep(1)
+    gripper_goal_pos = 0.1
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.0001, timeout=0.01)
+    print("sent open goal to gripper")
 
     frame_name = "iiwa_link_ee" # end effector frame name
 
