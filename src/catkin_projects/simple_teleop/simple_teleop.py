@@ -206,6 +206,9 @@ def do_main():
 
             if mouse_events["r"]:
                 success = robotService.moveToJointPosition(above_table_pre_grasp, timeout=5)
+                roll_goal = 0.0
+                yaw_goal = 0.0
+                pitch_goal = 0.0
                 continue
 
             
