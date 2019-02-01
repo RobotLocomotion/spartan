@@ -107,7 +107,14 @@ def do_main():
 
     # init gripper
     handDriver = SchunkDriver()
+    time.sleep(1)
+    gripper_goal_pos = 0.0
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.0001, timeout=0.01)
+    print("sent close goal to gripper")
+    time.sleep(1)
     gripper_goal_pos = 0.1
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.0001, timeout=0.01)
+    print("sent open goal to gripper")
 
     # init mouse manager
     mouse_manager = TeleopMouseManager()
@@ -192,15 +199,6 @@ def do_main():
                 plan_number = res.plan_number                
 
 
-
-            # Gripper 
-            dt = time.time() - last_gripper_update_time
-            # if dt > 0.2:
-            #     last_gripper_update_time = time.time()
-            #     gripper_goal_pos = 0.1 * (1-latest_state_msg.axes[trigger_axis_id])
-            #     handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
-            #     print "Gripper goal pos: ", gripper_goal_pos
-
             # get current tf from ros world to ee
             try:
                 ee_pose_current = ros_utils.poseFromROSTransformMsg(
@@ -231,7 +229,6 @@ def do_main():
 
             # calculate controller position delta and add to start position to get target ee position
             target_translation = np.asarray([delta_forward, delta_x, delta_y])
-            print target_translation
             target_trans_ee = ee_tf_current[:3, 3] + target_translation
 
             # publish target pose as cartesian goal point
@@ -250,6 +247,17 @@ def do_main():
             new_msg.gain = make_cartesian_gains_msg(5., 10.)
             new_msg.ee_frame_id = frame_name
             pub.publish(new_msg)
+
+            # gripper
+            if mouse_events["mouse_wheel_up"]:
+                gripper_goal_pos += 0.01
+            if mouse_events["mouse_wheel_down"]:
+                gripper_goal_pos -= 0.01
+            if gripper_goal_pos < 0:
+                gripper_goal_pos = 0.0
+            if gripper_goal_pos > 0.1:
+                gripper_goal_pos = 0.1
+            handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
 
             rate.sleep()
 
