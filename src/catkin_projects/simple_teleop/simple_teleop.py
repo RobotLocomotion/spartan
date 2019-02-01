@@ -39,17 +39,6 @@ import math
 from teleop_mouse_manager import TeleopMouseManager
 
 
-# Control of robot works like this:
-#   When the user is pressing no buttons on the right
-#   controller, nothing happens.
-#   When the user presses on the trackpad of the right controller
-#   (button 2), the current controller pose
-#   is memorized as the origin. Any movement of the
-#   controller from there is executed as incremental
-#   movements of the end effector of the robot.
-#   When the user releases the trackpad, control
-#   is ceased and pressing the button again re-zeros the robot.
-
 def make_cartesian_gains_msg(kp_rot, kp_trans):
     msg = robot_msgs.msg.CartesianGain()
 
@@ -114,22 +103,28 @@ def do_main():
 
     # Start by moving to an above-table pregrasp pose that we know
     # EE control will work well from (i.e. far from singularity)
-    above_table_pre_grasp = [0.04486168762069299, 0.3256606458812486, -0.033502080520812445, -1.5769091802934694, 0.05899249087322813, 1.246379583616529, 0.38912999977004026]
+
+    stored_poses_dict = spartan_utils.getDictFromYamlFilename("../station_config/RLG_iiwa_1/stored_poses.yaml")
+    above_table_pre_grasp = stored_poses_dict["Grasping"]["above_table_pre_grasp"]
+    
     robotService = ros_utils.RobotService.makeKukaRobotService()
     success = robotService.moveToJointPosition(above_table_pre_grasp, timeout=5)
     print("Moved to position")
 
     gripper_goal_pos = 0.0
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.0001, timeout=0.01)
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.01, timeout=0.01)
     print("sent close goal to gripper")
     time.sleep(1)
     gripper_goal_pos = 0.1
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.0001, timeout=0.01)
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.01, timeout=0.01)
     print("sent open goal to gripper")
 
     frame_name = "iiwa_link_ee" # end effector frame name
 
     for i in range(10):
+        if i == 9:
+            print "Couldn't find robot pose"
+            sys.exit(0)
         try:
             ee_pose_above_table = ros_utils.poseFromROSTransformMsg(
                 tfBuffer.lookup_transform("base", frame_name, rospy.Time()).transform)
@@ -172,11 +167,7 @@ def do_main():
     br = tf.TransformBroadcaster()
     rate = rospy.Rate(100) # max rate at which control should happen
 
-    illegal_move = False
-
     try:
-        # variables to track when we lasted updated gripper and if we are moving arm
-        last_gripper_update_time = time.time()
 
         # control loop
         while not rospy.is_shutdown():
@@ -189,7 +180,6 @@ def do_main():
 
             if (result.plan_number != plan_number):
                 print "Illegal move, restarting plan"
-                illegal_move = True
                 sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
                     robot_msgs.srv.StartStreamingPlan)
                 init = robot_msgs.srv.StartStreamingPlanRequest()
@@ -228,7 +218,7 @@ def do_main():
                 roll_goal += 0.01
             if mouse_events["rotate_right"]:
                 roll_goal -= 0.01
-            roll_goal = np.clip(roll_goal, a_min = -0.5, a_max = 0.5)
+            roll_goal = np.clip(roll_goal, a_min = -0.9, a_max = 0.9)
 
             R = transformations.euler_matrix(0.0, roll_goal, 0.0, 'syxz')
             # third is "yaw", when in above table pre-grasp
