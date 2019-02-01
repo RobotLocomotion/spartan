@@ -100,6 +100,7 @@ def do_main():
     # init mouse manager
     mouse_manager = TeleopMouseManager()
     roll_goal = 0.0
+    yaw_goal = 0.0
 
     # Start by moving to an above-table pregrasp pose that we know
     # EE control will work well from (i.e. far from singularity)
@@ -219,8 +220,17 @@ def do_main():
             if mouse_events["rotate_right"]:
                 roll_goal -= 0.01
             roll_goal = np.clip(roll_goal, a_min = -0.9, a_max = 0.9)
+            
+            if mouse_events["side_button_back"]:
+                yaw_goal += 0.02
+                print("side button back")
+            if mouse_events["side_button_forward"]:
+                yaw_goal -= 0.02
+                print("side side_button_forward")
+            yaw_goal = np.clip(yaw_goal, a_min = -1.314, a_max = 1.314)
 
-            R = transformations.euler_matrix(0.0, roll_goal, 0.0, 'syxz')
+
+            R = transformations.euler_matrix(0.0, roll_goal, yaw_goal, 'syxz')
             # third is "yaw", when in above table pre-grasp
             # second is "roll", ''
             # first must be "pitch"
