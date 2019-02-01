@@ -52,6 +52,10 @@ class TeleopMouseManager():
             s = True
         if keys[K_d]:
             d = True
+
+        r = False
+        if keys[K_r]:
+            r = True
             
         
         delta_x, delta_y = pygame.mouse.get_rel()
@@ -64,6 +68,7 @@ class TeleopMouseManager():
         mouse_events["a"] = a
         mouse_events["s"] = s
         mouse_events["d"] = d
+        mouse_events["r"] = r
         mouse_events["mouse_wheel_up"] = mouse_wheel_up
         mouse_events["mouse_wheel_down"] = mouse_wheel_down
         mouse_events["rotate_left"] = rotate_left
