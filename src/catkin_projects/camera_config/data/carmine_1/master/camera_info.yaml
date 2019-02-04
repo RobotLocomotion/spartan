@@ -1,30 +1,30 @@
 depth:
   extrinsics:
-    reference_link_name: wsg_50_base_link
+    reference_link_name: base
     transform_to_reference_link:
       quaternion:
-        w: 0.003120422877553472
-        x: -0.004474892928722832
-        y: -0.033441526906883005
-        z: 0.9994257864256242
+        w: -0.49284369
+        x: 0.50803435
+        y: 0.50240645
+        z: -0.49658227
       translation:
-        x: 0.04188847996126277
-        y: -0.06005248919751252
-        z: 0.049200560492642556
+        x: 1.93756128
+        y: 0.0144251
+        z: 0.23048248
 header:
   calibration_date: ignored
   camera_name: carmine_1
   serial_number: 0
 rgb:
   extrinsics:
-    reference_link_name: wsg_50_base_link
+    reference_link_name: base
     transform_to_reference_link:
       quaternion:
-        w: 0.007786067816581549
-        x: 0.0010012811869830765
-        y: -0.031446879258489706
-        z: 0.9994745961598238
+        w: -0.49284369
+        x: 0.50803435
+        y: 0.50240645
+        z: -0.49658227
       translation:
-        x: 0.014819967828323797
-        y: -0.05968869260174448
-        z: 0.04692579594511947
+        x: 1.93756128
+        y: 0.0144251
+        z: 0.23048248
