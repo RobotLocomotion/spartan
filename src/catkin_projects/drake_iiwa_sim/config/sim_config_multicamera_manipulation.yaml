@@ -5,19 +5,14 @@ cameras:
   - name: "carmine_1"
     channel: "/test"
     config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/carmine_1/master"    
-    mounting_model_name: "gripper"
-    mounting_body_name: "body"
-    # gripper::body doesn't align with wsg_50_base_link by approximately this tf...
-    mounting_correction:
-      quaternion:
-        w: 0.7071
-        x: -0.7071
-        y: 0.0
-        z: 0.0
-      translation:
-        x: 0.00
-        y: -0.0325
-        z: 0.0
+    mounting_model_name: "iiwa"
+    mounting_body_name: "iiwa_link_0"
+  - name: "carmine_3"
+    channel: "/test2"
+    config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/carmine_3/master"    
+    mounting_model_name: "iiwa"
+    mounting_body_name: "iiwa_link_0"
+
 
 models:
   plate_11in_decomp: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_11in_decomp/plate_11in_decomp.urdf"
