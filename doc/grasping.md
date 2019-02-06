@@ -28,5 +28,3 @@ graspSupervisor.test_request_spartan_grasp()
 #### Params
 There are many parameters governing grasping behavior. They live in [`params.yaml`](https://github.com/RobotLocomotion/spartan/blob/master/src/catkin_projects/station_config/RLG_iiwa_1/manipulation/params.yaml)
 
-
-

@@ -11,6 +11,7 @@ import cv2
 
 # ROS
 import rospy
+import actionlib
 import geometry_msgs.msg
 import sensor_msgs.msg
 from cv_bridge import CvBridge
@@ -387,6 +388,14 @@ class RobotService(object):
     def __init__(self, jointNames):
         self.jointNames = jointNames
         self.numJoints = len(jointNames)
+        self._setup_ROS_actions()
+
+    def _setup_ROS_actions(self):
+        """
+        Initializes the ROS actions
+        :return:
+        """
+        self._cartesian_trajectory_action_client = actionlib.SimpleActionClient("plan_runner/CartesianTrajectory", robot_msgs.msg.CartesianTrajectoryAction)
 
     def moveToJointPosition(self, q, maxJointDegreesPerSecond=30, timeout=10):
         assert len(q) == self.numJoints
@@ -436,6 +445,10 @@ class RobotService(object):
 
         rospy.loginfo("ik was successful = %s", response.success)
         return response
+
+    @property
+    def cartesian_trajectory_action_client(self):
+        return self._cartesian_trajectory_action_client
 
     @staticmethod
     def jointPositionToJointStateMsg(jointNames, jointPositions):
