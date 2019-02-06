@@ -181,12 +181,22 @@ group "8.ROS" {
 group "9.iiwa_sim" {
 
   cmd "0.drake_iiwa_sim" {
-    exec = "$SPARTAN_INSTALL_DIR/lib/drake_iiwa_sim/iiwa_sim";
+    exec = "bash -c 'rosrun drake_iiwa_sim kuka_schunk_station_simulation -config $(rospack find drake_iiwa_sim)/config/sim_config_multicamera_manipulation.yaml'";
     host = "localhost";
   }
 
-  cmd "1.ROS-state-translator" {
+  cmd "1.IIWA-ROS-state-translator" {
     exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_ros_state_translator.py";
+    host = "localhost";
+  }
+
+  cmd "2.Schunk-ROS-state-translator" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/schunk_ros_state_translator.py";
+    host = "localhost";
+  }
+
+  cmd "3.ROS-OpenNI-drake-iiwa-sim" {
+    exec = "roslaunch camera_config openni2_drake_iiwa_sim.launch camera_serial_number:=carmine_1";
     host = "localhost";
   }
 
@@ -264,7 +274,12 @@ script "6.start_drake_iiwa_sim"
 {
   start cmd "0.roscore";
   wait ms 3000;
-  start group "8.ROS";
+
+  start cmd "2.ROS Model and TF Publisher";
+  start cmd "3.rviz";
+  start cmd "4.Robot Movement Service";
+  start cmd "5.IK Service";
+  start cmd "8.fusion_server";
 
   start group "9.iiwa_sim";
   start cmd "1.plan-runner";

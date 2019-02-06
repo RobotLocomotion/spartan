@@ -19,6 +19,10 @@
 namespace drake {
 namespace robot_plan_runner {
 
+double ToRadians(double degrees) {
+  return degrees * M_PI / 180.;
+}
+
 typedef spartan::drake_robot_control::ForceGuard ForceGuard;
 typedef spartan::drake_robot_control::TotalExternalTorqueGuard
     TotalExternalTorqueGuard;
@@ -89,7 +93,9 @@ RobotPlanRunner::GetInstance(ros::NodeHandle &nh,
       !config["num_joints"] || !config["robot_ee_body_name"] ||
       !config["robot_urdf_path"] ||
       !config["joint_speed_limit_degree_per_sec"] ||
-      !config["control_period_s"]) {
+      !config["control_period_s"] ||
+      !config["joint_limit_tolerance"] ||
+      !config["joint_limits"]) {
     std::cerr << "Config file missing one or more fields." << std::endl;
     std::exit(1);
   }
@@ -108,10 +114,7 @@ RobotPlanRunner::GetInstance(ros::NodeHandle &nh,
       config["robot_ee_body_name"].as<std::string>(),
       config["num_joints"].as<int>(),
       config["joint_speed_limit_degree_per_sec"].as<double>(),
-      config["control_period_s"].as<double>(), std::move(tree), nh);
-
-  // store the config locally
-  ptr->config_ = config;
+      config["control_period_s"].as<double>(), config, std::move(tree), nh);
 
   return std::move(ptr);
 }
@@ -121,18 +124,20 @@ RobotPlanRunner::RobotPlanRunner(
     const std::string &lcm_command_channel, const std::string &lcm_plan_channel,
     const std::string &lcm_stop_channel, const std::string &robot_ee_body_name,
     int num_joints, double joint_speed_limit_deg_per_sec, double control_period,
+    YAML::Node config,
     std::unique_ptr<const RigidBodyTreed> tree, ros::NodeHandle &nh)
     : kLcmStatusChannel_(lcm_status_channel),
       kLcmCommandChannel_(lcm_command_channel),
       kLcmPlanChannel_(lcm_plan_channel), kLcmStopChannel_(lcm_stop_channel),
       kRobotEeBodyName_(robot_ee_body_name), kNumJoints_(num_joints),
       kJointSpeedLimitDegPerSec_(joint_speed_limit_deg_per_sec),
-      kControlPeriod_(control_period), tree_(std::move(tree)), nh_(nh),
+      kControlPeriod_(control_period), config_(config), tree_(std::move(tree)), nh_(nh),
       plan_number_(0), tf_listener_(tf_buffer_),
       terminate_current_plan_flag_(false) {
 
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_positions());
   DRAKE_DEMAND(kNumJoints_ == tree_->get_num_actuators());
+  this->LoadJointLimits();
   plan_number_ = 0;
   new_plan_ = nullptr;
   current_robot_state_.resize(kNumJoints_ * 2, 1);
@@ -291,6 +296,34 @@ Eigen::VectorXd RobotPlanRunner::get_current_robot_velocity() {
   return current_robot_state_.tail(kNumJoints_);
 }
 
+void RobotPlanRunner::LoadJointLimits(){
+  joint_limit_tolerance_ = ToRadians(config_["joint_limit_tolerance"].as<double>());
+  joint_limits_min_ = Eigen::VectorXd::Zero(kNumJoints_);
+  joint_limits_max_ = Eigen::VectorXd::Zero(kNumJoints_);
+
+  // iterate through all the joints
+  for (int i = 0; i < kNumJoints_; i++){
+    std::string joint_name = tree_->get_position_name(i);
+    joint_limits_min_[i] = ToRadians(config_["joint_limits"][joint_name][0].as<double>()) +
+        joint_limit_tolerance_;
+    joint_limits_max_[i] = ToRadians(config_["joint_limits"][joint_name][1].as<double>()) -
+        joint_limit_tolerance_;
+
+//    std::cout << "\njoint_name = " << joint_name << std::endl;
+//    std::cout << joint_limits_min_[i] << " " << joint_limits_max_[i] << std::endl;
+
+  }
+
+}
+
+Eigen::VectorXd RobotPlanRunner::ApplyJointLimits(const Eigen::VectorXd & q_commanded){
+  Eigen::VectorXd q_clamp = q_commanded.cwiseMax(joint_limits_min_);
+  q_clamp = q_clamp.cwiseMin(joint_limits_max_);
+  return q_clamp;
+}
+
+
+
 void RobotPlanRunner::ReceiveRobotStatus() {
   // lock mutex when printing so that the text is not mangled (by printing in
   // another thread).
@@ -424,7 +457,11 @@ void RobotPlanRunner::PublishCommand() {
 
       // use the last commanded robot position
       plan_local = JointSpaceTrajectoryPlan::MakeHoldCurrentPositionPlan(
-          tree_, current_position_commanded_);
+          tree_, prev_position_command);
+
+      // update the plan number manually since we aren't using the
+      // QueueNewPlan function
+      plan_local->plan_number_ = plan_number_++;
     }
 
     // special logic if the plan is new, i.e. not yet in state RUNNING
@@ -438,6 +475,10 @@ void RobotPlanRunner::PublishCommand() {
     cur_plan_time_s = static_cast<double>(cur_time_us - start_time_us) / 1e6;
     plan_local->Step(current_robot_state, cur_tau_external, cur_plan_time_s,
                      &q_commanded, &v_commanded, &tau_commanded);
+
+    // apply joint limits
+    q_commanded = this->ApplyJointLimits(q_commanded);
+
     plan_local->SetCurrentCommand(q_commanded, tau_commanded);
 
     // Discard current plan if commanded position is "too far away" from

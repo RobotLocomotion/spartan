@@ -26,8 +26,10 @@
 import argparse
 from copy import deepcopy
 import math
+import matplotlib.pyplot as plt
 import numpy as np
 import os
+import random
 import re
 import rospy
 import pybullet
@@ -43,6 +45,8 @@ from drake import lcmt_iiwa_command, lcmt_iiwa_status ,lcmt_robot_state
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
 import spartan.utils.cv_utils as cvUtils
+import spartan.utils.transformations as transformations
+import spartan.utils.mesh_creation as mesh_creation
 import wsg_50_common.msg
 
 # Comms from camera
@@ -53,7 +57,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 # Visualization to Director
 import pydrake
-import pydrake.rbtree
+import pydrake.multibody.rigid_body_tree
 #import RemoteTreeViewerWrapper_pybind as Rtv
 
 # Loading URDFs from ROS package paths
@@ -140,9 +144,9 @@ def load_pybullet_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = 
                     out_file.write(full_text[curr_ind:-1])
             full_path = "/tmp/resolved_urdf.urdf"
 
-        return pybullet.loadURDF(full_path, basePosition=position, baseOrientation=quaternion, useFixedBase=fixed)
+        return [pybullet.loadURDF(full_path, basePosition=position, baseOrientation=quaternion, useFixedBase=fixed)]
     elif ext == "sdf":
-        print "Loading ", full_path, " as SDF in pos ", position
+        print "Loading ", full_path, " BUT POSITION, QUAT, AND FIXED IS IGNORED"
         return pybullet.loadSDF(full_path)
     else:
         print "Unknown extension in path ", full_path, ": ", ext
@@ -151,7 +155,7 @@ def load_pybullet_from_urdf_or_sdf(inp_path, position = [0, 0, 0], quaternion = 
 
 def load_drake_from_urdf_or_sdf(inp_path):
     full_path = os.path.expandvars(inp_path)
-    return pydrake.rbtree.RigidBodyTree(full_path, floating_base_type=pydrake.rbtree.kRollPitchYaw)
+    return pydrake.multibody.rigid_body_tree.RigidBodyTree(full_path, floating_base_type=pydrake.multibody.rigid_body_tree.kRollPitchYaw)
 
 class RgbdCameraMetaInfo():
     def __init__(self, camera_serial, linkNameToJointIdMap):
@@ -315,7 +319,7 @@ class IiwaRlgSimulator():
             q0 = config["robot"]["base_pose"]
             position = q0[0:3]
             quaternion = pybullet.getQuaternionFromEuler(q0[3:6])
-            self.kuka_id = load_pybullet_from_urdf_or_sdf(kIiwaUrdf, position, quaternion, True, self.packageMap)
+            self.kuka_id = load_pybullet_from_urdf_or_sdf(kIiwaUrdf, position, quaternion, True, self.packageMap)[0]
 
             for obj_id in range(-1, pybullet.getNumJoints(self.kuka_id)):
                 print "Dynamic info for body %d, %d:" % (self.kuka_id, obj_id)
@@ -330,21 +334,70 @@ class IiwaRlgSimulator():
         self.object_ids = []
 
         # Add each model as requested
-        self.rbts = []
+#        self.rbts = []
         for instance in config["instances"]:
             q0 = instance["q0"]
             position = q0[0:3]
             quaternion = pybullet.getQuaternionFromEuler(q0[3:8])
             fixed = instance["fixed"]
-            self.object_ids.append(load_pybullet_from_urdf_or_sdf(model_dict[instance["model"]], position, quaternion, fixed))
+            self.object_ids += load_pybullet_from_urdf_or_sdf(model_dict[instance["model"]], position, quaternion, fixed)
             # Report all friction properties
             for obj_id in range(-1, pybullet.getNumJoints(self.object_ids[-1])):
                 print "Dynamic info for body %d, %d:" % (self.object_ids[-1], obj_id)
                 print pybullet.getDynamicsInfo(self.object_ids[-1], obj_id)
                 pybullet.changeDynamics(self.object_ids[-1], obj_id, lateralFriction=0.9, spinningFriction=0.9, frictionAnchor=0)
 
-            self.rbts.append(load_drake_from_urdf_or_sdf(model_dict[instance["model"]]))
+#            self.rbts.append(load_drake_from_urdf_or_sdf(model_dict[instance["model"]]))
 
+        # Add dynamic models
+        if "dynamic_instances" in config.keys():
+            for instance in config["dynamic_instances"]:
+                class_name = instance["class"]
+                if class_name == "half_carrot":
+                    n_range = instance["n_range"]
+                    radius_range = instance["radius_range"]
+                    height_range = instance["height_range"]
+                    x_range = instance["x_range"]
+                    y_range = instance["y_range"]
+                    z_range = instance["z_range"]
+
+                    n_pieces = np.random.randint(low=n_range[0], high=n_range[1])
+                    for k in range(n_pieces):
+                        radius = np.random.uniform(
+                            low=radius_range[0], high=radius_range[1])
+                        height = np.random.uniform(
+                            low=height_range[0], high=height_range[1])
+                        x = np.random.uniform(
+                            low=x_range[0], high=x_range[1])
+                        y = np.random.uniform(
+                            low=y_range[0], high=y_range[1])
+                        z = np.random.uniform(
+                            low=z_range[0], high=z_range[1])
+                        position = np.array([x, y, z])
+                        # Uniform random rotation
+                        quaternion = np.random.random(4)*2. - 1.
+                        quaternion /= np.linalg.norm(quaternion)
+
+                        mesh = mesh_creation.create_cut_cylinder(
+                          radius=radius,
+                          height=height,
+                          cutting_planes=[([0., 0., 0.], [1., 0., 0.])],
+                          sections=10)
+                        filename = "carrot_half_%d" % k
+                        mesh_creation.export_urdf(
+                            mesh, filename, "/tmp", color=plt.cm.Wistia(float(k)/n_pieces))
+
+                        self.object_ids += load_pybullet_from_urdf_or_sdf("/tmp/%s.urdf" % filename, position, quaternion, False)
+                        print "new id at end: ", self.object_ids
+                        # Report all friction properties
+                        for obj_id in range(-1, pybullet.getNumJoints(self.object_ids[-1])):
+                            print "Dynamic info for body %d, %d:" % (self.object_ids[-1], obj_id)
+                            print pybullet.getDynamicsInfo(self.object_ids[-1], obj_id)
+                            pybullet.changeDynamics(self.object_ids[-1], obj_id, lateralFriction=0.9, spinningFriction=0.9, frictionAnchor=0)
+
+                else:
+                    raise ValueError("Configuration asks for unknown dynamic instace"
+                                     " type %s." % class_name)
         # Set up camera info (which relies on having models loaded
         # so we know where to mount the camera)
         self.rgbd_info = RgbdCameraMetaInfo(self.camera_serial_number, self.link_to_joint_id_map)
@@ -413,7 +466,7 @@ class IiwaRlgSimulator():
         self.schunk_command_lock.acquire()
         try:
             self.last_schunk_position_command = [-msg.goal.command.width*0.5, msg.goal.command.width*0.5]
-            self.last_schunk_torque_command = [msg.goal.command.force*10, msg.goal.command.force*10]
+            self.last_schunk_torque_command = [msg.goal.command.force, msg.goal.command.force]
         except Exception as e:
             print "Exception ", e, " in ros schunk command handler"
         self.schunk_command_lock.release()
@@ -645,7 +698,7 @@ class IiwaRlgSimulator():
                 controlMode=pybullet.POSITION_CONTROL,
                 targetPositions=schunk_position_command,
                 forces=schunk_torque_command,
-                positionGains=[1000., 1000.]
+                positionGains=[5., 5.]
                 )
 
             # Do a sim step
@@ -707,7 +760,11 @@ if __name__ == "__main__":
     parser.add_argument("--rgbd_normal_limit", help="Threshold for rejecting high-normal depth returns. (Smaller is more stringent, 0.0 to turn off.)", type=float, default=0.05)
     parser.add_argument("--headless", help="Run without GUI.", action="store_true")
     parser.add_argument("--camera_serial_number", type=str, default="carmine_1", )
+    parser.add_argument("--seed", type=int, default=(time.time()*1000)%(2**16))
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    np.random.seed(int(args.seed))
 
     rospy.init_node('pybullet_iiwa_rlg_simulation', anonymous=True)
 

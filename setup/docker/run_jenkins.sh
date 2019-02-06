@@ -41,7 +41,7 @@ fi
 use_spartan
 
 # Launch a fake X-server in the background
-Xvfb :100 -ac &
+Xvfb :100 -screen 0 1280x1024x24 -ac +extension GLX +render -noreset &
 
 # Run Spartan modules test.
 # These tests *must* be run forked (as in, each test

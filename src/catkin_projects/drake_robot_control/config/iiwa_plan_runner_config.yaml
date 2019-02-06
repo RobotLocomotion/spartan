@@ -11,3 +11,13 @@ control_period_s: 0.005
 task_space_plan:
   kp_rotation: [10, 10, 10] # orientation P gains
   kp_translation: [5, 5, 5] # translation P gains
+
+joint_limit_tolerance: 5.0 # subtract this from measured joint limits before sending command
+joint_limits:
+  iiwa_joint_1: [-170, 170]
+  iiwa_joint_2: [-120, 120]
+  iiwa_joint_3: [-170, 170]
+  iiwa_joint_4: [-120, 120]
+  iiwa_joint_5: [-170, 170]
+  iiwa_joint_6: [-120, 120]
+  iiwa_joint_7: [-175, 175]
