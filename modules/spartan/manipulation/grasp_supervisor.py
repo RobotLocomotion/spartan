@@ -339,6 +339,9 @@ class GraspSupervisor(object):
         category_manipulation_name = "/CategoryManipulation"
         self.category_manip_client = actionlib.SimpleActionClient(category_manipulation_name, pdc_ros_msgs.msg.CategoryManipulationAction)
 
+        action_name = "/KeypointDetection"
+        self.keypoint_detection_client = actionlib.SimpleActionClient(action_name, pdc_ros_msgs.msg.KeypointDetectionAction)
+
     def setupTF(self):
         if self.tfBuffer is None:
             self.tfBuffer = tf2_ros.Buffer()
@@ -572,6 +575,43 @@ class GraspSupervisor(object):
         self._cache['poser_result'] = result
 
         self.taskRunner.callOnMain(self.visualize_poser_result)
+
+    def run_keypoint_detection(self):
+        """
+        Runs keypoint detection using ManKey in pdc-ros
+        :return:
+        :rtype:
+        """
+
+        rgbdWithPoseMsg = self.captureRgbdAndCameraTransform()
+        listOfRgbdWithPoseMsg = [rgbdWithPoseMsg]
+        self.list_rgbd_with_pose_msg = listOfRgbdWithPoseMsg
+
+        # request via a ROS Action
+        rospy.loginfo("waiting for KeypointDetection server")
+        self.keypoint_detection_client.wait_for_server()
+        rospy.loginfo("connected to KeypointDetection server")
+
+        goal = pdc_ros_msgs.msg.KeypointDetectionGoal()
+        goal.rgbd_with_pose_list = listOfRgbdWithPoseMsg
+        goal.camera_info = self.camera_info_subscriber.waitForNextMessage()
+
+        rospy.loginfo("requesting action from KeypointDetection server")
+
+        self.keypoint_detection_client.send_goal(goal)
+        self.moveHome()
+
+        # rospy.loginfo("waiting for KeypointDetection result")
+        # self.keypoint_detection_client.wait_for_result()
+        # result = self.poser_client.get_result()
+        # rospy.loginfo("received KeypointDetection result")
+        #
+        # print "result:\n", result
+        #
+        # self.poser_result = result
+        # self._cache['poser_result'] = result
+
+
 
     def run_category_manipulation_goal_estimation(self):
         """
@@ -1904,6 +1944,9 @@ class GraspSupervisor(object):
 
     def test_run_category_manipulation_goal_estimation(self):
         self.taskRunner.callOnThread(self.run_category_manipulation_goal_estimation)
+
+    def test_run_keypoint_detection(self):
+        self.taskRunner.callOnThread(self.run_keypoint_detection)
 
 
     def loadDefaultPointCloud(self):
