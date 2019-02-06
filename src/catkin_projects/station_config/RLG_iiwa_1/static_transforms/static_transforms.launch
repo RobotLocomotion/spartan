@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<launch>
+    <include file="$(find station_config)/RLG_iiwa_1/static_transforms/gripper_frames.launch" />
+</launch>

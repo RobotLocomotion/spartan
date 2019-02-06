@@ -2,12 +2,18 @@
 import os
 import time 
 
+# director
+import director.objectmodel as om
+import director.visualization as vis
+from director import ioUtils
+
 # spartan
 import spartan.manipulation.grasp_supervisor
 import spartan.manipulation.background_subtraction
 import spartan.calibration.handeyecalibration
 import spartan.utils.utils as spartanUtils
-
+from spartan.manipulation.object_manipulation import ObjectManipulation
+from spartan.poser.poser_visualizer import PoserVisualizer
 
 from spartan.utils.taskrunner import TaskRunner
 
@@ -60,3 +66,30 @@ def setupRLGDirector(globalsDict=None):
     # set rate limit on RemoteTreeViewer
     # fix for https://github.com/RobotLocomotion/spartan/issues/244
     globalsDict['treeViewer'].subscriber.setSpeedLimit(5)
+
+
+    # load background scene if it exists
+    background_ply_file = os.path.join(spartanUtils.get_data_dir(), 'pdc', 'logs_special',
+        '2019-01-03-22-43-55', 'processed', 'fusion_mesh.ply')
+
+    def visualize_background():
+        if not os.path.exists(background_ply_file):
+            return
+
+
+        parent = om.getOrCreateContainer("scene")
+        poly_data = ioUtils.readPolyData(background_ply_file)
+        vis.updatePolyData(poly_data, 'table', parent=parent)
+
+
+    visualize_background()
+
+    poser_vis = PoserVisualizer.make_default()
+    object_manip = ObjectManipulation()
+    globalsDict['object_manip'] = object_manip
+    globalsDict['o'] = object_manip
+    globalsDict['poser_vis'] = poser_vis
+
+
+
+

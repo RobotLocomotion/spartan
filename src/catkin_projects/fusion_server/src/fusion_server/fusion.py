@@ -756,7 +756,6 @@ class FusionServer(object):
             processed_dir = os.path.join(log_dir, 'processed')
             images_dir = os.path.join(processed_dir, 'images')
 
-
         print "Using images_dir %s" % (images_dir)
         image_capture = ImageCapture(rgb_topic, depth_topic, camera_info_topic,
             self.config['camera_frame'], self.config['world_frame'], rgb_encoding='bgr8')

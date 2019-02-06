@@ -4,9 +4,11 @@ from __future__ import print_function
 import argparse
 import os
 import getpass
+import yaml
+import socket
+
 
 user_name = getpass.getuser()
-
 DATA_DIRECTORY_ON_HOST = '/home/'+user_name+'/data/spartan'
 
 if __name__=="__main__":
@@ -60,9 +62,29 @@ if __name__=="__main__":
 	cmd += " --user %s " % user_name                                                    # login as current user
 
 	# mount the data volume
-	if True:
-		os.system("mkdir -p " + DATA_DIRECTORY_ON_HOST)
-		cmd += " -v %s:%s/data_volume " %(DATA_DIRECTORY_ON_HOST, spartan_source_dir)
+
+    data_directory_host_machine = None
+    sandbox_directory_host_machine = None
+
+    if host_name in config_yaml:
+        if user_name in config_yaml[host_name]:
+            data_directory_host_machine = config_yaml[host_name][user_name]["path_to_data_directory"]
+
+            if "path_to_sandbox_directory" in config_yaml[host_name][user_name]:
+                sandbox_directory_host_machine = config_yaml[host_name][user_name]["path_to_sandbox_directory"]
+
+    if data_directory_host_machine is None:
+        data_directory_host_machine = '/home/' + user_name + '/data'
+
+    os.system("mkdir -p " + data_directory_host_machine)
+    cmd += " -v %s:%s/data_volume " % (data_directory_host_machine, spartan_source_dir)
+
+    if sandbox_directory_host_machine is None:
+        sandbox_directory_host_machine = os.path.join('~', 'sandbox')
+        if not os.path.exists(sandbox_directory_host_machine):
+            os.makedirs(sandbox_directory_host_machine)
+
+    cmd += " -v %s:%s/sandbox " % (sandbox_directory_host_machine, home_directory)
 
 	# expose UDP ports
 	if not args.no_udp:

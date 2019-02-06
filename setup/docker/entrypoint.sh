@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+export SPARTAN_SANDBOX_DIR=~/sandbox
+export POSER_SANDBOX_DIR=$SPARTAN_SANDBOX_DIR/poser
+
+
 function use_spartan()
 {
 	. ~/spartan/build/setup_environment.sh
