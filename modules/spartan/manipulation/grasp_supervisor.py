@@ -156,6 +156,10 @@ class GraspSupervisor(object):
         self._object_manipulation = None
 
 
+        filename = os.path.join(os.path.join(spartanUtils.getSpartanSourceDir(), 'src/catkin_projects/station_config/RLG_iiwa_1/stored_poses.yaml'))
+        self._stored_poses_director = spartanUtils.getDictFromYamlFilename(filename)
+
+
         if USING_DIRECTOR:
             self.taskRunner = TaskRunner()
             self.taskRunner.callOnThread(self.setup)
@@ -546,6 +550,8 @@ class GraspSupervisor(object):
         """
         # self.moveHome()
 
+
+
         rgbdWithPoseMsg = self.captureRgbdAndCameraTransform()
         listOfRgbdWithPoseMsg = [rgbdWithPoseMsg]
         self.list_rgbd_with_pose_msg = listOfRgbdWithPoseMsg
@@ -583,6 +589,10 @@ class GraspSupervisor(object):
         :rtype:
         """
 
+        # q = self._stored_poses_director['General']['center_back']
+        # self.robotService.moveToJointPosition(q,
+        #                                       maxJointDegreesPerSecond=self.graspingParams['speed']['nominal'])
+
         rgbdWithPoseMsg = self.captureRgbdAndCameraTransform()
         listOfRgbdWithPoseMsg = [rgbdWithPoseMsg]
         self.list_rgbd_with_pose_msg = listOfRgbdWithPoseMsg
@@ -601,15 +611,13 @@ class GraspSupervisor(object):
         self.keypoint_detection_client.send_goal(goal)
         self.moveHome()
 
-        # rospy.loginfo("waiting for KeypointDetection result")
-        # self.keypoint_detection_client.wait_for_result()
-        # result = self.poser_client.get_result()
-        # rospy.loginfo("received KeypointDetection result")
-        #
-        # print "result:\n", result
-        #
-        # self.poser_result = result
-        # self._cache['poser_result'] = result
+        rospy.loginfo("waiting for KeypointDetection result")
+        self.keypoint_detection_client.wait_for_result()
+        result = self.keypoint_detection_client.get_result()
+        rospy.loginfo("received KeypointDetection result")
+        
+        print "result:\n", result
+        self._cache['keypoint_detection_result'] = result
 
 
 
