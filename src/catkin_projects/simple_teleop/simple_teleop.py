@@ -114,11 +114,11 @@ def do_main():
     print("Moved to position")
 
     gripper_goal_pos = 0.0
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.01, timeout=0.01)
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
     print("sent close goal to gripper")
     time.sleep(1)
     gripper_goal_pos = 0.1
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.01, timeout=0.01)
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
     print("sent open goal to gripper")
 
     frame_name = "iiwa_link_ee" # end effector frame name
@@ -164,44 +164,52 @@ def do_main():
         print sp(init)
         print("Done cleaning up and stopping streaming plan")
 
-
     rospy.on_shutdown(cleanup)
     br = tf.TransformBroadcaster()
     rate = rospy.Rate(100) # max rate at which control should happen
 
-    try:
 
-        # control loop
+    ee_tf_last_commanded = np.zeros((4,4))
+    def get_initial_pose():
         while not rospy.is_shutdown():
-
-            # Check if plan ended
-            goal = robot_msgs.msg.GetPlanNumberGoal()
-            client.send_goal(goal)   
-            client.wait_for_result()
-            result = client.get_result()
-
-            if (result.plan_number != plan_number):
-                print "Illegal move, restarting plan"
-                sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
-                    robot_msgs.srv.StartStreamingPlan)
-                init = robot_msgs.srv.StartStreamingPlanRequest()
-                init.force_guard.append(make_force_guard_msg(20.))
-                res = sp(init)
-                
-                plan_number = res.plan_number                
-
-
             # get current tf from ros world to ee
             try:
                 ee_pose_current = ros_utils.poseFromROSTransformMsg(
                     tfBuffer.lookup_transform("base", frame_name, rospy.Time()).transform)
-                ee_tf_current = tf_matrix_from_pose(ee_pose_current)
+                ee_tf_last_commanded = tf_matrix_from_pose(ee_pose_current)
+                return ee_tf_last_commanded
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 print("Troubling looking up robot pose...")
                 rate.sleep()
                 continue
 
-            # get teleop mouse
+    print ee_tf_last_commanded
+    ee_tf_last_commanded = get_initial_pose()
+    print ee_tf_last_commanded
+   
+    try:
+
+        # control loop
+        while not rospy.is_shutdown():
+
+            #Check if plan ended
+            # goal = robot_msgs.msg.GetPlanNumberGoal()
+            # client.send_goal(goal)   
+            # client.wait_for_result()
+            # result = client.get_result()
+
+            # if (result.plan_number != plan_number):
+            #     print "Illegal move, restarting plan"
+            #     sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
+            #         robot_msgs.srv.StartStreamingPlan)
+            #     init = robot_msgs.srv.StartStreamingPlanRequest()
+            #     init.force_guard.append(make_force_guard_msg(20.))
+            #     res = sp(init)
+                
+            #     plan_number = res.plan_number                
+
+
+            # # get teleop mouse
             mouse_events = mouse_manager.get_mouse_events()
 
             if mouse_events["r"]:
@@ -209,15 +217,16 @@ def do_main():
                 roll_goal = 0.0
                 yaw_goal = 0.0
                 pitch_goal = 0.0
+                ee_tf_last_commanded = get_initial_pose()
                 continue
 
             
-            scale_down = 0.01
+            scale_down = 0.0001
             delta_x = mouse_events["delta_x"]*scale_down
             delta_y = mouse_events["delta_y"]*-scale_down
 
             delta_forward = 0.0
-            forward_scale = 0.03
+            forward_scale = 0.001
             if mouse_events["w"]:
                 delta_forward -= forward_scale
             if mouse_events["s"]:
@@ -255,7 +264,11 @@ def do_main():
 
             # calculate controller position delta and add to start position to get target ee position
             target_translation = np.asarray([delta_forward, delta_x, delta_y])
-            target_trans_ee = ee_tf_current[:3, 3] + target_translation
+            empty_matrx = np.zeros_like(ee_tf_last_commanded)
+            empty_matrx[:3, 3] = target_translation
+            ee_tf_last_commanded += empty_matrx
+            target_trans_ee = ee_tf_last_commanded[:3, 3]
+            
 
             # publish target pose as cartesian goal point
             new_msg = robot_msgs.msg.CartesianGoalPoint()
@@ -274,7 +287,7 @@ def do_main():
             new_msg.ee_frame_id = frame_name
             pub.publish(new_msg)
 
-            # gripper
+            #gripper
             if mouse_events["mouse_wheel_up"]:
                 gripper_goal_pos += 0.01
             if mouse_events["mouse_wheel_down"]:
