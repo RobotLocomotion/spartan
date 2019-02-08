@@ -579,6 +579,9 @@ class GraspSupervisor(object):
 
         self.poser_result = result
         self._cache['poser_result'] = result
+        self._cache['keypoint_detection_result'] = result
+        self._cache['keypoint_detection_type'] = "poser"
+        self._cache['keypoint_detection_output_dir'] = result.poser_output_folder
 
         self.taskRunner.callOnMain(self.visualize_poser_result)
 
@@ -615,22 +618,34 @@ class GraspSupervisor(object):
         self.keypoint_detection_client.wait_for_result()
         result = self.keypoint_detection_client.get_result()
         rospy.loginfo("received KeypointDetection result")
-        
+
+
         print "result:\n", result
+
+        self.keypoint_detection_result = result
         self._cache['keypoint_detection_result'] = result
+        self._cache['keypoint_detection_type'] = "mankey"
+        self._cache['keypoint_detection_output_dir'] = result.output_dir
+
 
 
 
     def run_category_manipulation_goal_estimation(self):
         """
         Calls the CategoryManipulation service of pdc-ros
-        whic is provided by category_manip_server.py
+        which is provided by category_manip_server.py.
+
+        Uses the keypoint detection result from either
+
+        `run_poser` or `run_keypoint_detection`
         :return:
         :rtype:
         """
 
         # don't specify poser output dir for now
         goal = pdc_ros_msgs.msg.CategoryManipulationGoal()
+        goal.output_dir = self._cache['keypoint_detection_output_dir']
+        goal.keypoint_detection_type = self._cache['keypoint_detection_type']
 
         rospy.loginfo("waiting for CategoryManip server")
         self.category_manip_client.wait_for_server()
@@ -655,7 +670,7 @@ class GraspSupervisor(object):
     def run_manipulate_object(self, debug=False):
         """
         Runs the object manipulation code. Will put the object into the
-        specified target pose
+        specified target pose from `run_category_manipulation_goal_estimation`
         :return:
         """
 
@@ -733,9 +748,9 @@ class GraspSupervisor(object):
         self.moveHome()
 
 
-
     def visualize_poser_result(self):
         """
+        DEPRECATED (this code is best used from pdc_ros)
         Visualize the poser output
         """
 
