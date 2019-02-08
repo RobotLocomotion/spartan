@@ -116,7 +116,7 @@ def do_main():
     gripper_goal_pos = 0.0
     handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
     print("sent close goal to gripper")
-    time.sleep(1)
+    time.sleep(2)
     gripper_goal_pos = 0.1
     handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
     print("sent open goal to gripper")
@@ -289,14 +289,15 @@ def do_main():
 
             #gripper
             if mouse_events["mouse_wheel_up"]:
-                gripper_goal_pos += 0.01
+                gripper_goal_pos += 0.006
             if mouse_events["mouse_wheel_down"]:
-                gripper_goal_pos -= 0.01
+                gripper_goal_pos -= 0.006
             if gripper_goal_pos < 0:
                 gripper_goal_pos = 0.0
             if gripper_goal_pos > 0.1:
                 gripper_goal_pos = 0.1
-            handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
+            
+            handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, stream=True)
 
             rate.sleep()
 

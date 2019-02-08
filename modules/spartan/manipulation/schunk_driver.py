@@ -38,7 +38,7 @@ class SchunkDriver(object):
         self.statusSubscriber.start(queue_size=1)
 
     def setupPublishers(self):
-        pass
+        self.streaming_pub = rospy.Publisher(self.commandTopic, wsg_50_common.msg.CommandGoal, queue_size=1);
 
     def setupActions(self):
         self.command_action_client = actionlib.SimpleActionClient(self.commandTopic, wsg_50_common.msg.CommandAction)
@@ -58,6 +58,9 @@ class SchunkDriver(object):
         result = self.command_action_client.get_result()
         self._last_result = result
         return result
+
+    def stream_goal(self, goal_msg):
+        self.command_action_client.send_goal(goal_msg)
 
     def setupDefaultMessages(self):
         # TODO(gizatt): Actually use the actionlib interface
@@ -86,14 +89,17 @@ class SchunkDriver(object):
     def sendCloseGripperCommand(self):
         return self.send_goal(self.closeGripperGoal)
 
-    def sendGripperCommand(self, width, force=40., speed=0.1, stop_on_block=False, timeout=2.0):
+    def sendGripperCommand(self, width, force=40., speed=0.1, stop_on_block=False, timeout=2.0, stream=False):
         goal = wsg_50_common.msg.CommandGoal()
         goal.command.command_id = wsg_50_common.msg.Command.MOVE
         goal.command.width = width
         goal.command.speed = speed
         goal.command.force = force
         goal.command.stop_on_block = stop_on_block
-        return self.send_goal(goal, timeout=timeout)
+        if not stream:
+            return self.send_goal(goal, timeout=timeout)
+        else:
+            return self.stream_goal(goal)
 
     def gripper_has_object(self):
         """
