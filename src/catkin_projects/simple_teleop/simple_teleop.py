@@ -240,17 +240,17 @@ def do_main():
             roll_goal = np.clip(roll_goal, a_min = -0.9, a_max = 0.9)
             
             if mouse_events["side_button_back"]:
-                yaw_goal += 0.02
+                yaw_goal += 0.01
                 print("side button back")
             if mouse_events["side_button_forward"]:
-                yaw_goal -= 0.02
+                yaw_goal -= 0.01
                 print("side side_button_forward")
             yaw_goal = np.clip(yaw_goal, a_min = -1.314, a_max = 1.314)
 
             if mouse_events["d"]:
-                pitch_goal += 0.02
+                pitch_goal += 0.01
             if mouse_events["a"]:
-                pitch_goal -= 0.02
+                pitch_goal -= 0.01
             pitch_goal = np.clip(pitch_goal, a_min = -1.314, a_max = 1.314)
 
 
@@ -297,7 +297,7 @@ def do_main():
             if gripper_goal_pos > 0.1:
                 gripper_goal_pos = 0.1
             
-            handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, stream=True)
+            handDriver.sendGripperCommand(gripper_goal_pos, speed=0.2, stream=True)
 
             rate.sleep()
 
