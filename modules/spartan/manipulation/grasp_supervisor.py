@@ -1710,6 +1710,7 @@ class GraspSupervisor(object):
         - send request to spartan grasp
         :return: bool, GraspData
         """
+        self.moveHome()
         self.collectSensorData()
         self.moveHome()
         self.requestGrasp()
