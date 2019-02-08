@@ -585,7 +585,7 @@ class GraspSupervisor(object):
 
         self.taskRunner.callOnMain(self.visualize_poser_result)
 
-    def run_keypoint_detection(self):
+    def run_keypoint_detection(self, wait_for_result=True):
         """
         Runs keypoint detection using ManKey in pdc-ros
         :return:
@@ -614,12 +614,17 @@ class GraspSupervisor(object):
         self.keypoint_detection_client.send_goal(goal)
         self.moveHome()
 
+        if wait_for_result:
+            self.wait_for_keypoint_detection_result()        
+
+    def wait_for_keypoint_detection_result(self):
+        """
+        Wait for keypont detection result, save it to cache
+        """
         rospy.loginfo("waiting for KeypointDetection result")
         self.keypoint_detection_client.wait_for_result()
         result = self.keypoint_detection_client.get_result()
         rospy.loginfo("received KeypointDetection result")
-
-
         print "result:\n", result
 
         self.keypoint_detection_result = result
@@ -628,9 +633,7 @@ class GraspSupervisor(object):
         self._cache['keypoint_detection_output_dir'] = result.output_dir
 
 
-
-
-    def run_category_manipulation_goal_estimation(self):
+    def run_category_manipulation_goal_estimation(self, wait_for_result=True):
         """
         Calls the CategoryManipulation service of pdc-ros
         which is provided by category_manip_server.py.
@@ -652,6 +655,16 @@ class GraspSupervisor(object):
         rospy.loginfo("connected to CategoryManip server")
 
         self.category_manip_client.send_goal(goal)
+        
+        if wait_for_result:
+            self.wait_for_category_manipulation_goal_result()
+
+    def wait_for_category_manipulation_goal_result(self):
+        """
+        Waits for category manipulation goal result
+        """
+
+        print("waiting for cagtegory manipulation result")
         self.category_manip_client.wait_for_result()
         result = self.category_manip_client.get_result()
 
@@ -667,6 +680,7 @@ class GraspSupervisor(object):
         self._cache['category_manipulation_T_goal_obs'] = T_goal_obs_vtk
 
 
+
     def run_manipulate_object(self, debug=False):
         """
         Runs the object manipulation code. Will put the object into the
@@ -674,7 +688,7 @@ class GraspSupervisor(object):
         :return:
         """
 
-        self.taskRunner.callOnMain(self._poser_visualizer.visualize_result)
+        # self.taskRunner.callOnMain(self._poser_visualizer.visualize_result)
 
 
         if debug:
@@ -746,6 +760,13 @@ class GraspSupervisor(object):
 
         # move home
         self.moveHome()
+
+
+    def run_category_manipulation_pipeline(self):
+        self._clear_cache()
+        self.run_keypoint_detection()
+        self.run_category_manipulation_goal_estimation()
+        self.run_manipulate_object()
 
 
     def visualize_poser_result(self):
@@ -1967,6 +1988,9 @@ class GraspSupervisor(object):
 
     def test_run_category_manipulation_goal_estimation(self):
         self.taskRunner.callOnThread(self.run_category_manipulation_goal_estimation)
+
+    def test_run_category_manipulation_pipeline(self):
+        self.taskRunner.callOnThread(self.run_category_manipulation_pipeline)
 
     def test_run_keypoint_detection(self):
         self.taskRunner.callOnThread(self.run_keypoint_detection)
