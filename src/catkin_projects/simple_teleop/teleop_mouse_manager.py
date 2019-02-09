@@ -17,7 +17,9 @@ class TeleopMouseManager():
         self.side_button_back_DOWN = False
         self.side_button_fwd_DOWN = False
 
-    def get_mouse_events(self):
+    def get_events(self):
+        events = dict()
+        events["escape"] = False
 
         mouse_wheel_up = mouse_wheel_down = side_button_back = side_button_forward = False
 
@@ -25,7 +27,7 @@ class TeleopMouseManager():
             if event.type == QUIT:
                 sys.exit(0)
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
-                sys.exit(0)
+                events["escape"] = True
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 4:   
                     mouse_wheel_up = True
@@ -61,18 +63,17 @@ class TeleopMouseManager():
         delta_x, delta_y = pygame.mouse.get_rel()
         rotate_left, _, rotate_right = pygame.mouse.get_pressed()
 
-        mouse_events = dict()
-        mouse_events["delta_x"] = delta_x
-        mouse_events["delta_y"] = delta_y
-        mouse_events["w"] = w
-        mouse_events["a"] = a
-        mouse_events["s"] = s
-        mouse_events["d"] = d
-        mouse_events["r"] = r
-        mouse_events["mouse_wheel_up"] = mouse_wheel_up
-        mouse_events["mouse_wheel_down"] = mouse_wheel_down
-        mouse_events["rotate_left"] = rotate_left
-        mouse_events["rotate_right"] = rotate_right
-        mouse_events["side_button_back"] = self.side_button_back_DOWN
-        mouse_events["side_button_forward"] = self.side_button_fwd_DOWN
-        return mouse_events
+        events["delta_x"] = delta_x
+        events["delta_y"] = delta_y
+        events["w"] = w
+        events["a"] = a
+        events["s"] = s
+        events["d"] = d
+        events["r"] = r
+        events["mouse_wheel_up"] = mouse_wheel_up
+        events["mouse_wheel_down"] = mouse_wheel_down
+        events["rotate_left"] = rotate_left
+        events["rotate_right"] = rotate_right
+        events["side_button_back"] = self.side_button_back_DOWN
+        events["side_button_forward"] = self.side_button_fwd_DOWN
+        return events

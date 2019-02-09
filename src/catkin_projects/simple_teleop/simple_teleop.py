@@ -186,33 +186,20 @@ def do_main():
     print ee_tf_last_commanded
     ee_tf_last_commanded = get_initial_pose()
     print ee_tf_last_commanded
-   
+
+    sys.path.append("../imitation_tools/scripts")
+    from capture_imitation_data_client import start_bagging_imitation_data_client, stop_bagging_imitation_data_client
+    start_bagging_imitation_data_client()
+    
     try:
 
         # control loop
         while not rospy.is_shutdown():
-
-            #Check if plan ended
-            # goal = robot_msgs.msg.GetPlanNumberGoal()
-            # client.send_goal(goal)   
-            # client.wait_for_result()
-            # result = client.get_result()
-
-            # if (result.plan_number != plan_number):
-            #     print "Illegal move, restarting plan"
-            #     sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
-            #         robot_msgs.srv.StartStreamingPlan)
-            #     init = robot_msgs.srv.StartStreamingPlanRequest()
-            #     init.force_guard.append(make_force_guard_msg(20.))
-            #     res = sp(init)
-                
-            #     plan_number = res.plan_number                
-
-
+          
             # # get teleop mouse
-            mouse_events = mouse_manager.get_mouse_events()
+            events = mouse_manager.get_events()
 
-            if mouse_events["r"]:
+            if events["r"]:
                 success = robotService.moveToJointPosition(above_table_pre_grasp, timeout=5)
                 roll_goal = 0.0
                 yaw_goal = 0.0
@@ -220,36 +207,39 @@ def do_main():
                 ee_tf_last_commanded = get_initial_pose()
                 continue
 
+            if events["escape"]:
+                stop_bagging_imitation_data_client()
+                sys.exit(0)
             
             scale_down = 0.0001
-            delta_x = mouse_events["delta_x"]*scale_down
-            delta_y = mouse_events["delta_y"]*-scale_down
+            delta_x = events["delta_x"]*scale_down
+            delta_y = events["delta_y"]*-scale_down
 
             delta_forward = 0.0
             forward_scale = 0.001
-            if mouse_events["w"]:
+            if events["w"]:
                 delta_forward -= forward_scale
-            if mouse_events["s"]:
+            if events["s"]:
                 delta_forward += forward_scale
 
             # extract and normalize quat from tf
-            if mouse_events["rotate_left"]:
+            if events["rotate_left"]:
                 roll_goal += 0.01
-            if mouse_events["rotate_right"]:
+            if events["rotate_right"]:
                 roll_goal -= 0.01
             roll_goal = np.clip(roll_goal, a_min = -0.9, a_max = 0.9)
             
-            if mouse_events["side_button_back"]:
+            if events["side_button_back"]:
                 yaw_goal += 0.01
                 print("side button back")
-            if mouse_events["side_button_forward"]:
+            if events["side_button_forward"]:
                 yaw_goal -= 0.01
                 print("side side_button_forward")
             yaw_goal = np.clip(yaw_goal, a_min = -1.314, a_max = 1.314)
 
-            if mouse_events["d"]:
+            if events["d"]:
                 pitch_goal += 0.01
-            if mouse_events["a"]:
+            if events["a"]:
                 pitch_goal -= 0.01
             pitch_goal = np.clip(pitch_goal, a_min = -1.314, a_max = 1.314)
 
@@ -288,9 +278,9 @@ def do_main():
             pub.publish(new_msg)
 
             #gripper
-            if mouse_events["mouse_wheel_up"]:
+            if events["mouse_wheel_up"]:
                 gripper_goal_pos += 0.006
-            if mouse_events["mouse_wheel_down"]:
+            if events["mouse_wheel_down"]:
                 gripper_goal_pos -= 0.006
             if gripper_goal_pos < 0:
                 gripper_goal_pos = 0.0
