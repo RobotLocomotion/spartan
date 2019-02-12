@@ -17,6 +17,7 @@ import spartan.utils.utils as spartanUtils
 
 # this is necessary to avoid getting an error about /unnamed/tf2_server in the construction
 # of the tf2buffer in ROS
+rospy.init_node("fusion_extractor", anonymous=True)
 fs = FusionServer()
 
 LINEAR_DISTANCE_THRESHOLD = 0.03 # 3cm
@@ -213,6 +214,7 @@ def extract_and_fuse_single_scene(log_full_path, downsample=True,
 
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--logs_dir", type=str, required=False)
     args = parser.parse_args()
