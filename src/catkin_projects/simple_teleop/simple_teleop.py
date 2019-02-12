@@ -262,7 +262,7 @@ def do_main():
 
             # publish target pose as cartesian goal point
             new_msg = robot_msgs.msg.CartesianGoalPoint()
-            new_msg.stamp = rospy.get_rostime()
+            new_msg.xyz_point.header.stamp = rospy.Time.now()
             new_msg.xyz_point.header.frame_id = "world"
             new_msg.xyz_point.point.x = target_trans_ee[0]
             new_msg.xyz_point.point.y = target_trans_ee[1]
@@ -274,6 +274,9 @@ def do_main():
             new_msg.quaternion.x = above_table_quat_ee[1]
             new_msg.quaternion.y = above_table_quat_ee[2]
             new_msg.quaternion.z = above_table_quat_ee[3]
+            new_msg.roll = roll_goal 
+            new_msg.pitch = pitch_goal
+            new_msg.yaw = yaw_goal
             new_msg.gain = make_cartesian_gains_msg(5., 10.)
             new_msg.ee_frame_id = frame_name
             pub.publish(new_msg)
