@@ -70,9 +70,6 @@ def make_force_guard_msg(scale):
 
     return msg
 
-def ro(quat):
-    return [quat[1], quat[2], quat[3], quat[0]]
-
 def tf_matrix_from_pose(pose):
     trans, quat = pose
     mat = transformations.quaternion_matrix(quat)
