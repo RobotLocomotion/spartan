@@ -186,6 +186,7 @@ def onFitCamera():
 def setupToolBar():
     toolBar = applogic.findToolBar('Main Toolbar')
     app.addToolBarAction(toolBar, 'Gripper Open', icon='', callback=schunkDriver.sendOpenGripperCommand)
+    app.addToolBarAction(toolBar, 'Gripper Open (delay)', icon='', callback=schunkDriver.sendDelayedOpenGripperCommand)
     app.addToolBarAction(toolBar, 'Gripper Close', icon='', callback=schunkDriver.sendCloseGripperCommand)
     app.addToolBarAction(toolBar, 'Task Panel', icon='', callback=onOpenTaskPanel)
     app.addToolBarAction(toolBar, 'Fit Camera', icon='', callback=onFitCamera)
