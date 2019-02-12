@@ -262,6 +262,7 @@ def do_main():
 
             # publish target pose as cartesian goal point
             new_msg = robot_msgs.msg.CartesianGoalPoint()
+            new_msg.stamp = rospy.get_rostime()
             new_msg.xyz_point.header.frame_id = "world"
             new_msg.xyz_point.point.x = target_trans_ee[0]
             new_msg.xyz_point.point.y = target_trans_ee[1]

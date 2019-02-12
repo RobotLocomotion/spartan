@@ -4,5 +4,7 @@ geometry_msgs/Quaternion quaternion
 
 robot_msgs/CartesianGain gain
 
+time stamp
+
 # string describing frame on the robot to use
 string ee_frame_id
