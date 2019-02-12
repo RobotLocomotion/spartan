@@ -143,14 +143,6 @@ def do_main():
     init.force_guard.append(make_force_guard_msg(20.))
     res = sp(init)
     
-    # save plan number so we know when plan has ended
-    plan_number = res.plan_number
-
-    # set up client that checks plan number periodically
-    client = actionlib.SimpleActionClient("plan_runner/GetPlanNumber", robot_msgs.msg.GetPlanNumberAction)
-    client.wait_for_server()
-
-
     print("Started task space streaming")
     pub = rospy.Publisher('plan_runner/task_space_streaming_setpoint',
         robot_msgs.msg.CartesianGoalPoint, queue_size=1);
