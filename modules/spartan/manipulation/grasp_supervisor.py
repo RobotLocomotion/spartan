@@ -421,6 +421,10 @@ class GraspSupervisor(object):
         msg.rgb_image = self.rgbImageSubscriber.waitForNextMessage()
         msg.depth_image = self.depthImageSubscriber.waitForNextMessage()
 
+        # maybe be careful about rostime here
+        msg.point_cloud = self.pointCloudSubscriber.waitForNextMessage()
+        msg.point_cloud_pose = self.getDepthOpticalFrameToGraspFrameTransform()
+
         return msg
 
     def moveHome(self):
@@ -436,6 +440,16 @@ class GraspSupervisor(object):
 
     # scans to several positions
     def collectSensorData(self, saveToBagFile=False, **kwargs):
+        """
+        Collects PointCloud Messages, also RGB and Depth images.
+
+        Writes the result to two class variables
+        - self.pointCloudListMsg 
+        - self.listOfRgbdWithPose
+
+        also returns these two values
+        """
+        self.moveHome()
 
         rospy.loginfo("collecting sensor data")
         graspLocationData = self.graspingParams[self.state.graspingLocation]
@@ -444,8 +458,10 @@ class GraspSupervisor(object):
         pointCloudListMsg.header.stamp = rospy.Time.now()
 
         data = dict()
+        pose_list = graspLocationData['scan_pose_list']
+        listOfRgbdWithPoseMsg = []
 
-        for poseName in graspLocationData['scan_pose_list']:
+        for poseName in pose_list:
             rospy.loginfo("moving to pose = " + poseName)
             joint_positions = graspLocationData['poses'][poseName]
             self.robotService.moveToJointPosition(joint_positions,
@@ -456,51 +472,18 @@ class GraspSupervisor(object):
             pointCloudListMsg.point_cloud_list.append(pointCloudWithTransformMsg)
             data[poseName] = pointCloudWithTransformMsg
 
-        self.sensorData = data
-        self.pointCloudListMsg = pointCloudListMsg
-
-        if saveToBagFile:
-            self.saveSensorDataToBagFile(**kwargs)
-
-        return pointCloudListMsg
-
-    # scans to several positions
-    def collectRgbdData(self, saveToBagFile=False, **kwargs):
-
-        rospy.loginfo("collecting rgbd sensor data")
-        graspLocationData = self.graspingParams[self.state.graspingLocation]
-
-        listOfRgbdWithPoseMsg = []
-
-        pointCloudListMsg = spartan_grasp_msgs.msg.PointCloudList()
-        pointCloudListMsg.header.stamp = rospy.Time.now()
-
-        for poseName in graspLocationData['find_best_match_pose_list']:
-            rospy.loginfo("moving to pose = " + poseName)
-            joint_positions = graspLocationData['poses'][poseName]
-            self.robotService.moveToJointPosition(joint_positions,
-                                                  maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
-
-            if self.debugMode:
-                continue
-
-            rospy.sleep(self.config["sleep_time_for_sensor_collect"])
-            # capture RGB
             rgbdWithPoseMsg = self.captureRgbdAndCameraTransform()
-
-            # capture Depth
-            pointCloudWithTransformMsg = self.capturePointCloudAndCameraTransform()
-            pointCloudListMsg.point_cloud_list.append(pointCloudWithTransformMsg)
-
             listOfRgbdWithPoseMsg.append(rgbdWithPoseMsg)
 
+        self.sensorData = data
         self.pointCloudListMsg = pointCloudListMsg
         self.listOfRgbdWithPoseMsg = listOfRgbdWithPoseMsg
 
-        print "return listOfRgbdWithPoseMsg"
-        print len(listOfRgbdWithPoseMsg)
-        print type(listOfRgbdWithPoseMsg[0])
-        return listOfRgbdWithPoseMsg
+        if saveToBagFile:
+            self.saveSensorDataToBagFile(pointCloudListMsg=pointCloudListMsg, **kwargs)
+
+        return pointCloudListMsg, listOfRgbdWithPoseMsg
+
 
     def findBestBatch(self):
         """
@@ -510,7 +493,7 @@ class GraspSupervisor(object):
         - return what was found from FindBestMatch
         """
         self.moveHome()
-        listOfRgbdWithPoseMsg = self.collectRgbdData()
+        _, listOfRgbdWithPoseMsg = self.collectSensorData()
         self.list_rgbd_with_pose_msg = listOfRgbdWithPoseMsg
 
         # request via a ROS Action
@@ -723,7 +706,7 @@ class GraspSupervisor(object):
 
         if not object_in_gripper:
             # open the gripper and back away
-            self.gripperDriver.sendOpenGripperCommand()
+            self.gripperDriver.send_open_gripper_set_distance_from_current()
             self.robotService.moveToJointPosition(pre_grasp_pose,
                                                    maxJointDegreesPerSecond=
                                                   pickup_speed)
@@ -752,7 +735,7 @@ class GraspSupervisor(object):
         # open the gripper and back away
         pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
         pickup_speed = self.graspingParams['speed']['pickup']
-        self.gripperDriver.sendOpenGripperCommand()
+        self.gripperDriver.send_open_gripper_set_distance_from_current()
         # pickup the object
         self.robotService.moveToJointPosition(pre_grasp_pose,
                                               maxJointDegreesPerSecond=
@@ -834,7 +817,7 @@ class GraspSupervisor(object):
         # attempt grasp best match
         grasp_successful = self.grasp_best_match()
         if not grasp_successful:
-            self.gripperDriver.sendOpenGripperCommand()
+            self.gripperDriver.send_open_gripper_set_distance_from_current()
             self.moveHome()
 
             print "grasp attempt failed, resetting"
@@ -987,7 +970,7 @@ class GraspSupervisor(object):
         return poseStamped
 
 
-    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True):
+    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True, stop_at_pre_grasp=False):
         """
         Moves to pre-grasp frame, then grasp frame
         attemps to close gripper if `close_gripper=True` was passed in
@@ -1002,7 +985,7 @@ class GraspSupervisor(object):
             gripper_driver_width = gripper_width + self.graspingParams['gripper_width_offset']
             self.gripperDriver.sendGripperCommand(gripper_driver_width, force=20.0)
         else:
-            self.gripperDriver.sendOpenGripperCommand()
+            self.gripperDriver.send_open_gripper_set_distance_from_current()
 
         rospy.sleep(0.5)  # wait for 0.5 for gripper to move
 
@@ -1056,6 +1039,9 @@ class GraspSupervisor(object):
 
         self.state.set_status("PRE_GRASP")
         print "at pre-grasp pose"
+
+        if stop_at_pre_grasp:
+            return
 
         if use_cartesian_plan:
             # move to grasp position using compliant cartesian plan
@@ -1221,7 +1207,7 @@ class GraspSupervisor(object):
                                                   maxJointDegreesPerSecond=
                                                   speed)
 
-        self.gripperDriver.sendOpenGripperCommand()
+        self.gripperDriver.send_open_gripper_set_distance_from_current()
         return True
 
     def attemptGrasp(self, graspFrame):
@@ -1264,7 +1250,7 @@ class GraspSupervisor(object):
         self.preGraspFrame = preGraspFrame
         self.graspFrame = graspFrame
 
-        self.gripperDriver.sendOpenGripperCommand()
+        self.gripperDriver.send_open_gripper_set_distance_from_current()
         rospy.sleep(0.5)  # wait for the gripper to open
         self.robotService.moveToJointPosition(preGraspPose,
                                               maxJointDegreesPerSecond=self.graspingParams['speed']['pre_grasp'])
@@ -1323,7 +1309,7 @@ class GraspSupervisor(object):
                                                   maxJointDegreesPerSecond=self.graspingParams['speed']['stow'])
 
         # release object
-        self.gripperDriver.sendOpenGripperCommand()
+        self.gripperDriver.send_open_gripper_set_distance_from_current()
         rospy.sleep(0.5)
 
         # move Home
@@ -1437,7 +1423,7 @@ class GraspSupervisor(object):
             self.robotService.moveToJointPosition(drop_ik_response.joint_state.position,
                                                   maxJointDegreesPerSecond=speed)
 
-            self.gripperDriver.sendOpenGripperCommand()
+            self.gripperDriver.send_open_gripper_set_distance_from_current()
             rospy.sleep(0.5)
 
             # move to pre-drop
@@ -1598,11 +1584,18 @@ class GraspSupervisor(object):
             graspFrame.RotateX(180)
 
     def saveSensorDataToBagFile(self, pointCloudListMsg=None, filename=None, overwrite=True):
+        """
+        Save sensor data to a bag file
+
+        """
         if pointCloudListMsg is None:
-            pointCloudListMsg = self.pointCloudListMsg
+            return
 
         if filename is None:
-            filename = os.path.join(spartanUtils.getSpartanSourceDir(), 'sandbox', 'grasp_sensor_data.bag')
+            filename = os.path.join(spartanUtils.get_sandbox_dir(), "rosbag", 'grasp_sensor_data_%s.bag' %(spartanUtils.get_current_time_unique_name()))
+
+        if not os.path.isdir(os.path.dirname(filename)):
+            os.makedirs(os.path.dirname(filename))
 
         if overwrite and os.path.isfile(filename):
             os.remove(filename)
@@ -1611,18 +1604,24 @@ class GraspSupervisor(object):
         bag.write('data', pointCloudListMsg)
         bag.close()
 
-    def requestGrasp(self):
+    def requestGrasp(self, pointCloudListMsg=None):
         """
         Requests a grasp from the SpartanGrasp ROS service
         Doesn't collect new sensor data
         """
         # request the grasp via a ROS Action
+
+        if pointCloudListMsg is None:
+            pointCloudListMsg = self.pointCloudListMsg
+
         rospy.loginfo("waiting for spartan grasp server")
         self.generate_grasps_client.wait_for_server()
         rospy.loginfo("requsting grasps spartan grasp server")
 
         params = self.getParamsForCurrentLocation()
         goal = spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListGoal()
+        
+
         goal.point_clouds = self.pointCloudListMsg
 
         if 'grasp_volume' in params:
@@ -1672,19 +1671,22 @@ class GraspSupervisor(object):
 
         return result
 
-    def request_grasp_3D_location(self):
+    def request_grasp_3D_location(self, pointCloudListMsg=None):
         """
         Requests a grasp3DLocation from the SpartanGrasp ROS service
         Doesn't collect new sensor data
         """
         # request the grasp via a ROS Action
+        if pointCloudListMsg is None:
+            pointCloudListMsg = self.pointCloudListMsg
+
         rospy.loginfo("waiting for spartan grasp server")
         self.grasp_3D_location_client.wait_for_server()
         rospy.loginfo("requsting grasps spartan grasp server")
 
         params = self.getParamsForCurrentLocation()
         goal = spartan_grasp_msgs.msg.Grasp3DLocationGoal()
-        goal.point_clouds = self.pointCloudListMsg
+        goal.point_clouds = pointCloudListMsg
         goal.grasp_point = self.get_clicked_point()
 
         if 'grasp_volume' in params:
@@ -1931,8 +1933,8 @@ class GraspSupervisor(object):
     def testPipeline(self):
         self.taskRunner.callOnThread(self.planGraspAndPickupObject)
 
-    def testCollectSensorData(self):
-        self.taskRunner.callOnThread(self.collectSensorData)
+    def testCollectSensorData(self, **kwargs):
+        self.taskRunner.callOnThread(self.collectSensorData, **kwargs)
 
     def testRequestGrasp(self):
         self.taskRunner.callOnThread(self.requestGrasp)
@@ -1942,9 +1944,6 @@ class GraspSupervisor(object):
 
     def test_on_clicked_point(self):
         self.taskRunner.callOnThread(self.on_clicked_point)
-
-    def testCollectRgbdData(self):
-        self.taskRunner.callOnThread(self.collectRgbdData)
 
     def testFindBestMatch(self):
         self.taskRunner.callOnThread(self.findBestBatch)

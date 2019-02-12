@@ -95,6 +95,18 @@ class SchunkDriver(object):
         goal.command.stop_on_block = stop_on_block
         return self.send_goal(goal, timeout=timeout)
 
+    def send_open_gripper_set_distance_from_current(self, distance=0.02):
+        """
+        Opens the gripper a set amount past it's current width
+        :param distance: additional distance to open past current (in meters)
+        :type distance:
+        :return:
+        :rtype:
+        """
+        status_msg = self.statusSubscriber.waitForNextMessage()
+        opening_width = status_msg.width + distance
+        self.sendGripperCommand(opening_width)
+
     def gripper_has_object(self):
         """
         Returns true if gripper has object in had. This is done by checking position
