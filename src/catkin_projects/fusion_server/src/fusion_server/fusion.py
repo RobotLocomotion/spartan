@@ -290,7 +290,7 @@ class ImageCapture(object):
 
         """
         idx = np.searchsorted(timestamps, query_time)
-        return min(idx, np.size(timestamps))
+        return min(idx, np.size(timestamps)-1)
 
 
 class FusionType:
