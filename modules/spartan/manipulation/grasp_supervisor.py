@@ -568,16 +568,17 @@ class GraspSupervisor(object):
 
         self.taskRunner.callOnMain(self.visualize_poser_result)
 
-    def run_keypoint_detection(self, wait_for_result=True):
+    def run_keypoint_detection(self, wait_for_result=True, move_to_stored_pose=True):
         """
         Runs keypoint detection using ManKey in pdc-ros
         :return:
         :rtype:
         """
 
-        # q = self._stored_poses_director['General']['center_back']
-        # self.robotService.moveToJointPosition(q,
-        #                                       maxJointDegreesPerSecond=self.graspingParams['speed']['nominal'])
+        if move_to_stored_pose:
+            q = self._stored_poses_director['General']['center_back']
+            self.robotService.moveToJointPosition(q,
+                                                  maxJointDegreesPerSecond=self.graspingParams['speed']['nominal'])
 
         rgbdWithPoseMsg = self.captureRgbdAndCameraTransform()
         listOfRgbdWithPoseMsg = [rgbdWithPoseMsg]
@@ -720,11 +721,11 @@ class GraspSupervisor(object):
 
 
         # move to nominal position
-        graspLocationData = self.graspingParams[self.state.graspingLocation]
-        above_table_pre_grasp = graspLocationData['poses']['above_table_pre_grasp']
-        self.robotService.moveToJointPosition(above_table_pre_grasp,
-                                              maxJointDegreesPerSecond=
-                                              pickup_speed)
+        # graspLocationData = self.graspingParams[self.state.graspingLocation]
+        # above_table_pre_grasp = graspLocationData['poses']['above_table_pre_grasp']
+        # self.robotService.moveToJointPosition(above_table_pre_grasp,
+        #                                       maxJointDegreesPerSecond=
+        #                                       pickup_speed)
 
 
         # place the object
@@ -1972,28 +1973,28 @@ class GraspSupervisor(object):
     def test_execute_grasp(self):
         self.taskRunner.callOnThread(self.execute_grasp)
 
-    def test_request_spartan_grasp(self):
+    def test_request_spartan_grasp(self, *args, **kwargs):
         """
         Collect sensor data and send request to spartan_grasp
         Visualize resulting grasp
         :return:
         """
-        self.taskRunner.callOnThread(self.request_spartan_grasp)
+        self.taskRunner.callOnThread(self.request_spartan_grasp, *args, **kwargs)
 
-    def test_run_poser(self):
-        self.taskRunner.callOnThread(self.run_poser)
+    def test_run_poser(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.run_poser, *args, **kwargs)
 
-    def test_run_manipulate_object(self):
-        self.taskRunner.callOnThread(self.run_manipulate_object)
+    def test_run_manipulate_object(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.run_manipulate_object, *args, **kwargs)
 
-    def test_run_category_manipulation_goal_estimation(self):
-        self.taskRunner.callOnThread(self.run_category_manipulation_goal_estimation)
+    def test_run_category_manipulation_goal_estimation(self,*args, **kwargs):
+        self.taskRunner.callOnThread(self.run_category_manipulation_goal_estimation, *args, **kwargs)
 
-    def test_run_category_manipulation_pipeline(self):
-        self.taskRunner.callOnThread(self.run_category_manipulation_pipeline)
+    def test_run_category_manipulation_pipeline(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.run_category_manipulation_pipeline, *args, **kwargs)
 
-    def test_run_keypoint_detection(self):
-        self.taskRunner.callOnThread(self.run_keypoint_detection)
+    def test_run_keypoint_detection(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.run_keypoint_detection, *args, **kwargs)
 
 
     def loadDefaultPointCloud(self):

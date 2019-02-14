@@ -45,8 +45,41 @@ front:
 
     scan_left_center_2: [0.6698375183766715, 0.559392519569122, -0.153113573321695, -0.9964713431591212, -0.36870100694199537, 1.669491392305068, 0.910551101880687]
 
+    tall_boot_left:
+      - 0.7321923971176147
+      - 1.1954319477081299
+      - -0.8002036213874817
+      - 0.0010033192811533809
+      - -0.18336927890777588
+      - 2.007089138031006
+      - 0.6551423072814941
+    tall_boot_right:
+      - -0.8243304491043091
+      - 1.147495985031128
+      - 0.5346425175666809
+      - -0.29428941011428833
+      - 0.741133987903595
+      - 2.007316827774048
+      - 0.28098392486572266
+    tall_boot_right_2:
+      - -0.8453163504600525
+      - 1.1779865026474
+      - 0.6038098931312561
+      - -0.06931064277887344
+      - 0.6189544200897217
+      - 2.0073635578155518
+      - 0.35824498534202576
 
-  scan_pose_list: ['scan_left_close', 'scan_left_center_2', 'scan_above_table', 'scan_right_center', 'scan_right_close']
+
+  scan_pose_list:
+    - 'scan_left_close'
+    - 'scan_left_center_2'
+    - 'tall_boot_left'
+    - 'scan_above_table'
+    - 'tall_boot_right_2'
+    - 'scan_right_center'
+    - 'scan_right_close'
+
   find_best_match_pose_list: ['scan_left_center_2', 'scan_above_table', 'scan_right_center']
 
   grasp:
