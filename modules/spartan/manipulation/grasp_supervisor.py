@@ -13,6 +13,7 @@ import visualization_msgs.msg
 import tf2_ros
 import rosbag
 import actionlib
+import actionlib_msgs.msg.GoalStatus as GoalStatus
 
 # spartan ROS
 import spartan_grasp_msgs.msg
@@ -556,15 +557,26 @@ class GraspSupervisor(object):
         rospy.loginfo("waiting for poser result")
         self.poser_client.wait_for_result()
         result = self.poser_client.get_result()
+        state = self.poser_client.get_state()
         rospy.loginfo("received poser result")
 
-        print "result:\n", result
+        print("result:\n", result)
+
+        succeeded = (state == GoalStatus.SUCCEEDED)
+
+        if not succeeded:
+            rospy.loginfo("Poser failed")
 
         self.poser_result = result
         self._cache['poser_result'] = result
-        self._cache['keypoint_detection_result'] = result
-        self._cache['keypoint_detection_type'] = "poser"
-        self._cache['keypoint_detection_output_dir'] = result.poser_output_folder
+
+        result_dict = dict()
+        result_dict['result'] = result
+        result_dict['output_dir'] = result.output_dir
+        result_dict['state'] = state
+        result_dict['succeeded'] = succeeded
+        result_dict['type'] = "mankey"
+        self._cache["keypoint_detection_result"] = result_dict
 
         self.taskRunner.callOnMain(self.visualize_poser_result)
 
@@ -608,13 +620,26 @@ class GraspSupervisor(object):
         rospy.loginfo("waiting for KeypointDetection result")
         self.keypoint_detection_client.wait_for_result()
         result = self.keypoint_detection_client.get_result()
+        state = self.keypoint_detection_client.get_state()
         rospy.loginfo("received KeypointDetection result")
         print "result:\n", result
 
         self.keypoint_detection_result = result
-        self._cache['keypoint_detection_result'] = result
-        self._cache['keypoint_detection_type'] = "mankey"
-        self._cache['keypoint_detection_output_dir'] = result.output_dir
+
+        succeeded = (state == GoalStatus.SUCCEEDED)
+
+        if not succeeded:
+            rospy.loginfo("KeypointDetection failed")
+
+        result_dict = dict()
+        result_dict['result'] = result
+        result_dict['output_dir'] = result.output_dir
+        result_dict['state'] = state
+        result_dict['succeeded'] = succeeded
+        result_dict['type'] = "mankey"
+        self._cache["keypoint_detection_result"] = result_dict
+
+        return result_dict
 
 
     def run_category_manipulation_goal_estimation(self, wait_for_result=True):
@@ -631,8 +656,8 @@ class GraspSupervisor(object):
 
         # don't specify poser output dir for now
         goal = pdc_ros_msgs.msg.CategoryManipulationGoal()
-        goal.output_dir = self._cache['keypoint_detection_output_dir']
-        goal.keypoint_detection_type = self._cache['keypoint_detection_type']
+        goal.output_dir = self._cache['keypoint_detection_result']['output_dir']
+        goal.keypoint_detection_type = self._cache['keypoint_detection_result']['type']
 
         rospy.loginfo("waiting for CategoryManip server")
         self.category_manip_client.wait_for_server()
