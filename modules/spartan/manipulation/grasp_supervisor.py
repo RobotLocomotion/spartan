@@ -13,7 +13,7 @@ import visualization_msgs.msg
 import tf2_ros
 import rosbag
 import actionlib
-import actionlib_msgs.msg.GoalStatus as GoalStatus
+from actionlib_msgs.msg import GoalStatus
 
 # spartan ROS
 import spartan_grasp_msgs.msg
