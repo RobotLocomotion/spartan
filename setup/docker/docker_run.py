@@ -85,9 +85,9 @@ if __name__ == "__main__":
 
     if data_directory_host_machine is None:
         data_directory_host_machine = '/home/' + user_name + '/data'
+        os.system("mkdir -p " + data_directory_host_machine)
 
-    os.system("mkdir -p " + data_directory_host_machine)
-    cmd += " -v %s:%s/data_volume " % (data_directory_host_machine, spartan_source_dir)
+    cmd += " -v %s:%s/data " % (data_directory_host_machine, home_directory)
 
     if sandbox_directory_host_machine is None:
         sandbox_directory_host_machine = os.path.join('~', 'sandbox')

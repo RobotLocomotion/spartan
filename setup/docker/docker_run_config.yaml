@@ -17,3 +17,7 @@ iiwa-workstation:
 
   manuelli:
     path_to_data_directory: '/sixTBdata'
+
+paladin-44:
+  manuelli:
+    path_to_data_directory: '/media/hdd/data'
