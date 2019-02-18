@@ -5,6 +5,10 @@ Shows the gripper palm frame and the gripper fingertip frame. They are aligned b
 ![alt text](gripper_frames.png "Gripper Frames")
 
 
+![alt text](gripper_and_palm_frame.png "Gripper And Palm Frame")
+The camera is mounted on the side of the gripper closest to the robot base in this picture.
+
+
 ## Spartan Grasp
 We use `spartan_grasp` as our grasp planner. See the [README](https://github.com/manuelli/spartan_grasp) for instructions on launching the service.
 
