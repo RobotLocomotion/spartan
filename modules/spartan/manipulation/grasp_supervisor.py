@@ -14,6 +14,7 @@ import tf2_ros
 import rosbag
 import actionlib
 from actionlib_msgs.msg import GoalStatus
+import ros_numpy
 
 # spartan ROS
 import spartan_grasp_msgs.msg
@@ -48,6 +49,8 @@ USING_DIRECTOR = True
 if USING_DIRECTOR:
     from spartan.utils.taskrunner import TaskRunner
 
+
+MUG_RACK_CONFIG_FILE = os.path.join(spartanUtils.getSpartanSourceDir(), "src/catkin_projects/station_config/RLG_iiwa_1/manipulation/mug_rack.yaml")
 
 class GraspSupervisorState(object):
     STATUS_LIST = ["ABOVE_TABLE", "PRE_GRASP", "GRASP", "IK_FAILED", "NO_GRASP_FOUND", "GRASP_FOUND", "OBJECT_IN_GRIPPER", "GRASP_FAILED"]
@@ -347,6 +350,11 @@ class GraspSupervisor(object):
         action_name = "/KeypointDetection"
         self.keypoint_detection_client = actionlib.SimpleActionClient(action_name, pdc_ros_msgs.msg.KeypointDetectionAction)
 
+        action_name = "/MugOnRackManipulation"
+        self.mug_on_rack_manipulation_client = actionlib.SimpleActionClient(action_name,
+                                                                      pdc_ros_msgs.msg.MugOnRackManipulationAction)
+
+
     def setupTF(self):
         if self.tfBuffer is None:
             self.tfBuffer = tf2_ros.Buffer()
@@ -610,6 +618,8 @@ class GraspSupervisor(object):
         self.keypoint_detection_client.send_goal(goal)
         self.moveHome()
 
+        self._cache["keypoint_detection_sensor_data"] = listOfRgbdWithPoseMsg
+
         if wait_for_result:
             self.wait_for_keypoint_detection_result()        
 
@@ -667,6 +677,49 @@ class GraspSupervisor(object):
         
         if wait_for_result:
             self.wait_for_category_manipulation_goal_result()
+
+    def run_mug_on_rack_category_manipulation_goal_estimation(self):
+        """
+        Calls the MugOnRack action of pdc-ros
+        which is provided by category_manip_server.py.
+
+        Uses the keypoint detection from `run_keypoint_detection`
+
+
+        :return:
+        :rtype:
+        """
+
+        self.moveHome()
+
+        rgbd_with_pose = self.captureRgbdAndCameraTransform()
+
+        # don't specify poser output dir for now
+        goal = pdc_ros_msgs.msg.MugOnRackManipulationGoal()
+        goal.output_dir = self._cache['keypoint_detection_result']['output_dir']
+        goal.keypoint_detection_type = self._cache['keypoint_detection_result']['type']
+
+
+        rgbd_with_pose_list = self.list_rgbd_with_pose_msg
+        rgbd_with_pose_list.append(rgbd_with_pose)
+
+        # Sensor Data
+        goal.rgbd_with_pose_list = rgbd_with_pose_list
+
+
+        # mug rack pose
+        mug_rack_config = spartanUtils.getDictFromYamlFilename(MUG_RACK_CONFIG_FILE)
+        T_world_rack_vtk = spartanUtils.transformFromPose(mug_rack_config['poses']['left_side_table'])
+        T_world_rack = transformUtils.getNumpyFromTransform(T_world_rack_vtk)
+
+        goal.T_world_rack = ros_numpy.msgify(geometry_msgs.msg.Pose, T_world_rack)
+
+        rospy.loginfo("waiting for MugOnRackManipulation server")
+        self.mug_on_rack_manipulation_client.wait_for_server()
+        rospy.loginfo("connected to MugOnRackManipulation server")
+
+        self.mug_on_rack_manipulation_client.send_goal(goal)
+        rospy.loginfo("sent goal to MugOnRackManipulation server")
 
     def wait_for_category_manipulation_goal_result(self):
         """
@@ -743,6 +796,113 @@ class GraspSupervisor(object):
                                               maxJointDegreesPerSecond=
                                               pickup_speed)
 
+
+
+        # move to nominal position
+        # graspLocationData = self.graspingParams[self.state.graspingLocation]
+        # above_table_pre_grasp = graspLocationData['poses']['above_table_pre_grasp']
+        # self.robotService.moveToJointPosition(above_table_pre_grasp,
+        #                                       maxJointDegreesPerSecond=
+        #                                       pickup_speed)
+
+
+        # place the object
+        grasp_data_place = self._object_manipulation.get_place_grasp_data()
+        self.execute_place(grasp_data_place)
+
+
+        # open the gripper and back away
+        pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
+        pickup_speed = self.graspingParams['speed']['pickup']
+        self.gripperDriver.send_open_gripper_set_distance_from_current()
+        # pickup the object
+        self.robotService.moveToJointPosition(pre_grasp_pose,
+                                              maxJointDegreesPerSecond=
+                                              pickup_speed)
+
+        # move home
+        self.moveHome()
+
+    def run_mug_manipulation(self, debug=False):
+        """
+        Runs the object manipulation code. Will put the object into the
+        specified target pose from `run_category_manipulation_goal_estimation`
+        :return:
+        """
+
+
+        if debug:
+            self._object_manipulation = ObjectManipulation()
+            self._object_manipulation.assign_defaults()
+            self._object_manipulation.compute_transforms()
+            return
+
+        self.moveHome()
+
+
+        # extract grasp from gripper fingertip pose
+        self.mug_on_rack_manipulation_client.wait_for_result()
+        result = self.mug_on_rack_manipulation_client.get_result()
+
+        self._cache['mug_on_rack_goal_estimation_result'] = result
+
+
+        T_W_fingertip = ros_numpy.numpify(result.T_world_gripper_fingertip)
+        T_W_fingertip_vtk = transformUtils.getTransformFromNumpy(T_W_fingertip)
+
+        grasp_data = GraspData.from_gripper_fingertip_frame(T_W_fingertip)
+        grasp_data.gripper.params["hand_inner_diameter"] = 0.05 # 4 cm wide
+
+        self.state.grasp_data = grasp_data
+        self.visualize_grasp(grasp_data)
+
+        def vis_function():
+            vis.showFrame(T_W_fingertip_vtk, "gripper fingertip frame", scale=0.15, parent=self._vis_container)
+
+            vis.showFrame(grasp_data.grasp_frame, "grasp frame", scale=0.15, parent=self._vis_container)
+
+        self.taskRunner.callOnThread(vis_function)
+
+        # debugging
+        print("visualizing grasp")
+        self.visualize_grasp(grasp_data)
+
+
+        # execute the grasp
+        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True)
+
+        if not object_in_gripper:
+            return False
+
+
+
+        T_goal_obs = self._cache['category_manipulation_T_goal_obs']
+        T_W_G = self.state.cache['gripper_frame_at_grasp']
+        self._object_manipulation = ObjectManipulation(T_goal_object=T_goal_obs, T_W_G=T_W_G)
+        self._object_manipulation.grasp_data = self.state.grasp_data
+        self._object_manipulation.compute_transforms()
+
+        self.taskRunner.callOnMain(self._object_manipulation.visualize)
+
+
+        pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
+        pickup_speed = self.graspingParams['speed']['pickup']
+
+        if not object_in_gripper:
+            # open the gripper and back away
+            self.gripperDriver.send_open_gripper_set_distance_from_current()
+            self.robotService.moveToJointPosition(pre_grasp_pose,
+                                                   maxJointDegreesPerSecond=
+                                                  pickup_speed)
+            return False
+
+        # pickup the object
+        self.robotService.moveToJointPosition(pre_grasp_pose,
+                                              maxJointDegreesPerSecond=
+                                              pickup_speed)
+
+
+        return
 
 
         # move to nominal position
@@ -1059,6 +1219,9 @@ class GraspSupervisor(object):
         # we do this using a position trajectory
         print "moving to pre-grasp"
         pre_grasp_speed = self.graspingParams['speed']['pre_grasp']
+
+        #### debugging
+        pre_grasp_speed = 10
         self.robotService.moveToJointPosition(pre_grasp_pose,
                                               maxJointDegreesPerSecond=
                                               pre_grasp_speed)
@@ -1809,7 +1972,7 @@ class GraspSupervisor(object):
 
     def visualize_grasp(self, grasp_data):
         stamp = rospy.Time.now()
-        vis.updateFrame(grasp_data.grasp_frame, "grasp fingertip", parent=self._vis_container,
+        vis.updateFrame(grasp_data.grasp_frame, "grasp frame", parent=self._vis_container,
                         scale=0.15)
 
         point_cloud_msg = None
@@ -2021,9 +2184,22 @@ class GraspSupervisor(object):
     def test_run_keypoint_detection(self, *args, **kwargs):
         self.taskRunner.callOnThread(self.run_keypoint_detection, *args, **kwargs)
 
+    def test_run_mug_on_rack_goal_estimation(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.run_mug_on_rack_category_manipulation_goal_estimation, *args, **kwargs)
+
+    def test_run_mug_manipulation(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.run_mug_manipulation, *args, **kwargs)
 
     def loadDefaultPointCloud(self):
         self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
+
+    def test_mug(self):
+
+        def thread_fun():
+            self.run_keypoint_detection(wait_for_result=True)
+            self.run_mug_on_rack_category_manipulation_goal_estimation()
+
+        self.taskRunner.callOnThread(thread_fun)
 
     @staticmethod
     def rectangleMessageFromYamlNode(node):

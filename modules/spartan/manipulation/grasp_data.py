@@ -11,6 +11,7 @@ import spartan.utils.ros_utils as rosUtils
 import spartan.utils.director_utils as director_utils
 import spartan.utils.control_utils as control_utils
 import spartan.manipulation.gripper
+from spartan.manipulation.gripper import Gripper
 
 class GraspData(object):
     """
@@ -25,7 +26,7 @@ class GraspData(object):
     z          x
 
     # frame names
-    T_W_G: grasp to world (palm of gripper)
+    T_W_G: grasp to world (palm of gripper), vtkTransform
     T_W_PG: pre-grasp to world
 
     """
@@ -150,6 +151,34 @@ class GraspData(object):
 
         # make gripper object
         grasp_data._gripper = spartan.manipulation.gripper.Gripper.from_spartan_grasp_params_msg(msg.params)
+
+        return grasp_data
+
+    @staticmethod
+    def from_gripper_fingertip_frame(T_W_fingertip):
+        """
+
+        :param T_W_fingertip: 4x4 numpy array
+        :type T_W_fingertip:
+        :return:
+        :rtype:
+        """
+
+        gripper = Gripper.make_schunk_gripper()
+
+        hand_depth = gripper.params['hand_depth']
+        print("hand_depth", hand_depth)
+        pos = (hand_depth, 0, 0)
+        quat = (1,0,0,0)
+        T_G_fingertip_vtk = transformUtils.transformFromPose(pos, quat)
+        T_G_fingertip = transformUtils.getNumpyFromTransform(T_G_fingertip_vtk)
+
+        T_fingertip_G = np.linalg.inv(T_G_fingertip)
+        T_W_G = np.matmul(T_W_fingertip, T_fingertip_G)
+
+        T_W_G_vtk = transformUtils.getTransformFromNumpy(T_W_G)
+        grasp_data = GraspData(T_W_G_vtk)
+        grasp_data.gripper = gripper
 
         return grasp_data
 
