@@ -7,6 +7,7 @@ import director.visualization as vis
 import director.transformUtils as transformUtils
 # spartan
 import spartan.utils.utils as spartan_utils
+import spartan.utils.director_utils as director_utils
 
 class CategoryManipulation(object):
 
@@ -59,6 +60,34 @@ class CategoryManipulation(object):
         t = transformUtils.transformFromPose(pos, quat)
         self._object.getChildFrame().copyFrame(t)
 
+
+    def load_mug_rack_and_side_table(self):
+        """
+        Loads a mug rack and side table poly data
+        :return:
+        :rtype:
+        """
+
+        config_file = os.path.join(spartan_utils.getSpartanSourceDir(), 'src/catkin_projects/station_config/RLG_iiwa_1/manipulation/mug_rack.yaml')
+        self._mug_rack_config = spartan_utils.getDictFromYamlFilename(config_file)
+        pdc_data_dir = os.path.join(spartan_utils.get_data_dir(), 'pdc')
+
+        side_table_ply_file = os.path.join(pdc_data_dir, 'logs_proto/2019-02-16-18-49-39/processed/fusion_mesh.ply')
+
+        side_table_poly_data = ioUtils.readPolyData(side_table_ply_file)
+        vis.showPolyData(side_table_poly_data, 'Side Table', parent=self._vis_container)
+
+
+        rack_ply_file = os.path.join(pdc_data_dir, "logs_proto/2019-02-11-22-38-30/processed/fusion_mesh_foreground.ply")
+        rack_poly_data = ioUtils.readPolyData(rack_ply_file)
+        self._mug_rack = vis.showPolyData(rack_poly_data, 'Mug Rack', parent=self._vis_container)
+        # rack_target_position
+
+        target_pose_name = "left_side_table"
+        target_pose = director_utils.transformFromPose(self._mug_rack_config['poses'][target_pose_name])
+
+        vis.addChildFrame(self._mug_rack)
+        self._mug_rack.getChildFrame().copyFrame(target_pose)
 
     def clear_visualation(self):
         """
