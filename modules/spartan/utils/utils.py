@@ -19,7 +19,7 @@ def get_sandbox_dir():
     return os.getenv("SPARTAN_SANDBOX_DIR")
 
 def get_data_dir():
-    return os.path.join(getSpartanSourceDir(), 'data_volume')
+    return os.getenv("DATA_DIR")
 
 def getDictFromYamlFilename(filename):
     stream = file(filename)

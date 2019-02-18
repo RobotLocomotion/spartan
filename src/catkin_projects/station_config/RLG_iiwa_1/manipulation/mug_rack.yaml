@@ -1,0 +1,18 @@
+poses:
+  left_side_table: # location of the mug rack
+    translation:
+      x: 0.022821
+      y: 0.12050039
+      z: -0.04187532
+    orientation:
+      w: 0.70358301
+      x: 0.0
+      y: 0.0
+      z: 0.71061308
+
+keypoints:
+  top_bar_tip:
+    position: [0.56776, 0.00287, 0.31459]
+
+  top_bar_base:
+    position: [0.64248, -0.00062, 0.2854]

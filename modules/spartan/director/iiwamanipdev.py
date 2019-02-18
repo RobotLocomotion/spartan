@@ -14,8 +14,8 @@ import spartan.calibration.handeyecalibration
 import spartan.utils.utils as spartanUtils
 from spartan.manipulation.object_manipulation import ObjectManipulation
 from spartan.poser.poser_visualizer import PoserVisualizer
-
 from spartan.utils.taskrunner import TaskRunner
+from spartan.manipulation.category_manipulation import CategoryManipulation
 
 # ros
 import tf2_ros
@@ -72,6 +72,12 @@ def setupRLGDirector(globalsDict=None):
     background_ply_file = os.path.join(spartanUtils.get_data_dir(), 'pdc', 'logs_special',
         '2019-01-03-22-43-55', 'processed', 'fusion_mesh.ply')
 
+
+    robotSystem = globalsDict['robotSystem']
+    robotStateModel = robotSystem.robotStateModel
+    category_manip = CategoryManipulation(robotStateModel)
+    category_manip.setup_horizontal_mug_grasp()
+
     def visualize_background():
         if not os.path.exists(background_ply_file):
             return
@@ -88,6 +94,7 @@ def setupRLGDirector(globalsDict=None):
     object_manip = ObjectManipulation()
     globalsDict['object_manip'] = object_manip
     globalsDict['o'] = object_manip
+    globalsDict['c'] = category_manip
     globalsDict['poser_vis'] = poser_vis
 
 
