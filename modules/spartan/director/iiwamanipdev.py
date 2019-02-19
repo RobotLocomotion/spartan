@@ -76,7 +76,7 @@ def setupRLGDirector(globalsDict=None):
     robotSystem = globalsDict['robotSystem']
     robotStateModel = robotSystem.robotStateModel
     category_manip = CategoryManipulation(robotStateModel)
-    category_manip.setup_horizontal_mug_grasp()
+    # category_manip.setup_horizontal_mug_grasp()
 
     def visualize_background():
         if not os.path.exists(background_ply_file):

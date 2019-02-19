@@ -362,12 +362,12 @@ class GraspSupervisor(object):
         self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
         self.tfBroadcaster = tf2_ros.TransformBroadcaster()
 
-    def getDepthOpticalFrameToGraspFrameTransform(self):
-        depthOpticalFrameToGraspFrame = self.tfBuffer.lookup_transform(self.graspFrameName, self.depthOpticalFrameName,
+    def getDepthOpticalFrameToWorldTransform(self):
+        depth_optical_frame_to_world = self.tfBuffer.lookup_transform("base", self.depthOpticalFrameName,
                                                                        rospy.Time(0))
 
-        print depthOpticalFrameToGraspFrame
-        return depthOpticalFrameToGraspFrame
+        print depth_optical_frame_to_world
+        return depth_optical_frame_to_world
 
     def get_transform(self, from_name, to_name, ros_time=None):
         if ros_time is None:
@@ -380,7 +380,7 @@ class GraspSupervisor(object):
         return pos, quat
 
 
-    def getRgbOpticalFrameToGraspFrameTransform(self, time=None):
+    def getRgbOpticalFrameToWorldTransform(self, time=None):
         """
 
         :param time:
@@ -391,11 +391,11 @@ class GraspSupervisor(object):
         if time is None:
             time = rospy.Time(0)
 
-        rgbOpticalFrameToGraspFrame = self.tfBuffer.lookup_transform(self.graspFrameName, self.rgbOpticalFrameName,
+        rgb_optical_frame_to_world = self.tfBuffer.lookup_transform("base", self.rgbOpticalFrameName,
                                                                      time)
 
-        print  rgbOpticalFrameToGraspFrame
-        return rgbOpticalFrameToGraspFrame
+        # print rgb_optical_frame_to_world
+        return rgb_optical_frame_to_world
 
 
 
@@ -412,7 +412,7 @@ class GraspSupervisor(object):
         msg.camera_origin.y = cameraOrigin[1]
         msg.camera_origin.z = cameraOrigin[2]
 
-        msg.point_cloud_to_base_transform = self.getDepthOpticalFrameToGraspFrameTransform()
+        msg.point_cloud_to_base_transform = self.getDepthOpticalFrameToWorldTransform()
 
         msg.point_cloud = self.pointCloudSubscriber.waitForNextMessage()
 
@@ -425,14 +425,15 @@ class GraspSupervisor(object):
         msg = pdc_ros_msgs.msg.RGBDWithPose()
         msg.header.stamp = rospy.Time.now()
 
-        msg.camera_pose = self.getRgbOpticalFrameToGraspFrameTransform()
+        msg.camera_pose = self.getRgbOpticalFrameToWorldTransform()
 
         msg.rgb_image = self.rgbImageSubscriber.waitForNextMessage()
         msg.depth_image = self.depthImageSubscriber.waitForNextMessage()
 
         # maybe be careful about rostime here
         msg.point_cloud = self.pointCloudSubscriber.waitForNextMessage()
-        msg.point_cloud_pose = self.getDepthOpticalFrameToGraspFrameTransform()
+        msg.point_cloud_pose = self.getDepthOpticalFrameToWorldTransform()
+
 
         return msg
 
@@ -876,13 +877,10 @@ class GraspSupervisor(object):
 
 
 
-        T_goal_obs = self._cache['category_manipulation_T_goal_obs']
-        T_W_G = self.state.cache['gripper_frame_at_grasp']
-        self._object_manipulation = ObjectManipulation(T_goal_object=T_goal_obs, T_W_G=T_W_G)
-        self._object_manipulation.grasp_data = self.state.grasp_data
-        self._object_manipulation.compute_transforms()
 
-        self.taskRunner.callOnMain(self._object_manipulation.visualize)
+        T_W_G = self.state.cache['gripper_frame_at_grasp'] # this is set in execute_grasp
+
+
 
 
         pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
@@ -902,33 +900,57 @@ class GraspSupervisor(object):
                                               pickup_speed)
 
 
-        return
+
+        # now move to nominal position for the place
+        q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp"]
+        self.robotService.moveToJointPosition(q_nom_left_table,
+                                              maxJointDegreesPerSecond=
+                                              self.graspingParams['speed']['nominal'])
 
 
-        # move to nominal position
-        # graspLocationData = self.graspingParams[self.state.graspingLocation]
-        # above_table_pre_grasp = graspLocationData['poses']['above_table_pre_grasp']
-        # self.robotService.moveToJointPosition(above_table_pre_grasp,
+
+
+
+        # compute some poses
+        T_goal_obs = ros_numpy.numpify(result.T_goal_obs)  # 4 x 4 numpy matrix
+        T_goal_obs_vtk = transformUtils.getTransformFromNumpy(T_goal_obs)
+        object_manip = ObjectManipulation(T_goal_object=T_goal_obs_vtk, T_W_G=T_W_G)
+        object_manip.compute_transforms()
+        T_W_Gn_vtk = object_manip.T_W_Gn # gripper to world for place pose
+
+
+        T_pre_goal_obs = ros_numpy.numpify(result.T_pre_goal_obs)
+        T_pre_goal_obs_vtk = transformUtils.getTransformFromNumpy(T_pre_goal_obs)
+        object_manip_approach = ObjectManipulation(T_goal_object=T_pre_goal_obs_vtk, T_W_G=T_W_G)
+        object_manip_approach.compute_transforms()
+        T_W_Gn_approach_vtk = object_manip_approach.T_W_Gn
+
+
+        # now convert these to ee poses
+        T_W_ee_vtk = self.getIiwaLinkEEFrameFromGraspFrame(T_W_Gn_vtk)
+        T_W_ee = transformUtils.getNumpyFromTransform(T_W_ee_vtk)
+
+        T_W_ee_approach_vtk = self.getIiwaLinkEEFrameFromGraspFrame(T_W_Gn_approach_vtk)
+        T_W_ee_approach = transformUtils.getNumpyFromTransform(T_W_ee_approach_vtk)
+
+
+        # execute the place
+        print("executing place on rack")
+        self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom_left_table)
+
+        # # open the gripper and back away
+        # pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
+        # pickup_speed = self.graspingParams['speed']['pickup']
+        # self.gripperDriver.send_open_gripper_set_distance_from_current()
+        # # pickup the object
+        # self.robotService.moveToJointPosition(pre_grasp_pose,
         #                                       maxJointDegreesPerSecond=
         #                                       pickup_speed)
+        #
+        # # move home
+        # self.moveHome()
 
-
-        # place the object
-        grasp_data_place = self._object_manipulation.get_place_grasp_data()
-        self.execute_place(grasp_data_place)
-
-
-        # open the gripper and back away
-        pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
-        pickup_speed = self.graspingParams['speed']['pickup']
-        self.gripperDriver.send_open_gripper_set_distance_from_current()
-        # pickup the object
-        self.robotService.moveToJointPosition(pre_grasp_pose,
-                                              maxJointDegreesPerSecond=
-                                              pickup_speed)
-
-        # move home
-        self.moveHome()
+        # move to
 
 
     def run_category_manipulation_pipeline(self):
@@ -1221,7 +1243,7 @@ class GraspSupervisor(object):
         pre_grasp_speed = self.graspingParams['speed']['pre_grasp']
 
         #### debugging
-        pre_grasp_speed = 10
+        # pre_grasp_speed = 10
         self.robotService.moveToJointPosition(pre_grasp_pose,
                                               maxJointDegreesPerSecond=
                                               pre_grasp_speed)
@@ -1397,6 +1419,142 @@ class GraspSupervisor(object):
                                                   speed)
 
         self.gripperDriver.send_open_gripper_set_distance_from_current()
+        return True
+
+    def execute_place_new(self, T_W_ee, T_W_ee_approach, q_nom=None, use_cartesian_plan=False):
+        """
+
+        :param T_W_ee: ee location for place
+        :type T_W_ee:
+        :param T_W_ee_approach: ee location for approach
+        :type T_W_ee_approach:
+        :param q_nom: pose for use as nominal and seed for ik
+        :type q_nom:
+        :param use_cartesian_plan: whether or not to use the cartesian plane
+        :type use_cartesian_plan:
+        :return:
+        :rtype:
+        """
+
+        # run the ik for moving to pre-grasp location
+
+        if q_nom is None:
+            graspLocationData = self.graspingParams[self.state.graspingLocation]
+            q_nom = graspLocationData['poses']['above_table_pre_grasp']
+
+        T_W_ee_vtk = transformUtils.getTransformFromNumpy(T_W_ee)
+        T_W_ee_approach_vtk = transformUtils.getTransformFromNumpy(T_W_ee_approach)
+
+        # pose stamped
+        frame_id = "base"
+        T_W_ee_approach_stamped = geometry_msgs.msg.PoseStamped()
+        T_W_ee_approach_stamped.pose = ros_numpy.msgify(geometry_msgs.msg.Pose,
+                                               T_W_ee_approach)
+        T_W_ee_approach_stamped.header.frame_id = frame_id
+        T_W_ee_approach_stamped.header.stamp = rospy.Time.now()
+
+        print T_W_ee_approach_stamped
+
+        pre_place_ik_response = self.robotService.runIK(T_W_ee_approach_stamped,
+                                                        seedPose=q_nom,
+                                                        nominalPose=q_nom)
+
+        pre_place_pose = pre_place_ik_response.joint_state.position
+
+        self.state.cache["pre_place_ik_response"] = pre_place_ik_response
+
+        if not pre_place_ik_response.success:
+            rospy.loginfo("pre place pose ik failed, returning")
+            self.state.set_status_ik_failed()
+            self.state.print_status()
+            return False
+
+        # run the ik for moving to grasp location
+        frame_id = "base"
+        T_W_ee_stamped = geometry_msgs.msg.PoseStamped()
+        T_W_ee_stamped.pose = ros_numpy.msgify(geometry_msgs.msg.Pose,
+                                                        T_W_ee)
+        T_W_ee_stamped.header.frame_id = frame_id
+        T_W_ee_stamped.header.stamp = rospy.Time.now()
+
+
+        # for now just do IK, otherwise use cartesian space plan with force guards
+        place_ik_response = self.robotService.runIK(T_W_ee_stamped,
+                                                        seedPose=q_nom,
+                                                        nominalPose=q_nom)
+
+        place_pose = place_ik_response.joint_state.position
+        if not place_ik_response.success:
+            rospy.loginfo("place pose ik failed, returning")
+            self.state.set_status_ik_failed()
+            self.state.print_status()
+            return False
+
+        # store for later use
+        self.state.cache['place_ik_response'] = place_ik_response
+
+        # move to pre-grasp position
+        # we do this using a position trajectory
+        print "moving to approach pose"
+        pre_grasp_speed = self.graspingParams['speed']['pre_grasp']
+        speed = self.graspingParams['speed']['grasp']
+        self.robotService.moveToJointPosition(pre_place_pose,
+                                              maxJointDegreesPerSecond=
+                                              speed)
+
+        self.state.set_status("PRE_GRASP")
+        print "at approach pose"
+
+        if use_cartesian_plan:
+            # move to grasp position using compliant cartesian plan
+            # for now doesn't deal with orientations
+
+            xyz_approach = np.array(T_W_ee_approach_vtk.GetPosition())
+            xyz_place = np.array(T_W_ee_vtk.GetPosition())
+            distance = np.linalg.norm(xyz_place - xyz_approach)
+            ee_speed_m_s = 0.05
+            duration = distance/ee_speed_m_s
+
+
+            xyz_goal = xyz_place
+            ee_frame_id = "iiwa_link_ee"
+            base_frame_id = "base"
+            expressed_in_frame = base_frame_id
+            cartesian_grasp_speed = self.graspingParams['speed']['cartesian_grasp']
+            cartesian_traj_goal = \
+                control_utils.make_cartesian_trajectory_goal(xyz_goal,
+                                                             ee_frame_id,
+                                                             expressed_in_frame,
+                                                             duration=duration)
+
+
+            # add force guards
+            # -z (gripper) direction in frame iiwa_link_ee,
+            # force_magnitude = self.graspingParams['force_threshold_magnitude']
+            # force_vector = force_magnitude * np.array([-1, 0, 0])
+            # force_guard = control_utils.make_force_guard_msg(force_vector)
+            # cartesian_traj_goal.force_guard.append(force_guard)
+            #
+
+            action_client = self.robotService.cartesian_trajectory_action_client
+            action_client.send_goal(cartesian_traj_goal)
+
+            # wait for result
+            action_client.wait_for_result()
+            result = action_client.get_result()
+            self.state.cache['cartesian_traj_result'] = result
+
+            print "Cartesian Trajectory Result\n", result
+        else:
+            # move to grasp pose using standard IK
+            speed = self.graspingParams['speed']['grasp']
+            self.robotService.moveToJointPosition(place_pose,
+                                                  maxJointDegreesPerSecond=
+                                                  speed)
+
+        # now back off
+
+        # self.gripperDriver.send_open_gripper_set_distance_from_current()
         return True
 
     def attemptGrasp(self, graspFrame):

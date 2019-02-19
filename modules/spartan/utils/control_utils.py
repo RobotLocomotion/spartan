@@ -59,9 +59,11 @@ def make_force_guard_msg(force_vector=None, body_frame="iiwa_link_ee", expressed
     return msg
 
 
-def make_cartesian_trajectory_goal(xyz_goal, ee_frame_id, expressed_in_frame, speed=0.01):
+def make_cartesian_trajectory_goal(xyz_goal, ee_frame_id, expressed_in_frame, speed=0.01, duration=None):
     """
-    Keeps the orientation constant. Moves to xyz_goal expressed in expressed_in_frame
+    Keeps the orientation constant. Moves to xyz_goal expressed in expressed_in_frame.
+
+    expressed_in_frame should be a ros TF frame name
 
     :param xyz_goal: xyz goal in expressed_in_frame
     :type: np array of size [3,]
@@ -72,7 +74,7 @@ def make_cartesian_trajectory_goal(xyz_goal, ee_frame_id, expressed_in_frame, sp
     goal = robot_msgs.msg.CartesianTrajectoryGoal()
     traj = goal.trajectory
 
-    duration = max(np.linalg.norm(xyz_goal)/(1.0*speed), 0.1)
+
 
     # the first knot point always gets replaced by the current
     xyz_knot = geometry_msgs.msg.PointStamped()
@@ -91,6 +93,10 @@ def make_cartesian_trajectory_goal(xyz_goal, ee_frame_id, expressed_in_frame, sp
     traj.xyz_points.append(xyz_knot)
 
     traj.ee_frame_id = ee_frame_id
+
+
+    if duration is None:
+        duration = max(np.linalg.norm(xyz_goal) / (1.0 * speed), 0.1)
 
     traj.time_from_start.append(rospy.Duration(0.0))
     traj.time_from_start.append(rospy.Duration(duration))
