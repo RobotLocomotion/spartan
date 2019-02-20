@@ -1376,6 +1376,51 @@
       },
       "name": "top_down",
       "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.5091170072555542,
+        "iiwa_joint_2": 0.23531366884708405,
+        "iiwa_joint_3": 0.3829177916049957,
+        "iiwa_joint_4": -1.735766887664795,
+        "iiwa_joint_5": -0.054388247430324554,
+        "iiwa_joint_6": 1.2093271017074585,
+        "iiwa_joint_7": -0.23727788031101227
+      },
+      "name": "above_table_pre_grasp_right",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 1.2146261930465698,
+        "iiwa_joint_2": 0.42955201864242554,
+        "iiwa_joint_3": 0.1950334906578064,
+        "iiwa_joint_4": -1.8947608470916748,
+        "iiwa_joint_5": -0.936322033405304,
+        "iiwa_joint_6": 0.9616686701774597,
+        "iiwa_joint_7": 0.8696807622909546
+      },
+      "name": "mug_pre_place",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.3436020612716675,
+        "iiwa_joint_2": -0.15440696477890015,
+        "iiwa_joint_3": 0.048067886382341385,
+        "iiwa_joint_4": -1.8247461318969727,
+        "iiwa_joint_5": 0.7468169927597046,
+        "iiwa_joint_6": 1.2323585748672485,
+        "iiwa_joint_7": -0.9038079380989075
+      },
+      "name": "look_at_rack",
+      "nominal_handedness": "left"
     }
   ],
   "mug": [

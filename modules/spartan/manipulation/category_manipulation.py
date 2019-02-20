@@ -11,11 +11,17 @@ import spartan.utils.director_utils as director_utils
 
 class CategoryManipulation(object):
 
-    def __init__(self, robotStateModel):
+    def __init__(self, robotStateModel, mug_rack_config=None):
         self._robotStateModel = robotStateModel
         self.clear_visualation()
         self.setup_config()
         self._gripper_link_frame_name = "wsg_50_base_link"
+        self._mug_rack_config = mug_rack_config
+
+        if mug_rack_config is None:
+            mug_rack_config_file = os.path.join(spartan_utils.getSpartanSourceDir(),
+                                                'src/catkin_projects/station_config/RLG_iiwa_1/manipulation/mug_rack.yaml')
+            self._mug_rack_config = spartan_utils.getDictFromYamlFilename(mug_rack_config_file)
 
     def setup_config(self):
         """
@@ -68,17 +74,13 @@ class CategoryManipulation(object):
         :rtype:
         """
 
-        config_file = os.path.join(spartan_utils.getSpartanSourceDir(), 'src/catkin_projects/station_config/RLG_iiwa_1/manipulation/mug_rack.yaml')
-        self._mug_rack_config = spartan_utils.getDictFromYamlFilename(config_file)
         pdc_data_dir = os.path.join(spartan_utils.get_data_dir(), 'pdc')
-
-        side_table_ply_file = os.path.join(pdc_data_dir, 'logs_proto/2019-02-16-18-49-39/processed/fusion_mesh.ply')
+        side_table_ply_file = os.path.join(pdc_data_dir, self._mug_rack_config['background_mesh'])
 
         side_table_poly_data = ioUtils.readPolyData(side_table_ply_file)
         vis.showPolyData(side_table_poly_data, 'Side Table', parent=self._vis_container)
 
-
-        rack_ply_file = os.path.join(pdc_data_dir, "logs_proto/2019-02-11-22-38-30/processed/fusion_mesh_foreground.ply")
+        rack_ply_file = os.path.join(pdc_data_dir, self._mug_rack_config["mesh"])
         rack_poly_data = ioUtils.readPolyData(rack_ply_file)
         self._mug_rack = vis.showPolyData(rack_poly_data, 'Mug Rack', parent=self._vis_container)
         # rack_target_position
@@ -103,6 +105,9 @@ class CategoryManipulation(object):
 
     def spawn_object(self):
         pass
+
+    def get_mug_rack_pose(self):
+        return self._mug_rack.getChildFrame().transform
 
 
     def update(self):

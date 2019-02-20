@@ -16,6 +16,7 @@ from spartan.manipulation.object_manipulation import ObjectManipulation
 from spartan.poser.poser_visualizer import PoserVisualizer
 from spartan.utils.taskrunner import TaskRunner
 from spartan.manipulation.category_manipulation import CategoryManipulation
+from spartan.utils.director_ros_visualizer import DirectorROSVisualizer
 
 # ros
 import tf2_ros
@@ -68,6 +69,13 @@ def setupRLGDirector(globalsDict=None):
     globalsDict['treeViewer'].subscriber.setSpeedLimit(5)
 
 
+    ros_visualizer = DirectorROSVisualizer(tf_buffer=tfBuffer)
+    topic = "/camera_carmine_1/depth/points"
+    ros_visualizer.add_subscriber(topic, name="Carmine", visualize=True)
+    globalsDict['ros_visualizer'] = ros_visualizer
+    ros_visualizer.start()
+
+
     # load background scene if it exists
     background_ply_file = os.path.join(spartanUtils.get_data_dir(), 'pdc', 'logs_special',
         '2019-01-03-22-43-55', 'processed', 'fusion_mesh.ply')
@@ -75,7 +83,9 @@ def setupRLGDirector(globalsDict=None):
 
     robotSystem = globalsDict['robotSystem']
     robotStateModel = robotSystem.robotStateModel
+
     category_manip = CategoryManipulation(robotStateModel)
+    category_manip.load_mug_rack_and_side_table()
     # category_manip.setup_horizontal_mug_grasp()
 
     def visualize_background():

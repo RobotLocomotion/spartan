@@ -1,14 +1,27 @@
+mesh: "logs_proto/2019-02-11-22-38-30/processed/fusion_mesh_foreground.ply"
+background_mesh: 'logs_proto/2019-02-16-18-49-39/processed/fusion_mesh.ply'
+
 poses:
-  left_side_table: # location of the mug rack
-    translation:
-      x: 0.022821
-      y: 0.12050039
-      z: -0.04187532
-    orientation:
-      w: 0.70358301
+  left_side_table_v1: # location of the mug rack
+    quaternion:
+      w: 0.6784430069620964
       x: 0.0
       y: 0.0
-      z: 0.71061308
+      z: 0.7346530380419233
+    translation:
+      x: 0.08307750740841482
+      y: 0.12323850875823555
+      z: -0.03754592630709378
+  left_side_table:
+    quaternion:
+      w: 0.6784430069620968
+      x: 0.0
+      y: 0.0
+      z: 0.7346530380419237
+    translation:
+      x: 0.35040335128295264
+      y: 0.01025161362325927
+      z: -0.037545926307094
 
 keypoints:
   top_bar_tip:

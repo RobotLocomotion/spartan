@@ -857,6 +857,8 @@ class GraspSupervisor(object):
         self.state.grasp_data = grasp_data
         self.visualize_grasp(grasp_data)
 
+        debug_speed = 10
+
         def vis_function():
             vis.showFrame(T_W_fingertip_vtk, "gripper fingertip frame", scale=0.15, parent=self._vis_container)
 
@@ -870,18 +872,10 @@ class GraspSupervisor(object):
 
 
         # execute the grasp
-        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True)
-
-        if not object_in_gripper:
-            return False
-
-
+        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True, push_in_distance=0.04)
 
 
         T_W_G = self.state.cache['gripper_frame_at_grasp'] # this is set in execute_grasp
-
-
-
 
         pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
         pickup_speed = self.graspingParams['speed']['pickup']
@@ -902,10 +896,12 @@ class GraspSupervisor(object):
 
 
         # now move to nominal position for the place
-        q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp"]
+        speed = self.graspingParams["speed"]["nominal"]
+        # q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp"]
+        q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp_right"]
         self.robotService.moveToJointPosition(q_nom_left_table,
                                               maxJointDegreesPerSecond=
-                                              self.graspingParams['speed']['nominal'])
+                                              speed)
 
 
 
@@ -936,7 +932,10 @@ class GraspSupervisor(object):
 
         # execute the place
         print("executing place on rack")
-        self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom_left_table)
+        self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom_left_table, use_cartesian_plan=True)
+
+
+        # now move back from current position along iiwa_link_ee x-axis
 
         # # open the gripper and back away
         # pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
@@ -951,6 +950,45 @@ class GraspSupervisor(object):
         # self.moveHome()
 
         # move to
+
+    def retract_from_rack(self, gripper_open=True):
+        """
+        Move backwards from the rack
+        :return:
+        :rtype:
+        """
+
+        if gripper_open:
+            self.gripperDriver.send_open_gripper_set_distance_from_current()
+
+        xyz_goal = np.array([-0.10, 0, 0])
+        ee_frame_id = "iiwa_link_ee"
+        expressed_in_frame = ee_frame_id
+        cartesian_grasp_speed = self.graspingParams['speed']['cartesian_grasp']
+        cartesian_traj_goal = \
+            control_utils.make_cartesian_trajectory_goal(xyz_goal,
+                                                         ee_frame_id,
+                                                         expressed_in_frame,
+                                                         speed=cartesian_grasp_speed)
+
+        action_client = self.robotService.cartesian_trajectory_action_client
+        action_client.send_goal(cartesian_traj_goal)
+
+        # wait for result
+        action_client.wait_for_result()
+        result = action_client.get_result()
+
+        # now move to nominal position for the place
+        speed = self.graspingParams["speed"]["nominal"]
+        # q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp"]
+        q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp_right"]
+        self.robotService.moveToJointPosition(q_nom_left_table,
+                                              maxJointDegreesPerSecond=
+                                              speed)
+
+
+
+        self.moveHome()
 
 
     def run_category_manipulation_pipeline(self):
@@ -1178,7 +1216,7 @@ class GraspSupervisor(object):
         return poseStamped
 
 
-    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True, stop_at_pre_grasp=False):
+    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True, stop_at_pre_grasp=False, push_in_distance=None):
         """
         Moves to pre-grasp frame, then grasp frame
         attemps to close gripper if `close_gripper=True` was passed in
@@ -1187,6 +1225,9 @@ class GraspSupervisor(object):
 
         if grasp_data is None:
             grasp_data = self.state.grasp_data
+
+        if push_in_distance is None:
+            push_in_distance = self.graspingParams['grasp_push_in_distance']
 
         gripper_width = grasp_data.grasp_inner_diameter
         if gripper_width is not None:
@@ -1257,8 +1298,7 @@ class GraspSupervisor(object):
         if use_cartesian_plan:
             # move to grasp position using compliant cartesian plan
 
-            push_distance = self.graspingParams['grasp_push_in_distance']
-            move_forward_distance = pre_grasp_distance + push_distance
+            move_forward_distance = pre_grasp_distance + push_in_distance
             print "move_forward_distance", move_forward_distance
             xyz_goal = move_forward_distance * np.array([1, 0, 0])
             ee_frame_id = "iiwa_link_ee"
@@ -1437,6 +1477,7 @@ class GraspSupervisor(object):
         """
 
         # run the ik for moving to pre-grasp location
+        debug_speed = 10
 
         if q_nom is None:
             graspLocationData = self.graspingParams[self.state.graspingLocation]
@@ -1496,7 +1537,7 @@ class GraspSupervisor(object):
         # move to pre-grasp position
         # we do this using a position trajectory
         print "moving to approach pose"
-        pre_grasp_speed = self.graspingParams['speed']['pre_grasp']
+        # pre_grasp_speed = self.graspingParams['speed']['pre_grasp']
         speed = self.graspingParams['speed']['grasp']
         self.robotService.moveToJointPosition(pre_place_pose,
                                               maxJointDegreesPerSecond=
@@ -2347,6 +2388,10 @@ class GraspSupervisor(object):
 
     def test_run_mug_manipulation(self, *args, **kwargs):
         self.taskRunner.callOnThread(self.run_mug_manipulation, *args, **kwargs)
+
+
+    def test_retract_from_rack(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.retract_from_rack, *args, **kwargs)
 
     def loadDefaultPointCloud(self):
         self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
