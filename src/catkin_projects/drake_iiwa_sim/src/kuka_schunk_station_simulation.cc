@@ -170,9 +170,11 @@ int do_main(int argc, char* argv[]) {
                         plant->get_source_id().value()));
 
     if (station_config["cameras"]) {
-      int i = 0;
+      
       for (const auto camera_config : station_config["cameras"]) {
-        i++;
+
+        std::cout << camera_config["name"] << std::endl;
+
 
         DRAKE_DEMAND(camera_config["name"]);
         DRAKE_DEMAND(camera_config["channel"]);

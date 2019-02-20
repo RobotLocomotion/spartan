@@ -2,17 +2,16 @@
 with_ground: true
 
 cameras:
-  - name: "carmine_1"
+  - name: "sim_d415_left"
     channel: "/test"
-    config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/carmine_1/master"    
+    config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/sim_d415_left/master"    
     mounting_model_name: "iiwa"
     mounting_body_name: "iiwa_link_0"
-  # - name: "carmine_3"
-  #   channel: "/test2"
-  #   config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/carmine_3/master"    
-  #   mounting_model_name: "iiwa"
-  #   mounting_body_name: "iiwa_link_0"
-
+  - name: "sim_d415_right"
+    channel: "/test2"
+    config_base_dir: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/camera_config/data/sim_d415_right/master"    
+    mounting_model_name: "iiwa"
+    mounting_body_name: "iiwa_link_0"
 
 models:
   plate_11in_decomp: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_11in_decomp/plate_11in_decomp.urdf"

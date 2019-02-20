@@ -1,16 +1,49 @@
+# depth:
+#   extrinsics:
+#     reference_link_name: base
+#     transform_to_reference_link:
+#       quaternion:
+#         w: -0.08362925
+#         x: 0.23806979
+#         y: 0.87027349
+#         z: -0.42302834
+#       translation:
+#         x: 0.95868707
+#         y: 0.75340102
+#         z: 0.6307332
+# header:
+#   calibration_date: ignored
+#   camera_name: carmine_1
+#   serial_number: 0
+# rgb:
+#   extrinsics:
+#     reference_link_name: base
+#     transform_to_reference_link:
+#       quaternion:
+#         w: -0.08362925
+#         x: 0.23806979
+#         y: 0.87027349
+#         z: -0.42302834
+#       translation:
+#         x: 0.95868707
+#         y: 0.75340102
+#         z: 0.6307332
+
+
+# LEFT SIDE CAMERA
 depth:
   extrinsics:
     reference_link_name: base
     transform_to_reference_link:
       quaternion:
-        w: -0.49284369
-        x: 0.50803435
-        y: 0.50240645
-        z: -0.49658227
+        w: -0.42302834
+        x: 0.87027349
+        y: 0.23806979
+        z: -0.08362925
       translation:
-        x: 1.33756128
-        y: 0.0144251
-        z: 0.23048248
+        x: 0.95868707
+        y: -0.75340102
+        z: 0.6307332
 header:
   calibration_date: ignored
   camera_name: carmine_1
@@ -20,11 +53,11 @@ rgb:
     reference_link_name: base
     transform_to_reference_link:
       quaternion:
-        w: -0.49284369
-        x: 0.50803435
-        y: 0.50240645
-        z: -0.49658227
+        w: -0.42302834
+        x: 0.87027349
+        y: 0.23806979
+        z: -0.08362925
       translation:
-        x: 1.33756128
-        y: 0.0144251
-        z: 0.23048248
+        x: 0.95868707
+        y: -0.75340102
+        z: 0.6307332
