@@ -596,14 +596,18 @@ class GraspSupervisor(object):
         :rtype:
         """
 
+        self._clear_cache()
+        self.state.clear()
+
+
         if move_to_stored_pose:
             q = self._stored_poses_director['General']['center_back']
             self.robotService.moveToJointPosition(q,
                                                   maxJointDegreesPerSecond=self.graspingParams['speed']['nominal'])
 
         rgbdWithPoseMsg = self.captureRgbdAndCameraTransform()
-        listOfRgbdWithPoseMsg = [rgbdWithPoseMsg]
-        self.list_rgbd_with_pose_msg = listOfRgbdWithPoseMsg
+        self.state.cache['rgbd_with_pose_list'] = []
+        self.state.cache['rgbd_with_pose_list'].append(rgbdWithPoseMsg)
 
         # request via a ROS Action
         rospy.loginfo("waiting for KeypointDetection server")
@@ -611,15 +615,14 @@ class GraspSupervisor(object):
         rospy.loginfo("connected to KeypointDetection server")
 
         goal = pdc_ros_msgs.msg.KeypointDetectionGoal()
-        goal.rgbd_with_pose_list = listOfRgbdWithPoseMsg
+        goal.rgbd_with_pose_list = self.state.cache['list_rgbd_with_pose']
         goal.camera_info = self.camera_info_subscriber.waitForNextMessage()
 
         rospy.loginfo("requesting action from KeypointDetection server")
 
         self.keypoint_detection_client.send_goal(goal)
         self.moveHome()
-
-        self._cache["keypoint_detection_sensor_data"] = listOfRgbdWithPoseMsg
+        self.state.set_status("ABOVE_TABLE")
 
         if wait_for_result:
             self.wait_for_keypoint_detection_result()        
@@ -670,6 +673,12 @@ class GraspSupervisor(object):
         goal.output_dir = self._cache['keypoint_detection_result']['output_dir']
         goal.keypoint_detection_type = self._cache['keypoint_detection_result']['type']
 
+
+        self.moveHome()
+        rgbd_with_pose = self.captureRgbdAndCameraTransform()
+        self.state.cache['rgbd_with_pose_list'].append(rgbd_with_pose)
+        goal.rgbd_with_pose_list = self.state.cache['rgbd_with_pose_list']
+
         rospy.loginfo("waiting for CategoryManip server")
         self.category_manip_client.wait_for_server()
         rospy.loginfo("connected to CategoryManip server")
@@ -691,21 +700,16 @@ class GraspSupervisor(object):
         :rtype:
         """
 
-        self.moveHome()
-
-        rgbd_with_pose = self.captureRgbdAndCameraTransform()
 
         # don't specify poser output dir for now
         goal = pdc_ros_msgs.msg.MugOnRackManipulationGoal()
         goal.output_dir = self._cache['keypoint_detection_result']['output_dir']
         goal.keypoint_detection_type = self._cache['keypoint_detection_result']['type']
 
-
-        rgbd_with_pose_list = self.list_rgbd_with_pose_msg
-        rgbd_with_pose_list.append(rgbd_with_pose)
-
-        # Sensor Data
-        goal.rgbd_with_pose_list = rgbd_with_pose_list
+        self.moveHome()
+        rgbd_with_pose = self.captureRgbdAndCameraTransform()
+        self.state.cache['rgbd_with_pose_list'].append(rgbd_with_pose)
+        goal.rgbd_with_pose_list = self.state.cache['rgbd_with_pose_list']
 
 
         # mug rack pose
@@ -731,8 +735,8 @@ class GraspSupervisor(object):
         self.category_manip_client.wait_for_result()
         result = self.category_manip_client.get_result()
 
-        T_goal_obs_flat = np.array(result.T_goal_obs)
-        T_goal_obs = np.reshape(T_goal_obs_flat, [4,4], order='C')
+
+        T_goal_obs = ros_numpy.numpify(result.T_goal_obs)
 
         print "T_goal_obs:\n", T_goal_obs
 
@@ -741,6 +745,10 @@ class GraspSupervisor(object):
 
         self._cache['category_manipulation_goal_result'] = result
         self._cache['category_manipulation_T_goal_obs'] = T_goal_obs_vtk
+
+        self.state.cache['category_manipulation_goal_result'] = result
+        self.state.cache['category_manipulation_T_goal_obs'] = T_goal_obs_vtk
+
 
 
 
@@ -772,7 +780,7 @@ class GraspSupervisor(object):
 
         print "object_in_gripper:", object_in_gripper
 
-        T_goal_obs = self._cache['category_manipulation_T_goal_obs']
+        T_goal_obs = self.state.cache['category_manipulation_T_goal_obs']
         T_W_G = self.state.cache['gripper_frame_at_grasp']
         self._object_manipulation = ObjectManipulation(T_goal_object=T_goal_obs, T_W_G=T_W_G)
         self._object_manipulation.grasp_data = self.state.grasp_data

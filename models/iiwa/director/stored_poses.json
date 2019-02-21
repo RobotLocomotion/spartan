@@ -1438,6 +1438,66 @@
       },
       "name": "mug_place_from_base_grasp",
       "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": -0.04368039220571518,
+        "iiwa_joint_2": 1.2467803955078125,
+        "iiwa_joint_3": 0.6068271994590759,
+        "iiwa_joint_4": -1.7170568704605103,
+        "iiwa_joint_5": 1.6220141649246216,
+        "iiwa_joint_6": 1.023303747177124,
+        "iiwa_joint_7": 0.6525450348854065
+      },
+      "name": "mug_place_low",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.9485061764717102,
+        "iiwa_joint_2": 0.7488764524459839,
+        "iiwa_joint_3": -0.293906033039093,
+        "iiwa_joint_4": -1.3149793148040771,
+        "iiwa_joint_5": 0.24946992099285126,
+        "iiwa_joint_6": 1.0983178615570068,
+        "iiwa_joint_7": 2.6610031127929688
+      },
+      "name": "mug_place_vertical",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.9485061764717102,
+        "iiwa_joint_2": 0.7488764524459839,
+        "iiwa_joint_3": -0.293906033039093,
+        "iiwa_joint_4": -1.3149793148040771,
+        "iiwa_joint_5": 0.24946992099285126,
+        "iiwa_joint_6": 1.0983178615570068,
+        "iiwa_joint_7": 2.6610031127929688
+      },
+      "name": "mug_place_vertical_grasp",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": -0.04368039220571518,
+        "iiwa_joint_2": 1.2467803955078125,
+        "iiwa_joint_3": 0.6068271994590759,
+        "iiwa_joint_4": -1.7170568704605103,
+        "iiwa_joint_5": 1.6220141649246216,
+        "iiwa_joint_6": 1.023303747177124,
+        "iiwa_joint_7": 0.6525450348854065
+      },
+      "name": "mug_place_horizontal_grasp",
+      "nominal_handedness": "left"
     }
   ],
   "object_interaction": [

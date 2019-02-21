@@ -11,17 +11,29 @@ import spartan.utils.director_utils as director_utils
 
 class CategoryManipulation(object):
 
-    def __init__(self, robotStateModel, mug_rack_config=None):
+    def __init__(self, robotStateModel, mug_rack_config=None, mug_platform_config=None):
         self._robotStateModel = robotStateModel
         self.clear_visualation()
         self.setup_config()
         self._gripper_link_frame_name = "wsg_50_base_link"
-        self._mug_rack_config = mug_rack_config
+
+        self._object = None
+
+        robotStateModel.connectModelChanged(self.on_robot_model_changed)
 
         if mug_rack_config is None:
             mug_rack_config_file = os.path.join(spartan_utils.getSpartanSourceDir(),
                                                 'src/catkin_projects/station_config/RLG_iiwa_1/manipulation/mug_rack.yaml')
             self._mug_rack_config = spartan_utils.getDictFromYamlFilename(mug_rack_config_file)
+        else:
+            self._mug_rack_config = mug_rack_config
+
+        if mug_platform_config is None:
+            mug_platform_config_file = os.path.join(spartan_utils.getSpartanSourceDir(),
+                                                'src/catkin_projects/station_config/RLG_iiwa_1/manipulation/mug_platform.yaml')
+            self._mug_platform_config = spartan_utils.getDictFromYamlFilename(mug_platform_config_file)
+        else:
+            self._mug_platform_config = mug_platform_config
 
     def setup_config(self):
         """
@@ -91,6 +103,27 @@ class CategoryManipulation(object):
         vis.addChildFrame(self._mug_rack)
         self._mug_rack.getChildFrame().copyFrame(target_pose)
 
+
+    def load_mug_platform(self):
+        """
+        Load the mug platform
+        :return:
+        :rtype:
+        """
+
+        pdc_data_dir = os.path.join(spartan_utils.get_data_dir(), 'pdc')
+        platform_ply_file = os.path.join(pdc_data_dir, self._mug_platform_config['mesh'])
+
+        platform_poly_data = ioUtils.readPolyData(platform_ply_file)
+        self._mug_platform = vis.showPolyData(platform_poly_data, 'Platform', parent=self._vis_container)
+
+        target_pose_name = "left_side_table"
+        target_pose = director_utils.transformFromPose(self._mug_platform_config['poses'][target_pose_name])
+
+        vis.addChildFrame(self._mug_platform)
+        self._mug_platform.getChildFrame().copyFrame(target_pose)
+
+
     def clear_visualation(self):
         """
         Clear the vis container
@@ -116,10 +149,16 @@ class CategoryManipulation(object):
         :return:
         :rtype:
         """
+        if self._object is None:
+            return
+
         T_world_gripper = self._robotStateModel.getLinkFrame(self._gripper_link_frame_name)
         T_world_object = transformUtils.concatenateTransforms([self._T_gripper_object, T_world_gripper])
         self._object.getChildFrame().copyFrame(T_world_object)
 
+
+    def on_robot_model_changed(self, model):
+        self.update()
 
     def get_object_pose_relative_to_gripper(self):
         T_world_object = self._object.actor.GetUserTransform()

@@ -1,0 +1,19 @@
+mesh: 'logs_test/2019-02-20-21-34-06/processed/fusion_mesh.ply'
+
+poses:
+  left_side_table: # location of the mug rack
+    quaternion:
+      w: 1
+      x: 0.0
+      y: 0.0
+      z: 0
+    translation:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+
+plane_info:
+  point_on_plane:
+    position: []
+
+  plane_normal: [0,0,1]
