@@ -392,6 +392,16 @@ class FusionServer(object):
         self.config['scan']['close_up'] = pose_list
 
 
+        pose_list = []
+        pose_list.append(["left_table", "center_back"])
+        pose_list.append(["left_table", "top_down"])
+        pose_list.append(["left_table", "scan_left"])
+        pose_list.append(["left_table", "top_down"])
+        pose_list.append(["left_table", "scan_right"])
+        pose_list.append(["left_table", "center_back"])
+        self.config['scan']['left_table'] = pose_list
+
+
         self.config['speed'] = dict()
         self.config['speed']['scan'] = 25
         self.config['speed']['fast'] = 30
@@ -662,7 +672,7 @@ class FusionServer(object):
             rospy.sleep(self.config['sleep_time_at_each_pose'])
 
 
-    def capture_scene(self):
+    def capture_scene(self, use_close_up_poses=False):
         """
         This "moves around and captures all of the data needed for fusion". I.e., it:
 
@@ -689,7 +699,7 @@ class FusionServer(object):
 
         # Start bagging for far out data collection
         # base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_proto')
-        base_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_shoes')
+        base_path = os.path.join(spartanUtils.get_data_dir(), 'pdc', 'logs_test')
         log_id_name = spartanUtils.get_current_YYYY_MM_DD_hh_mm_ss()
         log_subdir = "raw"
         bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
@@ -698,7 +708,8 @@ class FusionServer(object):
 
         print "moving robot through regular scan poses"
         self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
-        pose_list = self.config['scan']['pose_list']
+        # pose_list = self.config['scan']['pose_list']
+        pose_list = self.config['scan']['left_table']
         joint_positions = self.get_joint_positions_for_pose(pose_list[0])
         self.robotService.moveToJointPosition(joint_positions,
                                               maxJointDegreesPerSecond=self.config['speed']['scan'])
@@ -709,25 +720,26 @@ class FusionServer(object):
 
 
         # # move robot through close up scan poses
-        log_subdir = "raw_close_up"
-        bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
-        bagfile_name = "fusion_" + log_id_name + ".bag"
-        full_path_to_bagfile = os.path.join(bagfile_directory, bagfile_name)
-        #
-        print "moving robot through close up scan poses"
-        pose_list = self.config['scan']['close_up']
+        if use_close_up_poses:
+            log_subdir = "raw_close_up"
+            bagfile_directory = os.path.join(base_path, log_id_name, log_subdir)
+            bagfile_name = "fusion_" + log_id_name + ".bag"
+            full_path_to_bagfile = os.path.join(bagfile_directory, bagfile_name)
+            #
+            print "moving robot through close up scan poses"
+            pose_list = self.config['scan']['close_up']
 
-        # move to first pose before we start bagging
-        joint_positions = self.get_joint_positions_for_pose(pose_list[0])
-        self.robotService.moveToJointPosition(joint_positions,
-                                              maxJointDegreesPerSecond=self.config['speed']['scan'])
+            # move to first pose before we start bagging
+            joint_positions = self.get_joint_positions_for_pose(pose_list[0])
+            self.robotService.moveToJointPosition(joint_positions,
+                                                  maxJointDegreesPerSecond=self.config['speed']['scan'])
 
-        # now start bagging and move the robot through the poses
-        self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
-        self._move_robot_through_pose_list(pose_list, randomize_wrist=True, hit_original_poses=True)
-        # rospy.sleep(3.0)
-        self._stop_bagging()
-        rospy.sleep(1.0)
+            # now start bagging and move the robot through the poses
+            self.start_bagging(full_path_to_bag_file=full_path_to_bagfile)
+            self._move_robot_through_pose_list(pose_list, randomize_wrist=True, hit_original_poses=True)
+            # rospy.sleep(3.0)
+            self._stop_bagging()
+            rospy.sleep(1.0)
 
         # move back home
         self.robotService.moveToJointPosition(home_pose_joint_positions, maxJointDegreesPerSecond=self.config['speed']['fast'])
