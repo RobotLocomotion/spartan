@@ -615,7 +615,7 @@ class GraspSupervisor(object):
         rospy.loginfo("connected to KeypointDetection server")
 
         goal = pdc_ros_msgs.msg.KeypointDetectionGoal()
-        goal.rgbd_with_pose_list = self.state.cache['list_rgbd_with_pose']
+        goal.rgbd_with_pose_list = self.state.cache['rgbd_with_pose_list']
         goal.camera_info = self.camera_info_subscriber.waitForNextMessage()
 
         rospy.loginfo("requesting action from KeypointDetection server")
@@ -769,7 +769,7 @@ class GraspSupervisor(object):
             return
 
         self.moveHome()
-        grasp_found, grasp_data = self.request_spartan_grasp()
+        grasp_found, grasp_data = self.request_spartan_grasp(clear_state=False)
         if not grasp_found:
             print "no grasp found, returning\n"
             return False
@@ -2102,7 +2102,7 @@ class GraspSupervisor(object):
 
         self.grasp_3D_location_client.send_goal(goal)
 
-    def request_spartan_grasp(self):
+    def request_spartan_grasp(self, clear_state=True):
         """
         - collect sensor data
         - send request to spartan grasp
@@ -2115,12 +2115,13 @@ class GraspSupervisor(object):
         result = self.waitForGenerateGraspsResult()
         grasp_found, grasp_data = self.make_grasp_data_from_spartan_grasp_result(result)
 
-        if grasp_found:
+        if clear_state:
             self.state.clear()
+
+        if grasp_found:
             self.state.set_status("GRASP_FOUND")
             self.state.grasp_data = grasp_data
         else:
-            self.state.clear()
             self.state.set_status("NO_GRASP_FOUND")
 
         if grasp_found and self.debugMode:
@@ -2411,6 +2412,14 @@ class GraspSupervisor(object):
             self.run_mug_on_rack_category_manipulation_goal_estimation()
 
         self.taskRunner.callOnThread(thread_fun)
+
+    def test_dev(self):
+        def thread_fun():
+            self.run_keypoint_detection(wait_for_result=True)
+            self.run_category_manipulation_goal_estimation()
+
+        self.taskRunner.callOnThread(thread_fun)
+
 
     @staticmethod
     def rectangleMessageFromYamlNode(node):
