@@ -52,6 +52,12 @@ if USING_DIRECTOR:
 
 MUG_RACK_CONFIG_FILE = os.path.join(spartanUtils.getSpartanSourceDir(), "src/catkin_projects/station_config/RLG_iiwa_1/manipulation/mug_rack.yaml")
 
+
+
+# IF true limits you to this speed
+DEBUG_SPEED = 20 # degrees per second
+USE_DEBUG_SPEED = True
+
 class GraspSupervisorState(object):
     STATUS_LIST = ["ABOVE_TABLE", "PRE_GRASP", "GRASP", "IK_FAILED", "NO_GRASP_FOUND", "GRASP_FOUND", "OBJECT_IN_GRIPPER", "GRASP_FAILED"]
 
@@ -148,6 +154,8 @@ class GraspSupervisor(object):
         self.state = GraspSupervisorState()
 
         self.robotService = rosUtils.RobotService.makeKukaRobotService()
+        self.robotService._use_debug_speed = USE_DEBUG_SPEED
+        self.robotService._debug_speed = DEBUG_SPEED
         self.usingDirector = True
         self.tfBuffer = tfBuffer  # don't create a new one if it is passed in
         self.setupConfig()
@@ -959,6 +967,169 @@ class GraspSupervisor(object):
 
         # move to
 
+    def run_mug_shelf_manipulation(self, use_debug_speed=True):
+        """
+        Runs the object manipulation code. Will put the object into the
+        specified target pose from `run_category_manipulation_goal_estimation`
+        :return:
+        """
+
+
+
+        self.moveHome()
+        self.wait_for_category_manipulation_goal_result()
+
+        result = self.state.cache['category_manipulation_goal_result']
+
+        print("\n\n---result----\n\n", result)
+        print("\n\n\n")
+
+        T_W_fingertip = ros_numpy.numpify(result.T_world_gripper_fingertip)
+        T_W_fingertip_vtk = transformUtils.getTransformFromNumpy(T_W_fingertip)
+
+        grasp_data = GraspData.from_gripper_fingertip_frame(T_W_fingertip)
+        grasp_data.gripper.params["hand_inner_diameter"] = result.gripper_width
+
+        self.state.grasp_data = grasp_data
+        self.visualize_grasp(grasp_data)
+
+
+
+        def vis_function():
+            vis.showFrame(T_W_fingertip_vtk, "gripper fingertip frame", scale=0.15, parent=self._vis_container)
+
+            vis.showFrame(grasp_data.grasp_frame, "grasp frame", scale=0.15, parent=self._vis_container)
+
+        self.taskRunner.callOnThread(vis_function)
+
+        # debugging
+        print("visualizing grasp")
+        self.visualize_grasp(grasp_data)
+
+        push_in_distance = 0.0
+        if result.mug_orientation == "HORIZONTAL":
+            push_in_distance = 0.005
+        elif result.mug_orientation == "UPRIGHT":
+            push_in_distance = 0.04
+
+
+        # execute the grasp
+        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True, push_in_distance=push_in_distance, use_debug_speed=True)
+
+
+        T_W_G = self.state.cache['gripper_frame_at_grasp'] # this is set in execute_grasp
+
+        pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
+        pickup_speed = self.graspingParams['speed']['pickup']
+
+        if not object_in_gripper:
+            # open the gripper and back away
+            self.gripperDriver.send_open_gripper_set_distance_from_current()
+            self.robotService.moveToJointPosition(pre_grasp_pose,
+                                                   maxJointDegreesPerSecond=
+                                                  pickup_speed)
+            return False
+
+        # pickup the object
+        self.robotService.moveToJointPosition(pre_grasp_pose,
+                                              maxJointDegreesPerSecond=
+                                              pickup_speed)
+
+
+        # move to above table pre grasp
+        speed = self.graspingParams["speed"]["nominal"]
+        if use_debug_speed:
+            speed = DEBUG_SPEED
+
+        q = self._stored_poses_director["Grasping"]["above_table_pre_grasp"]
+        self.robotService.moveToJointPosition(q,
+                                              maxJointDegreesPerSecond=
+                                              speed)
+
+
+
+
+        # now move to nominal position for the place
+        speed = self.graspingParams["speed"]["nominal"]
+        if use_debug_speed:
+            speed = DEBUG_SPEED
+
+        # q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp"]
+
+
+        q_approach = None
+        if result.mug_orientation == "HORIZONTAL":
+
+            q_nom = self._stored_poses_director["mug"]["horizontal_grasp_nominal"]
+
+            q_approach_1 = self._stored_poses_director["Grasping"]["above_table_pre_grasp"]
+            q_approach_2 = self._stored_poses_director["mug"]["horizontal_grasp_approach_2"]
+
+            self.robotService.moveToJointPosition(q_approach_1,
+                                                  maxJointDegreesPerSecond=
+                                                  speed)
+            self.robotService.moveToJointPosition(q_approach_2,
+                                                  maxJointDegreesPerSecond=
+                                                  speed)
+
+        elif result.mug_orientation == "UPRIGHT":
+            q_nom = self._stored_poses_director["mug"]["vertical_grasp_nominal"]
+            q_approach_1 = self._stored_poses_director["mug"]["vertical_grasp_above_table"]
+
+            self.robotService.moveToJointPosition(q_approach_1,
+                                                  maxJointDegreesPerSecond=
+                                                  speed)
+
+        else:
+            raise ValueError("unknonw mug orientation: %s" %(result.mug_orientation))
+
+
+
+
+        # compute some poses
+        T_goal_obs = ros_numpy.numpify(result.T_goal_obs)  # 4 x 4 numpy matrix
+        T_goal_obs_vtk = transformUtils.getTransformFromNumpy(T_goal_obs)
+        object_manip = ObjectManipulation(T_goal_object=T_goal_obs_vtk, T_W_G=T_W_G)
+        object_manip.compute_transforms()
+        T_W_Gn_vtk = object_manip.T_W_Gn # gripper to world for place pose
+
+
+        T_pre_goal_obs = ros_numpy.numpify(result.T_pre_goal_obs)
+        T_pre_goal_obs_vtk = transformUtils.getTransformFromNumpy(T_pre_goal_obs)
+        object_manip_approach = ObjectManipulation(T_goal_object=T_pre_goal_obs_vtk, T_W_G=T_W_G)
+        object_manip_approach.compute_transforms()
+        T_W_Gn_approach_vtk = object_manip_approach.T_W_Gn
+
+
+        # now convert these to ee poses
+        T_W_ee_vtk = self.getIiwaLinkEEFrameFromGraspFrame(T_W_Gn_vtk)
+        T_W_ee = transformUtils.getNumpyFromTransform(T_W_ee_vtk)
+
+        T_W_ee_approach_vtk = self.getIiwaLinkEEFrameFromGraspFrame(T_W_Gn_approach_vtk)
+        T_W_ee_approach = transformUtils.getNumpyFromTransform(T_W_ee_approach_vtk)
+
+
+        # execute the place
+        print("executing place on rack")
+        self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom, use_cartesian_plan=True, use_debug_speed=True)
+
+
+        # now move back from current position along iiwa_link_ee x-axis
+
+        # # open the gripper and back away
+        # pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
+        # pickup_speed = self.graspingParams['speed']['pickup']
+        # self.gripperDriver.send_open_gripper_set_distance_from_current()
+        # # pickup the object
+        # self.robotService.moveToJointPosition(pre_grasp_pose,
+        #                                       maxJointDegreesPerSecond=
+        #                                       pickup_speed)
+        #
+        # # move home
+        # self.moveHome()
+
+        # move to
+
     def retract_from_rack(self, gripper_open=True):
         """
         Move backwards from the rack
@@ -994,6 +1165,66 @@ class GraspSupervisor(object):
                                               maxJointDegreesPerSecond=
                                               speed)
 
+
+
+        self.moveHome()
+
+    def retract_from_mug_shelf(self, gripper_open=True, use_debug_speed=True):
+        """
+        Move backwards from the rack
+        :return:
+        :rtype:
+        """
+
+        if gripper_open:
+            self.gripperDriver.send_open_gripper_set_distance_from_current()
+
+        # do different things depending on whether it was horizontal or vertical drop
+        result = self.state.cache['category_manipulation_goal_result']
+        mug_orientation = result.mug_orientation
+
+        xyz_goal = np.array([-0.10, 0, 0])
+        ee_frame_id = "iiwa_link_ee"
+        expressed_in_frame = ee_frame_id
+        cartesian_grasp_speed = self.graspingParams['speed']['cartesian_grasp']
+        cartesian_traj_goal = \
+            control_utils.make_cartesian_trajectory_goal(xyz_goal,
+                                                         ee_frame_id,
+                                                         expressed_in_frame,
+                                                         speed=cartesian_grasp_speed)
+
+        action_client = self.robotService.cartesian_trajectory_action_client
+        action_client.send_goal(cartesian_traj_goal)
+
+        # wait for result
+        action_client.wait_for_result()
+        result = action_client.get_result()
+
+        # now move to nominal position for the place
+        speed = self.graspingParams["speed"]["nominal"]
+        if use_debug_speed:
+            speed = DEBUG_SPEED
+        if mug_orientation == "UPRIGHT":
+            q_pose_1 = self._stored_poses_director["mug"]["vertical_grasp_above_table"]
+
+            self.robotService.moveToJointPosition(q_pose_1,
+                                                  maxJointDegreesPerSecond=
+                                                  speed)
+
+        elif mug_orientation=="HORIZONTAL":
+            q_pose_1 = self._stored_poses_director["mug"]["horizontal_grasp_approach"]
+            self.robotService.moveToJointPosition(q_pose_1,
+                                                  maxJointDegreesPerSecond=
+                                                  speed)
+
+
+
+            pass
+
+        q_pose_2 = self._stored_poses_director["Grasping"]["above_table_pre_grasp"]
+        self.robotService.moveToJointPosition(q_pose_2,
+                                              maxJointDegreesPerSecond=
+                                              speed)
 
 
         self.moveHome()
@@ -1224,7 +1455,7 @@ class GraspSupervisor(object):
         return poseStamped
 
 
-    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True, stop_at_pre_grasp=False, push_in_distance=None):
+    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True, stop_at_pre_grasp=False, push_in_distance=None, use_debug_speed=False):
         """
         Moves to pre-grasp frame, then grasp frame
         attemps to close gripper if `close_gripper=True` was passed in
@@ -1292,10 +1523,12 @@ class GraspSupervisor(object):
         pre_grasp_speed = self.graspingParams['speed']['pre_grasp']
 
         #### debugging
-        # pre_grasp_speed = 10
+        speed = pre_grasp_speed
+        if use_debug_speed:
+            speed = DEBUG_SPEED
         self.robotService.moveToJointPosition(pre_grasp_pose,
                                               maxJointDegreesPerSecond=
-                                              pre_grasp_speed)
+                                              speed)
 
         self.state.set_status("PRE_GRASP")
         print "at pre-grasp pose"
@@ -1337,6 +1570,8 @@ class GraspSupervisor(object):
         else:
             # move to grasp pose using standard IK
             speed = self.graspingParams['speed']['grasp']
+            if use_debug_speed:
+                speed = DEBUG_SPEED
             self.robotService.moveToJointPosition(grasp_pose,
                                                   maxJointDegreesPerSecond=
                                                   speed)
@@ -1469,7 +1704,7 @@ class GraspSupervisor(object):
         self.gripperDriver.send_open_gripper_set_distance_from_current()
         return True
 
-    def execute_place_new(self, T_W_ee, T_W_ee_approach, q_nom=None, use_cartesian_plan=False):
+    def execute_place_new(self, T_W_ee, T_W_ee_approach, q_nom=None, use_cartesian_plan=False, use_debug_speed=False):
         """
 
         :param T_W_ee: ee location for place
@@ -1547,6 +1782,8 @@ class GraspSupervisor(object):
         print "moving to approach pose"
         # pre_grasp_speed = self.graspingParams['speed']['pre_grasp']
         speed = self.graspingParams['speed']['grasp']
+        if use_debug_speed:
+            speed = debug_speed
         self.robotService.moveToJointPosition(pre_place_pose,
                                               maxJointDegreesPerSecond=
                                               speed)
@@ -2401,6 +2638,12 @@ class GraspSupervisor(object):
 
     def test_retract_from_rack(self, *args, **kwargs):
         self.taskRunner.callOnThread(self.retract_from_rack, *args, **kwargs)
+
+    def test_retract_from_mug_shelf(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.retract_from_mug_shelf, *args, **kwargs)
+
+    def test_run_mug_shelf_manipulation(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.run_mug_shelf_manipulation, *args, **kwargs)
 
     def loadDefaultPointCloud(self):
         self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()

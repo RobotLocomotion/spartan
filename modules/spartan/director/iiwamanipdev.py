@@ -87,7 +87,7 @@ def setupRLGDirector(globalsDict=None):
     category_manip = CategoryManipulation(robotStateModel)
     # category_manip.load_mug_rack_and_side_table()
     # category_manip.setup_horizontal_mug_grasp()
-    # category_manip.load_mug_platform()
+    category_manip.load_mug_platform()
 
     def visualize_background():
         if not os.path.exists(background_ply_file):
@@ -107,6 +107,7 @@ def setupRLGDirector(globalsDict=None):
     globalsDict['o'] = object_manip
     globalsDict['c'] = category_manip
     globalsDict['poser_vis'] = poser_vis
+    globalsDict['g'] = graspSupervisor
 
 
 

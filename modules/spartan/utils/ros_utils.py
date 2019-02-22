@@ -385,10 +385,14 @@ Simple wrapper around the robot_control/MoveToJointPosition service
 '''
 class RobotService(object):
 
-    def __init__(self, jointNames):
+    DEBUG_SPEED = 10
+
+    def __init__(self, jointNames, use_debug_speed=False):
         self.jointNames = jointNames
         self.numJoints = len(jointNames)
         self._setup_ROS_actions()
+        self._use_debug_speed = use_debug_speed
+        self._debug_speed = RobotService.DEBUG_SPEED
 
     def _setup_ROS_actions(self):
         """
@@ -400,6 +404,9 @@ class RobotService(object):
     def moveToJointPosition(self, q, maxJointDegreesPerSecond=30, timeout=10):
         assert len(q) == self.numJoints
 
+        if self._use_debug_speed:
+            maxJointDegreesPerSecond = min(maxJointDegreesPerSecond, self._debug_speed)
+
         jointState = RobotService.jointPositionToJointStateMsg(self.jointNames, q)
 
         rospy.wait_for_service('robot_control/MoveToJointPosition', timeout=timeout)
@@ -409,6 +416,7 @@ class RobotService(object):
         return response
 
     def moveToCartesianPosition(self, poseStamped, maxJointDegreesPerSecond=30, timeout=10):
+
         ikServiceName = 'robot_control/IkService'
         rospy.wait_for_service(ikServiceName, timeout=timeout)
         s = rospy.ServiceProxy(ikServiceName, robot_msgs.srv.RunIK)
