@@ -12,6 +12,7 @@ import spartan.manipulation.grasp_supervisor
 import spartan.manipulation.background_subtraction
 import spartan.calibration.handeyecalibration
 import spartan.utils.utils as spartanUtils
+import spartan.utils.director_utils as director_utils
 from spartan.manipulation.object_manipulation import ObjectManipulation
 from spartan.poser.poser_visualizer import PoserVisualizer
 from spartan.utils.taskrunner import TaskRunner
@@ -85,7 +86,7 @@ def setupRLGDirector(globalsDict=None):
     robotStateModel = robotSystem.robotStateModel
 
     category_manip = CategoryManipulation(robotStateModel)
-    # category_manip.load_mug_rack_and_side_table()
+    category_manip.load_mug_rack_and_side_table()
     # category_manip.setup_horizontal_mug_grasp()
     category_manip.load_mug_platform()
 

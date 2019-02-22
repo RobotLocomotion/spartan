@@ -358,11 +358,6 @@ class GraspSupervisor(object):
         action_name = "/KeypointDetection"
         self.keypoint_detection_client = actionlib.SimpleActionClient(action_name, pdc_ros_msgs.msg.KeypointDetectionAction)
 
-        action_name = "/MugOnRackManipulation"
-        self.mug_on_rack_manipulation_client = actionlib.SimpleActionClient(action_name,
-                                                                      pdc_ros_msgs.msg.MugOnRackManipulationAction)
-
-
     def setupTF(self):
         if self.tfBuffer is None:
             self.tfBuffer = tf2_ros.Buffer()
@@ -661,7 +656,39 @@ class GraspSupervisor(object):
         result_dict['type'] = "mankey"
         self._cache["keypoint_detection_result"] = result_dict
 
+        self.state._cache["keypoint_detection_result"] = result_dict
+
         return result_dict
+
+    def check_keypoint_detection_succeeded(self):
+        """
+        Checks whether keypoint detection succeeded or not
+        :return:
+        :rtype:
+        """
+
+        # you should have run keypoint detection before this
+        keypoint_detection_result = self.state.cache['keypoint_detection_result']
+        if keypoint_detection_result["state"] == GoalStatus.SUCCEEDED:
+            return True
+        else:
+            print("keypoint detection failed, ABORTING")
+            return False
+
+
+    def check_category_goal_estimation_succeeded(self):
+        """
+        Returns a bool as to whether category goal estimation succeeded or not
+        :return:
+        :rtype:
+        """
+
+        state = self.state.cache['category_manipulation_goal']['state']
+        if state == GoalStatus.SUCCEEDED:
+            return True
+        else:
+            print("category goal estimation failed, ABORTING")
+            return False
 
 
     def run_category_manipulation_goal_estimation(self, wait_for_result=True):
@@ -672,14 +699,19 @@ class GraspSupervisor(object):
         Uses the keypoint detection result from either
 
         `run_poser` or `run_keypoint_detection`
-        :return:
+        :return: bool
         :rtype:
         """
 
+        if not self.check_keypoint_detection_succeeded():
+            return False
+
+        keypoint_detection_result = self.state.cache['keypoint_detection_result']
+
         # don't specify poser output dir for now
         goal = pdc_ros_msgs.msg.CategoryManipulationGoal()
-        goal.output_dir = self._cache['keypoint_detection_result']['output_dir']
-        goal.keypoint_detection_type = self._cache['keypoint_detection_result']['type']
+        goal.output_dir = keypoint_detection_result['output_dir']
+        goal.keypoint_detection_type = keypoint_detection_result['type']
 
 
         self.moveHome()
@@ -696,6 +728,8 @@ class GraspSupervisor(object):
         if wait_for_result:
             self.wait_for_category_manipulation_goal_result()
 
+        return True
+
     def run_mug_on_rack_category_manipulation_goal_estimation(self):
         """
         Calls the MugOnRack action of pdc-ros
@@ -707,6 +741,8 @@ class GraspSupervisor(object):
         :return:
         :rtype:
         """
+
+        raise ValueError("Deprecated")
 
 
         # don't specify poser output dir for now
@@ -739,9 +775,10 @@ class GraspSupervisor(object):
         Waits for category manipulation goal result
         """
 
-        print("waiting for cagtegory manipulation result")
+        print("waiting for category manipulation result")
         self.category_manip_client.wait_for_result()
         result = self.category_manip_client.get_result()
+        state = self.category_manip_client.get_state()
 
 
         T_goal_obs = ros_numpy.numpify(result.T_goal_obs)
@@ -751,11 +788,12 @@ class GraspSupervisor(object):
         T_goal_obs_vtk = transformUtils.getTransformFromNumpy(T_goal_obs)
         print transformUtils.poseFromTransform(T_goal_obs_vtk)
 
-        self._cache['category_manipulation_goal_result'] = result
-        self._cache['category_manipulation_T_goal_obs'] = T_goal_obs_vtk
 
-        self.state.cache['category_manipulation_goal_result'] = result
-        self.state.cache['category_manipulation_T_goal_obs'] = T_goal_obs_vtk
+        self.state.cache['category_manipulation_goal'] = dict()
+        self.state.cache['category_manipulation_goal']['result'] = result
+        self.state.cache['category_manipulation_goal']["T_goal_obs"] = T_goal_obs_vtk
+        self.state.cache['category_manipulation_goal']['state'] = state
+
 
 
 
@@ -769,6 +807,8 @@ class GraspSupervisor(object):
 
         # self.taskRunner.callOnMain(self._poser_visualizer.visualize_result)
 
+        if not self.check_category_goal_estimation_succeeded():
+            return False
 
         if debug:
             self._object_manipulation = ObjectManipulation()
@@ -814,15 +854,6 @@ class GraspSupervisor(object):
                                               pickup_speed)
 
 
-
-        # move to nominal position
-        # graspLocationData = self.graspingParams[self.state.graspingLocation]
-        # above_table_pre_grasp = graspLocationData['poses']['above_table_pre_grasp']
-        # self.robotService.moveToJointPosition(above_table_pre_grasp,
-        #                                       maxJointDegreesPerSecond=
-        #                                       pickup_speed)
-
-
         # place the object
         grasp_data_place = self._object_manipulation.get_place_grasp_data()
         self.execute_place(grasp_data_place)
@@ -840,29 +871,22 @@ class GraspSupervisor(object):
         # move home
         self.moveHome()
 
-    def run_mug_manipulation(self, debug=False):
+    def run_mug_on_rack_manipulation(self):
         """
         Runs the object manipulation code. Will put the object into the
         specified target pose from `run_category_manipulation_goal_estimation`
         :return:
         """
 
+        self.wait_for_category_manipulation_goal_result()
 
-        if debug:
-            self._object_manipulation = ObjectManipulation()
-            self._object_manipulation.assign_defaults()
-            self._object_manipulation.compute_transforms()
-            return
+        if not self.check_category_goal_estimation_succeeded():
+            return False
 
         self.moveHome()
 
-
         # extract grasp from gripper fingertip pose
-        self.mug_on_rack_manipulation_client.wait_for_result()
-        result = self.mug_on_rack_manipulation_client.get_result()
-
-        self._cache['mug_on_rack_goal_estimation_result'] = result
-
+        result = self.state.cache["category_manipulation_goal"]["result"]
 
         T_W_fingertip = ros_numpy.numpify(result.T_world_gripper_fingertip)
         T_W_fingertip_vtk = transformUtils.getTransformFromNumpy(T_W_fingertip)
@@ -886,10 +910,8 @@ class GraspSupervisor(object):
         print("visualizing grasp")
         self.visualize_grasp(grasp_data)
 
-
         # execute the grasp
         object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True, push_in_distance=0.04)
-
 
         T_W_G = self.state.cache['gripper_frame_at_grasp'] # this is set in execute_grasp
 
@@ -951,22 +973,6 @@ class GraspSupervisor(object):
         self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom_left_table, use_cartesian_plan=True)
 
 
-        # now move back from current position along iiwa_link_ee x-axis
-
-        # # open the gripper and back away
-        # pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
-        # pickup_speed = self.graspingParams['speed']['pickup']
-        # self.gripperDriver.send_open_gripper_set_distance_from_current()
-        # # pickup the object
-        # self.robotService.moveToJointPosition(pre_grasp_pose,
-        #                                       maxJointDegreesPerSecond=
-        #                                       pickup_speed)
-        #
-        # # move home
-        # self.moveHome()
-
-        # move to
-
     def run_mug_shelf_manipulation(self, use_debug_speed=True):
         """
         Runs the object manipulation code. Will put the object into the
@@ -979,7 +985,7 @@ class GraspSupervisor(object):
         self.moveHome()
         self.wait_for_category_manipulation_goal_result()
 
-        result = self.state.cache['category_manipulation_goal_result']
+        result = self.state.cache['category_manipulation_goal']['result']
 
         print("\n\n---result----\n\n", result)
         print("\n\n\n")
@@ -1183,7 +1189,7 @@ class GraspSupervisor(object):
             self.gripperDriver.send_open_gripper_set_distance_from_current()
 
         # do different things depending on whether it was horizontal or vertical drop
-        result = self.state.cache['category_manipulation_goal_result']
+        result = self.state.cache['category_manipulation_goal']['result']
         mug_orientation = result.mug_orientation
 
         xyz_goal = np.array([-0.10, 0, 0])
@@ -1605,11 +1611,6 @@ class GraspSupervisor(object):
 
         return has_object
 
-        # grasp_speed = 10
-        # grasp_speed = 5
-        # # grasp_speed = self.graspingParams['speed']['grasp']
-        # self.robotService.moveToJointPosition(grasp_pose,
-        #                                       maxJointDegreesPerSecond=grasp_speed)
 
     def execute_place(self, grasp_data=None, use_cartesian_plan=True):
 
@@ -2640,8 +2641,8 @@ class GraspSupervisor(object):
     def test_run_mug_on_rack_goal_estimation(self, *args, **kwargs):
         self.taskRunner.callOnThread(self.run_mug_on_rack_category_manipulation_goal_estimation, *args, **kwargs)
 
-    def test_run_mug_manipulation(self, *args, **kwargs):
-        self.taskRunner.callOnThread(self.run_mug_manipulation, *args, **kwargs)
+    def test_run_mug_on_rack_manipulation(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.run_mug_on_rack_manipulation, *args, **kwargs)
 
 
     def test_retract_from_rack(self, *args, **kwargs):
