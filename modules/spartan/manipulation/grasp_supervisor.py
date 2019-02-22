@@ -1006,15 +1006,18 @@ class GraspSupervisor(object):
         print("visualizing grasp")
         self.visualize_grasp(grasp_data)
 
+        force_threshold_magnitude = 10
         push_in_distance = 0.0
         if result.mug_orientation == "HORIZONTAL":
             push_in_distance = 0.005
+            force_threshold_magnitude = 30
         elif result.mug_orientation == "UPRIGHT":
             push_in_distance = 0.04
+            force_threshold_magnitude = 10
 
 
         # execute the grasp
-        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True, push_in_distance=push_in_distance, use_debug_speed=True)
+        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True, push_in_distance=push_in_distance, use_debug_speed=True, force_threshold_magnitude=force_threshold_magnitude)
 
 
         T_W_G = self.state.cache['gripper_frame_at_grasp'] # this is set in execute_grasp
@@ -1455,7 +1458,7 @@ class GraspSupervisor(object):
         return poseStamped
 
 
-    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True, stop_at_pre_grasp=False, push_in_distance=None, use_debug_speed=False):
+    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True, stop_at_pre_grasp=False, push_in_distance=None, use_debug_speed=False, force_threshold_magnitude=None):
         """
         Moves to pre-grasp frame, then grasp frame
         attemps to close gripper if `close_gripper=True` was passed in
@@ -1553,8 +1556,9 @@ class GraspSupervisor(object):
 
             # add force guards
             # -z (gripper) direction in frame iiwa_link_ee,
-            force_magnitude = self.graspingParams['force_threshold_magnitude']
-            force_vector = force_magnitude * np.array([-1, 0, 0])
+            if force_threshold_magnitude is None:
+                force_threshold_magnitude = self.graspingParams['force_threshold_magnitude']
+            force_vector = force_threshold_magnitude * np.array([-1, 0, 0])
             force_guard = control_utils.make_force_guard_msg(force_vector)
 
             cartesian_traj_goal.force_guard.append(force_guard)
@@ -1704,7 +1708,7 @@ class GraspSupervisor(object):
         self.gripperDriver.send_open_gripper_set_distance_from_current()
         return True
 
-    def execute_place_new(self, T_W_ee, T_W_ee_approach, q_nom=None, use_cartesian_plan=False, use_debug_speed=False):
+    def execute_place_new(self, T_W_ee, T_W_ee_approach, q_nom=None, use_cartesian_plan=False, use_debug_speed=False, force_threshold_magnitude=10):
         """
 
         :param T_W_ee: ee location for place
@@ -1815,12 +1819,16 @@ class GraspSupervisor(object):
 
 
             # add force guards
-            # -z (gripper) direction in frame iiwa_link_ee,
-            # force_magnitude = self.graspingParams['force_threshold_magnitude']
-            # force_vector = force_magnitude * np.array([-1, 0, 0])
-            # force_guard = control_utils.make_force_guard_msg(force_vector)
-            # cartesian_traj_goal.force_guard.append(force_guard)
-            #
+            # x_axis in frame iiwa_link_ee,
+            force_vector = force_threshold_magnitude * np.array([-1, 0, 0])
+            force_guard = control_utils.make_force_guard_msg(force_vector)
+            cartesian_traj_goal.force_guard.append(force_guard)
+
+            # z_axis in frame iiwa_link_ee
+            force_vector = force_threshold_magnitude * np.array([0, 0, 1])
+            force_guard = control_utils.make_force_guard_msg(force_vector)
+            cartesian_traj_goal.force_guard.append(force_guard)
+
 
             action_client = self.robotService.cartesian_trajectory_action_client
             action_client.send_goal(cartesian_traj_goal)
