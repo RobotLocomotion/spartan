@@ -38,6 +38,7 @@ import spartan.manipulation.gripper
 from spartan.poser.poser_visualizer import PoserVisualizer
 from spartan.manipulation.grasp_data import GraspData
 from spartan.manipulation.object_manipulation import ObjectManipulation
+from spartan.manipulation.category_manipulation_type import CategoryManipulationType
 
 
 # director
@@ -730,46 +731,6 @@ class GraspSupervisor(object):
 
         return True
 
-    def run_mug_on_rack_category_manipulation_goal_estimation(self):
-        """
-        Calls the MugOnRack action of pdc-ros
-        which is provided by category_manip_server.py.
-
-        Uses the keypoint detection from `run_keypoint_detection`
-
-
-        :return:
-        :rtype:
-        """
-
-        raise ValueError("Deprecated")
-
-
-        # don't specify poser output dir for now
-        goal = pdc_ros_msgs.msg.MugOnRackManipulationGoal()
-        goal.output_dir = self._cache['keypoint_detection_result']['output_dir']
-        goal.keypoint_detection_type = self._cache['keypoint_detection_result']['type']
-
-        self.moveHome()
-        rgbd_with_pose = self.captureRgbdAndCameraTransform()
-        self.state.cache['rgbd_with_pose_list'].append(rgbd_with_pose)
-        goal.rgbd_with_pose_list = self.state.cache['rgbd_with_pose_list']
-
-
-        # mug rack pose
-        mug_rack_config = spartanUtils.getDictFromYamlFilename(MUG_RACK_CONFIG_FILE)
-        T_world_rack_vtk = spartanUtils.transformFromPose(mug_rack_config['poses']['left_side_table'])
-        T_world_rack = transformUtils.getNumpyFromTransform(T_world_rack_vtk)
-
-        goal.T_world_rack = ros_numpy.msgify(geometry_msgs.msg.Pose, T_world_rack)
-
-        rospy.loginfo("waiting for MugOnRackManipulation server")
-        self.mug_on_rack_manipulation_client.wait_for_server()
-        rospy.loginfo("connected to MugOnRackManipulation server")
-
-        self.mug_on_rack_manipulation_client.send_goal(goal)
-        rospy.loginfo("sent goal to MugOnRackManipulation server")
-
     def wait_for_category_manipulation_goal_result(self):
         """
         Waits for category manipulation goal result
@@ -793,9 +754,7 @@ class GraspSupervisor(object):
         self.state.cache['category_manipulation_goal']['result'] = result
         self.state.cache['category_manipulation_goal']["T_goal_obs"] = T_goal_obs_vtk
         self.state.cache['category_manipulation_goal']['state'] = state
-
-
-
+        self.state.cache['category_manipulation_goal']["type"] = CategoryManipulationType.from_string(result.category_manipulation_type)
 
 
     def run_manipulate_object(self, debug=False):
@@ -884,8 +843,8 @@ class GraspSupervisor(object):
             return False
 
         # check that we really are doing mug
-        result = self.state.cache['category_manipulation_goal']['result']
-        assert(result.category_manipulation_type == "SHOE_ON_TABLE", "manipulation type doesn't match")
+        category_manipulation_type = self.state.cache['category_manipulation_goal']['type']
+        assert(category_manipulation_type == CategoryManipulationType.SHOE_ON_TABLE, "manipulation type doesn't match")
 
 
         self.moveHome()
@@ -1011,6 +970,9 @@ class GraspSupervisor(object):
         if not self.check_category_goal_estimation_succeeded():
             return False
 
+        category_manipulation_type = self.state.cache['category_manipulation_goal']['type']
+        assert (category_manipulation_type == CategoryManipulationType.MUG_ON_RACK, "manipulation type doesn't match")
+
         self.moveHome()
 
         # extract grasp from gripper fingertip pose
@@ -1108,7 +1070,13 @@ class GraspSupervisor(object):
         :return:
         """
 
+        self.wait_for_category_manipulation_goal_result()
 
+        if not self.check_category_goal_estimation_succeeded():
+            return False
+
+        category_manipulation_type = self.state.cache['category_manipulation_goal']['type']
+        assert (category_manipulation_type == CategoryManipulationType.MUG_ON_SHELF_3D, "manipulation type doesn't match")
 
         self.moveHome()
         self.wait_for_category_manipulation_goal_result()
@@ -1274,6 +1242,10 @@ class GraspSupervisor(object):
         :rtype:
         """
 
+        category_manipulation_type = self.state.cache['category_manipulation_goal']['type']
+        assert (
+        category_manipulation_type == CategoryManipulationType.MUG_ON_RACK, "manipulation type doesn't match")
+
         if gripper_open:
             self.gripperDriver.send_open_gripper_set_distance_from_current()
 
@@ -1312,6 +1284,10 @@ class GraspSupervisor(object):
         :return:
         :rtype:
         """
+
+        category_manipulation_type = self.state.cache['category_manipulation_goal']['type']
+        assert (
+        category_manipulation_type == CategoryManipulationType.MUG_ON_SHELF_3D, "manipulation type doesn't match")
 
         if gripper_open:
             self.gripperDriver.send_open_gripper_set_distance_from_current()
@@ -2781,6 +2757,9 @@ class GraspSupervisor(object):
 
     def test_run_mug_shelf_manipulation(self, *args, **kwargs):
         self.taskRunner.callOnThread(self.run_mug_shelf_manipulation, *args, **kwargs)
+
+    def test_run_shoe_manipulation(self, *args, **kwargs):
+        self.taskRunner.callOnThread(self.test_run_mug_shoe_manipulation, *args, **kwargs)
 
     def loadDefaultPointCloud(self):
         self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
