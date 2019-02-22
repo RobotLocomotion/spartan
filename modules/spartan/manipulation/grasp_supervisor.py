@@ -871,6 +871,134 @@ class GraspSupervisor(object):
         # move home
         self.moveHome()
 
+    def run_shoe_manipulation(self, debug=False):
+        """
+        Runs the object manipulation code. Will put the object into the
+        specified target pose from `run_category_manipulation_goal_estimation`
+        :return:
+        """
+
+        # self.taskRunner.callOnMain(self._poser_visualizer.visualize_result)
+
+        if not self.check_category_goal_estimation_succeeded():
+            return False
+
+        # check that we really are doing mug
+        result = self.state.cache['category_manipulation_goal']['result']
+        assert(result.category_manipulation_type == "SHOE_ON_TABLE", "manipulation type doesn't match")
+
+
+        self.moveHome()
+
+        T_W_fingertip = ros_numpy.numpify(result.T_world_gripper_fingertip)
+        T_W_fingertip_vtk = transformUtils.getTransformFromNumpy(T_W_fingertip)
+
+        grasp_data = GraspData.from_gripper_fingertip_frame(T_W_fingertip)
+        grasp_data.gripper.params["hand_inner_diameter"] = result.gripper_width
+
+        self.state.grasp_data = grasp_data
+        self.visualize_grasp(grasp_data)
+
+
+        def vis_function():
+            vis.updateFrame(T_W_fingertip_vtk, "gripper fingertip frame", scale=0.15, parent=self._vis_container)
+
+            vis.updateFrame(grasp_data.grasp_frame, "grasp frame", scale=0.15, parent=self._vis_container)
+
+        self.taskRunner.callOnThread(vis_function)
+
+        # execute the grasp
+        force_threshold_magnitude = 10
+        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True, force_threshold_magnitude=force_threshold_magnitude)
+
+        if not object_in_gripper:
+            print("grasp failed, returning")
+            return False
+
+        print "object_in_gripper:", object_in_gripper
+
+        T_goal_obs = self.state.cache['category_manipulation_goal']["T_goal_obs"]
+        T_W_G = self.state.cache['gripper_frame_at_grasp']
+
+
+
+        pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
+        pickup_speed = self.graspingParams['speed']['pickup']
+
+        if not object_in_gripper:
+            # open the gripper and back away
+            self.gripperDriver.send_open_gripper_set_distance_from_current()
+            self.robotService.moveToJointPosition(pre_grasp_pose,
+                                                   maxJointDegreesPerSecond=
+                                                  pickup_speed)
+            return False
+
+        # pickup the object
+        self.robotService.moveToJointPosition(pre_grasp_pose,
+                                              maxJointDegreesPerSecond=
+                                              pickup_speed)
+
+        # compute some poses
+        T_goal_obs = ros_numpy.numpify(result.T_goal_obs)  # 4 x 4 numpy matrix
+        T_goal_obs_vtk = transformUtils.getTransformFromNumpy(T_goal_obs)
+        object_manip = ObjectManipulation(T_goal_object=T_goal_obs_vtk, T_W_G=T_W_G)
+        object_manip.compute_transforms()
+        T_W_Gn_vtk = object_manip.T_W_Gn  # gripper to world for place pose
+
+        T_pre_goal_obs = ros_numpy.numpify(result.T_pre_goal_obs)
+        T_pre_goal_obs_vtk = transformUtils.getTransformFromNumpy(T_pre_goal_obs)
+        object_manip_approach = ObjectManipulation(T_goal_object=T_pre_goal_obs_vtk, T_W_G=T_W_G)
+        object_manip_approach.compute_transforms()
+        T_W_Gn_approach_vtk = object_manip_approach.T_W_Gn
+
+        # now convert these to ee poses for running IK
+        T_W_ee_vtk = self.getIiwaLinkEEFrameFromGraspFrame(T_W_Gn_vtk)
+        T_W_ee = transformUtils.getNumpyFromTransform(T_W_ee_vtk)
+
+        T_W_ee_approach_vtk = self.getIiwaLinkEEFrameFromGraspFrame(T_W_Gn_approach_vtk)
+        T_W_ee_approach = transformUtils.getNumpyFromTransform(T_W_ee_approach_vtk)
+
+
+        # place the object
+        q_nom = np.array(self._stored_poses_director["Grasping"]["above_table_pre_grasp"])
+        grasp_data_place = self._object_manipulation.get_place_grasp_data()
+        self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom, use_cartesian_plan=True)
+
+
+        # open the gripper and back away
+        self.gripperDriver.send_open_gripper_set_distance_from_current()
+
+        # back away to T_W_ee_approach position
+        xyz_approach = np.array(T_W_ee_approach_vtk.GetPosition())
+        xyz_place = np.array(T_W_ee_vtk.GetPosition())
+        distance = np.linalg.norm(xyz_place - xyz_approach)
+        ee_speed_m_s = 0.05
+        duration = distance / ee_speed_m_s
+
+        xyz_goal = xyz_approach
+        ee_frame_id = "iiwa_link_ee"
+        base_frame_id = "base"
+        expressed_in_frame = base_frame_id
+        cartesian_grasp_speed = self.graspingParams['speed']['cartesian_grasp']
+        cartesian_traj_goal = \
+            control_utils.make_cartesian_trajectory_goal(xyz_goal,
+                                                         ee_frame_id,
+                                                         expressed_in_frame,
+                                                         duration=duration)
+
+        action_client = self.robotService.cartesian_trajectory_action_client
+        action_client.send_goal(cartesian_traj_goal)
+
+        # wait for result
+        action_client.wait_for_result()
+        result = action_client.get_result()
+        self.state.cache['cartesian_traj_result'] = result
+
+
+
+        # move home
+        self.moveHome()
+
     def run_mug_on_rack_manipulation(self):
         """
         Runs the object manipulation code. Will put the object into the
@@ -1002,9 +1130,9 @@ class GraspSupervisor(object):
 
 
         def vis_function():
-            vis.showFrame(T_W_fingertip_vtk, "gripper fingertip frame", scale=0.15, parent=self._vis_container)
+            vis.updateFrame(T_W_fingertip_vtk, "gripper fingertip frame", scale=0.15, parent=self._vis_container)
 
-            vis.showFrame(grasp_data.grasp_frame, "grasp frame", scale=0.15, parent=self._vis_container)
+            vis.updateFrame(grasp_data.grasp_frame, "grasp frame", scale=0.15, parent=self._vis_container)
 
         self.taskRunner.callOnThread(vis_function)
 
