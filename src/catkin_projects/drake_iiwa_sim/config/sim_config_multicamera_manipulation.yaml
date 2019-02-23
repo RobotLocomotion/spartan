@@ -25,6 +25,9 @@ models:
   apriltag_cube: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/apriltag_cube.urdf"
   companion_cube: "${SPARTAN_SOURCE_DIR}/models/rlg_misc_models/companion_cube.urdf"
   061_foam_brick: "${SPARTAN_SOURCE_DIR}/drake/examples/manipulation_station/models/061_foam_brick.sdf"
+  shoe: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/imitation_tools/models/shoe_source/shoe.sdf"
+  mustard: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/imitation_tools/models/mustard.sdf"
+  sugar: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/imitation_tools/models/004_sugar_box.sdf"
 
 instances:
   # - model: "dish_rack"
@@ -35,12 +38,16 @@ instances:
   #   q0: [0.50, 0.0, 0.2, 0.0, 0.0, 0.0]
   #   fixed: false
   #   body_name: "plate_11in"
-
-  - model: "061_foam_brick"
-    q0: [0.51, 0.0, 0.3, 0.0, 0.0, 0.0]
+  - model: "sugar"
+    q0: [0.51, 0.0, 0.3, 0.0, 0.0, 1.57]
     fixed: false
-    # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
-    body_name: "base_link"
+    body_name: "base_link_sugar"
+
+  # - model: "061_foam_brick"
+  #   q0: [0.51, 0.0, 0.3, 0.0, 0.0, 0.0]
+  #   fixed: false
+  #   # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
+  #   body_name: "base_link"
   # - model: "061_foam_brick"
   #   q0: [0.65, 0.0, 0.4, 0.0, 0.0, 0.0]
   #   fixed: false
