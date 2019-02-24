@@ -153,6 +153,7 @@ def do_main():
         init = std_srvs.srv.TriggerRequest()
         print sp(init)
         print("Done cleaning up and stopping streaming plan")
+        stop_bagging_imitation_data_client()
 
     frame_name = "iiwa_link_ee" # end effector frame name
 
@@ -161,6 +162,10 @@ def do_main():
     rate = rospy.Rate(100) # max rate at which control should happen
 
     illegal_move = False
+
+    sys.path.append("../imitation_tools/scripts")
+    from capture_imitation_data_client import start_bagging_imitation_data_client, stop_bagging_imitation_data_client
+	start_bagging_imitation_data_client()
 
     try:
         # variables to track when we lasted updated gripper and if we are moving arm
