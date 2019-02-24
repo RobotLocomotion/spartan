@@ -5,6 +5,10 @@ import argparse
 import os
 import getpass
 
+user_name = getpass.getuser()
+
+DATA_DIRECTORY_ON_HOST = '/home/'+user_name+'/data/spartan'
+
 if __name__=="__main__":
 	user_name = getpass.getuser()
 	default_image_name = user_name + '-spartan'
@@ -22,7 +26,9 @@ if __name__=="__main__":
 
 	parser.add_argument("-nodudp", "--no_udp", action='store_true', help="(optional) don't expose the udp ports")
 
+
 	parser.add_argument("-nethost", "--net_host", action='store_true', help="(optional) Makes docker run on host network ")
+	parser.add_argument("--no_nvidia", action='store_true', help="(optional) use docker rather than nvidia-docker (for CI)")
 
 	args = parser.parse_args()
 	print("running docker container derived from image %s" %args.image)
@@ -33,7 +39,10 @@ if __name__=="__main__":
 	spartan_source_dir = os.path.join(home_directory, 'spartan')
 
 	cmd = "xhost +local:root \n"
-	cmd += "nvidia-docker run "
+	if args.no_nvidia:
+		cmd += "docker run "
+	else:
+		cmd += "nvidia-docker run "
 	if args.container:
 		cmd += " --name %(container_name)s " % {'container_name': args.container}
 
@@ -54,9 +63,8 @@ if __name__=="__main__":
 
 	# mount the data volume
 	if True:
-		data_directory_host_machine = '/home/'+user_name+'/data/spartan'
-		os.system("mkdir -p " + data_directory_host_machine)
-		cmd += " -v %s:%s/data_volume " %(data_directory_host_machine, spartan_source_dir)
+		os.system("mkdir -p " + DATA_DIRECTORY_ON_HOST)
+		cmd += " -v %s:%s/data_volume " %(DATA_DIRECTORY_ON_HOST, spartan_source_dir)
 
 	# expose UDP ports
 	if not args.no_udp and not args.net_host:

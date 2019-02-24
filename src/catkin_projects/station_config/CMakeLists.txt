@@ -181,6 +181,14 @@ include_directories(
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
 
+
+install(DIRECTORY
+   RLG_iiwa_1
+   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+
+
 #############
 ## Testing ##
 #############

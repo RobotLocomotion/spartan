@@ -318,7 +318,7 @@
       <geometry>
         <!-- Note that the mesh-based collision model is intentionally being
             used despite being in "primitive" mode. -->
-        <mesh filename="meshes/collision/link_6.obj"/>
+        <mesh filename="package://iiwa_description/meshes/collision/link_6.obj"/>
       </geometry>
       <material name="Orange"/>
     </collision>
@@ -353,7 +353,7 @@
       <geometry>
         <!-- Note that the mesh-based collision model is intentionally being
             used despite being in "primitive" mode. -->
-        <mesh filename="meshes/collision/link_7.obj"/>
+        <mesh filename="package://iiwa_description/meshes/collision/link_7.obj"/>
       </geometry>
       <material name="Grey"/>
     </collision>

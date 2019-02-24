@@ -171,7 +171,7 @@ if __name__ == "__main__":
         for config in config_bundle.configurations:
             schunkDriver.sendOpenGripperCommand()
 
-            pos, quat = spartan_utils.posQuatFromROSPoseMsg(config.pose)
+            pos, quat = rosUtils.poseFromROSPoseMsg(config.pose)
             height = config.height
             radius = config.radius
 

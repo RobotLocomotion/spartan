@@ -11,10 +11,11 @@
 
 namespace drake_iiwa_sim {
 
-using drake::systems::Context;
 using drake::geometry::SceneGraph;
 using drake::math::RigidTransform;
 using drake::math::RotationMatrix;
+using drake::systems::Context;
+using drake::systems::EventStatus;
 using drake::systems::rendering::PoseBundle;
 using drake::systems::Value;
 using Eigen::Quaternion;
@@ -35,10 +36,8 @@ RosSceneGraphVisualizer::RosSceneGraphVisualizer(
       pose_bundle_input_port_(DeclareAbstractInputPort(
           drake::systems::kUseDefaultName, Value<PoseBundle<double>>()).get_index())
       {
-  DeclarePeriodicPublish(draw_period, 0.0);
-  drake::systems::PublishEvent<double> init_event(
-      drake::systems::Event<double>::TriggerType::kInitialization);
-  DeclareInitializationEvent(init_event);
+  DeclareInitializationPublishEvent(&RosSceneGraphVisualizer::DoInitialization);
+  DeclarePeriodicPublishEvent(draw_period, 0.0, &RosSceneGraphVisualizer::DoPeriodicPublish);
 }
 
 std::string RosSceneGraphVisualizer::MakeFullName(const std::string& input_name,
@@ -64,7 +63,7 @@ std::string RosSceneGraphVisualizer::MakeFullName(const std::string& input_name,
   return full_name.str();
 }
 
-void RosSceneGraphVisualizer::DoInitialization() const {
+EventStatus RosSceneGraphVisualizer::DoInitialization(const Context<double>& context) const {
   drake::lcm::DrakeMockLcm mock_lcm;
   drake::geometry::DispatchLoadMessage(scene_graph_, &mock_lcm);
   auto load_robot_msg = mock_lcm.DecodeLastPublishedMessageAs
@@ -194,26 +193,17 @@ void RosSceneGraphVisualizer::DoInitialization() const {
     server_.insert(int_marker);
   }
   server_.applyChanges();
+  return EventStatus::Succeeded();
 }
 
-void RosSceneGraphVisualizer::DoPublish(
-      const Context<double>& context,
-      const std::vector<const drake::systems::PublishEvent<double>*>& event) const {
-  // Copying from drake_visualizer's initialization scheme.
-  // I tried to register DoInitialization as a callback for the
-  // initialization event, but it wasn't getting called.
-  // (Maybe I had const-ness wrong?)
-  if (event.size() == 1 && event.front()->get_trigger_type() ==
-      drake::systems::Event<double>::TriggerType::kInitialization) {
-    DoInitialization();
-    return;
-  }
-
-  const drake::systems::AbstractValue* input = this->EvalAbstractInput(context, 0);
-  DRAKE_ASSERT(input != nullptr); 
+EventStatus RosSceneGraphVisualizer::DoPeriodicPublish(
+    const Context<double>& context) const {
+  const drake::systems::AbstractValue* input =
+      this->EvalAbstractInput(context, 0);
+  DRAKE_ASSERT(input != nullptr);
   const auto& pose_bundle = input->GetValue<PoseBundle<double>>();
 
-  for (int frame_i=0; frame_i<pose_bundle.get_num_poses(); frame_i++){
+  for (int frame_i = 0; frame_i < pose_bundle.get_num_poses(); frame_i++) {
     const RigidTransform<double> tf(pose_bundle.get_pose(frame_i));
     const Eigen::Vector3d t = tf.translation();
     const Quaternion<double> q = tf.rotation().ToQuaternion();
@@ -231,10 +221,11 @@ void RosSceneGraphVisualizer::DoPublish(
       continue;
     }
     std::string full_name = MakeFullName(pose_bundle.get_name(frame_i), robot_num);
-    server_.setPose(full_name, pose_msg);    
+    server_.setPose(full_name, pose_msg);
   }
   server_.applyChanges();
   ros::spinOnce();
+  return EventStatus::Succeeded();
 }
 
 }  // namespace drake_iiwa_sim

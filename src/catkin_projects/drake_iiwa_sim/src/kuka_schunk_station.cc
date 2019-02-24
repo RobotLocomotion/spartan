@@ -1,4 +1,4 @@
-  #include "drake_iiwa_sim/kuka_schunk_station.h"
+#include "drake_iiwa_sim/kuka_schunk_station.h"
 
 #include <memory>
 #include <string>
@@ -10,10 +10,10 @@
 #include "drake/manipulation/schunk_wsg/schunk_wsg_position_controller.h"
 #include "drake/math/rigid_transform.h"
 #include "drake/math/rotation_matrix.h"
-#include "drake/multibody/multibody_tree/joints/prismatic_joint.h"
-#include "drake/multibody/multibody_tree/joints/revolute_joint.h"
-#include "drake/multibody/multibody_tree/parsing/multibody_plant_sdf_parser.h"
-#include "drake/multibody/multibody_tree/uniform_gravity_field_element.h"
+#include "drake/multibody/tree/prismatic_joint.h"
+#include "drake/multibody/tree/revolute_joint.h"
+#include "drake/multibody/parsing/parser.h"
+#include "drake/multibody/tree/uniform_gravity_field_element.h"
 #include "drake/systems/controllers/inverse_dynamics_controller.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/primitives/adder.h"
@@ -40,8 +40,8 @@ using multibody::PrismaticJoint;
 using multibody::RevoluteJoint;
 using multibody::RigidBody;
 using multibody::SpatialInertia;
-using multibody::multibody_plant::MultibodyPlant;
-using multibody::parsing::AddModelFromSdfFile;
+using multibody::MultibodyPlant;
+using multibody::Parser;
 
 const int kNumDofIiwa = 7;
 
@@ -51,11 +51,12 @@ const int kNumDofIiwa = 7;
 SpatialInertia<double> MakeCompositeGripperInertia(
     const std::string& wsg_sdf_path) {
   MultibodyPlant<double> plant;
-  AddModelFromSdfFile(wsg_sdf_path, &plant);
+  Parser parser(&plant);
+  parser.AddModelFromFile(wsg_sdf_path);
   plant.Finalize();
-  const auto& gripper_body = plant.tree().GetRigidBodyByName("body");
-  const auto& left_finger = plant.tree().GetRigidBodyByName("left_finger");
-  const auto& right_finger = plant.tree().GetRigidBodyByName("right_finger");
+  const auto& gripper_body = plant.GetRigidBodyByName("body");
+  const auto& left_finger = plant.GetRigidBodyByName("left_finger");
+  const auto& right_finger = plant.GetRigidBodyByName("right_finger");
   const auto& left_slider = plant.GetJointByName("left_finger_sliding_joint");
   const auto& right_slider = plant.GetJointByName("right_finger_sliding_joint");
   const SpatialInertia<double>& M_GGo_G =
@@ -123,8 +124,9 @@ KukaSchunkStation<T>::KukaSchunkStation(const YAML::Node& station_config,
   const double dz_table_top_robot_base = 0.736 + 0.057 / 2.;
   const std::string table_sdf_path = FindResourceOrThrow(
       "drake/examples/kuka_iiwa_arm/models/table/extra_heavy_duty_table_surface_only_collision.sdf");
+  Parser parser(plant_);
   const auto table =
-      AddModelFromSdfFile(table_sdf_path, "table", plant_);
+      parser.AddModelFromFile(table_sdf_path, "table");
   plant_->WeldFrames(
       plant_->world_frame(), plant_->GetFrameByName("link", table),
       RigidTransform<double>(
@@ -166,7 +168,7 @@ KukaSchunkStation<T>::KukaSchunkStation(const YAML::Node& station_config,
       DRAKE_ABORT_MSG("Unrecognized collision_model.");
   }
 
-  iiwa_model_ = AddModelFromSdfFile(iiwa_sdf_path, "iiwa", plant_);
+  iiwa_model_ = parser.AddModelFromFile(iiwa_sdf_path, "iiwa");
   plant_->WeldFrames(plant_->world_frame(),
                      plant_->GetFrameByName("iiwa_link_0", iiwa_model_));
 
@@ -175,7 +177,7 @@ KukaSchunkStation<T>::KukaSchunkStation(const YAML::Node& station_config,
       "drake/manipulation/models/"
       "wsg_50_description/sdf/schunk_wsg_50.sdf");
   wsg_model_ =
-      AddModelFromSdfFile(wsg_sdf_path, "gripper", plant_);
+      parser.AddModelFromFile(wsg_sdf_path, "gripper");
 
   // Inspired by iiwa14_schunk_gripper but hand-tuned to get visible
   // alignment of sim + actual robot meshes in Director.
@@ -195,8 +197,9 @@ KukaSchunkStation<T>::KukaSchunkStation(const YAML::Node& station_config,
 
   // Build the controller's version of the plant, which only contains the
   // IIWA and the equivalent inertia of the gripper.
+  Parser controller_parser(owned_controller_plant_.get());
   const auto controller_iiwa_model =
-      AddModelFromSdfFile(iiwa_sdf_path, "iiwa", owned_controller_plant_.get());
+      controller_parser.AddModelFromFile(iiwa_sdf_path, "iiwa");
   owned_controller_plant_->WeldFrames(owned_controller_plant_->world_frame(),
                                       owned_controller_plant_->GetFrameByName(
                                           "iiwa_link_0", controller_iiwa_model),
@@ -302,12 +305,11 @@ void KukaSchunkStation<T>::Finalize() {
          -MatrixXd::Identity(kNumDofIiwa, kNumDofIiwa) / time_step;
     D << MatrixXd::Identity(kNumDofIiwa, kNumDofIiwa),
          MatrixXd::Identity(kNumDofIiwa, kNumDofIiwa) / time_step;
-    // clang-format on
-    auto desired_state_from_position =
-        builder.template AddSystem<systems::LinearSystem>(
-            MatrixXd::Zero(kNumDofIiwa, kNumDofIiwa),      // A = 0
-            MatrixXd::Identity(kNumDofIiwa, kNumDofIiwa),  // B = I
-            C, D, time_step);
+    // Approximate desired state command from a discrete derivative of the
+    // position command input port.
+    auto desired_state_from_position = builder.template AddSystem<
+      systems::StateInterpolatorWithDiscreteDerivative>(kNumDofIiwa,
+                                                        plant_->time_step());
     desired_state_from_position->set_name("desired_state_from_position");
     builder.Connect(desired_state_from_position->get_output_port(),
                     iiwa_controller->get_input_port_desired_state());
@@ -393,26 +395,23 @@ VectorX<T> KukaSchunkStation<T>::GetIiwaPosition(
 
 template <typename T>
 void KukaSchunkStation<T>::SetIiwaPosition(
-    const Eigen::Ref<const drake::VectorX<T>>& q,
-    drake::systems::Context<T>* station_context) const {
-  DRAKE_DEMAND(station_context != nullptr);
-  DRAKE_DEMAND(q.size() == kNumDofIiwa);
-  auto& plant_context =
-      this->GetMutableSubsystemContext(*plant_, station_context);
-  // TODO(russt): update upon resolution of #9623.
-  for (int i = 0; i < kNumDofIiwa; i++) {
-    plant_
-        ->template GetJointByName<RevoluteJoint>("iiwa_joint_" +
-                                                 std::to_string(i + 1))
-        .set_angle(&plant_context, q(i));
-  }
+    const drake::systems::Context<T>& station_context, systems::State<T>* state,
+    const Eigen::Ref<const drake::VectorX<T>>& q) const {
+  const int num_iiwa_positions =
+      plant_->num_positions(iiwa_model_);
+  DRAKE_DEMAND(state != nullptr);
+  DRAKE_DEMAND(q.size() == num_iiwa_positions);
+  auto& plant_context = this->GetSubsystemContext(*plant_, station_context);
+  auto& plant_state = this->GetMutableSubsystemState(*plant_, state);
+  plant_->SetPositions(plant_context, &plant_state, iiwa_model_,
+                       q);
 
   // Set the position history in the state interpolator to match.
-  this->GetMutableSubsystemContext(
-          this->GetSubsystemByName("desired_state_from_position"),
-          station_context)
-      .get_mutable_discrete_state_vector()
-      .SetFromVector(q);
+  const auto& state_from_position = dynamic_cast<
+      const systems::StateInterpolatorWithDiscreteDerivative<double>&>(
+      this->GetSubsystemByName("desired_state_from_position"));
+  state_from_position.set_initial_position(
+      &this->GetMutableSubsystemState(state_from_position, state), q);
 }
 
 template <typename T>
@@ -420,32 +419,21 @@ VectorX<T> KukaSchunkStation<T>::GetIiwaVelocity(
     const systems::Context<T>& station_context) const {
   const auto& plant_context =
       this->GetSubsystemContext(*plant_, station_context);
-  VectorX<T> v(kNumDofIiwa);
-  // TODO(russt): update upon resolution of #9623.
-  for (int i = 0; i < kNumDofIiwa; i++) {
-    v(i) = plant_
-               ->template GetJointByName<RevoluteJoint>("iiwa_joint_" +
-                                                        std::to_string(i + 1))
-               .get_angular_rate(plant_context);
-  }
-  return v;
+  return plant_->GetVelocities(plant_context, iiwa_model_);
 }
 
 template <typename T>
 void KukaSchunkStation<T>::SetIiwaVelocity(
-    const Eigen::Ref<const drake::VectorX<T>>& v,
-    drake::systems::Context<T>* station_context) const {
-  DRAKE_DEMAND(station_context != nullptr);
-  DRAKE_DEMAND(v.size() == kNumDofIiwa);
-  auto& plant_context =
-      this->GetMutableSubsystemContext(*plant_, station_context);
-  // TODO(russt): update upon resolution of #9623.
-  for (int i = 0; i < kNumDofIiwa; i++) {
-    plant_
-        ->template GetJointByName<RevoluteJoint>("iiwa_joint_" +
-                                                 std::to_string(i + 1))
-        .set_angular_rate(&plant_context, v(i));
-  }
+    const drake::systems::Context<T>& station_context, systems::State<T>* state,
+    const Eigen::Ref<const drake::VectorX<T>>& v) const {
+  const int num_iiwa_velocities =
+      plant_->num_velocities(iiwa_model_);
+  DRAKE_DEMAND(state != nullptr);
+  DRAKE_DEMAND(v.size() == num_iiwa_velocities);
+  auto& plant_context = this->GetSubsystemContext(*plant_, station_context);
+  auto& plant_state = this->GetMutableSubsystemState(*plant_, state);
+  plant_->SetVelocities(plant_context, &plant_state, iiwa_model_,
+                        v);
 }
 
 template <typename T>
@@ -454,15 +442,9 @@ T KukaSchunkStation<T>::GetWsgPosition(
   const auto& plant_context =
       this->GetSubsystemContext(*plant_, station_context);
 
-  // TODO(russt): update upon resolution of #9623.
-  return plant_
-             ->template GetJointByName<PrismaticJoint>(
-                 "right_finger_sliding_joint", wsg_model_)
-             .get_translation(plant_context) -
-         plant_
-             ->template GetJointByName<PrismaticJoint>(
-                 "left_finger_sliding_joint", wsg_model_)
-             .get_translation(plant_context);
+  Vector2<T> positions =
+      plant_->GetPositions(plant_context, wsg_model_);
+  return positions(1) - positions(0);
 }
 
 template <typename T>
@@ -471,57 +453,44 @@ T KukaSchunkStation<T>::GetWsgVelocity(
   const auto& plant_context =
       this->GetSubsystemContext(*plant_, station_context);
 
-  // TODO(russt): update upon resolution of #9623.
-  return plant_
-             ->template GetJointByName<PrismaticJoint>(
-                 "right_finger_sliding_joint", wsg_model_)
-             .get_translation_rate(plant_context) -
-         plant_
-             ->template GetJointByName<PrismaticJoint>(
-                 "left_finger_sliding_joint", wsg_model_)
-             .get_translation_rate(plant_context);
+  Vector2<T> velocities =
+      plant_->GetVelocities(plant_context, wsg_model_);
+  return velocities(1) - velocities(0);
 }
 
 template <typename T>
 void KukaSchunkStation<T>::SetWsgPosition(
-    const T& q, drake::systems::Context<T>* station_context) const {
-  auto& plant_context =
-      this->GetMutableSubsystemContext(*plant_, station_context);
+    const drake::systems::Context<T>& station_context, systems::State<T>* state,
+    const T& q) const {
+  DRAKE_DEMAND(state != nullptr);
+  auto& plant_context = this->GetSubsystemContext(*plant_, station_context);
+  auto& plant_state = this->GetMutableSubsystemState(*plant_, state);
 
-  // TODO(russt): update upon resolution of #9623.
-  plant_
-      ->template GetJointByName<PrismaticJoint>("right_finger_sliding_joint",
-                                                wsg_model_)
-      .set_translation(&plant_context, q / 2);
-  plant_
-      ->template GetJointByName<PrismaticJoint>("left_finger_sliding_joint",
-                                                wsg_model_)
-      .set_translation(&plant_context, -q / 2);
+  const Vector2<T> positions(-q / 2, q / 2);
+  plant_->SetPositions(plant_context, &plant_state, wsg_model_,
+                       positions);
 
   // Set the position history in the state interpolator to match.
   const auto& wsg_controller = dynamic_cast<
       const manipulation::schunk_wsg::SchunkWsgPositionController&>(
       this->GetSubsystemByName("wsg_controller"));
-  wsg_controller.set_desired_position_history(q,
-      &this->GetMutableSubsystemContext(wsg_controller, station_context));
+  wsg_controller.set_initial_position(
+      &this->GetMutableSubsystemState(wsg_controller, state), q);
 }
 
 template <typename T>
 void KukaSchunkStation<T>::SetWsgVelocity(
-    const T& v, drake::systems::Context<T>* station_context) const {
-  auto& plant_context =
-      this->GetMutableSubsystemContext(*plant_, station_context);
+    const drake::systems::Context<T>& station_context, systems::State<T>* state,
+    const T& v) const {
+  DRAKE_DEMAND(state != nullptr);
+  auto& plant_context = this->GetSubsystemContext(*plant_, station_context);
+  auto& plant_state = this->GetMutableSubsystemState(*plant_, state);
 
-  // TODO(russt): update upon resolution of #9623.
-  plant_
-      ->template GetJointByName<PrismaticJoint>("right_finger_sliding_joint",
-                                                wsg_model_)
-      .set_translation_rate(&plant_context, v / 2);
-  plant_
-      ->template GetJointByName<PrismaticJoint>("left_finger_sliding_joint",
-                                                wsg_model_)
-      .set_translation_rate(&plant_context, -v / 2);
+  const Vector2<T> velocities(-v / 2, v / 2);
+  plant_->SetVelocities(plant_context, &plant_state, wsg_model_,
+                        velocities);
 }
+
 
 }  // namespace drake_iiwa_sim
 

@@ -17,7 +17,7 @@
 
 #include "drake/common/eigen_types.h"
 #include "drake/geometry/dev/scene_graph.h"
-#include "drake/multibody/multibody_tree/multibody_plant/multibody_plant.h"
+#include "drake/multibody/plant/multibody_plant.h"
 #include "drake/systems/framework/diagram.h"
 
 namespace drake_iiwa_sim {
@@ -50,13 +50,13 @@ class KukaSchunkStation : public systems::Diagram<T> {
   /// multibody plant and before using this class in the Systems framework.
   /// This should be called exactly once.
   ///
-  /// @see multibody::multibody_plant::MultibodyPlant<T>::Finalize()
+  /// @see multibody::MultibodyPlant<T>::Finalize()
   void Finalize();
 
   /// Returns a reference to the main plant responsible for the dynamics of
   /// the robot and the environment.  This can be used to, e.g., add
   /// additional elements into the world before calling Finalize().
-  const multibody::multibody_plant::MultibodyPlant<T>& get_multibody_plant()
+  const multibody::MultibodyPlant<T>& get_multibody_plant()
   const {
     return *plant_;
   }
@@ -64,7 +64,7 @@ class KukaSchunkStation : public systems::Diagram<T> {
   /// Returns a mutable reference to the main plant responsible for the
   /// dynamics of the robot and the environment.  This can be used to, e.g.,
   /// add additional elements into the world before calling Finalize().
-  multibody::multibody_plant::MultibodyPlant<T>& get_mutable_multibody_plant() {
+  multibody::MultibodyPlant<T>& get_mutable_multibody_plant() {
     return *plant_;
   }
 
@@ -83,7 +83,7 @@ class KukaSchunkStation : public systems::Diagram<T> {
   /// Return a reference to the plant used by the inverse dynamics controller
   /// (which contains only a model of the iiwa + equivalent mass of the
   /// gripper).
-  const multibody::multibody_plant::MultibodyPlant<T>& get_controller_plant()
+  const multibody::MultibodyPlant<T>& get_controller_plant()
       const {
     return *owned_controller_plant_;
   }
@@ -99,8 +99,19 @@ class KukaSchunkStation : public systems::Diagram<T> {
   /// Convenience method for setting all of the joint angles of the Kuka IIWA.
   /// Also sets the position history in the velocity command generator.
   /// @p q must have size num_iiwa_joints().
-  void SetIiwaPosition(const Eigen::Ref<const VectorX<T>>& q,
-                       systems::Context<T>* station_context) const;
+  /// @pre `state` must be the systems::State<T> object contained in
+  /// `station_context`.
+  void SetIiwaPosition(const systems::Context<T>& station_context,
+                       systems::State<T>* state,
+                       const Eigen::Ref<const VectorX<T>>& q) const;
+
+  /// Convenience method for setting all of the joint angles of the Kuka IIWA.
+  /// Also sets the position history in the velocity command generator.
+  /// @p q must have size num_iiwa_joints().
+  void SetIiwaPosition(systems::Context<T>* station_context,
+                       const Eigen::Ref<const VectorX<T>>& q) const {
+    SetIiwaPosition(*station_context, &station_context->get_mutable_state(), q);
+  }
 
   /// Convenience method for getting all of the joint velocities of the Kuka
   // IIWA.  This does not include the gripper.
@@ -108,8 +119,18 @@ class KukaSchunkStation : public systems::Diagram<T> {
 
   /// Convenience method for setting all of the joint velocities of the Kuka
   /// IIWA. @v must have size num_iiwa_joints().
-  void SetIiwaVelocity(const Eigen::Ref<const VectorX<T>>& v,
-                       systems::Context<T>* station_context) const;
+  /// @pre `state` must be the systems::State<T> object contained in
+  /// `station_context`.
+  void SetIiwaVelocity(const systems::Context<T>& station_context,
+                       systems::State<T>* state,
+                       const Eigen::Ref<const VectorX<T>>& v) const;
+
+  /// Convenience method for setting all of the joint velocities of the Kuka
+  /// IIWA. @v must have size num_iiwa_joints().
+  void SetIiwaVelocity(systems::Context<T>* station_context,
+                       const Eigen::Ref<const VectorX<T>>& v) const {
+    SetIiwaVelocity(*station_context, &station_context->get_mutable_state(), v);
+  }
 
   /// Convenience method for getting the position of the Schunk WSG. Note
   /// that the WSG position is the signed distance between the two fingers
@@ -123,20 +144,40 @@ class KukaSchunkStation : public systems::Diagram<T> {
   /// sets the position history in the velocity interpolator.  Note that the
   /// WSG position is the signed distance between the two fingers (not the
   /// state of the fingers individually).
-  void SetWsgPosition(const T& q, systems::Context<T>* station_context) const;
+  /// @pre `state` must be the systems::State<T> object contained in
+  /// `station_context`.
+  void SetWsgPosition(const systems::Context<T>& station_context,
+                      systems::State<T>* state, const T& q) const;
+
+  /// Convenience method for setting the position of the Schunk WSG. Also
+  /// sets the position history in the velocity interpolator.  Note that the
+  /// WSG position is the signed distance between the two fingers (not the
+  /// state of the fingers individually).
+  void SetWsgPosition(systems::Context<T>* station_context, const T& q) const {
+    SetWsgPosition(*station_context, &station_context->get_mutable_state(), q);
+  }
 
   /// Convenience method for setting the velocity of the Schunk WSG.
-  void SetWsgVelocity(const T& v, systems::Context<T>* station_context) const;
+  /// @pre `state` must be the systems::State<T> object contained in
+  /// `station_context`.
+  void SetWsgVelocity(const systems::Context<T>& station_context,
+                      systems::State<T>* state, const T& v) const;
+
+  /// Convenience method for setting the velocity of the Schunk WSG.
+  void SetWsgVelocity(systems::Context<T>* station_context, const T& v) const {
+    SetWsgVelocity(*station_context, &station_context->get_mutable_state(), v);
+  }
+
 
  private:
   // These are only valid until Finalize() is called.
-  std::unique_ptr<multibody::multibody_plant::MultibodyPlant<T>> owned_plant_;
+  std::unique_ptr<multibody::MultibodyPlant<T>> owned_plant_;
   std::unique_ptr<geometry::SceneGraph<T>> owned_scene_graph_;
 
   // These are valid for the lifetime of this system.
-  std::unique_ptr<multibody::multibody_plant::MultibodyPlant<T>>
+  std::unique_ptr<multibody::MultibodyPlant<T>>
       owned_controller_plant_;
-  multibody::multibody_plant::MultibodyPlant<T>* plant_;
+  multibody::MultibodyPlant<T>* plant_;
   geometry::SceneGraph<T>* scene_graph_;
 
   multibody::ModelInstanceIndex iiwa_model_;

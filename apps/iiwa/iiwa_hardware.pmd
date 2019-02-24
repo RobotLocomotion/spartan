@@ -132,6 +132,11 @@ group "8.ROS" {
     host = "localhost";
   }
 
+  cmd "2.1 Static Transform Publisher"{
+    exec = "roslaunch station_config static_transforms.launch";
+    host = "localhost";
+  }
+
   cmd "3.rviz" {
     exec = "rosrun rviz rviz -d $SPARTAN_SOURCE_DIR/src/catkin_projects/station_config/RLG_iiwa_1/rviz.rviz";
     host = "localhost";
@@ -167,7 +172,11 @@ group "8.ROS" {
     host = "localhost";
   }
 
+
+
 }
+
+
 
 group "9.iiwa_sim" {
 
@@ -176,17 +185,23 @@ group "9.iiwa_sim" {
     host = "localhost";
   }
 
-  cmd "1.ROS-state-translator" {
+  cmd "1.IIWA-ROS-state-translator" {
     exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/kuka_iiwa_ros_state_translator.py";
     host = "localhost";
   }
 
-  cmd "2.ROS-OpenNI-drake-iiwa-sim" {
+  cmd "2.Schunk-ROS-state-translator" {
+    exec = "directorPython $SPARTAN_SOURCE_DIR/apps/iiwa/schunk_ros_state_translator.py";
+    host = "localhost";
+  }
+
+  cmd "3.ROS-OpenNI-drake-iiwa-sim" {
     exec = "roslaunch camera_config openni2_drake_iiwa_sim.launch camera_serial_number:=carmine_1";
     host = "localhost";
   }
 
 }
+
 
 cmd "vive_teleop" {
   exec = "python $SPARTAN_SOURCE_DIR/scripts/bin/vive_teleop.py";
@@ -264,7 +279,12 @@ script "6.start_drake_iiwa_sim"
 {
   start cmd "0.roscore";
   wait ms 3000;
-  start group "8.ROS";
+
+  start cmd "2.ROS Model and TF Publisher";
+  start cmd "3.rviz";
+  start cmd "4.Robot Movement Service";
+  start cmd "5.IK Service";
+  start cmd "8.fusion_server";
 
   start group "9.iiwa_sim";
   start cmd "1.plan-runner";

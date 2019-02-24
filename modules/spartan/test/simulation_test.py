@@ -124,15 +124,15 @@ class IiwaSimulationTest(unittest.TestCase):
         :return:
         :rtype:
         """
-        print "PRE KILLING TREE"
-        os.system("pstree -ap")
+        #print "PRE KILLING TREE"
+        #os.system("pstree -ap")
         children = self._all_processes  #get_children_pids(os.getpid())
         for proc in children:
             proc.terminate()
             proc.wait()
-        print "POST KILLING TREE:"
-        os.system("pstree -ap")
-        print "DONE WITH PRERUN CLEANUP"
+        #print "POST KILLING TREE:"
+        #os.system("pstree -ap")
+        #print "DONE WITH PRERUN CLEANUP"
 
 
     def _launch_procman_and_start_simulator(self):
@@ -187,17 +187,15 @@ class IiwaSimulationTest(unittest.TestCase):
         rospy.init_node("iiwa_sim_test", anonymous=True)
         self._robotSubscriber = JointStateSubscriber("/joint_states")
 
-        # wait for 5 seconds for robot movement service and /joint_states to come up
+        # wait a few seconds for robot movement service and /joint_states to come up
         # with more joints than just the gripper
-        wait_time = 5
+        wait_time = 10
         start_time = time.time()
         while (time.time() - start_time) < wait_time:
             if len(self._robotSubscriber.joint_timestamps.keys()) > 2:
                 break
-            print "Rostopic list: ",
-            os.system("rostopic list")
             time.sleep(1)
-
+        print("Timestamps: ", self._robotSubscriber.joint_timestamps)
         self.assertTrue(len(self._robotSubscriber.joint_timestamps.keys()) > 2, "Never received full robot joint positions on /joint_states topic")
 
 

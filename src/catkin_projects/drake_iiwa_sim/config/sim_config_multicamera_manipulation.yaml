@@ -20,7 +20,8 @@ cameras:
         z: 0.0
 
 models:
-  plate_11in: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_11in_decomp/plate_11in_decomp.urdf"
+  plate_11in_decomp: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_11in_decomp/plate_11in_decomp.urdf"
+  plate_11in: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_11in.urdf"
   plate_8p5in: "${SPARTAN_SOURCE_DIR}/models/dish_models/plate_8p5in_decomp/plate_8p5in_decomp.urdf"
   bowl_6p25in: "${SPARTAN_SOURCE_DIR}/models/dish_models/bowl_6p25in_decomp/bowl_6p25in_decomp.urdf"
   dish_rack: "${SPARTAN_SOURCE_DIR}/models/dish_models/dish_rack_simple.urdf"
@@ -32,25 +33,34 @@ models:
   061_foam_brick: "${SPARTAN_SOURCE_DIR}/drake/examples/manipulation_station/models/061_foam_brick.sdf"
 
 instances:
-   - model: "061_foam_brick"
-     q0: [0.62, 0.0, 0.3, 0.0, 0.0, 0.0]
-     fixed: false
-     # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
-     body_name: "base_link"
-   - model: "061_foam_brick"
-     q0: [0.65, 0.0, 0.4, 0.0, 0.0, 0.0]
-     fixed: false
-     # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
-     body_name: "base_link"
-   - model: "061_foam_brick"
-     q0: [0.69, 0.0, 0.5, 0.0, 0.0, 0.0]
-     fixed: false
-     # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
-     body_name: "base_link"
-   - model: "apriltag_cube"
-     q0: [0.5, 0.2, 0.35, 0.0, 0.0, 0.7]
-     fixed: false
-     body_name: "cube"
+  # - model: "dish_rack"
+  #   q0: [0.45, 0.2, 0.0, 0.0, 0.0, 0.0]
+  #   fixed: true
+  #   body_name: "dish_rack_simple"
+  # - model: "plate_11in"
+  #   q0: [0.50, 0.0, 0.2, 0.0, 0.0, 0.0]
+  #   fixed: false
+  #   body_name: "plate_11in"
+
+  - model: "061_foam_brick"
+    q0: [0.62, 0.0, 0.3, 0.0, 0.0, 0.0]
+    fixed: false
+    # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
+    body_name: "base_link"
+  - model: "061_foam_brick"
+    q0: [0.65, 0.0, 0.4, 0.0, 0.0, 0.0]
+    fixed: false
+    # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
+    body_name: "base_link"
+  - model: "061_foam_brick"
+    q0: [0.69, 0.0, 0.5, 0.0, 0.0, 0.0]
+    fixed: false
+    # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
+    body_name: "base_link"
+  - model: "apriltag_cube"
+    q0: [0.5, 0.2, 0.35, 0.0, 0.0, 0.7]
+    fixed: false
+    body_name: "cube"
 
 # Not used yet
 robot:
