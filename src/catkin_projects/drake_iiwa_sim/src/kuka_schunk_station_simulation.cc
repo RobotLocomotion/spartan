@@ -170,7 +170,12 @@ int do_main(int argc, char* argv[]) {
                         plant->get_source_id().value()));
 
     if (station_config["cameras"]) {
+      
       for (const auto camera_config : station_config["cameras"]) {
+
+        std::cout << camera_config["name"] << std::endl;
+
+
         DRAKE_DEMAND(camera_config["name"]);
         DRAKE_DEMAND(camera_config["channel"]);
         DRAKE_DEMAND(camera_config["config_base_dir"]);
@@ -234,7 +239,14 @@ int do_main(int argc, char* argv[]) {
         RigidTransform<double> color_camera_tf = load_tf_from_yaml(
             camera_extrinsics_yaml["rgb"]["extrinsics"]
                                   ["transform_to_reference_link"]);
+
+        // pete: this is a slow way to move the cameras and doesn't match ROS
+        // color_camera_tf = RigidTransform<double>(
+        //                      RollPitchYaw<double>(0.0, 0.0, 0.0),
+        //                      Eigen::Vector3d(0.0, 0.0, i-1.0));
+
         camera->set_depth_camera_optical_pose(depth_camera_tf.GetAsIsometry3());
+
         camera->set_color_camera_optical_pose(color_camera_tf.GetAsIsometry3());
 
         builder.Connect(render_scene_graph->get_query_output_port(),
