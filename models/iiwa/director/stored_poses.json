@@ -1466,6 +1466,36 @@
       },
       "name": "look_at_rack",
       "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 1.6487609148025513,
+        "iiwa_joint_2": 0.04984724521636963,
+        "iiwa_joint_3": -0.05970469117164612,
+        "iiwa_joint_4": -0.3195894956588745,
+        "iiwa_joint_5": 0.0030580866150557995,
+        "iiwa_joint_6": 1.7732861042022705,
+        "iiwa_joint_7": 0.4548968970775604
+      },
+      "name": "top_out_of_way",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.4795764982700348,
+        "iiwa_joint_2": -0.05917438864707947,
+        "iiwa_joint_3": 0.5520344972610474,
+        "iiwa_joint_4": -0.908017098903656,
+        "iiwa_joint_5": 0.15577785670757294,
+        "iiwa_joint_6": 2.0078847408294678,
+        "iiwa_joint_7": 0.04247215390205383
+      },
+      "name": "shoe_approach",
+      "nominal_handedness": "left"
     }
   ],
   "mug": [

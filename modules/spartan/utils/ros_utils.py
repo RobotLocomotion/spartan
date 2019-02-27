@@ -438,10 +438,10 @@ class RobotService(object):
         req = robot_msgs.srv.RunIKRequest()
         req.pose_stamped = poseStamped
 
-        if seedPose:
+        if seedPose is not None:
             req.seed_pose.append(RobotService.jointPositionToJointStateMsg(self.jointNames, seedPose))
 
-        if nominalPose:
+        if nominalPose is not None:
             req.nominal_pose.append(RobotService.jointPositionToJointStateMsg(self.jointNames, nominalPose))
 
         ikServiceName = 'robot_control/IkService'

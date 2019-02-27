@@ -20,13 +20,13 @@ import spartan.utils.utils as spartanUtils
 
 
 
-fs = FusionServer()
+fs = None
 
 LINEAR_DISTANCE_THRESHOLD = 0.03 # 3cm
 ANGLE_DISTANCE_THRESHOLD = 10 # 10 degrees
 FUSION_CONFIG_FILE = os.path.join(spartanUtils.getSpartanSourceDir(), "src/catkin_projects/station_config/RLG_iiwa_1/fusion/fusion_params.yaml")
 FUSION_CONFIG = spartanUtils.getDictFromYamlFilename(FUSION_CONFIG_FILE)
-FUSION_LOCATION = "left"
+FUSION_LOCATION = "front"
 
 def mem():
     print('Memory usage         : % 2.2f MB' % round(
@@ -70,6 +70,9 @@ def extract_and_fuse_single_scene(log_full_path, downsample=True,
     :param angle_distance_threshold: threshold used in downsampling
     :return:
     """
+    global fs
+    if fs is None:
+        fs = FusionServer()
 
     print "extracting and fusing scene:", log_full_path 
     log = os.path.split(log_full_path)[-1]
@@ -225,6 +228,9 @@ if __name__ == "__main__":
     # needed for TF server    
     rospy.init_node("fusion_extractor", anonymous=True)
 
+    global fs
+    fs = FusionServer()
+
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--logs_dir", type=str, required=False)
@@ -236,8 +242,8 @@ if __name__ == "__main__":
     if args.logs_dir:
         logs_proto_path = args.logs_dir
     else:
-        # logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_special', 'static_scenes')
-        logs_proto_path = os.path.join(spartanUtils.getSpartanSourceDir(), 'data_volume', 'pdc', 'logs_proto')
+        # logs_proto_path = os.path.join(spartanUtils.get_data_dir(), 'pdc', 'logs_proto')
+        logs_proto_path = os.path.join(spartanUtils.get_data_dir(), 'pdc', 'logs_test')
 
     logs_proto_list = sorted(os.listdir(logs_proto_path))
 
