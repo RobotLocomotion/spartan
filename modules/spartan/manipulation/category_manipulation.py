@@ -9,9 +9,12 @@ import director.transformUtils as transformUtils
 import spartan.utils.utils as spartan_utils
 import spartan.utils.director_utils as director_utils
 
+
+
 class CategoryManipulation(object):
 
-    def __init__(self, robotStateModel, mug_rack_config=None, mug_platform_config=None):
+    def __init__(self, robotStateModel, mug_rack_config=None, mug_platform_config=None,
+                 shoe_rack_config=None):
         self._robotStateModel = robotStateModel
         self.clear_visualation()
         self.setup_config()
@@ -34,6 +37,14 @@ class CategoryManipulation(object):
             self._mug_platform_config = spartan_utils.getDictFromYamlFilename(mug_platform_config_file)
         else:
             self._mug_platform_config = mug_platform_config
+
+
+        if shoe_rack_config is None:
+            shoe_rack_config_file = os.path.join(spartan_utils.getSpartanSourceDir(),
+                                                'src/catkin_projects/station_config/RLG_iiwa_1/manipulation/shoe_rack.yaml')
+            self._shoe_rack_config = spartan_utils.getDictFromYamlFilename(shoe_rack_config_file)
+        else:
+            self._shoe_rack_config = shoe_rack_config
 
     def setup_config(self):
         """
@@ -78,20 +89,26 @@ class CategoryManipulation(object):
         t = transformUtils.transformFromPose(pos, quat)
         self._object.getChildFrame().copyFrame(t)
 
-
-    def load_mug_rack_and_side_table(self):
+    def load_side_table(self):
         """
-        Loads a mug rack and side table poly data
+        Loads the side table
         :return:
         :rtype:
         """
-
         pdc_data_dir = os.path.join(spartan_utils.get_data_dir(), 'pdc')
         side_table_ply_file = os.path.join(pdc_data_dir, self._mug_rack_config['background_mesh'])
 
         side_table_poly_data = ioUtils.readPolyData(side_table_ply_file)
         vis.showPolyData(side_table_poly_data, 'Side Table', parent=self._vis_container)
 
+
+    def load_mug_rack(self):
+        """
+        Loads a mug rack and side table poly data
+        :return:
+        :rtype:
+        """
+        pdc_data_dir = os.path.join(spartan_utils.get_data_dir(), 'pdc')
         rack_ply_file = os.path.join(pdc_data_dir, self._mug_rack_config["mesh"])
         rack_poly_data = ioUtils.readPolyData(rack_ply_file)
         self._mug_rack = vis.showPolyData(rack_poly_data, 'Mug Rack', parent=self._vis_container)
@@ -124,6 +141,25 @@ class CategoryManipulation(object):
         self._mug_platform.getChildFrame().copyFrame(target_pose)
 
 
+    def load_shoe_rack(self, target_pose_name="left_side_table"):
+        """
+        Loads the shoe rack
+        :return:
+        :rtype:
+        """
+
+        pdc_data_dir = os.path.join(spartan_utils.get_data_dir(), 'pdc')
+        rack_ply_file = os.path.join(pdc_data_dir, self._shoe_rack_config['mesh'])
+
+        rack_poly_data = ioUtils.readPolyData(rack_ply_file)
+        self._shoe_rack = vis.showPolyData(rack_poly_data, 'Shoe Rack', parent=self._vis_container)
+        # rack_target_position
+
+
+        target_pose = director_utils.transformFromPose(self._shoe_rack_config['poses'][target_pose_name])
+
+        vis.addChildFrame(self._shoe_rack)
+        self._shoe_rack.getChildFrame().copyFrame(target_pose)
     def clear_visualation(self):
         """
         Clear the vis container
