@@ -89,7 +89,7 @@ def setupRLGDirector(globalsDict=None):
     category_manip.load_side_table()
     # category_manip.load_mug_rack()
     # category_manip.setup_horizontal_mug_grasp()
-    # category_manip.load_mug_platform()
+    category_manip.load_mug_platform()
     category_manip.load_shoe_rack()
 
     def visualize_background():

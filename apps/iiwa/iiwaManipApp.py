@@ -36,6 +36,7 @@ import drake as lcmdrake
 import bot_core as lcmbotcore
 
 from spartan.manipulation.director_schunk_driver import DirectorSchunkDriver
+import spartan.utils.director_utils as director_utils
 
 useROS = True
 if useROS:
