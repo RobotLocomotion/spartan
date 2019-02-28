@@ -57,8 +57,8 @@ MUG_RACK_CONFIG_FILE = os.path.join(spartanUtils.getSpartanSourceDir(), "src/cat
 DEBUG_SPEED = 20 # degrees per second
 USE_DEBUG_SPEED = False
 
-# MANIP_TYPE = CategoryManipulationType.SHOE_ON_RACK
-MANIP_TYPE = CategoryManipulationType.MUG_ON_SHELF_3D
+MANIP_TYPE = CategoryManipulationType.SHOE_ON_RACK
+# MANIP_TYPE = CategoryManipulationType.MUG_ON_SHELF_3D
 
 class GraspSupervisorState(object):
     STATUS_LIST = ["ABOVE_TABLE", "PRE_GRASP", "GRASP", "IK_FAILED", "NO_GRASP_FOUND", "GRASP_FOUND", "OBJECT_IN_GRIPPER", "GRASP_FAILED", "SAFETY_CHECK_FAILED", "PLANNING_FAILED", "FAILED"]
@@ -814,6 +814,52 @@ class GraspSupervisor(object):
         # if the place was successful then retract
         self.retract_from_mug_shelf()
 
+    def run_shoe_on_rack_pipeline(self):
+        """
+        Runs entire pipeline for mug shelf 3D
+        :return:
+        :rtype:
+        """
+
+        self.state.clear()
+        self._clear_cache()
+
+        # move home
+        speed = self.graspingParams['speed']['fast']
+        q = self._stored_poses_director["General"]["center_back"]
+        self.robotService.moveToJointPosition(q,
+                                              maxJointDegreesPerSecond=speed)
+
+        # run keypoint detection
+        self.run_keypoint_detection(wait_for_result=False, move_to_stored_pose=False, clear_state=False)
+        self.wait_for_keypoint_detection_result()
+
+        if not self.check_keypoint_detection_succeeded():
+            self.state.set_status("FAILED")
+            return False
+
+        # run category manip
+        code = self.run_category_manipulation_goal_estimation(capture_rgbd=False)
+        if not code:
+            self.state.set_status("FAILED")
+            return False
+
+
+        self.wait_for_category_manipulation_goal_result()
+        if not self.check_category_goal_estimation_succeeded():
+            self.state.set_status("PLANNING_FAILED")
+            return False
+
+        # run the manipulation
+        # need safety checks in there before running autonomously
+        code = self.run_shoe_rack_manipulation()
+        if not (code == True):
+            self.state.set_status("FAILED")
+            return False
+
+        # if the place was successful then retract
+        self.retract_from_shoe_rack()
+
     def run_manipulate_object(self, debug=False):
         """
         Runs the object manipulation code. Will put the object into the
@@ -998,23 +1044,30 @@ class GraspSupervisor(object):
 
 
         # place the object
-
-
-
         force_threshold_magnitude = 50 # shoes are heavy
         q_nom = np.array(self._stored_poses_director["Grasping"]["above_table_pre_grasp"])
         q_nom = np.array(self._stored_poses_director["left_table"]["above_table_pre_grasp"])
-        self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom, use_cartesian_plan=True, force_threshold_magnitude=force_threshold_magnitude)
+        code =self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom, use_cartesian_plan=True, force_threshold_magnitude=force_threshold_magnitude)
 
+        print("\n\n--- Finished Shoe Manipulation-------\n\n")
+
+        return code
+
+
+
+    def retract_from_shoe_rack(self):
+        """
+        Retract from the shoe rack
+        :return:
+        :rtype:
+        """
 
         # open the gripper and back away
         self.gripperDriver.send_open_gripper_set_distance_from_current(distance=0.045)
 
-
-
         # back away along gripper x-direction
         ee_speed_m_s = 0.05
-        xyz_goal = [-0.1,0,0] # 10 cm
+        xyz_goal = [-0.1, 0, 0]  # 10 cm
         duration = np.linalg.norm(xyz_goal) / ee_speed_m_s
         ee_frame_id = "iiwa_link_ee"
         base_frame_id = "base"
@@ -1033,13 +1086,8 @@ class GraspSupervisor(object):
         result = action_client.get_result()
         self.state.cache['cartesian_traj_result'] = result
 
-
-
-
         speed = self.graspingParams['speed']['fast']
         self.moveHome(speed=speed)
-
-        print("\n\n--- Finished Shoe Manipulation-------\n\n")
 
     def run_mug_on_rack_manipulation(self):
         """
@@ -1146,9 +1194,9 @@ class GraspSupervisor(object):
         self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom_left_table, use_cartesian_plan=True, force_threshold_magnitude=30)
 
 
-    def retract_from_rack(self, gripper_open=True):
+    def retract_from_mug_rack(self, gripper_open=True):
         """
-        Move backwards from the rack
+        Move backwards from the mug rack
         :return:
         :rtype:
         """
@@ -2827,7 +2875,7 @@ class GraspSupervisor(object):
         self.taskRunner.callOnThread(self.run_mug_on_rack_manipulation, *args, **kwargs)
 
     def test_retract_from_rack(self, *args, **kwargs):
-        self.taskRunner.callOnThread(self.retract_from_rack, *args, **kwargs)
+        self.taskRunner.callOnThread(self.retract_from_mug_rack, *args, **kwargs)
 
     def test_retract_from_mug_shelf(self, *args, **kwargs):
         self.taskRunner.callOnThread(self.retract_from_mug_shelf, *args, **kwargs)
@@ -2853,6 +2901,9 @@ class GraspSupervisor(object):
 
     def test_mug_shelf_3D_pipeline(self):
         self.taskRunner.callOnThread(self.run_mug_shelf_3D_pipeline)
+
+    def test_shoe_rack_pipeline(self):
+        self.taskRunner.callOnThread(self.run_shoe_on_rack_pipeline)
 
     def test_category_manip_pipeline(self):
         """
