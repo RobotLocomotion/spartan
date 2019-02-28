@@ -4,6 +4,7 @@ import copy
 
 # director
 from director import transformUtils
+import director.vtkAll as vtk
 
 # spartan
 import spartan.utils.utils as spartanUtils
@@ -202,6 +203,10 @@ class GraspData(object):
         :return:
         :rtype:
         """
+
+        if not isinstance(grasp_frame, vtk.vtkTransform):
+            grasp_frame = transformUtils.getTransformFromNumpy(grasp_frame)
+
         is_safe = True
         pos = np.array(grasp_frame.GetPosition())
 

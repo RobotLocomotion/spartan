@@ -1230,9 +1230,9 @@ class GraspSupervisor(object):
             push_in_distance = 0.03
             force_threshold_magnitude = 30
 
-            params = self.getParamsForCurrentLocation()
-            grasp_z_axis_nominal = np.array(params['grasp']['grasp_nominal_direction'])
-            grasp_data.rotate_grasp_frame_to_nominal(grasp_z_axis_nominal)
+            # params = self.getParamsForCurrentLocation()
+            # grasp_z_axis_nominal = np.array(params['grasp']['grasp_nominal_direction'])
+            # grasp_data.rotate_grasp_frame_to_nominal(grasp_z_axis_nominal)
 
 
         self.state.grasp_data = grasp_data
@@ -1276,24 +1276,13 @@ class GraspSupervisor(object):
 
 
         # move to above table pre grasp
-        speed = self.graspingParams["speed"]["nominal"]
-        if use_debug_speed:
-            speed = DEBUG_SPEED
+        speed = self.graspingParams["speed"]["fast"]
 
         q = self._stored_poses_director["Grasping"]["above_table_pre_grasp"]
         self.robotService.moveToJointPosition(q,
                                               maxJointDegreesPerSecond=
                                               speed)
 
-
-
-
-        # now move to nominal position for the place
-        speed = self.graspingParams["speed"]["nominal"]
-        if use_debug_speed:
-            speed = DEBUG_SPEED
-
-        # q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp"]
 
 
         q_approach = None
@@ -1390,7 +1379,7 @@ class GraspSupervisor(object):
         result = action_client.get_result()
 
         # now move to nominal position for the place
-        speed = self.graspingParams["speed"]["nominal"]
+        speed = self.graspingParams["speed"]["fast"]
         if use_debug_speed:
             speed = DEBUG_SPEED
         if mug_orientation == "UPRIGHT":
@@ -1406,17 +1395,15 @@ class GraspSupervisor(object):
                                                   maxJointDegreesPerSecond=
                                                   speed)
 
+            q_pose_2 = self._stored_poses_director["Grasping"]["above_table_pre_grasp"]
+            self.robotService.moveToJointPosition(q_pose_2,
+                                                  maxJointDegreesPerSecond=
+                                                  speed)
 
 
-            pass
-
-        q_pose_2 = self._stored_poses_director["Grasping"]["above_table_pre_grasp"]
-        self.robotService.moveToJointPosition(q_pose_2,
-                                              maxJointDegreesPerSecond=
-                                              speed)
 
 
-        self.moveHome()
+        self.moveHome(speed=speed)
 
 
     def run_category_manipulation_pipeline(self):
