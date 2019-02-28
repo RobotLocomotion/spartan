@@ -693,6 +693,21 @@
       },
       "name": "vertical_grasp_above_table",
       "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.035684049129486084,
+        "iiwa_joint_2": 0.6206402778625488,
+        "iiwa_joint_3": -0.03777864947915077,
+        "iiwa_joint_4": -0.5906810164451599,
+        "iiwa_joint_5": 0.03872400149703026,
+        "iiwa_joint_6": 1.786637783050537,
+        "iiwa_joint_7": 0.4146159589290619
+      },
+      "name": "home",
+      "nominal_handedness": "left"
     }
   ],
   "Grasping": [

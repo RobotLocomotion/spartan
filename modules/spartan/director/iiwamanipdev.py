@@ -74,7 +74,8 @@ def setupRLGDirector(globalsDict=None):
     topic = "/camera_carmine_1/depth/points"
     ros_visualizer.add_subscriber(topic, name="Carmine", visualize=True)
     globalsDict['ros_visualizer'] = ros_visualizer
-    ros_visualizer.start()
+    # ros_visualizer.start()
+
 
 
     # load background scene if it exists

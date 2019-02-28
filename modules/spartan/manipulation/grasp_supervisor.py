@@ -53,11 +53,12 @@ if USING_DIRECTOR:
 
 MUG_RACK_CONFIG_FILE = os.path.join(spartanUtils.getSpartanSourceDir(), "src/catkin_projects/station_config/RLG_iiwa_1/manipulation/mug_rack.yaml")
 
-
-
 # IF true limits you to this speed
 DEBUG_SPEED = 20 # degrees per second
 USE_DEBUG_SPEED = False
+
+# MANIP_TYPE = CategoryManipulationType.SHOE_ON_RACK
+MANIP_TYPE = CategoryManipulationType.MUG_ON_SHELF_3D
 
 class GraspSupervisorState(object):
     STATUS_LIST = ["ABOVE_TABLE", "PRE_GRASP", "GRASP", "IK_FAILED", "NO_GRASP_FOUND", "GRASP_FOUND", "OBJECT_IN_GRIPPER", "GRASP_FAILED"]
@@ -595,19 +596,27 @@ class GraspSupervisor(object):
 
         self.taskRunner.callOnMain(self.visualize_poser_result)
 
-    def run_keypoint_detection(self, wait_for_result=True, move_to_stored_pose=True):
+    def run_keypoint_detection(self, wait_for_result=True, move_to_stored_pose=True, clear_state=True):
         """
-        Runs keypoint detection using ManKey in pdc-ros
+        Runs keypoint detection using ManKey in pdc-ros. Note that this clears the cache
         :return:
         :rtype:
         """
 
-        self._clear_cache()
-        self.state.clear()
+        if clear_state:
+            self._clear_cache()
+            self.state.clear()
 
 
         if move_to_stored_pose:
-            q = self._stored_poses_director['General']['center_back']
+
+            CMT = CategoryManipulationType
+            q = self._stored_poses_director["General"]["home"]  # for mugs
+            if MANIP_TYPE in [CMT.SHOE_ON_RACK, CMT.SHOE_ON_TABLE]:
+                q = self._stored_poses_director['General']['center_back']
+            else:  # basically all mugs
+                q = self._stored_poses_director["General"]["home"]
+
             self.robotService.moveToJointPosition(q,
                                                   maxJointDegreesPerSecond=self.graspingParams['speed']['fast'])
 
@@ -693,7 +702,7 @@ class GraspSupervisor(object):
             return False
 
 
-    def run_category_manipulation_goal_estimation(self, wait_for_result=True):
+    def run_category_manipulation_goal_estimation(self, wait_for_result=True, capture_rgbd=True):
         """
         Calls the CategoryManipulation service of pdc-ros
         which is provided by category_manip_server.py.
@@ -716,10 +725,12 @@ class GraspSupervisor(object):
         goal.keypoint_detection_type = keypoint_detection_result['type']
 
 
-        self.moveHome()
-        rgbd_with_pose = self.captureRgbdAndCameraTransform()
-        self.state.cache['rgbd_with_pose_list'].append(rgbd_with_pose)
-        goal.rgbd_with_pose_list = self.state.cache['rgbd_with_pose_list']
+
+        if capture_rgbd:
+            self.moveHome()
+            rgbd_with_pose = self.captureRgbdAndCameraTransform()
+            self.state.cache['rgbd_with_pose_list'].append(rgbd_with_pose)
+            goal.rgbd_with_pose_list = self.state.cache['rgbd_with_pose_list']
 
         rospy.loginfo("waiting for CategoryManip server")
         self.category_manip_client.wait_for_server()
@@ -756,6 +767,39 @@ class GraspSupervisor(object):
         self.state.cache['category_manipulation_goal']["T_goal_obs"] = T_goal_obs_vtk
         self.state.cache['category_manipulation_goal']['state'] = state
         self.state.cache['category_manipulation_goal']["type"] = CategoryManipulationType.from_string(result.category_manipulation_type)
+
+    def run_mug_shelf_3D_pipeline(self):
+        """
+        Runs entire pipeline for mug shelf 3D
+        :return:
+        :rtype:
+        """
+
+        self.state.clear()
+        self._clear_cache()
+
+        # move home
+        speed = self.graspingParams['speed']['fast']
+        q = self._stored_poses_director["General"]["home"]
+        self.robotService.moveToJointPosition(q,
+                                              maxJointDegreesPerSecond=speed)
+
+        # run keypoint detection
+        self.run_keypoint_detection(wait_for_result=False, move_to_stored_pose=False, clear_state=False)
+        self.wait_for_keypoint_detection_result()
+
+        # run category manip
+        self.run_category_manipulation_goal_estimation(capture_rgbd=False)
+        self.wait_for_category_manipulation_goal_result()
+
+
+        # run the manipulation
+        # need safety checks in there before running autonomously
+        # self.run_mug_shelf_manipulation()
+
+        # if the place was successful
+        # self.retract_from_mug_shelf()
+
 
 
     def run_manipulate_object(self, debug=False):
@@ -1161,6 +1205,11 @@ class GraspSupervisor(object):
         grasp_data = GraspData.from_gripper_fingertip_frame(T_W_fingertip)
         grasp_data.gripper.params["hand_inner_diameter"] = result.gripper_width
 
+        # rotate grasp frame to align with nominal
+        params = self.getParamsForCurrentLocation()
+        grasp_z_axis_nominal = np.array(params['grasp']['grasp_nominal_direction'])
+        grasp_data.rotate_grasp_frame_to_nominal(grasp_z_axis_nominal)
+
         self.state.grasp_data = grasp_data
         self.visualize_grasp(grasp_data)
 
@@ -1177,14 +1226,14 @@ class GraspSupervisor(object):
         print("visualizing grasp")
         self.visualize_grasp(grasp_data)
 
-        force_threshold_magnitude = 10
+        force_threshold_magnitude = 30
         push_in_distance = 0.0
         if result.mug_orientation == "HORIZONTAL":
-            push_in_distance = 0.005
+            push_in_distance = 0.00
             force_threshold_magnitude = 30
         elif result.mug_orientation == "UPRIGHT":
-            push_in_distance = 0.04
-            force_threshold_magnitude = 10
+            push_in_distance = 0.03
+            force_threshold_magnitude = 30
 
 
         # execute the grasp
@@ -1285,7 +1334,7 @@ class GraspSupervisor(object):
 
         # execute the place
         print("executing place on rack")
-        self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom, use_cartesian_plan=True)
+        self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom, use_cartesian_plan=True, force_threshold_magnitude=30)
 
 
         # now move back from current position along iiwa_link_ee x-axis
@@ -2791,13 +2840,24 @@ class GraspSupervisor(object):
 
     def test_dev(self):
         def thread_fun():
-            self.run_keypoint_detection(wait_for_result=True)
+            self.run_keypoint_detection(wait_for_result=False, move_to_stored_pose=True)
             speed = self.graspingParams['speed']['fast']
             self.moveHome(speed=speed)
             self.run_category_manipulation_goal_estimation()
 
         self.taskRunner.callOnThread(thread_fun)
 
+
+    def test_mug_shelf_3D_pipeline(self):
+        self.taskRunner.callOnThread(self.run_mug_shelf_3D_pipeline)
+
+    def test_category_manip_pipeline(self):
+        """
+        Runs the appropriate category manip pipeline
+        :return:
+        :rtype:
+        """
+        raise NotImplementedError("")
 
     @staticmethod
     def rectangleMessageFromYamlNode(node):
