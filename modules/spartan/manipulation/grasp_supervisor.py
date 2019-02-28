@@ -61,7 +61,7 @@ USE_DEBUG_SPEED = False
 MANIP_TYPE = CategoryManipulationType.MUG_ON_SHELF_3D
 
 class GraspSupervisorState(object):
-    STATUS_LIST = ["ABOVE_TABLE", "PRE_GRASP", "GRASP", "IK_FAILED", "NO_GRASP_FOUND", "GRASP_FOUND", "OBJECT_IN_GRIPPER", "GRASP_FAILED"]
+    STATUS_LIST = ["ABOVE_TABLE", "PRE_GRASP", "GRASP", "IK_FAILED", "NO_GRASP_FOUND", "GRASP_FOUND", "OBJECT_IN_GRIPPER", "GRASP_FAILED", "SAFETY_CHECK_FAILED", "PLANNING_FAILED", "FAILED"]
 
     def __init__(self):
         self.setPickFront()
@@ -788,19 +788,31 @@ class GraspSupervisor(object):
         self.run_keypoint_detection(wait_for_result=False, move_to_stored_pose=False, clear_state=False)
         self.wait_for_keypoint_detection_result()
 
-        # run category manip
-        self.run_category_manipulation_goal_estimation(capture_rgbd=False)
-        self.wait_for_category_manipulation_goal_result()
+        if not self.check_keypoint_detection_succeeded():
+            self.state.set_status("FAILED")
+            return False
 
+        # run category manip
+        code = self.run_category_manipulation_goal_estimation(capture_rgbd=False)
+        if not code:
+            self.state.set_status("FAILED")
+            return False
+
+
+        self.wait_for_category_manipulation_goal_result()
+        if not self.check_category_goal_estimation_succeeded():
+            self.state.set_status("PLANNING_FAILED")
+            return False
 
         # run the manipulation
         # need safety checks in there before running autonomously
-        # self.run_mug_shelf_manipulation()
+        code = self.run_mug_shelf_manipulation()
+        if not (code == True):
+            self.state.set_status("FAILED")
+            return False
 
-        # if the place was successful
-        # self.retract_from_mug_shelf()
-
-
+        # if the place was successful then retract
+        self.retract_from_mug_shelf()
 
     def run_manipulate_object(self, debug=False):
         """
@@ -1186,13 +1198,14 @@ class GraspSupervisor(object):
         self.wait_for_category_manipulation_goal_result()
 
         if not self.check_category_goal_estimation_succeeded():
+            self.state.set_status("PLANNING_FAILED")
             return False
 
         category_manipulation_type = self.state.cache['category_manipulation_goal']['type']
         assert category_manipulation_type == CategoryManipulationType.MUG_ON_SHELF_3D
 
         self.moveHome()
-        self.wait_for_category_manipulation_goal_result()
+
 
         result = self.state.cache['category_manipulation_goal']['result']
 
@@ -1205,10 +1218,22 @@ class GraspSupervisor(object):
         grasp_data = GraspData.from_gripper_fingertip_frame(T_W_fingertip)
         grasp_data.gripper.params["hand_inner_diameter"] = result.gripper_width
 
-        # rotate grasp frame to align with nominal
-        params = self.getParamsForCurrentLocation()
-        grasp_z_axis_nominal = np.array(params['grasp']['grasp_nominal_direction'])
-        grasp_data.rotate_grasp_frame_to_nominal(grasp_z_axis_nominal)
+        # rotate grasp frame to align with nominal if we are doing a vertical grasp
+
+        force_threshold_magnitude = 30
+        push_in_distance = 0.0
+
+        if result.mug_orientation == "HORIZONTAL":
+            push_in_distance = 0.00
+            force_threshold_magnitude = 30
+        elif result.mug_orientation == "UPRIGHT":
+            push_in_distance = 0.03
+            force_threshold_magnitude = 30
+
+            params = self.getParamsForCurrentLocation()
+            grasp_z_axis_nominal = np.array(params['grasp']['grasp_nominal_direction'])
+            grasp_data.rotate_grasp_frame_to_nominal(grasp_z_axis_nominal)
+
 
         self.state.grasp_data = grasp_data
         self.visualize_grasp(grasp_data)
@@ -1225,15 +1250,6 @@ class GraspSupervisor(object):
         # debugging
         print("visualizing grasp")
         self.visualize_grasp(grasp_data)
-
-        force_threshold_magnitude = 30
-        push_in_distance = 0.0
-        if result.mug_orientation == "HORIZONTAL":
-            push_in_distance = 0.00
-            force_threshold_magnitude = 30
-        elif result.mug_orientation == "UPRIGHT":
-            push_in_distance = 0.03
-            force_threshold_magnitude = 30
 
 
         # execute the grasp
@@ -1334,24 +1350,10 @@ class GraspSupervisor(object):
 
         # execute the place
         print("executing place on rack")
-        self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom, use_cartesian_plan=True, force_threshold_magnitude=30)
+        code = self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom, use_cartesian_plan=True, force_threshold_magnitude=30)
 
+        return code
 
-        # now move back from current position along iiwa_link_ee x-axis
-
-        # # open the gripper and back away
-        # pre_grasp_pose = self.state.cache['pre_grasp_ik_response'].joint_state.position
-        # pickup_speed = self.graspingParams['speed']['pickup']
-        # self.gripperDriver.send_open_gripper_set_distance_from_current()
-        # # pickup the object
-        # self.robotService.moveToJointPosition(pre_grasp_pose,
-        #                                       maxJointDegreesPerSecond=
-        #                                       pickup_speed)
-        #
-        # # move home
-        # self.moveHome()
-
-        # move to
 
     def retract_from_mug_shelf(self, gripper_open=True, use_debug_speed=True):
         """
@@ -1664,11 +1666,19 @@ class GraspSupervisor(object):
 
         rospy.sleep(0.5)  # wait for 0.5 for gripper to move
 
+
+
         # compute the pre-grasp frame
         pre_grasp_distance = self.graspingParams['pre_grasp_distance']
         pre_grasp_frame_gripper = grasp_data.compute_pre_grasp_frame(distance=pre_grasp_distance)
 
         pre_grasp_ee_pose_stamped = self.makePoseStampedFromGraspFrame(pre_grasp_frame_gripper)
+
+        # safety check
+        is_safe = (GraspData.grasp_frame_safety_check(grasp_data.grasp_frame) and GraspData.grasp_frame_safety_check(pre_grasp_frame_gripper))
+        if not is_safe:
+            self.state.set_status("SAFETY_CHECK_FAILED")
+            return False
 
 
         # run the ik for moving to pre-grasp location
@@ -1901,6 +1911,12 @@ class GraspSupervisor(object):
         :return:
         :rtype:
         """
+
+        # safety check
+        is_safe = (GraspData.grasp_frame_safety_check(T_W_ee) and GraspData.grasp_frame_safety_check(T_W_ee_approach))
+        if not is_safe:
+            self.state.set_status("SAFETY_CHECK_FAILED")
+            return False
 
         # run the ik for moving to pre-grasp location
         debug_speed = 10

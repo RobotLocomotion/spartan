@@ -191,3 +191,21 @@ class GraspData(object):
         grasp_data.gripper = copy.deepcopy(self.gripper)
 
         return grasp_data
+
+
+    @staticmethod
+    def grasp_frame_safety_check(grasp_frame):
+        """
+        Checks whether this grasp is safe
+        :param grasp_frame: vtkTransform
+        :type grasp_frame:
+        :return:
+        :rtype:
+        """
+        is_safe = True
+        pos = np.array(grasp_frame.GetPosition())
+
+
+        is_safe = (pos[2] > 0.0) # shouldn't be penetrating the table
+
+        return is_safe
