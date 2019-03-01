@@ -169,6 +169,8 @@ class GraspSupervisor(object):
         self.poser_result = None
         self._object_manipulation = None
 
+        self._shoe_manipulation_counter = 0
+
 
         filename = os.path.join(os.path.join(spartanUtils.getSpartanSourceDir(), 'src/catkin_projects/station_config/RLG_iiwa_1/stored_poses.yaml'))
         self._stored_poses_director = spartanUtils.getDictFromYamlFilename(filename)
@@ -732,6 +734,22 @@ class GraspSupervisor(object):
             self.state.cache['rgbd_with_pose_list'].append(rgbd_with_pose)
             goal.rgbd_with_pose_list = self.state.cache['rgbd_with_pose_list']
 
+
+        if 'rgbd_with_pose_list' in self.state.cache:
+            goal.rgbd_with_pose_list = self.state.cache['rgbd_with_pose_list']
+
+        if MANIP_TYPE == CategoryManipulationType.SHOE_ON_RACK:
+            print("applying T_adjust")
+            print("self._shoe_manipulation_counter", self._shoe_manipulation_counter)
+            goal.apply_T_adjust = True
+            pos = np.array([self.graspingParams["shoe_offset"], 0, 0]) * self._shoe_manipulation_counter
+            quat = [1,0,0,0]
+            T_adjust_vtk = transformUtils.transformFromPose(pos, quat)
+            T_adjust = transformUtils.getNumpyFromTransform(T_adjust_vtk)
+            goal.T_adjust = ros_numpy.msgify(geometry_msgs.msg.Pose, T_adjust)
+        else:
+            goal.apply_T_adjust =False
+
         rospy.loginfo("waiting for CategoryManip server")
         self.category_manip_client.wait_for_server()
         rospy.loginfo("connected to CategoryManip server")
@@ -813,6 +831,62 @@ class GraspSupervisor(object):
 
         # if the place was successful then retract
         self.retract_from_mug_shelf()
+
+    def run_mug_on_rack_pipeline(self):
+        """
+        Runs entire pipeline for mug shelf 3D
+        :return:
+        :rtype:
+        """
+
+        self.state.clear()
+        self._clear_cache()
+
+        # move home
+        speed = self.graspingParams['speed']['fast']
+        q = self._stored_poses_director["General"]["home"]
+        self.robotService.moveToJointPosition(q,
+                                              maxJointDegreesPerSecond=speed)
+
+        # run keypoint detection
+        self.run_keypoint_detection(wait_for_result=False, move_to_stored_pose=False, clear_state=False)
+        self.wait_for_keypoint_detection_result()
+
+
+        # move to center back to capture another RGBD image
+        q = self._stored_poses_director["General"]["center_back"]
+        self.robotService.moveToJointPosition(q,
+                                              maxJointDegreesPerSecond=speed)
+
+        rgbd_with_pose = self.captureRgbdAndCameraTransform()
+        self.state.cache['rgbd_with_pose_list'].append(rgbd_with_pose)
+
+
+
+        if not self.check_keypoint_detection_succeeded():
+            self.state.set_status("FAILED")
+            return False
+
+        # run category manip
+        code = self.run_category_manipulation_goal_estimation(capture_rgbd=False)
+        if not code:
+            self.state.set_status("FAILED")
+            return False
+
+
+        self.wait_for_category_manipulation_goal_result()
+        if not self.check_category_goal_estimation_succeeded():
+            self.state.set_status("PLANNING_FAILED")
+            return False
+
+        # run the manipulation
+        # need safety checks in there before running autonomously
+        code = self.run_mug_on_rack_manipulation()
+        if not (code == True):
+            self.state.set_status("FAILED")
+            return False
+
+        # if the place was successful then retract
 
     def run_shoe_on_rack_pipeline(self):
         """
@@ -1017,7 +1091,7 @@ class GraspSupervisor(object):
         self.moveHome()
 
         # move to approach pose
-        speed = self.graspingParams['speed']['nominal']
+        speed = self.graspingParams['speed']['fast']
         q_approach = np.array(self._stored_poses_director["left_table"]["shoe_approach"])
         self.robotService.moveToJointPosition(q_approach, maxJointDegreesPerSecond=speed)
 
@@ -1050,6 +1124,8 @@ class GraspSupervisor(object):
         code =self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom, use_cartesian_plan=True, force_threshold_magnitude=force_threshold_magnitude)
 
         print("\n\n--- Finished Shoe Manipulation-------\n\n")
+
+        self._shoe_manipulation_counter += 1
 
         return code
 
@@ -2901,6 +2977,9 @@ class GraspSupervisor(object):
 
     def test_mug_shelf_3D_pipeline(self):
         self.taskRunner.callOnThread(self.run_mug_shelf_3D_pipeline)
+
+    def test_mug_rack_pipeline(self):
+        self.taskRunner.callOnThread(self.run_mug_on_rack_pipeline)
 
     def test_shoe_rack_pipeline(self):
         self.taskRunner.callOnThread(self.run_shoe_on_rack_pipeline)

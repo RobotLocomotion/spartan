@@ -1511,6 +1511,21 @@
       },
       "name": "shoe_approach",
       "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.4864267408847809,
+        "iiwa_joint_2": 0.21464040875434875,
+        "iiwa_joint_3": 0.42382150888442993,
+        "iiwa_joint_4": -1.0233983993530273,
+        "iiwa_joint_5": 0.21979615092277527,
+        "iiwa_joint_6": 1.5541713237762451,
+        "iiwa_joint_7": -0.20744794607162476
+      },
+      "name": "look_at_rack_2",
+      "nominal_handedness": "left"
     }
   ],
   "mug": [
