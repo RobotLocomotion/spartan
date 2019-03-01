@@ -900,7 +900,8 @@ class GraspSupervisor(object):
 
         # move home
         speed = self.graspingParams['speed']['fast']
-        q = self._stored_poses_director["General"]["center_back"]
+        # q = self._stored_poses_director["General"]["center_back"]
+        q = self._stored_poses_director["General"]["home"]
         self.robotService.moveToJointPosition(q,
                                               maxJointDegreesPerSecond=speed)
 

@@ -194,4 +194,4 @@ grasp_push_in_distance: 0.02 # distance (in meters) to push "past" the planned g
 gripper_width_offset: 0.015 # how much narrower the fingers are due to the rubber pads
 
 
-shoe_offset: 0.2 # distance between shoes
+shoe_offset: 0.15 # distance between shoes
