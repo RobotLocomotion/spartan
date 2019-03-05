@@ -195,8 +195,13 @@ group "9.iiwa_sim" {
     host = "localhost";
   }
 
-  cmd "3.ROS-OpenNI-drake-iiwa-sim" {
-    exec = "roslaunch camera_config openni2_drake_iiwa_sim.launch camera_serial_number:=carmine_1";
+  cmd "3.ROS-OpenNI-drake-iiwa-sim-left" {
+    exec = "roslaunch camera_config openni2_drake_iiwa_sim.launch camera_serial_number:=sim_d415_left";
+    host = "localhost";
+  }
+
+  cmd "4.ROS-OpenNI-drake-iiwa-sim-right" {
+    exec = "roslaunch camera_config openni2_drake_iiwa_sim.launch camera_serial_number:=sim_d415_right";
     host = "localhost";
   }
 

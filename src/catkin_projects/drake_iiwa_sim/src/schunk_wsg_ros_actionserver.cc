@@ -87,7 +87,6 @@ void SchunkWsgActionServer::DoCalcDiscreteVariableUpdates(
   }
 
   wsg_50_common::Status status;
-  status.stamp = ros::Time::now();
   status.width = measured_state[0];
   status.current_speed = measured_state[1];
   status.current_force = measured_force;
