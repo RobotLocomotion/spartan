@@ -208,9 +208,15 @@ group "9.iiwa_sim" {
 }
 
 
-cmd "vive_teleop" {
-  exec = "python $SPARTAN_SOURCE_DIR/scripts/bin/vive_teleop.py";
-  host = "localhost";
+group "imitation" {
+    cmd "1.imitation_tools" {
+        exec = "roslaunch imitation_tools imitation_bagging.launch camera_serial_number:=sim_d415_left";
+        host = "localhost";
+    }
+    cmd "2.vive_teleop" {
+        exec = "python $SPARTAN_SOURCE_DIR/scripts/bin/vive_teleop.py";
+        host = "localhost";
+    }
 }
 
 script "1.1.robot_full_startup" {
@@ -295,4 +301,24 @@ script "6.start_drake_iiwa_sim"
   start cmd "1.plan-runner";
   start cmd "2.state-translator";
   start cmd "4.director";
+}
+
+script "7.start_vive_imitation"
+{
+  start cmd "0.roscore";
+  wait ms 3000;
+
+  start cmd "2.ROS Model and TF Publisher";
+  start cmd "3.rviz";
+  start cmd "4.Robot Movement Service";
+  start cmd "5.IK Service";
+  start cmd "8.fusion_server";
+
+  start group "9.iiwa_sim";
+  start cmd "1.plan-runner";
+  start cmd "2.state-translator";
+  start cmd "4.director";
+
+  start group "imitation";
+
 }

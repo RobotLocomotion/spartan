@@ -7,13 +7,11 @@ Panels:
         - /Global Options1
         - /RobotModel1
         - /TF1
-        - /TF1/Status1
         - /TF1/Frames1
         - /PointCloud21
         - /PointCloud22
         - /MarkerArray1
         - /PointCloud23
-        - /PointCloud23/Status1
         - /PointCloud24
         - /InteractiveMarkers1
         - /InteractiveMarkers2
@@ -168,26 +166,6 @@ Visualization Manager:
         All Enabled: false
         base:
           Value: true
-        camera_carmine_1_depth_frame:
-          Value: false
-        camera_carmine_1_depth_optical_frame:
-          Value: false
-        camera_carmine_1_link:
-          Value: false
-        camera_carmine_1_rgb_frame:
-          Value: false
-        camera_carmine_1_rgb_optical_frame:
-          Value: false
-        camera_sim_d415_left_1_depth_frame:
-          Value: false
-        camera_sim_d415_left_1_depth_optical_frame:
-          Value: false
-        camera_sim_d415_left_1_link:
-          Value: false
-        camera_sim_d415_left_1_rgb_frame:
-          Value: false
-        camera_sim_d415_left_1_rgb_optical_frame:
-          Value: false
         camera_sim_d415_left_depth_frame:
           Value: true
         camera_sim_d415_left_depth_optical_frame:
@@ -208,6 +186,8 @@ Visualization Manager:
           Value: false
         camera_sim_d415_right_rgb_optical_frame:
           Value: false
+        hmd:
+          Value: true
         iiwa_link_0:
           Value: false
         iiwa_link_1:
@@ -230,6 +210,16 @@ Visualization Manager:
           Value: false
         iiwa_link_ee_kuka:
           Value: false
+        left_controller:
+          Value: true
+        lighthouse_0:
+          Value: true
+        lighthouse_1:
+          Value: true
+        right_controller:
+          Value: true
+        world:
+          Value: true
         wsg_50_base_link:
           Value: false
         wsg_50_finger_left:
@@ -249,12 +239,6 @@ Visualization Manager:
       Show Names: true
       Tree:
         base:
-          camera_carmine_1_depth_frame:
-            camera_carmine_1_depth_optical_frame:
-              {}
-          camera_carmine_1_rgb_frame:
-            camera_carmine_1_rgb_optical_frame:
-              {}
           camera_sim_d415_left_depth_frame:
             camera_sim_d415_left_depth_optical_frame:
               {}
@@ -289,6 +273,17 @@ Visualization Manager:
                               {}
                           iiwa_link_ee_kuka:
                             {}
+          world:
+            hmd:
+              {}
+            left_controller:
+              {}
+            lighthouse_0:
+              {}
+            lighthouse_1:
+              {}
+            right_controller:
+              {}
       Update Interval: 0
       Value: true
     - Alpha: 1

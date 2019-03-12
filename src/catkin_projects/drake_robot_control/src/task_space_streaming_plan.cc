@@ -88,7 +88,6 @@ void TaskSpaceStreamingPlan::Step(
   math::RotationMatrixd R_ErW = R_WEr.inverse();
 
   J_ee_E_ = tree_->geometricJacobian(cache_, 0, body_index_ee_frame_, body_index_ee_frame_);
-  J_ee_W_ = tree_->geometricJacobian(cache_, 0, body_index_ee_frame_, 0);
 
   H_WEr_.set_rotation(R_WEr);
   H_WEr_.set_translation(xyz_ee_goal_);
@@ -119,24 +118,6 @@ void TaskSpaceStreamingPlan::Step(
   twist_pd.tail(3) =
       this->kp_translation_.array() * H_EEr.translation().array();
 
-  // Compute the feed forward part of the control
-  // Need twist of reference trajectory with respect to world
-  // easiest to compute this as expressed in Er frame,
-  // then transform that twist to E frame using adjoint
-  TwistVectord T_WEr_Er;
-
-  T_WEr_Er.head(3) = Eigen::Vector3d::Zero(); // hack for now
-  T_WEr_Er.tail(3) = R_WEr * xyz_d_ee_goal_;
-  
-  Eigen::Matrix<double, 6, 6> Ad_H_EEr =
-      spartan::drake_robot_control::utils::AdjointSE3(H_EEr.linear(),
-                                                      H_EEr.translation());
-  TwistVectord T_WEr_E = Ad_H_EEr * T_WEr_Er;
-
-  // Total desired twist
-  // Can add these this twists since both expressed in frame E
-  TwistVectord T_WE_E_cmd = twist_pd + T_WEr_E;
-
   // q_dot_cmd = J_ee.pseudo_inverse()*T_WE_E_cmd
   auto svd = J_ee_E_.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV);
   // When computing the pseudoinverse, this ignores all singular
@@ -144,7 +125,7 @@ void TaskSpaceStreamingPlan::Step(
   // from the Eigen default to create less jerky movements near
   // singularities.
   svd.setThreshold(0.01);
-  Eigen::VectorXd q_dot_cmd = svd.solve(T_WE_E_cmd);
+  Eigen::VectorXd q_dot_cmd = J_ee_E_.transpose() * twist_pd;//svd.solve(twist_pd);
   std::cout << "Final q dot cmd: " << q_dot_cmd << std::endl;
   *q_commanded = q + q_dot_cmd * dt;
   *v_commanded = q_dot_cmd; // This is ignored when constructing iiwa_command.
@@ -156,13 +137,11 @@ void TaskSpaceStreamingPlan::Step(
     std::cout << "q_dot_cmd:\n" << q_dot_cmd << std::endl;
     std::cout << "q:\n" << q << std::endl;
 
-    std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
   }
 
   bool debug = false;
   if (debug) {
     std::cout << "\n-------\n";
-    std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
 
     Eigen::Isometry3d H_ErE = H_EEr.inverse();
     std::cout << "H_ErE.translation() " << H_ErE.translation() << std::endl;
