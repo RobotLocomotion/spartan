@@ -284,7 +284,8 @@ def do_main():
                 new_msg.quaternion.x = target_quat_ee[1]
                 new_msg.quaternion.y = target_quat_ee[2]
                 new_msg.quaternion.z = target_quat_ee[3]
-                new_msg.gain = make_cartesian_gains_msg(5, 100.)
+                new_msg.gain = make_cartesian_gains_msg(5, 10.)
+                new_msg.regularization = 0.01
                 new_msg.ee_frame_id = frame_name
                 pub.publish(new_msg)
                 print(new_msg)

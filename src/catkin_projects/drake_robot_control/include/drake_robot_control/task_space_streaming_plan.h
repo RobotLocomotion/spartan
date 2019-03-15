@@ -46,6 +46,7 @@ public:
     int body_index_ee_frame_;
     bool have_goal_;
 
+    double regularization_parameter;
     std::shared_ptr<ros::Subscriber> setpoint_subscriber_;
 
     drake::TwistMatrix<double> J_ee_E_;
