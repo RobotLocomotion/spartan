@@ -9,7 +9,7 @@ if __name__=="__main__":
 
 	print("building docker container . . . ")
 	user_name = getpass.getuser()
-	default_image_name = user_name + "-spartan"
+	default_image_name = user_name + "-spartan-kPAM-demo"
 
 
 	parser = argparse.ArgumentParser()
