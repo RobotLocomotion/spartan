@@ -204,3 +204,8 @@ class CategoryManipulation(object):
 
         print(transformUtils.poseFromTransform(T_gripper_object))
         return T_gripper_object
+
+
+    @property
+    def mug_rack_vis_obj(self):
+        return self._mug_rack

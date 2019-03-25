@@ -3,6 +3,7 @@ import os
 import numpy as np
 import random
 import copy
+import time
 
 # ROS
 import rospy
@@ -39,12 +40,18 @@ from spartan.poser.poser_visualizer import PoserVisualizer
 from spartan.manipulation.grasp_data import GraspData
 from spartan.manipulation.object_manipulation import ObjectManipulation
 from spartan.manipulation.category_manipulation_type import CategoryManipulationType
+from spartan.utils.director_ros_visualizer import DirectorROSVisualizer
 
 
 # director
 from director import transformUtils
 from director import visualization as vis
 import director.objectmodel as om
+import director.vtkNumpy as vnp
+from director.debugVis import DebugData
+import director.vtkAll as vtk
+import director.segmentation as segmentation
+import director.filterUtils as filterUtils
 
 USING_DIRECTOR = True
 if USING_DIRECTOR:
@@ -59,6 +66,9 @@ USE_DEBUG_SPEED = False
 
 MANIP_TYPE = CategoryManipulationType.SHOE_ON_RACK
 # MANIP_TYPE = CategoryManipulationType.MUG_ON_SHELF_3D
+
+
+EXPERIMENT_MODE = True
 
 class GraspSupervisorState(object):
     STATUS_LIST = ["ABOVE_TABLE", "PRE_GRASP", "GRASP", "IK_FAILED", "NO_GRASP_FOUND", "GRASP_FOUND", "OBJECT_IN_GRIPPER", "GRASP_FAILED", "SAFETY_CHECK_FAILED", "PLANNING_FAILED", "FAILED"]
@@ -168,6 +178,8 @@ class GraspSupervisor(object):
         self._poser_visualizer = PoserVisualizer.make_default()
         self.poser_result = None
         self._object_manipulation = None
+
+        self._category_manip = None # can be assigned later as needed
 
         self._shoe_manipulation_counter = 0
 
@@ -362,6 +374,14 @@ class GraspSupervisor(object):
         action_name = "/KeypointDetection"
         self.keypoint_detection_client = actionlib.SimpleActionClient(action_name, pdc_ros_msgs.msg.KeypointDetectionAction)
 
+        action_name = "/PoseEstimation"
+        self.pose_estimation_client = actionlib.SimpleActionClient(action_name,
+                                                                      pdc_ros_msgs.msg.EstimatePoseAction)
+
+        action_name = "/SaveRGBD"
+        self.save_RGBD_client = actionlib.SimpleActionClient(action_name,
+                                                                      pdc_ros_msgs.msg.KeypointDetectionAction)
+
     def setupTF(self):
         if self.tfBuffer is None:
             self.tfBuffer = tf2_ros.Buffer()
@@ -373,7 +393,7 @@ class GraspSupervisor(object):
         depth_optical_frame_to_world = self.tfBuffer.lookup_transform("base", self.depthOpticalFrameName,
                                                                        rospy.Time(0))
 
-        print depth_optical_frame_to_world
+
         return depth_optical_frame_to_world
 
     def get_transform(self, from_name, to_name, ros_time=None):
@@ -401,7 +421,6 @@ class GraspSupervisor(object):
         rgb_optical_frame_to_world = self.tfBuffer.lookup_transform("base", self.rgbOpticalFrameName,
                                                                      time)
 
-        # print rgb_optical_frame_to_world
         return rgb_optical_frame_to_world
 
 
@@ -443,6 +462,7 @@ class GraspSupervisor(object):
 
 
         return msg
+
 
     def moveHome(self, speed=None):
         rospy.loginfo("moving home")
@@ -610,6 +630,7 @@ class GraspSupervisor(object):
             self.state.clear()
 
 
+
         if move_to_stored_pose:
 
             CMT = CategoryManipulationType
@@ -634,6 +655,9 @@ class GraspSupervisor(object):
         goal = pdc_ros_msgs.msg.KeypointDetectionGoal()
         goal.rgbd_with_pose_list = self.state.cache['rgbd_with_pose_list']
         goal.camera_info = self.camera_info_subscriber.waitForNextMessage()
+
+        if EXPERIMENT_MODE:
+            goal.output_dir = "mankey_experiments/%s" %(spartanUtils.get_current_YYYY_MM_DD_hh_mm_ss())
 
         rospy.loginfo("requesting action from KeypointDetection server")
 
@@ -702,6 +726,127 @@ class GraspSupervisor(object):
         else:
             print("category goal estimation failed, ABORTING")
             return False
+
+    def estimate_mug_rack_pose(self):
+        """
+
+        :return:
+        :rtype:
+        """
+
+        # fusion_params_file = os.path.join(spartanUtils.getSpartanSourceDir(), "src/catkin_projects/station_config/RLG_iiwa_1/fusion/fusion_params.yaml")
+        #
+        #
+        # fusion_params = spartanUtils.getDictFromYamlFilename(fusion_params_file)
+        # bbox_min = np.array(fusion_params['left']['bbox_min'])
+        # bbox_min[2] += 0.05 # be conservative on where bottom of table is
+        # bbox_max = np.array(fusion_params['left']['bbox_max'])
+
+        bbox_min = np.array([0.07001, 0.49, 0.01026])
+        bbox_max = np.array([0.47195, 0.85201, 0.75])
+
+        rgbd_with_pose_list = []
+
+        # move to pose 1, capture RGBD
+        q = self._stored_poses_director["left_table"]["look_at_rack"]
+        speed = self.graspingParams["speed"]["fast"]
+        self.robotService.moveToJointPosition(q, maxJointDegreesPerSecond=speed)
+
+        rgbd_with_pose = self.captureRgbdAndCameraTransform()
+        rgbd_with_pose_list.append(rgbd_with_pose)
+
+
+        # move to pose 2, capture RGBD
+        q = self._stored_poses_director["left_table"]["look_at_rack_2"]
+        speed = self.graspingParams["speed"]["fast"]
+        self.robotService.moveToJointPosition(q, maxJointDegreesPerSecond=speed)
+
+        rgbd_with_pose = self.captureRgbdAndCameraTransform()
+        rgbd_with_pose_list.append(rgbd_with_pose)
+
+        # convert to VTK poly data and crop
+        d = DebugData()
+        for msg in rgbd_with_pose_list:
+            pointcloud_numpy = DirectorROSVisualizer.numpy_from_pointcloud2_msg(msg.point_cloud)
+            pointcloud_vtk = vnp.getVtkPolyDataFromNumpyPoints(pointcloud_numpy)
+
+            T_world_pointcloud = ros_numpy.numpify(msg.point_cloud_pose.transform)
+            T_world_pointcloud_vtk = transformUtils.getTransformFromNumpy(T_world_pointcloud)
+            pointcloud_vtk = filterUtils.transformPolyData(pointcloud_vtk, T_world_pointcloud_vtk)
+            d.addPolyData(pointcloud_vtk)
+
+        pointcloud = d.getPolyData()
+
+        print "pointcloud.GetNumberOfPoints()", pointcloud.GetNumberOfPoints()
+
+        # crop
+        transform = vtk.vtkTransform()
+        bounds = np.zeros([2,3])
+        bounds[0,:] = bbox_min
+        bounds[1,:] = bbox_max
+
+        print "bounds", bounds
+
+        cropped_pointcloud = segmentation.cropToBounds(pointcloud, transform, bounds)
+
+        print "cropped_pointcloud.GetNumberOfPoints()", cropped_pointcloud.GetNumberOfPoints()
+
+
+        # visualize it
+        def vis_function():
+            print "visualizing pointcloud"
+            vis.showPolyData(pointcloud, "pointcloud")
+            vis.showPolyData(cropped_pointcloud, "Mug rack pointcloud")
+
+
+        self.mug_rack_pointcloud = cropped_pointcloud
+
+
+        # not working for some reason
+        print "visualizing"
+        self.taskRunner.callOnMain(vis_function)
+
+        return
+
+
+        rgbd_with_pose = pdc_ros_msgs.msg.RGBDWithPose()
+
+        # N x 3
+        cropped_pointcloud_numpy = vnp.getNumpyFromVtk(cropped_pointcloud)
+        print "cropped_pointcloud_numpy.shape", cropped_pointcloud_numpy.shape
+
+        # save numpy to file
+        save_file = "/home/manuelli/sandbox/spartan/pointcloud.npy"
+        np.save(save_file, cropped_pointcloud_numpy)
+
+
+        return
+        # it's already in world frame
+        rgbd_with_pose.point_cloud = DirectorROSVisualizer.pointcloud2_msg_from_numpy(cropped_pointcloud_numpy)
+
+
+        # convert it back to ROS msg
+        goal = pdc_ros_msgs.msg.EstimatePoseGoal()
+        goal.rgbd_with_pose_list.append(rgbd_with_pose)
+
+
+        T_world_rack_vtk = self._category_manip.mug_rack_vis_obj.getChildFrame().transform
+        T_world_rack = transformUtils.getNumpyFromTransform(T_world_rack_vtk)
+        goal.T_init = ros_numpy.msgify(geometry_msgs.Pose, T_world_rack)
+
+
+        # send out service call
+        self.pose_estimation_client.wait_for_server()
+        self.pose_estimation_client.send_goal(goal)
+
+        # wait for result
+        self.pose_estimation_client.wait_for_result()
+        result = self.pose_estimation_client.get_result()
+
+
+        T_world_rack_estimated = ros_numpy.numpify(result.T_world_model)
+        T_world_rack_estimated_vtk = transformUtils.getTransformFromNumpy(T_world_rack_estimated)
+        self._category_manip.mug_rack_vis_obj.getChildFrame().copyFrame(T_world_rack_estimated_vtk)
 
 
     def run_category_manipulation_goal_estimation(self, wait_for_result=True, capture_rgbd=True):
@@ -798,12 +943,24 @@ class GraspSupervisor(object):
 
         # move home
         speed = self.graspingParams['speed']['fast']
-        q = self._stored_poses_director["General"]["home"]
+        super_fast_speed = self.graspingParams['speed']['fast']
+        # q = self._stored_poses_director["General"]["home"]
+        # q = self._stored_poses_director["mug"]["image_capture_for_mug_shelf"]
+        q = self._stored_poses_director["General"]["center_back"]
         self.robotService.moveToJointPosition(q,
-                                              maxJointDegreesPerSecond=speed)
+                                              maxJointDegreesPerSecond=super_fast_speed)
+
+        self.run_keypoint_detection(wait_for_result=False, move_to_stored_pose=False, clear_state=False)
 
         # run keypoint detection
-        self.run_keypoint_detection(wait_for_result=False, move_to_stored_pose=False, clear_state=False)
+        # move to center back to capture another RGBD image
+        q = self._stored_poses_director["General"]["home"]
+        self.robotService.moveToJointPosition(q,
+                                              maxJointDegreesPerSecond=super_fast_speed)
+
+        rgbd_with_pose = self.captureRgbdAndCameraTransform()
+        self.state.cache['rgbd_with_pose_list'].append(rgbd_with_pose)
+
         self.wait_for_keypoint_detection_result()
 
         if not self.check_keypoint_detection_succeeded():
@@ -832,7 +989,11 @@ class GraspSupervisor(object):
         # if the place was successful then retract
         self.retract_from_mug_shelf()
 
-    def run_mug_on_rack_pipeline(self):
+        if EXPERIMENT_MODE:
+            output_dir = self.state.cache['keypoint_detection_result']['output_dir']
+            print "\n\n", os.path.split(output_dir)[1]
+
+    def run_mug_on_rack_pipeline(self, side_view=False):
         """
         Runs entire pipeline for mug shelf 3D
         :return:
@@ -844,7 +1005,13 @@ class GraspSupervisor(object):
 
         # move home
         speed = self.graspingParams['speed']['fast']
+
+
         q = self._stored_poses_director["General"]["home"]
+        if side_view:
+            print "\nusing side view\n"
+            q = self._stored_poses_director["General"]["center_back"]
+
         self.robotService.moveToJointPosition(q,
                                               maxJointDegreesPerSecond=speed)
 
@@ -854,13 +1021,19 @@ class GraspSupervisor(object):
 
 
         # move to center back to capture another RGBD image
+
         q = self._stored_poses_director["General"]["center_back"]
+        if side_view:
+            q = self._stored_poses_director["General"]["home"]
         self.robotService.moveToJointPosition(q,
                                               maxJointDegreesPerSecond=speed)
 
         rgbd_with_pose = self.captureRgbdAndCameraTransform()
         self.state.cache['rgbd_with_pose_list'].append(rgbd_with_pose)
 
+        q = self._stored_poses_director["General"]["home"]
+        self.robotService.moveToJointPosition(q,
+                                              maxJointDegreesPerSecond=speed)
 
 
         if not self.check_keypoint_detection_succeeded():
@@ -879,6 +1052,7 @@ class GraspSupervisor(object):
             self.state.set_status("PLANNING_FAILED")
             return False
 
+        
         # run the manipulation
         # need safety checks in there before running autonomously
         code = self.run_mug_on_rack_manipulation()
@@ -886,7 +1060,10 @@ class GraspSupervisor(object):
             self.state.set_status("FAILED")
             return False
 
-        # if the place was successful then retract
+
+        if EXPERIMENT_MODE:
+            output_dir = self.state.cache['keypoint_detection_result']['output_dir']
+            print "\n\n", os.path.split(output_dir)[1]
 
     def run_shoe_on_rack_pipeline(self):
         """
@@ -894,6 +1071,9 @@ class GraspSupervisor(object):
         :return:
         :rtype:
         """
+
+        if EXPERIMENT_MODE:
+            self._shoe_manipulation_counter = 0 # for testing
 
         self.state.clear()
         self._clear_cache()
@@ -925,15 +1105,20 @@ class GraspSupervisor(object):
             self.state.set_status("PLANNING_FAILED")
             return False
 
+
+
         # run the manipulation
         # need safety checks in there before running autonomously
         code = self.run_shoe_rack_manipulation()
-        if not (code == True):
+        if not code:
             self.state.set_status("FAILED")
             return False
 
         # if the place was successful then retract
         self.retract_from_shoe_rack()
+
+        if EXPERIMENT_MODE:
+            print "\n\n", self.state.cache['keypoint_detection_result']['output_dir']
 
     def run_manipulate_object(self, debug=False):
         """
@@ -1008,7 +1193,7 @@ class GraspSupervisor(object):
         # move home
         self.moveHome()
 
-    def run_shoe_rack_manipulation(self, debug=False):
+    def run_shoe_rack_manipulation(self, debug=False, push_in_distance=0.00):
         """
         Runs the object manipulation code. Will put the object into the
         specified target pose from `run_category_manipulation_goal_estimation`
@@ -1058,7 +1243,7 @@ class GraspSupervisor(object):
 
         # execute the grasp
         force_threshold_magnitude = 30
-        object_in_gripper = self.execute_grasp(grasp_data, close_gripper=True, use_cartesian_plan=True, force_threshold_magnitude=force_threshold_magnitude, push_in_distance=0.04)
+        object_in_gripper = self.execute_grasp(grasp_data, close_gripper=True, use_cartesian_plan=True, force_threshold_magnitude=force_threshold_magnitude, push_in_distance=0.04, ee_speed_m_s=0.1)
 
 
         if not object_in_gripper:
@@ -1110,7 +1295,16 @@ class GraspSupervisor(object):
         object_manip_approach.compute_transforms()
         T_W_Gn_approach_vtk = object_manip_approach.T_W_Gn
 
+        # move this down by push_in_distance
+
+        pos, quat = transformUtils.poseFromTransform(T_W_Gn_approach_vtk)
+        T_W_Gn_approach_vtk = transformUtils.transformFromPose(pos, quat)
+
+
         # now convert these to ee poses for running IK
+        pos, quat = transformUtils.poseFromTransform(T_W_Gn_vtk)
+        pos[2] -= push_in_distance
+        T_W_Gn_vtk = transformUtils.transformFromPose(pos, quat)
         T_W_ee_vtk = self.getIiwaLinkEEFrameFromGraspFrame(T_W_Gn_vtk)
         T_W_ee = transformUtils.getNumpyFromTransform(T_W_ee_vtk)
 
@@ -1144,7 +1338,7 @@ class GraspSupervisor(object):
 
         # back away along gripper x-direction
         ee_speed_m_s = 0.05
-        xyz_goal = [-0.1, 0, 0]  # 10 cm
+        xyz_goal = [-0.15, 0, 0]  # 10 cm
         duration = np.linalg.norm(xyz_goal) / ee_speed_m_s
         ee_frame_id = "iiwa_link_ee"
         base_frame_id = "base"
@@ -1153,7 +1347,8 @@ class GraspSupervisor(object):
             control_utils.make_cartesian_trajectory_goal(xyz_goal,
                                                          ee_frame_id,
                                                          expressed_in_frame,
-                                                         duration=duration)
+                                                         duration=duration,
+                                                         speed=0.1)
 
         action_client = self.robotService.cartesian_trajectory_action_client
         action_client.send_goal(cartesian_traj_goal)
@@ -1164,6 +1359,25 @@ class GraspSupervisor(object):
         self.state.cache['cartesian_traj_result'] = result
 
         speed = self.graspingParams['speed']['fast']
+
+
+        if EXPERIMENT_MODE:
+            # move to pose
+            q = self._stored_poses_director["left_table"]["shoe_evaluation_side"]
+            self.robotService.moveToJointPosition(q, maxJointDegreesPerSecond=speed)
+            msg = self.captureRgbdAndCameraTransform()
+            save_dir = os.path.join(spartanUtils.get_sandbox_dir(), self.state.cache['keypoint_detection_result']['output_dir'], "evaluation")
+
+            self.save_RGBD_client.wait_for_server()
+
+            goal = pdc_ros_msgs.msg.KeypointDetectionGoal()
+            goal.rgbd_with_pose_list.append(msg)
+            goal.camera_info = self.camera_info_subscriber.waitForNextMessage()
+            goal.output_dir = save_dir
+
+            self.save_RGBD_client.send_goal(goal)
+            self.save_RGBD_client.wait_for_result()
+
         self.moveHome(speed=speed)
 
     def run_mug_on_rack_manipulation(self):
@@ -1209,7 +1423,7 @@ class GraspSupervisor(object):
         self.visualize_grasp(grasp_data)
 
         # execute the grasp
-        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True, push_in_distance=0.04)
+        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True, push_in_distance=0.01, ee_speed_m_s=0.1)
 
         T_W_G = self.state.cache['gripper_frame_at_grasp'] # this is set in execute_grasp
 
@@ -1232,7 +1446,8 @@ class GraspSupervisor(object):
 
 
         # now move to nominal position for the place
-        speed = self.graspingParams["speed"]["nominal"]
+        # speed = self.graspingParams["speed"]["nominal"]
+        speed = self.graspingParams["speed"]["fast"]
         # q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp"]
         q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp_right"]
         self.robotService.moveToJointPosition(q_nom_left_table,
@@ -1268,7 +1483,7 @@ class GraspSupervisor(object):
 
         # execute the place
         print("executing place on rack")
-        self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom_left_table, use_cartesian_plan=True, force_threshold_magnitude=30)
+        return self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom_left_table, use_cartesian_plan=True, force_threshold_magnitude=30, ee_speed_m_s=0.1)
 
 
     def retract_from_mug_rack(self, gripper_open=True):
@@ -1302,7 +1517,8 @@ class GraspSupervisor(object):
         result = action_client.get_result()
 
         # now move to nominal position for the place
-        speed = self.graspingParams["speed"]["nominal"]
+        speed = self.graspingParams["speed"]["fast"]
+        super_fast_speed = self.graspingParams["speed"]["super_fast"]
         # q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp"]
         q_nom_left_table = self._stored_poses_director["left_table"]["above_table_pre_grasp_right"]
         self.robotService.moveToJointPosition(q_nom_left_table,
@@ -1311,7 +1527,36 @@ class GraspSupervisor(object):
 
 
 
-        self.moveHome()
+        if EXPERIMENT_MODE:
+            q = self._stored_poses_director["left_table"]["mug_rack_evaluation"]
+            self.robotService.moveToJointPosition(q,
+                                                  maxJointDegreesPerSecond=
+                                                  speed)
+
+            msg = self.captureRgbdAndCameraTransform()
+            save_dir = os.path.join(spartanUtils.get_sandbox_dir(),
+                                    self.state.cache['keypoint_detection_result']['output_dir'], "evaluation")
+
+            self.save_RGBD_client.wait_for_server()
+
+            goal = pdc_ros_msgs.msg.KeypointDetectionGoal()
+            goal.rgbd_with_pose_list.append(msg)
+            goal.camera_info = self.camera_info_subscriber.waitForNextMessage()
+            goal.output_dir = save_dir
+
+            self.save_RGBD_client.send_goal(goal)
+            self.save_RGBD_client.wait_for_result()
+
+
+        self.moveHome(speed=super_fast_speed)
+
+        if EXPERIMENT_MODE:
+            output_dir = self.state.cache['keypoint_detection_result']['output_dir']
+            print "\n\n", os.path.split(output_dir)[1]
+
+        # clear the cache, to avoid you doing it twice
+        self.state.clear()
+        self._clear_cache()
 
     def run_mug_shelf_manipulation(self, use_debug_speed=True):
         """
@@ -1349,10 +1594,10 @@ class GraspSupervisor(object):
         push_in_distance = 0.0
 
         if result.mug_orientation == "HORIZONTAL":
-            push_in_distance = 0.00
+            push_in_distance = -0.005
             force_threshold_magnitude = 30
         elif result.mug_orientation == "UPRIGHT":
-            push_in_distance = 0.03
+            push_in_distance = 0.01
             force_threshold_magnitude = 30
 
             # params = self.getParamsForCurrentLocation()
@@ -1378,7 +1623,7 @@ class GraspSupervisor(object):
 
 
         # execute the grasp
-        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True, push_in_distance=push_in_distance, force_threshold_magnitude=force_threshold_magnitude)
+        object_in_gripper = self.execute_grasp(self.state.grasp_data, close_gripper=True, use_cartesian_plan=True, push_in_distance=push_in_distance, force_threshold_magnitude=force_threshold_magnitude, ee_speed_m_s=0.1)
 
 
         T_W_G = self.state.cache['gripper_frame_at_grasp'] # this is set in execute_grasp
@@ -1415,12 +1660,8 @@ class GraspSupervisor(object):
 
             q_nom = self._stored_poses_director["mug"]["horizontal_grasp_nominal"]
 
-            q_approach_1 = self._stored_poses_director["Grasping"]["above_table_pre_grasp"]
             q_approach_2 = self._stored_poses_director["mug"]["horizontal_grasp_approach_2"]
 
-            self.robotService.moveToJointPosition(q_approach_1,
-                                                  maxJointDegreesPerSecond=
-                                                  speed)
             self.robotService.moveToJointPosition(q_approach_2,
                                                   maxJointDegreesPerSecond=
                                                   speed)
@@ -1434,7 +1675,7 @@ class GraspSupervisor(object):
                                                   speed)
 
         else:
-            raise ValueError("unknonw mug orientation: %s" %(result.mug_orientation))
+            raise ValueError("unknown mug orientation: %s" %(result.mug_orientation))
 
 
 
@@ -1463,7 +1704,7 @@ class GraspSupervisor(object):
 
 
         # execute the place
-        print("executing place on rack")
+        print("executing place on shelf")
         code = self.execute_place_new(T_W_ee, T_W_ee_approach, q_nom=q_nom, use_cartesian_plan=True, force_threshold_magnitude=30)
 
         return code
@@ -1479,8 +1720,13 @@ class GraspSupervisor(object):
         category_manipulation_type = self.state.cache['category_manipulation_goal']['type']
         assert category_manipulation_type == CategoryManipulationType.MUG_ON_SHELF_3D
 
+        result = self.state.cache['category_manipulation_goal']['result']
+
         if gripper_open:
-            self.gripperDriver.send_open_gripper_set_distance_from_current()
+            if result.mug_orientation == "HORIZONTAL":
+                self.gripperDriver.sendOpenGripperCommand()
+            else:
+                self.gripperDriver.send_open_gripper_set_distance_from_current()
 
         # do different things depending on whether it was horizontal or vertical drop
         result = self.state.cache['category_manipulation_goal']['result']
@@ -1505,6 +1751,7 @@ class GraspSupervisor(object):
 
         # now move to nominal position for the place
         speed = self.graspingParams["speed"]["fast"]
+        super_fast_speed = q = self.graspingParams["speed"]["super_fast"]
         if use_debug_speed:
             speed = DEBUG_SPEED
         if mug_orientation == "UPRIGHT":
@@ -1512,7 +1759,7 @@ class GraspSupervisor(object):
 
             self.robotService.moveToJointPosition(q_pose_1,
                                                   maxJointDegreesPerSecond=
-                                                  speed)
+                                                  super_fast_speed)
 
         elif mug_orientation=="HORIZONTAL":
             q_pose_1 = self._stored_poses_director["mug"]["horizontal_grasp_approach"]
@@ -1523,12 +1770,31 @@ class GraspSupervisor(object):
             q_pose_2 = self._stored_poses_director["Grasping"]["above_table_pre_grasp"]
             self.robotService.moveToJointPosition(q_pose_2,
                                                   maxJointDegreesPerSecond=
-                                                  speed)
+                                                  super_fast_speed)
 
 
 
+        if EXPERIMENT_MODE:
+            # move to pose
+            q = self._stored_poses_director["left_table"]["look_at_mug_shelf_2"]
+            self.robotService.moveToJointPosition(q, maxJointDegreesPerSecond=super_fast_speed)
+            msg = self.captureRgbdAndCameraTransform()
+            save_dir = os.path.join(spartanUtils.get_sandbox_dir(),
+                                    self.state.cache['keypoint_detection_result']['output_dir'], "evaluation")
 
-        self.moveHome(speed=speed)
+            self.save_RGBD_client.wait_for_server()
+
+            goal = pdc_ros_msgs.msg.KeypointDetectionGoal()
+            goal.rgbd_with_pose_list.append(msg)
+            goal.camera_info = self.camera_info_subscriber.waitForNextMessage()
+            goal.output_dir = save_dir
+
+            self.save_RGBD_client.send_goal(goal)
+            self.save_RGBD_client.wait_for_result()
+
+
+        super_fast_speed = q = self.graspingParams["speed"]["super_fast"]
+        self.moveHome(speed=super_fast_speed)
 
 
     def run_category_manipulation_pipeline(self):
@@ -1756,7 +2022,7 @@ class GraspSupervisor(object):
         return poseStamped
 
 
-    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True, stop_at_pre_grasp=False, push_in_distance=None, use_debug_speed=False, force_threshold_magnitude=None):
+    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True, stop_at_pre_grasp=False, push_in_distance=None, use_debug_speed=False, force_threshold_magnitude=None, ee_speed_m_s=0.05):
         """
         Moves to pre-grasp frame, then grasp frame
         attemps to close gripper if `close_gripper=True` was passed in
@@ -1854,6 +2120,7 @@ class GraspSupervisor(object):
             ee_frame_id = "iiwa_link_ee"
             expressed_in_frame = ee_frame_id
             cartesian_grasp_speed = self.graspingParams['speed']['cartesian_grasp']
+            cartesian_grasp_speed = ee_speed_m_s
             cartesian_traj_goal = \
                 control_utils.make_cartesian_trajectory_goal(xyz_goal,
                                                              ee_frame_id,
@@ -2009,7 +2276,7 @@ class GraspSupervisor(object):
         self.gripperDriver.send_open_gripper_set_distance_from_current()
         return True
 
-    def execute_place_new(self, T_W_ee, T_W_ee_approach, q_nom=None, use_cartesian_plan=False, use_debug_speed=False, force_threshold_magnitude=10):
+    def execute_place_new(self, T_W_ee, T_W_ee_approach, q_nom=None, use_cartesian_plan=False, use_debug_speed=False, force_threshold_magnitude=10, ee_speed_m_s=0.05):
         """
 
         :param T_W_ee: ee location for place
@@ -2109,7 +2376,6 @@ class GraspSupervisor(object):
             xyz_approach = np.array(T_W_ee_approach_vtk.GetPosition())
             xyz_place = np.array(T_W_ee_vtk.GetPosition())
             distance = np.linalg.norm(xyz_place - xyz_approach)
-            ee_speed_m_s = 0.05
             duration = distance/ee_speed_m_s
 
 
@@ -2979,8 +3245,9 @@ class GraspSupervisor(object):
     def test_mug_shelf_3D_pipeline(self):
         self.taskRunner.callOnThread(self.run_mug_shelf_3D_pipeline)
 
-    def test_mug_rack_pipeline(self):
-        self.taskRunner.callOnThread(self.run_mug_on_rack_pipeline)
+    def test_mug_rack_pipeline(self, *args, **kwargs):
+        # time.sleep(10.0) # sleep for 10 seconds
+        self.taskRunner.callOnThread(self.run_mug_on_rack_pipeline, *args, **kwargs)
 
     def test_shoe_rack_pipeline(self):
         self.taskRunner.callOnThread(self.run_shoe_on_rack_pipeline)
@@ -2992,6 +3259,12 @@ class GraspSupervisor(object):
         :rtype:
         """
         raise NotImplementedError("")
+
+    def test_estimate_mug_rack_pose(self):
+        self.taskRunner.callOnThread(self.estimate_mug_rack_pose)
+
+    def r(self):
+        self.test_retract_from_rack()
 
     @staticmethod
     def rectangleMessageFromYamlNode(node):

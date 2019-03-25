@@ -8,6 +8,7 @@ import ros_numpy
 import tf2_ros
 import sensor_msgs
 
+
 # director
 import director.objectmodel as om
 import director.vtkNumpy as vnp
@@ -26,7 +27,12 @@ class DirectorROSVisualizer(object):
 
     def __init__(self, tf_buffer=None):
         self.taskRunner = TaskRunner()
-        self._tf_buffer = tf_buffer
+
+        if tf_buffer is None:
+            self.setup_TF()
+        else:
+            self._tf_buffer = tf_buffer
+
         self.clear_visualization()
         self._subscribers = dict()
         self._expressed_in_frame = "base"
@@ -176,6 +182,27 @@ class DirectorROSVisualizer(object):
         points[:, 2] = pc['z'].flatten()
 
         return points
+
+    @staticmethod
+    def pointcloud2_msg_from_numpy(pc_numpy):
+        """
+
+        :param pc_numpy: N x 3
+        :type pc_numpy:
+        :return:
+        :rtype:
+        """
+
+        N = pc_numpy.shape[0]
+
+        pc = np.zeros(N, dtype=[('x', np.float64), ('y', np.float64), ('z', np.float64)])
+        pc['x'] = pc_numpy[:, 0]
+        pc['y'] = pc_numpy[:, 1]
+        pc['z'] = pc_numpy[:, 2]
+
+        msg = ros_numpy.msgify(sensor_msgs.msg.PointCloud2, pc)
+
+        return msg
 
 
 

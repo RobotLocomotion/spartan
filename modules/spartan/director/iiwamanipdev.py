@@ -19,6 +19,7 @@ from spartan.utils.taskrunner import TaskRunner
 from spartan.manipulation.category_manipulation import CategoryManipulation
 from spartan.utils.director_ros_visualizer import DirectorROSVisualizer
 
+
 # ros
 import tf2_ros
 
@@ -69,13 +70,12 @@ def setupRLGDirector(globalsDict=None):
     # fix for https://github.com/RobotLocomotion/spartan/issues/244
     globalsDict['treeViewer'].subscriber.setSpeedLimit(5)
 
-
+    #
     ros_visualizer = DirectorROSVisualizer(tf_buffer=tfBuffer)
     topic = "/camera_carmine_1/depth/points"
     ros_visualizer.add_subscriber(topic, name="Carmine", visualize=True)
     globalsDict['ros_visualizer'] = ros_visualizer
-    # ros_visualizer.start()
-
+    ros_visualizer.start()
 
 
     # load background scene if it exists
@@ -86,12 +86,17 @@ def setupRLGDirector(globalsDict=None):
     robotSystem = globalsDict['robotSystem']
     robotStateModel = robotSystem.robotStateModel
 
+
     category_manip = CategoryManipulation(robotStateModel)
     category_manip.load_side_table()
-    # category_manip.load_mug_rack()
+    category_manip.load_mug_rack()
     # category_manip.setup_horizontal_mug_grasp()
-    category_manip.load_mug_platform()
-    category_manip.load_shoe_rack()
+    # category_manip.load_mug_platform()
+    # category_manip.load_shoe_rack()
+
+
+    graspSupervisor._category_manip = category_manip
+
 
     def visualize_background():
         if not os.path.exists(background_ply_file):

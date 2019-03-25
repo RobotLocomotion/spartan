@@ -160,6 +160,7 @@ speed:
   grasp: 30
   nominal: 30
   fast: 45
+  super_fast: 60
   slow: 20
   stow: 30
   cartesian_grasp: 0.05 # meters/second
@@ -188,7 +189,7 @@ gripper_palm_to_ee:
     z: -0.00107904
 
 
-pre_grasp_distance: 0.10 # distance (in meters) to push back grasp for pre-grasp
+pre_grasp_distance: 0.15 # distance (in meters) to push back grasp for pre-grasp
 force_threshold_magnitude: 30 # Newtons, force threshold at which to stop and execute grasp
 grasp_push_in_distance: 0.02 # distance (in meters) to push "past" the planned grasp
 gripper_width_offset: 0.015 # how much narrower the fingers are due to the rubber pads
