@@ -26,7 +26,7 @@ The pdf of this target is in `spartan/src/catkin_projects/camera_config/data/cal
 - Decide the device's serial number or name
 - Create a new folder in `src/catkin_projects/station_config/<robot_name>/hand_eye_calibration` and create a new `.yaml` file.  Copy over the structure from another yaml file. `<robot_name>` should be something like `RLG_iiwa_1` or `RLG_iiwa_2`.
 - Specify in `iiwamanipdev.py` what the name of this `.yaml` file is within `station_config`
-- Create a new folder in `camera_config` and copy over the structure from other folders
+- Create a new folder in `src/catkin_projects/camera_config/data` and copy over the structure from other folders
 - Rebuild catkin_project/fast
 ```
 cd spartan/build
