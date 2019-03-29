@@ -203,7 +203,7 @@ We have made a plate with a calibration target that screws on.
 The coordinate frame for the target is labeled in the image.
 
 <p align="center">
-  <img src="./doc/checkerboard_on_wrist.jpg" width="450"/>
+  <img src="./doc/IMG-0596.JPG" width="600"/>
 </p>
 
 ## Step 2: Launch the sensor
