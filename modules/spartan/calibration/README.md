@@ -120,6 +120,56 @@ Remember to remove the projector-covering device!!
 
 ### Optimize Extrinsics using Handical
 
+Handical's main dependency gtsam, should be be correctly built during the docker build.
+
+First add gtsam to your PYTHONPATH, just change `peteflo` below to be your username.
+
+```
+export PYTHONPATH=$PYTHONPATH:/home/peteflo/handical_dependencies/gtsam-duy/build/install/cython
+```
+
+But now we need to actually build, install, and set PYTHONPATH for handical (change any `peteflo` to your username):
+
+```
+cd ~/spartan/src/handical
+export PATH=$PATH:/home/peteflo/handical_dependencies/gtsam-duy/build/install
+mkdir build
+cd build
+cmake ..
+make -j8
+sudo make install -j8
+export PYTHONPATH=$PYTHONPATH:/home/peteflo/spartan/src/handical/build/cython/handical
+```
+
+Then navigate to handical's python interface:
+
+```
+cd ~/spartan/src/handical/python
+```
+
+In your favorite text editor, change the args at the top of the `run_handical_rlg.py` file to wherever you stored your data:
+
+```
+rgb_calibration_data_folder = os.path.join(spartan_source_dir, 'calibration_data', '20190329-001052_rgb')
+depth_calibration_data_folder = os.path.join(spartan_source_dir, 'calibration_data', '20180223-205019_ir')
+camera_info_filename_destination = "src/catkin_projects/camera_config/data/carmine_1/master/camera_info.yaml"
+```
+
+Then run!
+
+```
+python run_handical_rlg.py
+```
+
+Note there is a very hacky step where you need to change the location estimate to be a valid translation/quaternion pose format.
+
+And then make catkin-projects:
+
+```
+cd ~/spartan/build
+make catkin-projects/fast -j8
+```
+
 ## Testing
 
 ### Test the calibration quality
