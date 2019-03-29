@@ -122,23 +122,25 @@ Remember to remove the projector-covering device!!
 
 Handical's main dependency gtsam, should be be correctly built during the docker build.
 
-First add gtsam to your PYTHONPATH, just change `peteflo` below to be your username.
+First add gtsam to your PYTHONPATH. To do this call the `use_handical` function defined in `entrypoint.sh`. For reference this does
 
 ```
-export PYTHONPATH=$PYTHONPATH:/home/peteflo/handical_dependencies/gtsam-duy/build/install/cython
+GTSAM_INSTALL_DIR=~/handical_dependencies/gtsam-duy/build/install
+export PATH=$PATH:$GTSAM_INSTALL_DIR/bin
+export PYTHONPATH=$PYTHONPATH:$GTSAM_INSTALL_DIR/cython
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GTSAM_INSTALL_DIR/lib
+export PYTHONPATH=$PYTHONPATH:$SPARTAN_SOURCE_DIR/src/handical/build/cython/handical
 ```
 
-But now we need to actually build, install, and set PYTHONPATH for handical (change any `peteflo` to your username):
+Now we need to actually build and install install handical.
 
 ```
 cd ~/spartan/src/handical
-export PATH=$PATH:/home/peteflo/handical_dependencies/gtsam-duy/build/install
 mkdir build
 cd build
 cmake ..
 make -j8
 sudo make install -j8
-export PYTHONPATH=$PYTHONPATH:/home/peteflo/spartan/src/handical/build/cython/handical
 ```
 
 Then navigate to handical's python interface:
