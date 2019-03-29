@@ -186,3 +186,36 @@ TODO
 - later: clean up station_config structure (not just one cal.yaml)
 - extrinsics should live in station_config
 - adjust joint limits
+
+
+# External fixed-mount camera calibration
+
+Before beginning, make sure you've done all the code related setup above (build handical, etc.)
+
+This calibration routine will assume that the intrinsics and the "internal extrinsics" (i.e., color-to-ir, etc.) calibration of the sensors is already good.
+
+Our goal is just to get a good extrinsics calibration between one of the camera sensors, and the robot. 
+
+## Step 1: Mount the calibration target
+
+We have made a plate with a calibration target that screws on.
+
+## Step 2: Launch the sensor
+
+For example for the D415, see the D415 readme in KukaHardware repo.
+
+Make sure to **launch the sensor as high resolution as possible**.
+For example the D415 does 1920x1080 resolution, but you need to launch
+it with these params.
+
+## Step 3: Teleop around to save good poses for calibration
+
+1. Open up rviz and open a window for the high-res camera, make it a large window.
+2. `python simple_teleop.py` (which lives in `src/catkin_projects/simple_teleop`)
+3. press `o` to save any pose.
+4. press `espace` when done.
+
+## Step 4: Re-run through the poses while saving all data
+
+## Step 5: Run handical
+ 
