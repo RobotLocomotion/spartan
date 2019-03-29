@@ -223,12 +223,15 @@ it with these params.
 
 ## Step 4: Re-run through the poses while saving all data
 
-First arg is topic name
-Second arg is the filename of the poses you've saved out from Step 3.
+- First arg is topic name
+- Second arg is the filename of the poses, in the format saved out from Step 3.  The example below
+point to pre-saved poses Pete collected.
 
 ```
-cal.runFixedMount("/camera/color/image_raw", "/home/peteflo/spartan/src/catkin_projects/simple_teleop/saved_poses_cal.yaml")
+cal.runFixedMount("/camera/color/image_raw", "/home/peteflo/spartan/modules/spartan/calibration/camera_right_calibration_poses.yaml")
 ```
 
 ## Step 5: Run handical
+
+Here we need to document what `run_handical_rlg.py` needs
  
