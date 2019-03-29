@@ -160,8 +160,6 @@ Then run!
 python run_handical_rlg.py
 ```
 
-Note there is a very hacky step where you need to change the location estimate to be a valid translation/quaternion pose format.
-
 And then make catkin-projects:
 
 ```
