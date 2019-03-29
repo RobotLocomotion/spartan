@@ -200,6 +200,12 @@ Our goal is just to get a good extrinsics calibration between one of the camera 
 
 We have made a plate with a calibration target that screws on.
 
+The coordinate frame for the target is labeled in the image.
+
+<p align="center">
+  <img src="./doc/checkerboard_on_wrist.jpg" width="450"/>
+</p>
+
 ## Step 2: Launch the sensor
 
 For example for the D415, see the D415 readme in KukaHardware repo.
@@ -216,6 +222,13 @@ it with these params.
 4. press `espace` when done.
 
 ## Step 4: Re-run through the poses while saving all data
+
+First arg is topic name
+Second arg is the filename of the poses you've saved out from Step 3.
+
+```
+cal.runFixedMount("/camera/color/image_raw", "/home/peteflo/spartan/src/catkin_projects/simple_teleop/saved_poses_cal.yaml")
+```
 
 ## Step 5: Run handical
  
