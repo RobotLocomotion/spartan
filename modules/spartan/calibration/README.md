@@ -219,7 +219,7 @@ it with these params.
 1. Open up rviz and open a window for the high-res camera, make it a large window.
 2. `python simple_teleop.py` (which lives in `src/catkin_projects/simple_teleop`)
 3. press `o` to save any pose.
-4. press `espace` when done.
+4. press `escape` when done.
 
 ## Step 4: Re-run through the poses while saving all data
 
