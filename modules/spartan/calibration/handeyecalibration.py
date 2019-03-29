@@ -287,6 +287,7 @@ class HandEyeCalibration(object):
         rosImageLoggerExecutable = os.path.join(spartanUtils.getSpartanSourceDir(), 'modules',"spartan",
                                                 'calibration','ros_image_logger.py')
         cmd = "%s -t %s -f %s -e %s" % (rosImageLoggerExecutable, topic, filename, encoding)
+        print cmd
         os.system(cmd)
 
     def displayChessboardDetection(self, filename, duration):
@@ -446,7 +447,16 @@ class HandEyeCalibration(object):
     """
     def runROSCalibration(self, headerData):
 
-        headerData['target']['location_estimate_in_robot_base_frame'] = self.calibrationPosesConfig['target_location'] 
+        headerData['target']['transform_to_robot_base'] = dict()
+        headerData['target']['transform_to_robot_base']['translation'] = dict()
+        headerData['target']['transform_to_robot_base']['translation']['x'] = self.calibrationPosesConfig['target_location'][0]
+        headerData['target']['transform_to_robot_base']['translation']['y'] = self.calibrationPosesConfig['target_location'][1]
+        headerData['target']['transform_to_robot_base']['translation']['z'] = self.calibrationPosesConfig['target_location'][2]
+        headerData['target']['transform_to_robot_base']['quaternion'] = dict()
+        headerData['target']['transform_to_robot_base']['quaternion']['x'] = 0.0
+        headerData['target']['transform_to_robot_base']['quaternion']['y'] = 0.0
+        headerData['target']['transform_to_robot_base']['quaternion']['z'] = 0.0
+        headerData['target']['transform_to_robot_base']['quaternion']['w'] = 1.0
         
         self.calibrationData = dict()
         calibrationRunData = self.calibrationData
