@@ -11,11 +11,18 @@ class TeleopMouseManager():
         screen_size = 1
         self.screen = pygame.display.set_mode((screen_size, screen_size))
 
-        pygame.event.set_grab(True)
-        pygame.mouse.set_visible(False)
+        self.grab_mouse_focus()
 
         self.side_button_back_DOWN = False
         self.side_button_fwd_DOWN = False
+
+    def grab_mouse_focus(self):
+        pygame.event.set_grab(True)
+        pygame.mouse.set_visible(False)
+
+    def release_mouse_focus(self):
+        pygame.event.set_grab(False)
+        pygame.mouse.set_visible(True)
 
     def get_events(self):
         events = dict()
@@ -44,6 +51,15 @@ class TeleopMouseManager():
                     self.side_button_fwd_DOWN = False
 
         keys = pygame.key.get_pressed()
+
+        if keys[K_RETURN]:
+            self.grab_mouse_focus()
+        if keys[K_SPACE]:
+            self.release_mouse_focus()
+
+        o = False
+        if keys[K_o]:
+            o = True
         
         w = a = s = d = False
         if keys[K_w]:
@@ -76,4 +92,6 @@ class TeleopMouseManager():
         events["rotate_right"] = rotate_right
         events["side_button_back"] = self.side_button_back_DOWN
         events["side_button_forward"] = self.side_button_fwd_DOWN
+
+        events["o"] = o
         return events

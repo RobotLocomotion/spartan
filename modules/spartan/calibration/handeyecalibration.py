@@ -113,7 +113,7 @@ class RobotService(object):
         if self.removeFloatingBase:
             q = q[-self.numJoints:]
 
-        maxJointDegreesPerSecond = 30
+        maxJointDegreesPerSecond = 10
 
         jointState = sensor_msgs.msg.JointState()
         jointState.header.stamp = rospy.Time.now()
@@ -445,7 +445,7 @@ class HandEyeCalibration(object):
     Warning: Don't call this function directly, use run() instead, which
     calls this function in a thread
     """
-    def runROSCalibration(self, headerData):
+    def runROSCalibrationWristMount(self, headerData):
 
         headerData['target']['transform_to_robot_base'] = dict()
         headerData['target']['transform_to_robot_base']['translation'] = dict()
@@ -521,7 +521,7 @@ class HandEyeCalibration(object):
 
         return calibrationRunData
 
-    def run(self, captureRGB=True, captureIR=False):
+    def runWristMount(self, captureRGB=True, captureIR=False):
 
         if captureRGB and captureIR:
             print "you can't capture IR and RGB at the same time, returning"
@@ -558,7 +558,81 @@ class HandEyeCalibration(object):
 
         calibrationHeaderData['target'] = self.config['calibration_target']
 
-        self.taskRunner.callOnThread(self.runROSCalibration, calibrationHeaderData)
+        self.taskRunner.callOnThread(self.runROSCalibrationWristMount, calibrationHeaderData)
+
+    
+    """
+    Warning: Don't call this function directly, use run() instead, which
+    calls this function in a thread
+    """
+    def runROSCalibrationFixedMount(self, headerData, topic_name, poses_file):
+
+        headerData['target']['transform_to_hand_frame'] = dict()
+        headerData['target']['transform_to_hand_frame']['translation'] = dict()
+        headerData['target']['transform_to_hand_frame']['translation']['x'] = 0.0
+        headerData['target']['transform_to_hand_frame']['translation']['y'] = 0.0
+        headerData['target']['transform_to_hand_frame']['translation']['z'] = 0.0931
+        headerData['target']['transform_to_hand_frame']['quaternion'] = dict()
+        headerData['target']['transform_to_hand_frame']['quaternion']['x'] = 0.49894425
+        headerData['target']['transform_to_hand_frame']['quaternion']['y'] = 0.50080633
+        headerData['target']['transform_to_hand_frame']['quaternion']['z'] = 0.51116578
+        headerData['target']['transform_to_hand_frame']['quaternion']['w'] = -0.48883249
+        
+        self.calibrationData = dict()
+        calibrationRunData = self.calibrationData
+        calibrationRunData['header'] = headerData
+
+        self.passiveSubscriber = spartanROSUtils.SimpleSubscriber(topic_name, sensor_msgs.msg.Image)
+        self.passiveSubscriber.start()
+
+        unique_name = time.strftime("%Y%m%d-%H%M%S") + "_" + self.calibrationType
+        self.calibrationFolderName = os.path.join(spartanUtils.getSpartanSourceDir(), 'calibration_data', unique_name)
+        os.system("mkdir -p " + self.calibrationFolderName)
+        os.chdir(self.calibrationFolderName)
+
+        rospy.loginfo("starting calibration run")
+
+        calibrationData = []
+        poses = spartanUtils.getDictFromYamlFilename(poses_file)
+        num_poses = len(poses)
+
+        for index, pose_name in enumerate(sorted(poses.keys())):
+            # move robot to that joint position
+            info_msg = "\n moving to pose "+str(index)+" of "+str(num_poses)+" named "+pose_name
+            rospy.loginfo(info_msg)
+            self.robotService.moveToJointPosition(poses[pose_name])
+
+            rospy.loginfo("capturing images and robot data")
+            data = self.captureCurrentRobotAndImageData(captureRGB=self.captureRGB, captureIR=self.captureIR, prefix=str(index))
+            calibrationData.append(data)
+
+        rospy.loginfo("finished calibration routine, saving data to file")
+
+        
+        calibrationRunData['data_list'] = calibrationData
+
+        spartanUtils.saveToYaml(calibrationRunData, os.path.join(self.calibrationFolderName, 'robot_data.yaml'))
+
+        if self.passiveSubscriber:
+            self.passiveSubscriber.stop()
+
+        self.moveHome()
+
+        return calibrationRunData
+
+    def runFixedMount(self, topic_name, poses_file):
+        self.calibrationType = "rgb"
+        self.captureRGB = True
+        self.captureIR = False
+        self.config['rgb_raw_topic'] = topic_name
+         # setup header information for storing along with the log
+        calibrationHeaderData = dict()
+        calibrationHeaderData['camera'] = "d415_02"
+        calibrationHeaderData['image_type'] = 'rgb'
+        calibrationHeaderData['target'] = self.config['calibration_target']
+        calibrationHeaderData['target']['square_edge_length'] = 0.01322
+        self.taskRunner.callOnThread(self.runROSCalibrationFixedMount, calibrationHeaderData, topic_name, poses_file)
+
 
     def computeCalibrationPoses(self):
 

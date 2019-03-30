@@ -1,0 +1,55 @@
+camera_matrix:
+  cols: 3
+  data:
+  - 1387.38623046875
+  - 0.0
+  - 964.48779296875
+  - 0.0
+  - 1385.874755859375
+  - 532.6483154296875
+  - 0.0
+  - 0.0
+  - 1.0
+  rows: 3
+camera_name: d415_02
+distortion_coefficients:
+  cols: 5
+  data:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  rows: 1
+distortion_model: plumb_bob
+image_height: 1080
+image_width: 1920
+projection_matrix:
+  cols: 4
+  data:
+  - 1387.38623046875
+  - 0.0
+  - 964.48779296875
+  - 0.0
+  - 0.0
+  - 1385.874755859375
+  - 532.6483154296875
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0  
+  rows: 3
+rectification_matrix:
+  cols: 3
+  data:
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  rows: 3
