@@ -249,4 +249,32 @@ use_spartan
 use_handical
 cd ~/spartan/src/handical/python
 ```
- 
+
+Set the args at the top of `run_handical_rlg_fixed_mount.py` with your favorite text editor, i.e.:
+
+```
+    camera_serial_number = "822512060208" # D415, Camera 2
+    camera_name = "d415_02"
+
+    # we only calibrate the RGB for the D415
+    rgb_calibration_data_folder = os.path.join(spartan_source_dir, "calibration_data/20190330-185613_rgb")
+    camera_info_filename_destination = "src/catkin_projects/camera_config/data/%s/master/camera_info.yaml" %(camera_name)
+    rgb_extrinsics_filename_destination = "src/catkin_projects/camera_config/data/%s/master/rgb_extrinsics.yaml" %(camera_name)
+
+    intrinsics_filename = os.path.join(rgb_calibration_data_folder, "rgb_camera_info.yaml")
+```
+
+Then
+
+```
+python run_handical_rlg_fixed_mount.py
+```
+
+## Once calibrated:
+
+Currently will need to make sure `self.cameraTypes` in `camera_transform_publisher.py` is just: `self.cameraTypes = ['color']`, then:
+
+```
+roslaunch camera_config camera_transform_publisher.launch camera_serial_number:=d415_02
+```
+
