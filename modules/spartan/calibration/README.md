@@ -231,7 +231,22 @@ point to pre-saved poses Pete collected.
 cal.runFixedMount("/camera/color/image_raw", "/home/peteflo/spartan/modules/spartan/calibration/camera_right_calibration_poses.yaml")
 ```
 
+The above will save out a folder called something like `~/spartan/calibration_data/20190330-185613_rgb`.
+
+You just need to a couple more things:
+
+1. Make an `rgb_camera_info.yaml` for the camera with its intrinsics (haven't yet written a script for this) and put it also in the folder above
+2. Edit the `robot_data.yaml` to have the following at the end of it (we should also script this)
+
 ## Step 5: Run handical
 
-Here we need to document what `run_handical_rlg.py` needs
+Make sure you've already built handical (this was documented above up in the wrist-mount calibration section)
+
+Then
+
+```
+use_spartan
+use_handical
+cd ~/spartan/src/handical/python
+```
  
