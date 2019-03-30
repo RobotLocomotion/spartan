@@ -272,7 +272,9 @@ python run_handical_rlg_fixed_mount.py
 
 ## Once calibrated:
 
-Currently will need to make sure `self.cameraTypes` in `camera_transform_publisher.py` is just: `self.cameraTypes = ['color']`, then:
+Currently will need to make sure `self.cameraTypes` in `camera_transform_publisher.py` is just: `self.cameraTypes = ['color']`, then
+
+Currently need to change `rgb` to `color` in `camera_info.yaml` for the camera, then:
 
 ```
 roslaunch camera_config camera_transform_publisher.launch camera_serial_number:=d415_02
