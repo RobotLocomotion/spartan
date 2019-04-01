@@ -214,12 +214,25 @@ Make sure to **launch the sensor as high resolution as possible**.
 For example the D415 does 1920x1080 resolution, but you need to launch
 it with these params.
 
-## Step 3: Teleop around to save good poses for calibration
+## Step 3: (Optional) Teleop around to save good poses for calibration
+
+There are already a couple sets of poses saved out for calibrating a couple of camera locations.
+
+- "left camera": `spartan/modules/spartan/calibration/camera_left_calibration_poses.yaml`
+- "right camera": `spartan/modules/spartan/calibration/camera_right_calibration_poses.yaml`
+
+Note: "left/right" means from person's view looking at the robot.
+
+
+If you'd like to make a new set of poses, for a new camera location:
 
 1. Open up rviz and open a window for the high-res camera, make it a large window.
 2. `python simple_teleop.py` (which lives in `src/catkin_projects/simple_teleop`)
 3. press `o` to save any pose.
 4. press `escape` when done.
+
+This will save poses to `src/catkin_projects/saved_poses.yaml`.  If you like these poses,
+you can move them over to where the other pose lists live (`calibration/`).
 
 ## Step 4: Re-run through the poses while saving all data
 
