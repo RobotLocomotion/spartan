@@ -8,4 +8,4 @@ transform_to_reference_link:
     y: -0.02616634213784217
     x: 0.002773276048887387
     z: 0.9996439264975171
-reference_link_name: base
+reference_link_name: wsg_50_base_link
