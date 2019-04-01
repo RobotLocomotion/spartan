@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="tf" type="static_transform_publisher" name="gripper_fingertip_frame_broadcaster" args="0.157 0 0 -0.20277454 0.00454233 -0.00107904 0.97921432 iiwa_link_ee gripper_fingertip 100" />
+</launch>
+
