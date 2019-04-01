@@ -6,6 +6,7 @@ import copy
 
 # ROS
 import rospy
+import std_msgs.msg
 import sensor_msgs.msg
 import geometry_msgs.msg
 import visualization_msgs.msg
@@ -25,13 +26,18 @@ import fusion_server.srv
 # spartan
 import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
+import spartan.utils.director_utils as director_utils
+import spartan.utils.control_utils as control_utils
+
 from spartan.manipulation.schunk_driver import SchunkDriver
 import fusion_server
 from fusion_server.srv import *
+import spartan.manipulation.gripper
 
 # director
 from director import transformUtils
 from director import visualization as vis
+import director.objectmodel as om
 
 USING_DIRECTOR = True
 if USING_DIRECTOR:
@@ -39,8 +45,12 @@ if USING_DIRECTOR:
 
 
 class GraspSupervisorState(object):
+    STATUS_LIST = ["ABOVE_TABLE", "PRE_GRASP", "GRASP", "IK_FAILED", "NO_GRASP_FOUND", "GRASP_FOUND", "OBJECT_IN_GRIPPER", "GRASP_FAILED"]
+
     def __init__(self):
         self.setPickFront()
+
+        self.clear()
 
     def setPickFront(self):
         self.graspingLocation = "front"
@@ -49,6 +59,203 @@ class GraspSupervisorState(object):
     def setPickLeft(self):
         self.graspingLocation = "left"
         self.stowLocation = "front"
+
+    @property
+    def grasp_data(self):
+        return self._grasp_data
+
+    @grasp_data.setter
+    def grasp_data(self, value):
+        """
+
+        :param value: GraspData
+        :return:
+        """
+        self._grasp_data = value
+
+    @property
+    def cache(self):
+        return self._cache
+
+    def clear(self):
+        """
+        Clear any stateful elements of the state
+        :return:
+        """
+        self._grasp_data = None
+        self._status = None
+        self._cache = dict()
+        self._trajectory_result = None
+
+    def clear_cache(self):
+        """
+        Clears only the cache
+        :return:
+        """
+        self._cache = dict()
+
+    def set_status(self, status):
+        assert status in GraspSupervisorState.STATUS_LIST
+        self._status = status
+
+    @property
+    def status(self):
+        return self._status
+
+    @status.setter
+    def status(self, status):
+        assert status in GraspSupervisorState.STATUS_LIST
+        self._status = status
+
+    def set_status_ik_failed(self):
+        self.status = "IK_FAILED"
+
+    def print_status(self):
+        """
+        Prints the status
+        :return:
+        """
+        if self._status is None:
+            print "Current Status: None"
+        else:
+            print "Current Status: " + self._status
+
+
+class GraspData(object):
+    """
+    Class to store some grasp data
+
+    Mapping from camera optical frame to gripper frame. The axes
+    are aligned, they just need to be rotated
+
+    camera --> gripper
+    x          y
+    y          z
+    z          x
+
+    # frame names
+    T_W_G: grasp to world
+    T_W_PG: pre-grasp to world
+
+    """
+
+    # gripper frame (G) to gripper frame camera axes (GC)
+    T_GC_G = transformUtils.getTransformFromAxes([0, 0, 1], [1, 0, 0], [0, 1, 0])
+
+    def __init__(self, T_W_G=None):
+        """
+        T_W_G transform from gripper frame (palm) to world
+        :param T_W_G:
+        """
+        # Palm Frame as shown in this README
+        # https://github.com/RobotLocomotion/spartan/blob/master/doc/grasping.md
+        self._T_W_G = T_W_G
+        self._T_W_PG = None
+        self._gripper_width = None # only used for ggcnn
+        self._type = None  # either ggcnn or spartan_grasp
+        self._data = dict()  # random additional info you might want to store
+        self._gripper = None # gripper object
+
+    def compute_pre_grasp_frame(self, distance=0.15):
+        """
+        Computes the pre-grasp frame gotten by pushing this grasp back
+        along the x-direction by distance (in meters).
+        :param distance: distasnce to push back frame along the x-direction
+        :return: vtkTransform. Also stores this in self._pre_grasp_frame
+        """
+        pos = [-1.0 * distance, 0, 0]
+        quat = [1, 0, 0, 0]
+        T_G_PG = transformUtils.transformFromPose(pos, quat)
+
+        # T_W_PG = T_W_G * T_G_PG
+        self._T_W_PG = transformUtils.concatenateTransforms([T_G_PG, self._T_W_G])
+
+        return self._T_W_PG
+
+    @staticmethod
+    def from_ggcnn_grasp_frame_camera_axes(T_W_GC):
+        """
+
+        :param T_W_GC: vtkTransform. grasp (in camera axes convention) to world transform
+        :return:
+        """
+        T_W_G = transformUtils.concatenateTransforms([GraspData.T_GC_G, T_W_GC])
+        return GraspData(T_W_G)
+
+    @property
+    def data(self):
+        return self._data
+
+    @property
+    def grasp_frame(self):
+        return self._T_W_G
+
+    @property
+    def pre_grasp_frame(self):
+        return self._T_W_PG
+
+    @property
+    def gripper(self):
+        return self._gripper
+
+    @property
+    def grasp_inner_diameter(self):
+        """
+        The distance between the inner faces of the fingers (in meters)
+        If not specified returns None
+        :return: float or None
+        """
+
+        gripper_width = None
+        if self.gripper is not None:
+            gripper_width = self.gripper.params['hand_inner_diameter']
+
+        if self._gripper_width is not None:
+            gripper_width = self._gripper_width
+
+        return gripper_width
+
+    def rotate_grasp_frame_to_nominal(self, grasp_z_axis_nominal):
+        self._T_W_G = GraspData.rotate_grasp_frame_to_nominal_dir(self._T_W_G, grasp_z_axis_nominal)
+
+        self.compute_pre_grasp_frame()
+
+    @staticmethod
+    def rotate_grasp_frame_to_nominal_dir(grasp_frame, grasp_z_axis_nominal):
+        """
+        Rotates the grasp frame around it's x-axis so that the grasp_z_axis is 
+        most aligned with the grasp_z_axis_nominal
+
+        For normal picking in front of robot choose grasp_z_axis_nominal = [1,0,0]
+
+        :param: grasp_frame vtkTransform
+        :param: grasp_z_axis_nominal numpy vector of size 3
+        """
+
+        grasp_frame_z_axis = grasp_frame.TransformVector(0, 0, 1)
+        if (np.dot(grasp_frame_z_axis, grasp_z_axis_nominal) < 0):
+            grasp_frame.PreMultiply()
+            grasp_frame.RotateX(180)
+
+        return grasp_frame
+
+    @staticmethod
+    def from_spartan_grasp(msg):
+        """
+        Create grasp object from grasp message
+        :param msg: spartan_grasp_msgs/Grasp
+        :return:
+        """
+
+        T_W_grasp_palm = spartanUtils.transformFromROSPoseMsg(msg.pose.pose)
+        grasp_data = GraspData(T_W_grasp_palm)
+        grasp_data.data['msg'] = msg
+        grasp_data.data['planner'] = 'spartan_grasp'
+
+        # make gripper object
+        grasp_data._gripper = spartan.manipulation.gripper.Gripper.from_spartan_grasp_params_msg(msg.params)
+
+        return grasp_data
 
 
 class GraspSupervisor(object):
@@ -63,6 +270,7 @@ class GraspSupervisor(object):
         self.depthImageTopic = '/' + str(self.cameraName) + '/depth_registered/sw_registered/image_rect'
         self.camera_info_topic = '/' + str(self.cameraName) + '/rgb/camera_info'
         self.graspFrameName = 'base'
+        self.ggcnn_grasp_frame_camera_axes_id = "ggcnn_grasp"
         self.depthOpticalFrameName = self.cameraName + "_depth_optical_frame"
         self.rgbOpticalFrameName = self.cameraName + "_rgb_optical_frame"
 
@@ -75,15 +283,17 @@ class GraspSupervisor(object):
         self._grasp_point = None  # stores the grasp point to be used in grasp3DLocation
         self._cache = dict()
 
+        self._gripper = spartan.manipulation.gripper.Gripper.make_schunk_gripper()
+
         if USING_DIRECTOR:
             self.taskRunner = TaskRunner()
             self.taskRunner.callOnThread(self.setup)
         else:
             self.setup()
 
-        self.debugMode = False
+        self.debugMode = True
         if self.debugMode:
-            print "\n\n----------WARGNING GRASP SUPERVISOR IN DEBUG MODE----------\n"
+            print "\n\n----------WARNING GRASP SUPERVISOR IN DEBUG MODE----------\n"
             # if self.debugMode:
             #     self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
 
@@ -96,6 +306,7 @@ class GraspSupervisor(object):
         self.setupTF()
         self.setupROSActions()
         self.gripperDriver = SchunkDriver()
+        self.setup_visualization()
 
     def _clear_cache(self):
         """
@@ -126,21 +337,10 @@ class GraspSupervisor(object):
         self.config['speed']['pre_grasp'] = normal_speed
         self.config['speed']['grasp'] = 10
 
-        self.config['home_pself.moveose_name'] = 'above_table_pre_grasp'
+        self.config['home_pose_name'] = 'above_table_pre_grasp'
         self.config['grasp_nominal_direction'] = np.array([1, 0, 0])  # x forwards
         self.config['grasp_to_ee'] = dict()
 
-        self.config['grasp_to_ee']['translation'] = dict()
-        # self.config['grasp_to_ee']['translation']['x'] = 9.32362425e-02
-        self.config['grasp_to_ee']['translation']['x'] = 0.085
-        self.config['grasp_to_ee']['translation']['y'] = 0
-        self.config['grasp_to_ee']['translation']['z'] = 0
-
-        self.config['grasp_to_ee']['orientation'] = dict()
-        self.config['grasp_to_ee']['orientation']['w'] = 0.97921432
-        self.config['grasp_to_ee']['orientation']['x'] = -0.20277454
-        self.config['grasp_to_ee']['orientation']['y'] = 0.00454233
-        self.config['grasp_to_ee']['orientation']['z'] = -0.00107904
 
         self.config["object_interaction"] = dict()
         self.config["object_interaction"]["speed"] = 10
@@ -150,8 +350,13 @@ class GraspSupervisor(object):
         self.config["object_interaction"]["drop_distance_above_grasp"] = 0.002  # good for mugs
         self.config["object_interaction"]["drop_location"] = [0.65, 0, 0.5]  # z coordinate is overwritten later
 
-        self.graspToIiwaLinkEE = spartanUtils.transformFromPose(self.config['grasp_to_ee'])
+        self.graspToIiwaLinkEE = spartanUtils.transformFromPose(
+            self.graspingParams['gripper_palm_to_ee'])
         self.iiwaLinkEEToGraspFrame = self.graspToIiwaLinkEE.GetLinearInverse()
+
+        self.gripper_fingertip_to_iiwa_link_ee = spartanUtils.transformFromPose(
+            self.graspingParams['gripper_fingertip_to_ee'])
+        self.T_gripper_fingertip__iiwa_link_ee = self.gripper_fingertip_to_iiwa_link_ee.GetLinearInverse()
 
         pos = [-0.15, 0, 0]
         quat = [1, 0, 0, 0]
@@ -173,6 +378,8 @@ class GraspSupervisor(object):
                                                                   self.on_clicked_point)
         self.clicked_point_subscriber.start()
 
+        self.ggcnn_subscriber = rosUtils.SimpleSubscriber('ggcnn/out/command', std_msgs.msg.Float32MultiArray)
+
     def setupPublishers(self):
         """
         Sets up some ROS publishers
@@ -180,6 +387,15 @@ class GraspSupervisor(object):
 
         self.rviz_marker_publisher = rospy.Publisher("/spartan_grasp/visualization_marker",
                                                      visualization_msgs.msg.Marker, queue_size=1)
+
+        self.rviz_marker_array_publisher = rospy.Publisher("/grasp_supervisor/visualization_marker_array",
+                                                           visualization_msgs.msg.MarkerArray, queue_size=1)
+
+        self.grasp_pointcloud_publisher = rospy.Publisher("/grasp_supervisor/points", sensor_msgs.msg.PointCloud2,
+                                                          queue_size=1)
+
+    def setup_visualization(self):
+        self._vis_container = om.getOrCreateContainer("grasp supervisor")
 
     def on_clicked_point(self, clicked_point_msg):
         """
@@ -247,7 +463,9 @@ class GraspSupervisor(object):
     def setupTF(self):
         if self.tfBuffer is None:
             self.tfBuffer = tf2_ros.Buffer()
-            self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
+
+        self.tfListener = tf2_ros.TransformListener(self.tfBuffer)
+        self.tfBroadcaster = tf2_ros.TransformBroadcaster()
 
     def getDepthOpticalFrameToGraspFrameTransform(self):
         depthOpticalFrameToGraspFrame = self.tfBuffer.lookup_transform(self.graspFrameName, self.depthOpticalFrameName,
@@ -256,9 +474,19 @@ class GraspSupervisor(object):
         print depthOpticalFrameToGraspFrame
         return depthOpticalFrameToGraspFrame
 
-    def getRgbOpticalFrameToGraspFrameTransform(self):
+    def getRgbOpticalFrameToGraspFrameTransform(self, time=None):
+        """
+
+        :param time:
+        :type time:
+        :return: geometry_msgs/TransformStamped
+        :rtype:
+        """
+        if time is None:
+            time = rospy.Time(0)
+
         rgbOpticalFrameToGraspFrame = self.tfBuffer.lookup_transform(self.graspFrameName, self.rgbOpticalFrameName,
-                                                                     rospy.Time(0))
+                                                                     time)
 
         print  rgbOpticalFrameToGraspFrame
         return rgbOpticalFrameToGraspFrame
@@ -324,9 +552,6 @@ class GraspSupervisor(object):
             joint_positions = graspLocationData['poses'][poseName]
             self.robotService.moveToJointPosition(joint_positions,
                                                   maxJointDegreesPerSecond=self.config['scan']['joint_speed'])
-
-            if self.debugMode:
-                continue
 
             rospy.sleep(self.config["sleep_time_for_sensor_collect"])
             pointCloudWithTransformMsg = self.capturePointCloudAndCameraTransform()
@@ -528,10 +753,54 @@ class GraspSupervisor(object):
         self.rotateGraspFrameToAlignWithNominal(self.graspFrame)
         return True
 
+    def make_grasp_data_from_spartan_grasp_result(self, result):
+        """
+        Takes the result of spartan_grasp and parses it into a usable form
+        :param result:
+        :return: bool, GraspData
+        """
+        print "num antipodal grasps = ", len(result.antipodal_grasps)
+        print "num volume grasps = ", len(result.volume_grasps)
+
+        if (len(result.antipodal_grasps) == 0) and (len(result.volume_grasps) == 0):
+            rospy.loginfo("no valid grasps found")
+            return False, False
+
+        if len(result.antipodal_grasps) > 0:
+            grasp_msg = result.antipodal_grasps[0]
+            type = "antipodal"
+            print "top grasp was ANTIPODAL"
+
+        elif len(result.volume_grasps) > 0:
+            grasp_msg = result.volume_grasps[0]
+            type = "volume"
+            print "top grasp was VOLUME"
+
+
+        rospy.loginfo("-------- top grasp score = %.3f", grasp_msg.score)
+
+        grasp_data = GraspData.from_spartan_grasp(grasp_msg)
+        grasp_data.data['type'] = type
+
+        # rotate the grasp to align with nominal
+        params = self.getParamsForCurrentLocation()
+        grasp_z_axis_nominal = np.array(params['grasp']['grasp_nominal_direction'])
+        grasp_data.rotate_grasp_frame_to_nominal(grasp_z_axis_nominal)
+
+        return True, grasp_data
+
     def getIiwaLinkEEFrameFromGraspFrame(self, graspFrame):
         return transformUtils.concatenateTransforms([self.iiwaLinkEEToGraspFrame, graspFrame])
 
-        # print "response ", response
+
+    def get_iiwa_link_ee_from_gripper_fingertip_frame(self, T_W__gripper_fingertip):
+        """
+
+        :param T_gripper_fingertip__W: gripper fingertip to world transform
+        :return:
+        """
+
+        return transformUtils.concatenateTransforms([self.T_gripper_fingertip__iiwa_link_ee, T_W__gripper_fingertip])
 
     def moveToFrame(self, graspFrame, speed=None):
         if speed is None:
@@ -554,6 +823,158 @@ class GraspSupervisor(object):
         poseStamped.header.frame_id = "base"
 
         return poseStamped
+
+    def make_ee_pose_stamped_from_grasp(self, T_W__gripper_fingertip):
+        """
+        Make PoseStamped message for the end effector frame from a given grasp frame.
+
+        :param T_W__gripper_fingertip: The position of the tips of the fingers, move down 3 cm to get
+        :return : pose of the end-effector for that grasp frame location
+        :rtype : geometry_msgs/PoseStamped
+        """
+
+        iiwaLinkEEFrame = self.get_iiwa_link_ee_from_gripper_fingertip_frame(T_W__gripper_fingertip)
+        poseDict = spartanUtils.poseFromTransform(iiwaLinkEEFrame)
+        poseMsg = rosUtils.ROSPoseMsgFromPose(poseDict)
+        poseStamped = geometry_msgs.msg.PoseStamped()
+        poseStamped.pose = poseMsg
+        poseStamped.header.frame_id = "base"
+
+        return poseStamped
+
+
+    def execute_grasp(self, grasp_data=None, close_gripper=True, use_cartesian_plan=True):
+        """
+        Moves to pre-grasp frame, then grasp frame
+        attemps to close gripper if `close_gripper=True` was passed in
+        :return: bool (whether or not grasp was successful)
+        """
+
+        if grasp_data is None:
+            grasp_data = self.state.grasp_data
+
+        gripper_width = grasp_data.grasp_inner_diameter
+        if gripper_width is not None:
+            gripper_driver_width = gripper_width + self.graspingParams['gripper_width_offset']
+            self.gripperDriver.sendGripperCommand(gripper_driver_width, force=20.0)
+        else:
+            self.gripperDriver.sendOpenGripperCommand()
+
+        rospy.sleep(0.5)  # wait for 0.5 for gripper to move
+
+        # compute the pre-grasp frame
+        pre_grasp_distance = self.graspingParams['pre_grasp_distance']
+        pre_grasp_frame_gripper = grasp_data.compute_pre_grasp_frame(distance=pre_grasp_distance)
+
+        pre_grasp_ee_pose_stamped = self.makePoseStampedFromGraspFrame(pre_grasp_frame_gripper)
+
+
+        # run the ik for moving to pre-grasp location
+        graspLocationData = self.graspingParams[self.state.graspingLocation]
+        above_table_pre_grasp = graspLocationData['poses']['above_table_pre_grasp']
+        pre_grasp_ik_response = self.robotService.runIK(pre_grasp_ee_pose_stamped,
+                                                        seedPose=above_table_pre_grasp,
+                                                        nominalPose=above_table_pre_grasp)
+
+        pre_grasp_pose = pre_grasp_ik_response.joint_state.position
+
+        if not pre_grasp_ik_response.success:
+            rospy.loginfo("pre grasp pose ik failed, returning")
+            self.state.set_status_ik_failed()
+            self.state.print_status()
+            return False
+
+        # run the ik for moving to grasp location
+        # for now just do IK, otherwise use cartesian space plan with force guards
+        grasp_frame_ee_pose_stamped = self.makePoseStampedFromGraspFrame(grasp_data.grasp_frame)
+        grasp_ik_response = self.robotService.runIK(grasp_frame_ee_pose_stamped,
+                                                    seedPose=above_table_pre_grasp,
+                                                    nominalPose=above_table_pre_grasp)
+
+        grasp_pose = grasp_ik_response.joint_state.position
+        if not grasp_ik_response.success:
+            rospy.loginfo("pre grasp pose ik failed, returning")
+            self.state.set_status_ik_failed()
+            self.state.print_status()
+            return False
+
+        # store for later use
+        self.state.cache['grasp_ik_response'] = grasp_ik_response
+        self.state.cache['pre_grasp_ik_response'] = pre_grasp_ik_response
+
+        # move to pre-grasp position
+        # we do this using a position trajectory
+        print "moving to pre-grasp"
+        pre_grasp_speed = self.graspingParams['speed']['pre_grasp']
+        self.robotService.moveToJointPosition(pre_grasp_pose,
+                                              maxJointDegreesPerSecond=
+                                              pre_grasp_speed)
+
+        self.state.set_status("PRE_GRASP")
+        print "at pre-grasp pose"
+
+        if use_cartesian_plan:
+            # move to grasp position using compliant cartesian plan
+
+            push_distance = self.graspingParams['grasp_push_in_distance']
+            move_forward_distance = pre_grasp_distance + push_distance
+            print "move_forward_distance", move_forward_distance
+            xyz_goal = move_forward_distance * np.array([1, 0, 0])
+            ee_frame_id = "iiwa_link_ee"
+            expressed_in_frame = ee_frame_id
+            cartesian_grasp_speed = self.graspingParams['speed']['cartesian_grasp']
+            cartesian_traj_goal = \
+                control_utils.make_cartesian_trajectory_goal(xyz_goal,
+                                                             ee_frame_id,
+                                                             expressed_in_frame,
+                                                             speed=cartesian_grasp_speed)
+
+            # add force guards
+            # -z (gripper) direction in frame iiwa_link_ee,
+            force_magnitude = self.graspingParams['force_threshold_magnitude']
+            force_vector = force_magnitude * np.array([-1, 0, 0])
+            force_guard = control_utils.make_force_guard_msg(force_vector)
+
+            cartesian_traj_goal.force_guard.append(force_guard)
+            action_client = self.robotService.cartesian_trajectory_action_client
+            action_client.send_goal(cartesian_traj_goal)
+
+            # wait for result
+            action_client.wait_for_result()
+            result = action_client.get_result()
+            grasp_data.data['cartesian_trajectory_result'] = result
+
+            print "Cartesian Trajectory Result\n", result
+        else:
+            # move to grasp pose using standard IK
+            speed = self.graspingParams['speed']['grasp']
+            self.robotService.moveToJointPosition(grasp_pose,
+                                                  maxJointDegreesPerSecond=
+                                                  speed)
+
+
+        # record current location of gripper (in world frame)
+        # before closing the gripper
+
+
+        has_object = False
+        if close_gripper:
+            has_object = self.gripperDriver.closeGripper()
+
+            if has_object:
+                self.state.set_status("OBJECT_IN_GRIPPER")
+            else:
+                self.state.set_status("GRASP_FAILED")
+
+
+
+        return has_object
+
+        # grasp_speed = 10
+        # grasp_speed = 5
+        # # grasp_speed = self.graspingParams['speed']['grasp']
+        # self.robotService.moveToJointPosition(grasp_pose,
+        #                                       maxJointDegreesPerSecond=grasp_speed)
 
     def attemptGrasp(self, graspFrame):
         """
@@ -659,6 +1080,23 @@ class GraspSupervisor(object):
 
         # move Home
         self.moveHome()
+
+    def pickup_object(self):
+        """
+        Just moves to pre-grasp frame
+        :return:
+        """
+
+        if "pre_grasp_ik_response" not in self.state.cache:
+            return False
+
+        pre_grasp_ik_response = self.state.cache['pre_grasp_ik_response']
+        pre_grasp_pose = pre_grasp_ik_response.joint_state.position
+        pre_grasp_speed = self.graspingParams['speed']['stow']
+        self.robotService.moveToJointPosition(pre_grasp_pose,
+                                              maxJointDegreesPerSecond=
+                                              pre_grasp_speed)
+
 
     def pickup_object_and_reorient_on_table(self):
         """
@@ -886,16 +1324,24 @@ class GraspSupervisor(object):
         gripperFrame = transformUtils.concatenateTransforms([self.graspToIiwaLinkEE, iiwaLinkEE])
         vis.updateFrame(gripperFrame, 'Gripper Frame', scale=0.15)
 
+    def show_gripper_fingertip_frame(self):
+        iiwaLinkEE = self.robotSystem.robotStateModel.getLinkFrame('iiwa_link_ee')
+        gripperFrame = transformUtils.concatenateTransforms([self.gripper_fingertip_to_iiwa_link_ee, iiwaLinkEE])
+        vis.updateFrame(gripperFrame, 'Gripper Fingertip Frame', scale=0.15)
+
+
     def getParamsForCurrentLocation(self):
         return self.graspingParams[self.state.graspingLocation]
 
-    """
-	Rotate the grasp frame to align with the nominal direction. In this case we want the ZAxis of the 
-	grasp to be aligned with (1,0,0) in world frame. If it's not aligned rotate it by 180 degrees about
-	the x-Axis of the grasp
-    """
 
     def rotateGraspFrameToAlignWithNominal(self, graspFrame):
+        """
+        Rotate the grasp frame to align with the nominal direction. In this case we want
+        the ZAxis of the grasp to be aligned with (1,0,0) in world frame.
+        If it's not aligned rotate it by 180 degrees about the x-axis of the grasp
+        :param graspFrame:
+        :return:
+        """
         graspFrameZAxis = graspFrame.TransformVector(0, 0, 1)
         params = self.getParamsForCurrentLocation()
         graspNominalDirection = params['grasp']['grasp_nominal_direction']
@@ -947,6 +1393,14 @@ class GraspSupervisor(object):
                 goal.params.collision_objects.append(rectangle)
 
         self.generate_grasps_client.send_goal(goal)
+
+    def call_spartan_grasp(self):
+        """
+        Better named wrapper method
+        :return:
+        """
+
+        self.requestGrasp()
 
     def waitForGenerateGraspsResult(self):
         rospy.loginfo("waiting for result")
@@ -1050,6 +1504,87 @@ class GraspSupervisor(object):
         result = self.wait_for_grasp_3D_location_result()
         grasp_found = self.processGenerateGraspsResult(result)
 
+    def visualize_grasp(self, grasp_data):
+        stamp = rospy.Time.now()
+        vis.updateFrame(grasp_data.grasp_frame, "grasp fingertip", parent=self._vis_container,
+                        scale=0.15)
+
+        point_cloud_msg = None
+        if 'point_cloud_msg' in grasp_data.data:
+            point_cloud_msg = grasp_data.data['point_cloud_msg']
+
+        # publish grasp to world transform
+        pose = director_utils.poseFromTransform(grasp_data.grasp_frame)
+        transform_msg = rosUtils.ROSTransformMsgFromPose(pose)
+
+        ts = geometry_msgs.msg.TransformStamped()
+        ts.header.stamp = stamp
+        ts.header.frame_id = self.config["base_frame_id"]
+        frame_id = "grasp_frame"
+        ts.child_frame_id = frame_id
+        ts.transform = transform_msg
+
+        # use the gripper stored in the grasp data if it exists
+        gripper = grasp_data.gripper
+        if gripper is None:
+            gripper = self._gripper
+
+        marker_array = gripper.make_rviz_visualization_msg(frame_id, stamp)
+
+        for i in xrange(0, 5):
+            if point_cloud_msg is not None:
+                self.grasp_pointcloud_publisher.publish(point_cloud_msg)
+
+            self.rviz_marker_array_publisher.publish(marker_array)
+            self.tfBroadcaster.sendTransform(ts)
+            rospy.sleep(0.02)
+
+    def get_ggcnn_grasp(self):
+        """
+        Looks up the ggcnn grasp frame from the tf server
+
+        Also need to think about gripper width etc.
+
+        :return: tuple (bool, dict)
+        :rtype:
+        """
+        # just do a transform lookup
+        return_data = dict()
+        self.state.clear()
+        try:
+            ggcnn_grasp_frame_camera_axes = self.tfBuffer.lookup_transform(self.config["base_frame_id"],
+                                                                           self.ggcnn_grasp_frame_camera_axes_id,
+                                                                           rospy.Time.now(), rospy.Duration(2.0))
+        except Exception as e:
+            rospy.loginfo("Unable to get ggcnn grasp frame from tf, returning")
+            print(e)
+            return False, return_data
+
+        return_data['ggcnn_grasp_frame_camera_axes'] = ggcnn_grasp_frame_camera_axes
+
+        # make grasp object
+        T_W_GC = director_utils.transformFromROSTransformMsg(ggcnn_grasp_frame_camera_axes.transform)
+        grasp_data = GraspData.from_ggcnn_grasp_frame_camera_axes(T_W_GC)
+
+        # get the pointcloud associated with this grasp
+        point_cloud_msg = self.pointCloudSubscriber.waitForNextMessage()
+        grasp_data.data['point_cloud_msg'] = point_cloud_msg
+
+        # rotate the grasp to align with nominal
+        params = self.getParamsForCurrentLocation()
+        grasp_z_axis_nominal = np.array(params['grasp']['grasp_nominal_direction'])
+        grasp_data.rotate_grasp_frame_to_nominal(grasp_z_axis_nominal)
+
+        self.state.grasp_data = grasp_data
+        return_data['grasp_data'] = grasp_data
+
+        if self.debugMode:
+            # visualize the grasp frame
+            self.visualize_grasp(grasp_data)
+
+        return True, return_data
+
+
     def start_bagging(self):
         print "Waiting for 'start_bagging_fusion_data' service..."
         rospy.wait_for_service('start_bagging_fusion_data')
@@ -1089,6 +1624,33 @@ class GraspSupervisor(object):
         graspFound = self.processGenerateGraspsResult(result)
         return graspFound
 
+    def request_spartan_grasp(self):
+        """
+        - collect sensor data
+        - send request to spartan grasp
+        :return: bool, GraspData
+        """
+        self.collectSensorData()
+        self.moveHome()
+        self.requestGrasp()
+        result = self.waitForGenerateGraspsResult()
+        grasp_found, grasp_data = self.make_grasp_data_from_spartan_grasp_result(result)
+
+        if grasp_found:
+            self.state.clear()
+            self.state.set_status("GRASP_FOUND")
+            self.state.grasp_data = grasp_data
+        else:
+            self.state.clear()
+            self.state.set_status("NO_GRASP_FOUND")
+
+        if grasp_found and self.debugMode:
+            # visualize the grasp frame
+            self.visualize_grasp(grasp_data)
+
+        return grasp_found, grasp_data
+
+
     def testMoveHome(self):
         self.taskRunner.callOnThread(self.moveHome)
 
@@ -1107,6 +1669,9 @@ class GraspSupervisor(object):
 
     def testPickupObject(self):
         self.taskRunner.callOnThread(self.pickupObject)
+
+    def test_pickup_object(self):
+        self.taskRunner.callOnThread(self.pickup_object)
 
     def testGraspAndStowObject(self):
         self.taskRunner.callOnThread(self.graspAndStowObject)
@@ -1152,6 +1717,20 @@ class GraspSupervisor(object):
 
     def test_stop_bagging(self):
         self.taskRunner.callOnThread(self.stop_bagging)
+
+    def test_get_ggcnn_grasp(self):
+        self.taskRunner.callOnThread(self.get_ggcnn_grasp)
+
+    def test_execute_grasp(self):
+        self.taskRunner.callOnThread(self.execute_grasp)
+
+    def test_request_spartan_grasp(self):
+        """
+        Collect sensor data and send request to spartan_grasp
+        Visualize resulting grasp
+        :return:
+        """
+        self.taskRunner.callOnThread(self.request_spartan_grasp)
 
     def loadDefaultPointCloud(self):
         self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()

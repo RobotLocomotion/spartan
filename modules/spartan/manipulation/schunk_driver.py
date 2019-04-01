@@ -89,7 +89,7 @@ class SchunkDriver(object):
     def sendCloseGripperCommand(self):
         return self.send_goal(self.closeGripperGoal)
 
-    def sendGripperCommand(self, width, force=40., speed=0.1, stop_on_block=False, timeout=2.0, stream=False):
+    def sendGripperCommand(self, width, force=80.0, speed=0.1, stop_on_block=False, timeout=2.0, stream=False):
         goal = wsg_50_common.msg.CommandGoal()
         goal.command.command_id = wsg_50_common.msg.Command.MOVE
         goal.command.width = width

@@ -122,9 +122,39 @@ poses:
 
 
 speed:
+  # joints/second
   pre_grasp: 45
   grasp: 30
   nominal: 30
   fast: 30
   slow: 20
   stow: 30
+  cartesian_grasp: 0.05 # meters/second
+
+gripper_fingertip_to_ee:
+  translation:
+    x: 0.157
+    y: 0
+    z: 0
+  orientation:
+    w: 0.97921432
+    x: -0.20277454
+    y: 0.00454233
+    z: -0.00107904
+
+gripper_palm_to_ee:
+  translation:
+    x: 0.085
+    y: 0
+    z: 0
+  orientation:
+    w: 0.97921432
+    x: -0.20277454
+    y: 0.00454233
+    z: -0.00107904
+
+
+pre_grasp_distance: 0.10 # distance (in meters) to push back grasp for pre-grasp
+force_threshold_magnitude: 10 # Newtons, force threshold at which to stop and execute grasp
+grasp_push_in_distance: 0.0 # distance (in meters) to push "past" the planned grasp
+gripper_width_offset: 0.015 # how much narrower the fingers are due to the rubber pads
