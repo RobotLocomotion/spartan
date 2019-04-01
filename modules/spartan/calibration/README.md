@@ -109,7 +109,7 @@ spartan/calibration_data/20180201-233350_rgb/
 </p>
 
 - View the IR images in rviz and make sure the IR illumination is good enough (it can be sensitive to the height and angle of the IR illuminator)
-- `cal.run(captureRGB=False, captureIR=True)`
+- `cal.runWristMount(captureRGB=False, captureIR=True)`
 - Open rviz, and look at the camera topic to make sure the target is in frame (at least in most images)
 - Images will be saved to, for example:
 ```
