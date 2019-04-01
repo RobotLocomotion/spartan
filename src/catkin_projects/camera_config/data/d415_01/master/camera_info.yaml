@@ -1,0 +1,17 @@
+header:
+  calibration_date: ignored
+  camera_name: d415_01
+  serial_number: 822512060252
+color:
+  extrinsics:
+    reference_link_name: base
+    transform_to_reference_link:
+      quaternion:
+        w: -0.15338759874097266
+        x: 0.3953167047820747
+        y: 0.8222241380850516
+        z: -0.37966355669540947
+      translation:
+        x: 1.0464839663786787
+        y: 0.34231627482351834
+        z: 0.4999483804838875
