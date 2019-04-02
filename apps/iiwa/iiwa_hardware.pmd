@@ -219,6 +219,11 @@ group "imitation" {
     }
 }
 
+cmd "imitation_extract" {
+    exec = "python ./src/catkin_projects/imitation_tools/scripts/batch_extract_all_logs.py && cp -r ./data_volume ./export";
+    host = "localhost";
+}
+
 script "1.1.robot_full_startup" {
   run_script "1.2.robot_noui_startup";
   wait ms 5000;

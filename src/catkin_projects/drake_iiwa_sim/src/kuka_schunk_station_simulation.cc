@@ -2,6 +2,7 @@
 
 #include <gflags/gflags.h>
 #include "common_utils/system_utils.h"
+#include <stdlib.h>
 
 #include "drake_iiwa_sim/kuka_schunk_station.h"
 #include "drake_iiwa_sim/ros_rgbd_camera_publisher.h"
@@ -77,6 +78,57 @@ RigidTransform<double> load_tf_from_yaml(YAML::Node tf_yaml) {
                                 tf_yaml["translation"]["z"].as<double>()));
   return tf;
 }
+
+
+// drake::multibody::ModelInstanceIndex CreateCylinder(const std::string& body_name, 
+//   drake::multibody::MultibodyPlant<double>* plant, double radius, double height, double mass) {
+
+
+//   // TODO set material
+
+//   const drake::multibody::ModelInstanceIndex model_instance = plant->AddModelInstance(body_name);
+
+
+//   auto rot_inertia = drake::multibody::UnitInertia<double>::SolidCylinder(radius, height);
+//   drake::multibody::SpatialInertia<double> inertia(mass, Eigen::VectorXd::Zero(), rot_inertia);
+
+//   // Add a rigid body to model each link.
+//   auto body = plant->AddRigidBody(body_name, model_instance, inertia);
+
+
+//   // Obtains the reference frame of the visualization relative to the reference
+//   // frame of the rigid body that is being visualized. It defaults to identity
+//   // if no transform is specified.
+//   auto T_element_to_link = Eigen::Isometry3d::Identity();
+ 
+//   // Parses the geometry specifications of the visualization.
+//   std::unique_ptr<drake::multibody::geometry::Shape> shape =
+//       std::make_unique<drake::multibody::geometry::Cylinder>(radius, height);
+
+//   // geometry::IllustrationProperties properties;
+
+//   //   Vector4d rgba;
+//   //   ParseVectorAttribute(color_node, "rgba", &rgba)
+//   //     properties = geometry::MakeDrakeVisualizerProperties(rgba);
+
+//   auto geometry_instance = drake::multibody::detail::geometry::GeometryInstance(
+//       T_element_to_link, std::move(shape), body_name + "_Visual");
+//   geometry_instance.set_illustration_properties(properties);
+//   if (plant->geometry_source_is_registered()) {
+
+//     plant->RegisterVisualGeometry(
+//         body, geometry_instance.pose(), geometry_instance.shape(),
+//         geometry_instance.name(),
+//         *geometry_instance.illustration_properties(), scene_graph);
+//   }  
+
+//   plant->RegisterCollisionGeometry(
+//       body, geometry_instance.pose(), geometry_instance.shape(),
+//       geometry_instance.name(), drake::multibody::detail::default_friction(), scene_graph);
+
+//   return model_instance;
+
+// }
 
 int do_main(int argc, char* argv[]) {
   ros::init(argc, argv, "kuka_schunk_station_simulation");
@@ -155,6 +207,109 @@ int do_main(int argc, char* argv[]) {
       initializations_to_do.push_back(
           ObjectInitializationInfo({model_instance, body_name, object_tf}));
     }
+  }
+
+  for (const auto& node : station_config["dynamic_instances"]) {
+    printf("Made it\n");
+    const auto n_range = node["n_range"].as<std::vector<int>>();
+    const auto x_range = node["x_range"].as<std::vector<double>>();
+    const auto y_range = node["y_range"].as<std::vector<double>>();
+    const auto z_range = node["z_range"].as<std::vector<double>>();
+    srand (time(NULL));
+    int n = n_range[0] + rand() % (n_range[1] - n_range[0] + 1);
+    for (int i = 0; i < n; i++) {
+      double x = x_range[0] + (x_range[1] - x_range[0]) * rand() / RAND_MAX;
+      double y = y_range[0] + (y_range[1] - y_range[0]) * rand() / RAND_MAX;
+      double z = z_range[0] + (z_range[1] - z_range[0]) * rand() / RAND_MAX;
+      printf("%f, %f, %f\n", x, y ,z);
+      Eigen::Vector3d xyz(x, y, z);
+    
+      Eigen::Isometry3d *object_tf;
+      if (node["rpy"]) {
+        const auto rpy_array = node["rpy"].as<std::vector<double>>();
+        Eigen::Vector3d rpy(rpy_array[0], rpy_array[1], rpy_array[2]);
+        object_tf = new Eigen::Isometry3d(
+          RigidTransform<double>(RollPitchYaw<double>(rpy), xyz)
+              .GetAsIsometry3());
+      } else {
+        // if rpy not specified, generate randomly
+        auto quat = Eigen::Quaternion<double>::UnitRandom();
+        object_tf = new Eigen::Isometry3d(
+          RigidTransform<double>(quat, xyz)
+              .GetAsIsometry3());
+      }
+
+      const auto object_class = node["model"].as<std::string>();
+      auto object_class_node = station_config["models"][object_class];
+      DRAKE_DEMAND(object_class_node);
+      std::string full_path =
+          expandEnvironmentVariables(object_class_node.as<std::string>());
+      // TODO: replace with unique name
+      std::stringstream model_name;
+      model_name << node["model"].as<std::string>() << "_" << k++;
+      std::string body_name = node["body_name"].as<std::string>();
+      drake::multibody::ModelInstanceIndex model_instance;
+      model_instance = parser.AddModelFromFile(full_path, model_name.str());
+      if (node["fixed"].as<bool>()) {
+        // Cludgy, but default behavior in AddModelFromFile is to
+        // make a frame at the root of the added model with the same name
+        // as the added model.
+        plant->WeldFrames(
+            plant->world_frame(),
+            plant->GetBodyByName(body_name, model_instance).body_frame(),
+            *object_tf);
+      } else {
+        initializations_to_do.push_back(
+            ObjectInitializationInfo({model_instance, body_name, *object_tf}));
+      }
+
+    } 
+
+    // if (node["class"].as<std::string>() == "half_carrot") {
+
+    //   const auto n_range = node["n_range"].as<std::vector<int>>();
+    //   const auto radius_range = node["radius_range"].as<std::vector<double>>();
+    //   const auto height_range = node["height_range"].as<std::vector<double>>();
+    //   const auto mass_range = node["mass_range"].as<std::vector<double>>();
+    //   const auto x_range = node["x_range"].as<std::vector<double>>();
+    //   const auto y_range = node["y_range"].as<std::vector<double>>();
+    //   const auto z_range = node["z_range"].as<std::vector<double>>();
+
+    //   int n = n_range[0] + rand() % (n_range[1] - n_range[0] + 1);
+    //   for (int i = 0; i < n; i++) {
+    //     double x = x_range[0] + (x_range[1] - x_range[0]) * rand() / RAND_MAX; 
+    //     double y = y_range[0] + (y_range[1] - y_range[0]) * rand() / RAND_MAX;
+    //     double z = z_range[0] + (z_range[1] - z_range[0]) * rand() / RAND_MAX;
+    //     Eigen::Vector3d xyz(x, y, z);
+    //     auto quat = Eigen::Quaternion::UnitRandom();
+    //     Eigen::Isometry3d object_tf(
+    //       RigidTransform<double>(quat, xyz)
+    //           .GetAsIsometry3());
+
+    //     double r = radius_range[0] + (radius_range[1] - radius_range[0]) * rand() / RAND_MAX; 
+    //     double h = height_range[0] + (height_range[1] - height_range[0]) * rand() / RAND_MAX;
+    //     double m = mass_range[0] + (mass_range[1] - mass_range[0]) * rand() / RAND_MAX;
+
+
+    //     drake::multibody::ModelInstanceIndex model_instance;
+    //     model_instance = CreateCylinder(node["body_name"], plant, r, h, m)
+
+    //     if (node["fixed"].as<bool>()) {
+    //       // Cludgy, but default behavior in AddModelFromFile is to
+    //       // make a frame at the root of the added model with the same name
+    //       // as the added model.
+    //       plant->WeldFrames(
+    //           plant->world_frame(),
+    //           plant->GetBodyByName(body_name, model_instance).body_frame(),
+    //           object_tf);
+    //     } else {
+    //       initializations_to_do.push_back(
+    //           ObjectInitializationInfo({model_instance, body_name, object_tf}));
+    //     }
+
+    //   } 
+    // } 
+    
   }
 
   station->Finalize();

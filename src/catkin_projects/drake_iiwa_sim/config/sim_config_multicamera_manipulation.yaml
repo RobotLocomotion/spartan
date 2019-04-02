@@ -36,11 +36,11 @@ instances:
   #   fixed: false
   #   body_name: "plate_11in"
 
-  - model: "061_foam_brick"
-    q0: [0.51, 0.0, 0.3, 0.0, 0.0, 0.0]
-    fixed: false
-    # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
-    body_name: "base_link"
+  # - model: "061_foam_brick"
+  #   q0: [0.51, 0.0, 0.3, 0.0, 0.0, 0.0]
+  #   fixed: false
+  #   # Required because Drake doens't make it easy to ask for the root link in a newly added model instance
+  #   body_name: "base_link"
   # - model: "061_foam_brick"
   #   q0: [0.65, 0.0, 0.4, 0.0, 0.0, 0.0]
   #   fixed: false
@@ -60,12 +60,13 @@ instances:
 robot:
   base_pose: [0.0, 0.0, 0.7645, 0.0, 0.0, 0.0]
 
-# Not used yet
 dynamic_instances:
-  - class: "half_carrot"
-    n_range: [3, 10]
-    radius_range: [0.012, 0.025]
-    height_range: [0.015, 0.04]
-    x_range: [0.5, 0.7]
-    y_range: [-0.1, 0.25]
-    z_range: [0.85, 0.85]
+  - model: "061_foam_brick"
+    n_range: [1, 1]
+    x_range: [0.5, 0.75]
+    y_range: [-0.25, 0.25]
+    z_range: [0.3, 0.3]
+    rpy: [0.0, 0.0, 0.0]
+    body_name: "base_link"
+    fixed: false
+
