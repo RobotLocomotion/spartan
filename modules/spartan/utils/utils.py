@@ -86,6 +86,16 @@ def transformFromROSTransformMsg(msg):
 
     return transformUtils.transformFromPose(pos,quat)
 
+def invert_transform(transform4):
+    transform4_copy = np.copy(transform4)
+    R = transform4_copy[0:3,0:3]
+    R = np.transpose(R)
+    transform4_copy[0:3,0:3] = R
+    t = transform4_copy[0:3,3]
+    inv_t = -1.0 * np.transpose(R).dot(t)
+    transform4_copy[0:3,3] = inv_t
+    return transform4_copy
+
 def getQuaternionFromDict(d):
     quat = None
     quatNames = ['orientation', 'rotation', 'quaternion']
