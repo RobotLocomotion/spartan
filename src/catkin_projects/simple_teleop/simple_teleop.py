@@ -178,7 +178,12 @@ def do_main():
 
     sys.path.append("../imitation_tools/scripts")
     from capture_imitation_data_client import start_bagging_imitation_data_client, stop_bagging_imitation_data_client
-    #start_bagging_imitation_data_client()
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "--bag":
+        start_bagging_imitation_data_client()
+        rospy.wait_for_service('save_scene_point_cloud', timeout=1.0)
+        save_scene_point_cloud = rospy.ServiceProxy('save_scene_point_cloud', SaveScenePointCloud)
+        resp1 = save_scene_point_cloud()
     
     pose_save_counter = 0
     saved_pose_dict = dict()
