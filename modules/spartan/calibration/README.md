@@ -214,6 +214,13 @@ Make sure to **launch the sensor as high resolution as possible**.
 For example the D415 does 1920x1080 resolution, but you need to launch
 it with these params.
 
+To launch the sensor at full resolution use
+
+```
+roslaunch realsense2_camera rs_camera.launch color_width:=1920 color_height:=1080 align_depth:=false camera:=camera_d415_02 serial_no:=822512060208
+```
+
+
 ## Step 3: (Optional) Teleop around to save good poses for calibration
 
 There are already a couple sets of poses saved out for calibrating a couple of camera locations.
