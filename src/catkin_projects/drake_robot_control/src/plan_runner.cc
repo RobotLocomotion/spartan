@@ -226,7 +226,7 @@ bool RobotPlanRunner::HandleInitJointSpaceStreamingServiceCall(
 
 bool RobotPlanRunner::GetPlanNumber(const robot_msgs::GetPlanNumberGoal::ConstPtr &goal) {
   robot_msgs::GetPlanNumberResult result;
-  result.plan_number = plan_number;
+  result.plan_number = plan_number_;
   get_plan_number_action_->setSucceeded(result);
   return true;
 }
@@ -479,9 +479,6 @@ void RobotPlanRunner::PublishCommand() {
       // QueueNewPlan function
       plan_local->plan_number_ = plan_number_++;
     }
-
-    // keep track of this so we can report back to user
-    plan_number = plan_local->plan_number_;
 
     // special logic if the plan is new, i.e. not yet in state RUNNING
     if (plan_local->get_plan_status() == PlanStatus::NOT_STARTED) {

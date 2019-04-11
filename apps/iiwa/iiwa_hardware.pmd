@@ -132,6 +132,11 @@ group "8.ROS" {
     host = "localhost";
   }
 
+  cmd "2.1 Static Transform Publisher"{
+    exec = "roslaunch station_config static_transforms.launch";
+    host = "localhost";
+  }
+
   cmd "3.rviz" {
     exec = "rosrun rviz rviz -d $SPARTAN_SOURCE_DIR/src/catkin_projects/station_config/RLG_iiwa_1/rviz.rviz";
     host = "localhost";
@@ -167,7 +172,11 @@ group "8.ROS" {
     host = "localhost";
   }
 
+
+
 }
+
+
 
 group "9.iiwa_sim" {
 
@@ -192,6 +201,7 @@ group "9.iiwa_sim" {
   }
 
 }
+
 
 script "1.1.robot_full_startup" {
   run_script "1.2.robot_noui_startup";

@@ -191,8 +191,6 @@ private:
                                Eigen::Isometry3d *const T_ee,
                                Eigen::Vector3d *const rpy);
 
-  int plan_number;
-
   // constants to be loaded from yaml file.
   const std::string kLcmStatusChannel_;
   const std::string kLcmCommandChannel_;
