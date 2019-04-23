@@ -9,8 +9,8 @@ joint_speed_limit_degree_per_sec: 300.0 # This is trivially large, but most plan
 control_period_s: 0.005
 
 task_space_plan:
-  kp_rotation: [10, 10, 10] # orientation P gains
-  kp_translation: [5, 5, 5] # translation P gains
+  kp_rotation: [50, 50, 50] # orientation P gains
+  kp_translation: [100, 100, 100] # translation P gains
 
 joint_limit_tolerance: 5.0 # subtract this from measured joint limits before sending command
 joint_limits:

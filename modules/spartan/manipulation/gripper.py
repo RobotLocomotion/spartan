@@ -1,3 +1,5 @@
+import copy
+
 import rospy
 import std_msgs.msg
 import visualization_msgs.msg
@@ -206,5 +208,9 @@ class Gripper(object):
         params['init_bite'] = msg.init_bite
 
         return Gripper(params)
+
+
+    def copy(self):
+        return copy.deepcopy(self)
 
 

@@ -4,6 +4,7 @@ import collections
 import yaml
 import os
 import datetime
+import time
 
 # director
 from director import transformUtils
@@ -13,6 +14,12 @@ import spartan.utils.transformations as transformations
 
 def getSpartanSourceDir():
     return os.getenv("SPARTAN_SOURCE_DIR")
+
+def get_sandbox_dir():
+    return os.getenv("SPARTAN_SANDBOX_DIR")
+
+def get_data_dir():
+    return os.getenv("DATA_DIR")
 
 def getDictFromYamlFilename(filename):
     stream = file(filename)
@@ -70,6 +77,32 @@ def transformFromPose(d):
 
     return transformUtils.transformFromPose(pos, quat)
 
+def homogenous_transform_from_dict(d):
+    """
+    Returns a transform from a standard encoding in dict format
+    :param d:
+    :return:
+    """
+    pos = [0]*3
+    pos[0] = d['translation']['x']
+    pos[1] = d['translation']['y']
+    pos[2] = d['translation']['z']
+
+    quatDict = getQuaternionFromDict(d)
+    quat = [0]*4
+    quat[0] = quatDict['w']
+    quat[1] = quatDict['x']
+    quat[2] = quatDict['y']
+    quat[3] = quatDict['z']
+
+    transform_matrix = transformations.quaternion_matrix(quat)
+    transform_matrix[0:3,3] = np.array(pos)
+
+    return transform_matrix
+
+"""
+msg: geometry_msgs/Pose
+"""
 def transformFromROSPoseMsg(msg):
     pos = [msg.position.x, msg.position.y, msg.position.z]
     quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]

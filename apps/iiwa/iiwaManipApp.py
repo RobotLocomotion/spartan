@@ -36,6 +36,7 @@ import drake as lcmdrake
 import bot_core as lcmbotcore
 
 from spartan.manipulation.director_schunk_driver import DirectorSchunkDriver
+import spartan.utils.director_utils as director_utils
 
 useROS = True
 if useROS:
@@ -182,11 +183,17 @@ def onFitCamera():
     global alignmentTool
     alignmentTool = aligncameratool.main(robotSystem, newCameraView(imageManager))
 
+def delayed_close_gripper_command():
+    time.sleep(5.0)
+    schunkDriver.sendCloseGripperCommand()
+
 
 def setupToolBar():
     toolBar = applogic.findToolBar('Main Toolbar')
     app.addToolBarAction(toolBar, 'Gripper Open', icon='', callback=schunkDriver.sendOpenGripperCommand)
+    app.addToolBarAction(toolBar, 'Gripper Open (delay)', icon='', callback=schunkDriver.sendDelayedOpenGripperCommand)
     app.addToolBarAction(toolBar, 'Gripper Close', icon='', callback=schunkDriver.sendCloseGripperCommand)
+    app.addToolBarAction(toolBar, 'Gripper Close (delay)', icon='', callback=delayed_close_gripper_command)
     app.addToolBarAction(toolBar, 'Task Panel', icon='', callback=onOpenTaskPanel)
     app.addToolBarAction(toolBar, 'Fit Camera', icon='', callback=onFitCamera)
 
