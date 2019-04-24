@@ -161,6 +161,13 @@ RobotPlanRunner::RobotPlanRunner(
       boost::bind(&RobotPlanRunner::ExecuteCartesianTrajectoryAction, this, _1),
       false);
   cartesian_trajectory_action_->start(); // start the ROS action
+  get_plan_number_action_ = std::make_shared<
+      actionlib::SimpleActionServer<robot_msgs::GetPlanNumberAction>>(
+      nh_, "GetPlanNumber",
+      boost::bind(&RobotPlanRunner::GetPlanNumber, this, _1),
+      false);
+  get_plan_number_action_->start(); // start the ROS action
+  
 
   // Set up the streaming plan management services and channels
   plan_end_server_ = std::make_shared<ros::ServiceServer>(
@@ -217,6 +224,14 @@ bool RobotPlanRunner::HandleInitJointSpaceStreamingServiceCall(
   return true;
 }
 
+bool RobotPlanRunner::GetPlanNumber(const robot_msgs::GetPlanNumberGoal::ConstPtr &goal) {
+  robot_msgs::GetPlanNumberResult result;
+  result.plan_number = plan_number_;
+  get_plan_number_action_->setSucceeded(result);
+  return true;
+}
+
+
 bool RobotPlanRunner::HandleInitTaskSpaceStreamingServiceCall(
     robot_msgs::StartStreamingPlan::Request &req,
     robot_msgs::StartStreamingPlan::Response &res) {
@@ -251,6 +266,7 @@ bool RobotPlanRunner::HandleInitTaskSpaceStreamingServiceCall(
   QueueNewPlan(plan_local);
 
   res.status.status = res.status.RUNNING;
+  res.plan_number = plan_local->plan_number_;
   ROS_INFO("\n\n------TaskSpaceStreaming Successfully Started------\n\n");
   return true;
 }

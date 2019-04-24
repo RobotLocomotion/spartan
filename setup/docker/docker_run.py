@@ -85,7 +85,12 @@ if __name__=="__main__":
 		cmd += "--entrypoint=\"%(entrypoint)s\" " % {"entrypoint": args.entrypoint}
 	else:
 		cmd += "-it "
+	
+	cmd += " --ipc=host "
+
 	cmd += image_name
+	
+	
 	cmd_endxhost = "xhost -local:root"
 
 	print("command = \n \n", cmd, "\n", cmd_endxhost)

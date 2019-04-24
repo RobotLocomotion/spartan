@@ -1,0 +1,30 @@
+depth:
+  extrinsics:
+    reference_link_name: base
+    transform_to_reference_link:
+      quaternion:
+        w: -0.08362925
+        x: 0.23806979
+        y: 0.87027349
+        z: -0.42302834
+      translation:
+        x: 0.65868707
+        y: 0.45340102
+        z: 0.4307332
+header:
+  calibration_date: ignored
+  camera_name: sim_d415_right
+  serial_number: 0
+rgb:
+  extrinsics:
+    reference_link_name: base
+    transform_to_reference_link:
+      quaternion:
+        w: -0.08362925
+        x: 0.23806979
+        y: 0.87027349
+        z: -0.42302834
+      translation:
+        x: 0.65868707
+        y: 0.45340102
+        z: 0.4307332
