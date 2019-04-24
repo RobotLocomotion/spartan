@@ -76,10 +76,10 @@ void TaskSpaceStreamingPlan::Step(
   Eigen::VectorXd q_measured = x.head(this->get_num_positions());
   q = q_commanded_prev_;
 
-  std::cout << "Starting control in measured config " << q_measured << " but commanded " << q << std::endl;
-  std::cout << "xyz_ee_goal: " << xyz_ee_goal_ << std::endl;
-  std::cout << "xyz_d_ee_goal: " << xyz_d_ee_goal_ << std::endl;
-  std::cout << "quat_ee_goal_: " << quat_ee_goal_.matrix() << std::endl;
+  // std::cout << "Starting control in measured config " << q_measured << " but commanded " << q << std::endl;
+  // std::cout << "xyz_ee_goal: " << xyz_ee_goal_ << std::endl;
+  // std::cout << "xyz_d_ee_goal: " << xyz_d_ee_goal_ << std::endl;
+  // std::cout << "quat_ee_goal_: " << quat_ee_goal_.matrix() << std::endl;
 
   cache_.initialize(q, v);
   tree_->doKinematics(cache_);
@@ -177,7 +177,7 @@ void TaskSpaceStreamingPlan::HandleSetpoint(
     this->setpoint_subscriber_->shutdown();
   }
   std::lock_guard<std::mutex> lock(goal_mutex_);
-  std::cout << "Starting to handle setpoint... " << std::endl;
+  //std::cout << "Starting to handle setpoint... " << std::endl;
   // Extract the body index in the RBT that this msg
   // is referring to.
   // These will throw if the frame isn't unique or doesn't exist.
@@ -215,7 +215,7 @@ void TaskSpaceStreamingPlan::HandleSetpoint(
                                     msg->gain.translation.y,
                                     msg->gain.translation.z);
   have_goal_ = true;
-  std::cout << "Finished handling setpoint from config " << q_commanded_prev_ << std::endl;
+  //std::cout << "Finished handling setpoint from config " << q_commanded_prev_ << std::endl;
 }
 
 } // namespace robot_plan_runner

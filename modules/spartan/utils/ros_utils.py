@@ -189,7 +189,7 @@ def convert32FCto16UC(img_in, maxRange=5):
     img_int[nan_idx] = iinfo.max - 1
     return img_int
 
-def depth_image_to_cv2_uint16(depth_image_msg, bridge=None):
+def depth_image_to_cv2_uint16(depth_image_msg, bridge=None, encoding="32FC1"):
     if bridge is None:
         bridge = CvBridge()
     """
@@ -197,10 +197,14 @@ def depth_image_to_cv2_uint16(depth_image_msg, bridge=None):
         depth_image_msg: sensor_msgs.Image
     """
 
-    cv_img = bridge.imgmsg_to_cv2(depth_image_msg, "32FC1")
-    cv_img = np.array(cv_img, dtype=np.float32)
-    cv_img = cv_img*1000
-    cv_img = cv_img.astype(np.uint16)
+    if encoding == "32FC1":
+        cv_img = bridge.imgmsg_to_cv2(depth_image_msg, encoding)
+        cv_img = np.array(cv_img, dtype=np.float32)
+        cv_img = cv_img*1000
+        cv_img = cv_img.astype(np.uint16)
+    else:
+        cv_img = bridge.imgmsg_to_cv2(depth_image_msg, encoding)
+        cv_img = cv_img.astype(np.uint16)
 
     return cv_img
 

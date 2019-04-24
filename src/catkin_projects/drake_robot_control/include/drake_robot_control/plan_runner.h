@@ -37,6 +37,7 @@
 
 #include "robot_msgs/CartesianTrajectoryAction.h"
 #include "robot_msgs/JointTrajectoryAction.h"
+#include "robot_msgs/GetPlanNumberAction.h"
 #include "robot_msgs/StartStreamingPlan.h"
 
 namespace drake {
@@ -184,6 +185,7 @@ private:
     robot_msgs::StartStreamingPlan::Response &res);
   void HandleJointSpaceStreamingSetpoint(
       const sensor_msgs::JointState::ConstPtr& msg);
+  bool GetPlanNumber(const robot_msgs::GetPlanNumberGoal::ConstPtr &goal);
 
   void GetBodyPoseInWorldFrame(const RigidBody<double> &body,
                                Eigen::Isometry3d *const T_ee,
@@ -245,6 +247,9 @@ private:
   std::shared_ptr<
       actionlib::SimpleActionServer<robot_msgs::CartesianTrajectoryAction>>
       cartesian_trajectory_action_;
+  std::shared_ptr<
+      actionlib::SimpleActionServer<robot_msgs::GetPlanNumberAction>>
+      get_plan_number_action_;
 
   std::shared_ptr<ros::ServiceServer>
     plan_end_server_;

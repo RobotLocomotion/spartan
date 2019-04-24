@@ -2,6 +2,7 @@ __author__ = 'manuelli'
 import numpy as np
 import collections
 import yaml
+from yaml import CLoader
 import os
 import datetime
 
@@ -14,9 +15,12 @@ import spartan.utils.transformations as transformations
 def getSpartanSourceDir():
     return os.getenv("SPARTAN_SOURCE_DIR")
 
+
 def getDictFromYamlFilename(filename):
-    stream = file(filename)
-    return yaml.load(stream)
+    """
+    Read data from a YAML files
+    """
+    return yaml.load(file(filename), Loader=CLoader)
 
 def saveToYaml(data, filename):
     with open(filename, 'w') as outfile:
