@@ -134,11 +134,11 @@ def do_main():
             time.sleep(0.1)
 
     # Then kick off task space streaming
-    sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
+    init_sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
         robot_msgs.srv.StartStreamingPlan)
     init = robot_msgs.srv.StartStreamingPlanRequest()
     init.force_guard.append(make_force_guard_msg(20.))
-    res = sp(init)
+    res = init_sp(init)
     
     print("Started task space streaming")
     pub = rospy.Publisher('plan_runner/task_space_streaming_setpoint',
@@ -200,6 +200,8 @@ def do_main():
                 yaw_goal = 0.0
                 pitch_goal = 0.0
                 ee_tf_last_commanded = get_initial_pose()
+                #re-init streaming
+                res = init_sp(init)
                 continue
 
             pose_save_counter += 1
