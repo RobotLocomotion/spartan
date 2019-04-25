@@ -196,7 +196,7 @@ class GraspSupervisor(object):
 
         self.debugMode = False
         if self.debugMode:
-            print "\n\n----------WARGNING GRASP SUPERVISOR IN DEBUG MODE----------\n"
+            print "\n\n----------WARNING GRASP SUPERVISOR IN DEBUG MODE----------\n"
             # if self.debugMode:
             #     self.pointCloudListMsg = GraspSupervisor.getDefaultPointCloudListMsg()
 
@@ -269,7 +269,7 @@ class GraspSupervisor(object):
         self.pointCloudSubscriber = rosUtils.SimpleSubscriber(self.pointCloudTopic, sensor_msgs.msg.PointCloud2)
         self.rgbImageSubscriber = rosUtils.SimpleSubscriber(self.rgbImageTopic, sensor_msgs.msg.Image)
         self.depthImageSubscriber = rosUtils.SimpleSubscriber(self.depthImageTopic, sensor_msgs.msg.Image)
-gripper
+
         self.camera_info_subscriber = rosUtils.SimpleSubscriber(self.camera_info_topic, sensor_msgs.msg.CameraInfo)
 
         self.pointCloudSubscriber.start()
@@ -280,6 +280,8 @@ gripper
         self.clicked_point_subscriber = rosUtils.SimpleSubscriber("/clicked_point", geometry_msgs.msg.PointStamped,
                                                                   self.on_clicked_point)
         self.clicked_point_subscriber.start()
+
+        self.ggcnn_subscriber = rosUtils.SimpleSubscriber('ggcnn/out/command', std_msgs.msg.Float32MultiArray)
 
     def setupPublishers(self):
         """
@@ -394,19 +396,6 @@ gripper
 
         return depth_optical_frame_to_world
 
-    def getRgbOpticalFrameToGraspFrameTransform(self, time=None):
-        """
-
-        :param time:
-        :type time:
-        :return: geometry_msgs/TransformStamped
-        :rtype:
-        """
-        if time is None:
-            time = rospy.Time(0)
-
-        rgbOpticalFrameToGraspFrame = self.tfBuffer.lookup_transform(self.graspFrameName, self.rgbOpticalFrameName,
-                                                                     time)
     def get_transform(self, from_name, to_name, ros_time=None):
         if ros_time is None:
             ros_time = rospy.Time(0)
@@ -494,7 +483,7 @@ gripper
         Collects PointCloud Messages, also RGB and Depth images.
 
         Writes the result to two class variables
-        - self.pointCloudListMsg
+        - self.pointCloudListMsg 
         - self.listOfRgbdWithPose
 
         also returns these two values
@@ -676,7 +665,7 @@ gripper
         self.state.set_status("ABOVE_TABLE")
 
         if wait_for_result:
-            self.wait_for_keypoint_detection_result()
+            self.wait_for_keypoint_detection_result()        
 
     def wait_for_keypoint_detection_result(self):
         """
@@ -911,7 +900,7 @@ gripper
         rospy.loginfo("connected to CategoryManip server")
 
         self.category_manip_client.send_goal(goal)
-
+        
         if wait_for_result:
             self.wait_for_category_manipulation_goal_result()
 
@@ -1063,7 +1052,7 @@ gripper
             self.state.set_status("PLANNING_FAILED")
             return False
 
-
+        
         # run the manipulation
         # need safety checks in there before running autonomously
         code = self.run_mug_on_rack_manipulation()
@@ -2482,8 +2471,7 @@ gripper
         self.robotService.moveToJointPosition(graspPose, maxJointDegreesPerSecond=self.graspingParams['speed']['grasp'])
 
         objectInGripper = self.gripperDriver.closeGripper()
-        return objectInGrippergripper
-
+        return objectInGripper
 
     def vtkFrameToPoseMsg(self, vtkFrame):
         poseDict = spartanUtils.poseFromTransform(vtkFrame)
@@ -2846,7 +2834,7 @@ gripper
 
         params = self.getParamsForCurrentLocation()
         goal = spartan_grasp_msgs.msg.GenerateGraspsFromPointCloudListGoal()
-
+        
 
         goal.point_clouds = self.pointCloudListMsg
 
@@ -3134,33 +3122,6 @@ gripper
         return graspFound
 
 
-
-
-    def request_spartan_grasp(self):
-        """
-        - collect sensor data
-        - send request to spartan grasp
-        :return: bool, GraspData
-        """
-        self.collectSensorData()
-        self.moveHome()
-        self.requestGrasp()
-        result = self.waitForGenerateGraspsResult()
-        grasp_found, grasp_data = self.make_grasp_data_from_spartan_grasp_result(result)
-
-        if grasp_found:
-            self.state.clear()
-            self.state.set_status("GRASP_FOUND")
-            self.state.grasp_data = grasp_data
-        else:
-            self.state.clear()
-            self.state.set_status("NO_GRASP_FOUND")
-
-        if grasp_found and self.debugMode:
-            # visualize the grasp frame
-            self.visualize_grasp(grasp_data)
-
-        return grasp_found, grasp_data
 
 
     def testMoveHome(self):
