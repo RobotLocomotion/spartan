@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="square_peg_receptacle">
+
+<xacro:property name="x_dim_outer" value="0.3" />
+<xacro:property name="y_dim_outer" value="0.3" />
+<xacro:property name="x_dim_inner" value="0.075" />
+<xacro:property name="y_dim_inner" value="0.1" />
+<xacro:property name="z_dim" value="0.05" />
+
+<!-- macro for making default inertial mass-->
+<xacro:macro name="default_inertial" params="mass">
+    <inertial>
+            <mass value="${mass}" />
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0"
+                 iyy="1.0" iyz="0.0"
+                 izz="1.0" />
+    </inertial>
+</xacro:macro>
+
+<!-- macro for making default box-->
+<xacro:macro name="rectangle" params="x_dim y_dim z_dim">
+    <visual>
+        <geometry>
+            <box size="${x_dim} ${y_dim} ${z_dim}"/>
+        </geometry>
+        <material name="blue"/>
+    </visual>
+    <collision>
+        <geometry>
+            <box size="${x_dim} ${y_dim} ${z_dim}"/>
+        </geometry>
+    </collision>
+    <xacro:default_inertial mass="1"/>
+    <!-- A bunch of stuff cut -->
+</xacro:macro>
+
+    <link name="base_link"/>
+
+    <joint name="base_to_bottom" type="fixed">
+        <origin rpy="0 0 0" xyz="0 ${-y_dim_inner/2.0 - (y_dim_outer - y_dim_inner)/4.0} ${z_dim/2.0}"/>
+        <parent link="base_link"/>
+        <child link="bottom_link"/>
+    </joint>
+
+    <link name="bottom_link">
+        <xacro:rectangle x_dim="${x_dim_outer}" y_dim="${(y_dim_outer - y_dim_inner)/2.0}" z_dim="${z_dim}"/>
+    </link> 
+
+    <joint name="base_to_top" type="fixed">
+        <origin rpy="0 0 0" xyz="0 ${y_dim_inner/2.0 + (y_dim_outer - y_dim_inner)/4.0} ${z_dim/2.0}"/>
+        <parent link="base_link"/>
+        <child link="top_link"/>
+    </joint> 
+
+    <link name="top_link">
+        <xacro:rectangle x_dim="${x_dim_outer}" y_dim="${(y_dim_outer - y_dim_inner)/2.0}" z_dim="${z_dim}"/>
+    </link>
+
+    <joint name="base_to_left" type="fixed">
+        <origin rpy="0 0 0" xyz="${-(x_dim_inner/2.0 + (x_dim_outer - x_dim_inner)/4.0)} 0 ${z_dim/2.0}"/>
+        <parent link="base_link"/>
+        <child link="left_link"/>
+    </joint> 
+
+    <link name="left_link">
+        <xacro:rectangle x_dim="${(x_dim_outer - x_dim_inner)/2.0}" y_dim="${y_dim_inner}" z_dim="${z_dim}"/>
+    </link>
+
+    <joint name="base_to_right" type="fixed">
+        <origin rpy="0 0 0" xyz="${(x_dim_inner/2.0 + (x_dim_outer - x_dim_inner)/4.0)} 0 ${z_dim/2.0}"/>
+        <parent link="base_link"/>
+        <child link="right_link"/>
+    </joint> 
+
+    <link name="right_link">
+        <xacro:rectangle x_dim="${(x_dim_outer - x_dim_inner)/2.0}" y_dim="${y_dim_inner}" z_dim="${z_dim}"/>
+    </link>
+
+</robot>
