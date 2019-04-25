@@ -176,9 +176,9 @@ def do_main():
     ee_tf_last_commanded = get_initial_pose()
     print ee_tf_last_commanded
 
-    sys.path.append("../imitation_tools/scripts")
-    from capture_imitation_data_client import start_bagging_imitation_data_client, stop_bagging_imitation_data_client
-    start_bagging_imitation_data_client()
+    # sys.path.append("../imitation_tools/scripts")
+    # from capture_imitation_data_client import start_bagging_imitation_data_client, stop_bagging_imitation_data_client
+    # start_bagging_imitation_data_client()
     
     pose_save_counter = 0
     saved_pose_dict = dict()
@@ -214,7 +214,7 @@ def do_main():
                 pose_save_counter = 0
 
             if events["escape"]:
-                stop_bagging_imitation_data_client()
+                # stop_bagging_imitation_data_client()
                 if len(saved_pose_dict) > 0:
                     spartan_utils.saveToYaml(saved_pose_dict, "saved_poses.yaml")
                 sys.exit(0)
