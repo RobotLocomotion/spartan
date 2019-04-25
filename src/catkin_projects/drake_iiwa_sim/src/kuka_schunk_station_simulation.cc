@@ -121,6 +121,8 @@ int do_main(int argc, char* argv[]) {
     Eigen::Isometry3d tf;
   } ObjectInitializationInfo;
 
+  drake::multibody::ModelInstanceIndex iiwa_model_instance = station->get_iiwa_model_instance_index();
+
   std::vector<ObjectInitializationInfo> initializations_to_do;
   int k = 0;
   for (const auto& node : station_config["instances"]) {
@@ -147,10 +149,20 @@ int do_main(int argc, char* argv[]) {
       // Cludgy, but default behavior in AddModelFromFile is to
       // make a frame at the root of the added model with the same name
       // as the added model.
-      plant->WeldFrames(
-          plant->world_frame(),
-          plant->GetBodyByName(body_name, model_instance).body_frame(),
-          object_tf);
+      if (YAML::Node parameter = node["parent_frame"]){
+        std::string parent_link = parameter.as<std::string>();
+        plant->WeldFrames(
+        plant->GetBodyByName(parent_link, iiwa_model_instance).body_frame(),
+        plant->GetBodyByName(body_name, model_instance).body_frame(),
+        object_tf);  
+
+      } else{
+        plant->WeldFrames(
+        plant->world_frame(),
+        plant->GetBodyByName(body_name, model_instance).body_frame(),
+        object_tf);  
+      }
+      
     } else {
       initializations_to_do.push_back(
           ObjectInitializationInfo({model_instance, body_name, object_tf}));

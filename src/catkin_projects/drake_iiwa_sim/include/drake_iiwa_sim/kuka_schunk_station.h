@@ -92,6 +92,11 @@ class KukaSchunkStation : public systems::Diagram<T> {
   /// gripper).
   int num_iiwa_joints() const { return 7; }
 
+  // Get the iiwa ModelInstanceIndex
+  multibody::ModelInstanceIndex get_iiwa_model_instance_index(){
+    return iiwa_model_;
+  }
+
   /// Convenience method for getting all of the joint angles of the Kuka IIWA.
   /// This does not include the gripper.
   VectorX<T> GetIiwaPosition(const systems::Context<T>& station_context) const;
