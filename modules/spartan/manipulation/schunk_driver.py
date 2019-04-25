@@ -28,7 +28,8 @@ class SchunkDriver(object):
 
     def _setup_config(self):
         self._config = dict()
-        self._config['gripper_closed_width_when_empty'] = 0.0134
+        # self._config['gripper_closed_width_when_empty'] = 0.0134 # with stock fingers and rubber bands
+        self._config['gripper_closed_width_when_empty'] = 0.00436948 # with 3D printed fingers
         self._config["gripper_open_width"] = 0.1
         self._config['tol'] = 0.0003
 
