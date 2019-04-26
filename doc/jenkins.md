@@ -1,5 +1,7 @@
-CI with Jenkins
-============================
+# CI with Jenkins
+
+## Overview
+
 CI is provided by Jenkins, presently running on a DRC laptop running Ubuntu
 16.04 with nvidia-418.56, CUDA 10, and nvidia-docker2. Three Jenkins jobs test
 our build:
@@ -22,8 +24,20 @@ launching a docker container; or errors detected by the `run_jenkins` script,
 which contains its own error checking on the CMake configuration and the build,
 as well as a battery of code tests.
 
-Developer's guide to Spartan-Jenkins
-==============================
+## Debugging failed builds
+
+Go to the Spartan build server interface by following the link that gets posted to Github, or by finding your build [here](http://spartan-jenkins.csail.mit.edu:8080/job/spartan-prs-merged/) and clicking on its build number. This results page contains all the information Jenkins saved about trying to build your PR (merged into master).
+
+### Did the build process itself fail?
+
+You can view the console output of the entire build by clicking on "Console Output" on the left-hand side of that overview page. Look at the bottom to see if the build completed and if tests ran. If the build didn't complete, find the error, diagnose it, try to reproduce it on your machine, and try again. Jenkins completely cleans out the workspace before each build, so maybe your error only shows up on clean builds.
+
+### Did a test fail?
+
+The output page links to test results, which include failures from the tests. The most common error at this point in time is "Never received full robot joint positions on /joint_states topic", which means, fairly uselessly, that the sim failed to start up for some reason. To help diagnose this error, each of the full-stack simulation tests runs with an LCM logger whose output is archived and accessible from the PR overview page. Download the LCM log and play it back (`lcm-logplayer` or `lcm-logplayer-gui`) with an observer procman open (`bot-procman-sheriff -o`) to get a hint as to what went wrong -- the LCM log includes a log of each process' printouts during the test, so look for critical processes that failed.
+
+
+# Developer's guide to Spartan-Jenkins
 
 The Spartan build server interface is available at http://spartan-jenkins.csail.mit.edu:8080/. Anyone can click around and view build logs. To tweak settings, a user must log in (button in the upper right). If you want permissions to do so, contact `gizatt` and I'll make you an account.
 
