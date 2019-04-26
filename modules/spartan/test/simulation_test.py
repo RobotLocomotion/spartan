@@ -141,6 +141,11 @@ class IiwaSimulationTest(unittest.TestCase):
         :return:
         :rtype:
         """
+        logger = self._launch_process_and_test(
+            "[/usr/bin/env", "lcm-logger",
+            "${SPARTAN_SOURCE_DIR}/build/simulation_test_log_%s.lcm" % type(self).__name__)
+        self._all_processes.append(logger)
+
         deputy = self._launch_process_and_test(["/usr/bin/env", "bot-procman-deputy", "--name", "localhost"])
         self._all_processes.append(deputy)
         sheriff = self._launch_process_and_test(["/usr/bin/env", "bot-procman-sheriff",
@@ -150,7 +155,7 @@ class IiwaSimulationTest(unittest.TestCase):
 
         sheriff.wait()
         print "Sheriff returned code %d" % (sheriff.returncode)
-        assert sheriff.returncode == 0, "Sheriff returned code %d" %(sheriff.returncode)
+        self.assertEqual(sheriff.returncode, 0, "Sheriff returned code %d" %(sheriff.returncode))
 
 
     def _launch_process_and_test(self, args):
@@ -167,7 +172,7 @@ class IiwaSimulationTest(unittest.TestCase):
             # Process launched and terminated.
 
             process_name = ''.join(args)
-            assert p.returncode==0, "Process %s returned with nonzero code %d" %(process_name, p.returncode)
+            self.assertEqual(p.returncode, 0, "Process %s returned with nonzero code %d" %(process_name, p.returncode))
 
         return p
 
