@@ -119,6 +119,10 @@ KukaSchunkStation<T>::KukaSchunkStation(const YAML::Node& station_config,
   scene_graph_ = owned_scene_graph_.get();
   plant_->RegisterAsSourceForSceneGraph(scene_graph_);
 
+  if (YAML::Node parameter = station_config_["use_gripper"]){
+    this->use_gripper_ = parameter.as<bool>();
+  }
+
   // Add the robot mounting table.
   const double dx_table_center_to_robot_base = 0.0;
   const double dz_table_top_robot_base = 0.736 + 0.057 / 2.;
@@ -172,29 +176,9 @@ KukaSchunkStation<T>::KukaSchunkStation(const YAML::Node& station_config,
   plant_->WeldFrames(plant_->world_frame(),
                      plant_->GetFrameByName("iiwa_link_0", iiwa_model_));
 
-  // Add the Schunk gripper and weld it to the end of the IIWA.
-  const std::string wsg_sdf_path = FindResourceOrThrow(
-      "drake/manipulation/models/"
-      "wsg_50_description/sdf/schunk_wsg_50.sdf");
-  wsg_model_ =
-      parser.AddModelFromFile(wsg_sdf_path, "gripper");
+  
 
-  // Inspired by iiwa14_schunk_gripper but hand-tuned to get visible
-  // alignment of sim + actual robot meshes in Director.
-  // Underlying frames might be slightly different between the SDF this
-  // sim uses + the URDFs Spartan uses...
-  const RigidTransform<double> tool0_pose(RollPitchYaw<double>(0, -M_PI_2, 0),
-                                        Vector3d(0, 0, 0.045));
-  const RigidTransform<double> wsg_pose(RollPitchYaw<double>(M_PI, 0.3926, M_PI_2),
-                                        Vector3d(0.04, 0, 0.0));
-
-  plant_->WeldFrames(plant_->GetFrameByName("iiwa_link_7", iiwa_model_),
-                     plant_->GetFrameByName("body", wsg_model_),
-                     (tool0_pose*wsg_pose).GetAsIsometry3());
-
-  plant_->template AddForceElement<multibody::UniformGravityFieldElement>(
-      -9.81 * Vector3d::UnitZ());
-
+  
   // Build the controller's version of the plant, which only contains the
   // IIWA and the equivalent inertia of the gripper.
   Parser controller_parser(owned_controller_plant_.get());
@@ -204,19 +188,49 @@ KukaSchunkStation<T>::KukaSchunkStation(const YAML::Node& station_config,
                                       owned_controller_plant_->GetFrameByName(
                                           "iiwa_link_0", controller_iiwa_model),
                                       Isometry3d::Identity());
-  // Add a single body to represent the IIWA pendant's calibration of the
-  // gripper.  The body of the WSG accounts for >90% of the total mass
-  // (according to the sdf)... and we don't believe our inertia calibration
-  // on the hardware to be so precise, so we simply ignore the inertia
-  // contribution from the fingers here.
-  const multibody::RigidBody<T>& wsg_equivalent =
+
+  // adds a gripper by default
+  // can optionally override in config file
+  bool add_gripper = true;
+  
+
+  if (use_gripper_){
+    // Add the Schunk gripper and weld it to the end of the IIWA.
+    const std::string wsg_sdf_path = FindResourceOrThrow(
+      "drake/manipulation/models/"
+      "wsg_50_description/sdf/schunk_wsg_50.sdf");
+    wsg_model_ =
+        parser.AddModelFromFile(wsg_sdf_path, "gripper"); 
+
+    // Inspired by iiwa14_schunk_gripper but hand-tuned to get visible
+    // alignment of sim + actual robot meshes in Director.
+    // Underlying frames might be slightly different between the SDF this
+    // sim uses + the URDFs Spartan uses...
+    const RigidTransform<double> tool0_pose(RollPitchYaw<double>(0, -M_PI_2, 0),
+                                          Vector3d(0, 0, 0.045));
+    const RigidTransform<double> wsg_pose(RollPitchYaw<double>(M_PI, 0.3926, M_PI_2),
+                                          Vector3d(0.04, 0, 0.0));
+
+    plant_->WeldFrames(plant_->GetFrameByName("iiwa_link_7", iiwa_model_),
+                       plant_->GetFrameByName("body", wsg_model_),
+                       (tool0_pose*wsg_pose).GetAsIsometry3());
+    // Add a single body to represent the IIWA pendant's calibration of the
+    // gripper.  The body of the WSG accounts for >90% of the total mass
+    // (according to the sdf)... and we don't believe our inertia calibration
+    // on the hardware to be so precise, so we simply ignore the inertia
+    // contribution from the fingers here.
+    const multibody::RigidBody<T>& wsg_equivalent =
       owned_controller_plant_->AddRigidBody(
           "wsg_equivalent", controller_iiwa_model,
           MakeCompositeGripperInertia(wsg_sdf_path));
-  owned_controller_plant_->WeldFrames(owned_controller_plant_->GetFrameByName(
+    owned_controller_plant_->WeldFrames(owned_controller_plant_->GetFrameByName(
                                           "iiwa_link_7", controller_iiwa_model),
                                       wsg_equivalent.body_frame(),
-                                      wsg_pose.GetAsIsometry3());
+                                      wsg_pose.GetAsIsometry3());  
+  }
+
+  plant_->template AddForceElement<multibody::UniformGravityFieldElement>(
+      -9.81 * Vector3d::UnitZ());  
 
   owned_controller_plant_
       ->template AddForceElement<multibody::UniformGravityFieldElement>(
@@ -321,7 +335,7 @@ void KukaSchunkStation<T>::Finalize() {
     builder.ExportOutput(adder->get_output_port(), "iiwa_torque_measured");
   }
 
-  {
+  if (use_gripper_){
     auto wsg_controller = builder.template AddSystem<
         manipulation::schunk_wsg::SchunkWsgPositionController>();
     wsg_controller->set_name("wsg_controller");

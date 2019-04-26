@@ -3,8 +3,8 @@
 
 <xacro:property name="x_dim_outer" value="0.3" />
 <xacro:property name="y_dim_outer" value="0.3" />
-<xacro:property name="x_dim_inner" value="0.075" />
-<xacro:property name="y_dim_inner" value="0.1" />
+<xacro:property name="x_dim_inner" value="0.05" />
+<xacro:property name="y_dim_inner" value="0.05" />
 <xacro:property name="z_dim" value="0.05" />
 
 <!-- macro for making default inertial mass-->

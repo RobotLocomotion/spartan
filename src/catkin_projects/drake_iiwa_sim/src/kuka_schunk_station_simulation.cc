@@ -331,16 +331,24 @@ int do_main(int argc, char* argv[]) {
   builder.Connect(iiwa_status->get_output_port(0),
                   iiwa_status_publisher->get_input_port());
 
-  auto wsg_ros_actionserver = builder.AddSystem<SchunkWsgActionServer>(
+
+  
+
+  if (station->has_gripper()){
+    std::cout << "station is using gripper" << std::endl;
+    auto wsg_ros_actionserver = builder.AddSystem<SchunkWsgActionServer>(
       "/wsg50_driver/wsg50/gripper_control/", "/wsg50_driver/wsg50/status");
-  builder.Connect(wsg_ros_actionserver->get_position_output_port(),
-                  station->GetInputPort("wsg_position"));
-  builder.Connect(wsg_ros_actionserver->get_force_limit_output_port(),
-                  station->GetInputPort("wsg_force_limit"));
-  builder.Connect(station->GetOutputPort("wsg_state_measured"),
-                  wsg_ros_actionserver->get_measured_state_input_port());
-  builder.Connect(station->GetOutputPort("wsg_force_measured"),
-                  wsg_ros_actionserver->get_measured_force_input_port());
+    builder.Connect(wsg_ros_actionserver->get_position_output_port(),
+                    station->GetInputPort("wsg_position"));
+    builder.Connect(wsg_ros_actionserver->get_force_limit_output_port(),
+                    station->GetInputPort("wsg_force_limit"));
+    builder.Connect(station->GetOutputPort("wsg_state_measured"),
+                    wsg_ros_actionserver->get_measured_state_input_port());
+    builder.Connect(station->GetOutputPort("wsg_force_measured"),
+                    wsg_ros_actionserver->get_measured_force_input_port());  
+  }
+
+  
 
 
   auto diagram = builder.Build();

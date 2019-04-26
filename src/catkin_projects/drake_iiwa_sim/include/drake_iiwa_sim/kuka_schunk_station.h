@@ -173,6 +173,10 @@ class KukaSchunkStation : public systems::Diagram<T> {
     SetWsgVelocity(*station_context, &station_context->get_mutable_state(), v);
   }
 
+  bool has_gripper(){
+    return use_gripper_;
+  }
+
 
  private:
   // These are only valid until Finalize() is called.
@@ -189,6 +193,8 @@ class KukaSchunkStation : public systems::Diagram<T> {
   multibody::ModelInstanceIndex wsg_model_;
 
   YAML::Node station_config_;
+
+  bool use_gripper_=true;
 };
 
 }  // namespace drake_iiwa_sim
