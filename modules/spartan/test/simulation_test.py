@@ -142,8 +142,10 @@ class IiwaSimulationTest(unittest.TestCase):
         :rtype:
         """
         logger = self._launch_process_and_test(
-            "[/usr/bin/env", "lcm-logger",
-            "${SPARTAN_SOURCE_DIR}/build/simulation_test_log_%s.lcm" % type(self).__name__)
+            ["/usr/bin/env", "lcm-logger",
+            os.path.expandvars("${SPARTAN_SOURCE_DIR}/build/%s_%s.lcm" % (type(self).__name__, self._testMethodName))])
+        print("Logger start command: ", ["/usr/bin/env", "lcm-logger",
+            os.path.expandvars("${SPARTAN_SOURCE_DIR}/build/%s_%s.lcm" % (type(self).__name__, self._testMethodName))])
         self._all_processes.append(logger)
 
         deputy = self._launch_process_and_test(["/usr/bin/env", "bot-procman-deputy", "--name", "localhost"])
