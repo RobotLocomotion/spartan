@@ -43,6 +43,11 @@ use_spartan
 # Launch a fake X-server in the background
 Xvfb :100 -screen 0 1280x1024x24 -ac +extension GLX +render -noreset &
 
+# Necessary to force downstream applications to use the
+# *mesa* libGL (rather than the default system libGL, which
+# doesn't seem to support GLX). May need to run in non-nvidia
+# docker for this to work.
+export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/mesa/libGL.so
 # Run Spartan modules test.
 # These tests *must* be run forked (as in, each test
 # in its own process)
