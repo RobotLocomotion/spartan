@@ -26,8 +26,6 @@ Launches a poser client app
 
 
 
-
-
 if __name__ == "__main__":
 
 

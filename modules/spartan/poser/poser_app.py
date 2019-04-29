@@ -20,8 +20,7 @@ Launches a poser client app
 """
 
 VISUALIZE = True
-POSER_OUTPUT_FOLDER = "/home/manuelli/sandbox/poser"
-
+POSER_OUTPUT_FOLDER = os.getenv("POSER_SANDBOX_DIR")
 
 
 if __name__ == "__main__":
