@@ -24,7 +24,7 @@ Launches a poser client app
 """
 
 
-POSER_OUTPUT_FOLDER = "/home/manuelli/code/tmp/poser"
+
 
 
 
