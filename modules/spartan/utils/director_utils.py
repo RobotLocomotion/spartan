@@ -13,6 +13,10 @@ from director import lcmUtils
 from director import utime as utimeUtil
 from director import transformUtils
 
+import ros_numpy
+
+import spartan.utils.utils as spartan_utils
+
 
 def poseFromTransform(transform):
     pos, quat = transformUtils.poseFromTransform(transform)
@@ -74,6 +78,29 @@ def getQuaternionFromDict(d):
         raise ValueError("Error when trying to extract quaternion from dict, your dict doesn't contain a key in ['orientation', 'rotation', 'quaternion']")
 
     return quat
+
+
+def numpy_from_pointcloud2_msg(msg):
+    """
+
+    :param msg: sensor_msgs/PointCloud2
+    :type msg:
+    :return:
+    :rtype:
+    """
+    pc = ros_numpy.numpify(msg)
+    points=np.zeros((pc.shape[0],3))
+    points[:,0]=pc['x']
+    points[:,1]=pc['y']
+    points[:,2]=pc['z']
+    return points
+
+def save_transform_to_file(transform):
+    filename = os.path.join(spartan_utils.get_sandbox_dir(), "transform.yaml")
+    d = poseFromTransform(transform)
+    spartan_utils.saveToYaml(d, filename)
+    print("saved transform to %s" %(filename))
+
 
 
 class EstRobotStatePublisher(object):

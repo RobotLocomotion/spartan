@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+export SPARTAN_SANDBOX_DIR=~/sandbox
+export POSER_SANDBOX_DIR=$SPARTAN_SANDBOX_DIR/poser
+export DATA_DIR=~/data
+export SPARTAN_DATA_DIR=$DATA_DIR/spartan
+
+
 function use_spartan()
 {
 	. ~/spartan/build/setup_environment.sh
@@ -36,8 +42,7 @@ export -f use_spartan_ros
 export -f use_handical
 export -f kip
 
-# location where data is mounted inside the container
-export DATA_DIR=~/spartan/data_volume
+
 
 exec "$@"
 

@@ -28,7 +28,8 @@ class SchunkDriver(object):
 
     def _setup_config(self):
         self._config = dict()
-        self._config['gripper_closed_width_when_empty'] = 0.0134
+        # self._config['gripper_closed_width_when_empty'] = 0.0134 # with stock fingers and rubber bands
+        self._config['gripper_closed_width_when_empty'] = 0.00436948 # with 3D printed fingers
         self._config["gripper_open_width"] = 0.1
         self._config['tol'] = 0.0003
 
@@ -100,6 +101,18 @@ class SchunkDriver(object):
             return self.send_goal(goal, timeout=timeout)
         else:
             return self.stream_goal(goal)
+
+    def send_open_gripper_set_distance_from_current(self, distance=0.02):
+        """
+        Opens the gripper a set amount past it's current width
+        :param distance: additional distance to open past current (in meters)
+        :type distance:
+        :return:
+        :rtype:
+        """
+        status_msg = self.statusSubscriber.waitForNextMessage()
+        opening_width = status_msg.width + distance
+        self.sendGripperCommand(opening_width)
 
     def gripper_has_object(self):
         """

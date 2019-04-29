@@ -1,3 +1,5 @@
+import time
+
 from spartan.manipulation.schunk_driver import SchunkDriver
 from spartan.utils.taskrunner import TaskRunner
 
@@ -12,6 +14,14 @@ class DirectorSchunkDriver(object):
 
     def sendOpenGripperCommand(self):
         self.taskRunner.callOnThread(self.schunkDriver.sendOpenGripperCommand)
+
+    def sendDelayedOpenGripperCommand(self, delay=3.0):
+        time.sleep(delay)
+        self.sendOpenGripperCommand()
+
+    def sendDelayedOpenGripperCommand(self, delay=5.0):
+        time.sleep(delay)
+        self.sendCloseGripperCommand()
 
     def sendCloseGripperCommand(self):
         self.taskRunner.callOnThread(self.schunkDriver.sendCloseGripperCommand)

@@ -141,8 +141,10 @@ RobotPlanRunner::RobotPlanRunner(
   plan_number_ = 0;
   new_plan_ = nullptr;
   current_robot_state_.resize(kNumJoints_ * 2, 1);
-  current_position_commanded_.resize(kNumJoints_, 1);
-  current_torque_commanded_.resize(kNumJoints_, 1);
+  iiwa_status_position_command_.resize(kNumJoints_, 1);
+  iiwa_status_torque_command_.resize(kNumJoints_, 1);
+  last_position_command_.resize(kNumJoints_, 1);
+  last_torque_command_.resize(kNumJoints_, 1);
   has_received_new_status_ = false;
   is_waiting_for_first_robot_status_message_ = true;
 
@@ -437,13 +439,15 @@ void RobotPlanRunner::PublishCommand() {
 
     // Calling unlock is necessary because when cv_.wait() returns, this
     // thread acquires the mutex, preventing the receiver thread from
-    // executing.
-    
-
+    // executing
     if (!has_published_command) {      
-      prev_position_command = current_position_commanded_;
-      prev_torque_command = current_torque_commanded_;
+      prev_position_command = iiwa_status_position_command_;
+      prev_torque_command = iiwa_status_torque_command_;
     }
+
+    // update what you commanded
+    last_position_command_ = prev_position_command;
+    last_torque_command_ = prev_torque_command;
 
     status_lock.unlock();
 
@@ -624,15 +628,22 @@ void RobotPlanRunner::HandleStatus(const lcm::ReceiveBuffer *,
   std::unique_lock<std::mutex> lock(robot_status_mutex_);
   iiwa_status_ = *status;
   has_received_new_status_ = true;
-  is_waiting_for_first_robot_status_message_ = false;
+
   for (int i = 0; i < kNumJoints_; i++) {
     current_robot_state_[i] = iiwa_status_.joint_position_measured[i];
     current_robot_state_[i + kNumJoints_] =
         iiwa_status_.joint_velocity_estimated[i];
-    current_position_commanded_[i] = iiwa_status_.joint_position_commanded[i];
-    current_torque_commanded_[i] = iiwa_status_.joint_torque_commanded[i];
+    iiwa_status_position_command_[i] = iiwa_status_.joint_position_commanded[i];
+    iiwa_status_torque_command_[i] = iiwa_status_.joint_torque_commanded[i];
   }
   lock.unlock();
+
+
+  if (is_waiting_for_first_robot_status_message_){
+    last_position_command_ = iiwa_status_position_command_;
+    last_torque_command_ = iiwa_status_torque_command_;
+  }
+  is_waiting_for_first_robot_status_message_ = false;
   cv_.notify_all();
 }
 
@@ -652,6 +663,8 @@ void RobotPlanRunner::HandleJointSpaceTrajectoryPlan(
 
   robot_status_mutex_.lock();
   auto iiwa_status_local = iiwa_status_;
+  auto last_position_command_local = this->last_position_command_;
+  auto last_torque_command_local = this->last_torque_command_;
   robot_status_mutex_.unlock();
 
   std::vector<Eigen::MatrixXd> knots(tape->num_states,
@@ -669,7 +682,7 @@ void RobotPlanRunner::HandleJointSpaceTrajectoryPlan(
         // Always start moving from the position which we're
         // currently commanding.
         knots[0](name_to_idx[state.joint_name[j]], 0) =
-            iiwa_status_local.joint_position_commanded[j];
+            last_position_command_local[j];
       } else {
         knots[i](name_to_idx[state.joint_name[j]], 0) = state.joint_position[j];
       }
@@ -708,6 +721,8 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(
 
   robot_status_mutex_.lock();
   auto iiwa_status_local = iiwa_status_;
+  auto last_position_command_local = this->last_position_command_;
+  auto last_torque_command_local = this->last_torque_command_;
   robot_status_mutex_.unlock();
 
   std::vector<Eigen::MatrixXd> knots(num_knot_points,
@@ -730,7 +745,7 @@ void RobotPlanRunner::ExecuteJointTrajectoryAction(
       if (i == 0) {
         // Always start moving from the position which we're
         // currently commanding.
-        knots[0](joint_idx, 0) = iiwa_status_local.joint_position_commanded[j];
+        knots[0](joint_idx, 0) = last_position_command_local[j];
       } else {
         knots[i](joint_idx, 0) = traj_point.positions[j];
       }
@@ -795,6 +810,8 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(
 
   robot_status_mutex_.lock();
   auto iiwa_status_local = iiwa_status_;
+  auto last_position_command_local = this->last_position_command_;
+  auto last_torque_command_local = this->last_torque_command_;
   robot_status_mutex_.unlock();
 
   // extract the xyz trajectory

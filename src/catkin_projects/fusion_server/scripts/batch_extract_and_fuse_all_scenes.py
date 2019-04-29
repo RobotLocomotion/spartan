@@ -15,13 +15,14 @@ import fusion_server.tsdf_fusion as tsdf_fusion
 
 import spartan.utils.utils as spartanUtils
 
-# this is necessary to avoid getting an error about /unnamed/tf2_server in the construction
-# of the tf2buffer in ROS
-rospy.init_node("fusion_extractor", anonymous=True)
-fs = FusionServer()
+
+fs = None
 
 LINEAR_DISTANCE_THRESHOLD = 0.03 # 3cm
 ANGLE_DISTANCE_THRESHOLD = 10 # 10 degrees
+FUSION_CONFIG_FILE = os.path.join(spartanUtils.getSpartanSourceDir(), "src/catkin_projects/station_config/RLG_iiwa_1/fusion/fusion_params.yaml")
+FUSION_CONFIG = spartanUtils.getDictFromYamlFilename(FUSION_CONFIG_FILE)
+FUSION_LOCATION = "front"
 
 def mem():
     print('Memory usage         : % 2.2f MB' % round(
@@ -65,6 +66,9 @@ def extract_and_fuse_single_scene(log_full_path, downsample=True,
     :param angle_distance_threshold: threshold used in downsampling
     :return:
     """
+    global fs
+    if fs is None:
+        fs = FusionServer()
 
     print "extracting and fusing scene:", log_full_path 
     log = os.path.split(log_full_path)[-1]
@@ -107,7 +111,9 @@ def extract_and_fuse_single_scene(log_full_path, downsample=True,
         gc.collect()
 
         print "running tsdf fusion"
-        tsdf_fusion.run_tsdf_fusion_cuda(images_dir)
+        fusion_params = FUSION_CONFIG[FUSION_LOCATION]
+        tsdf_fusion.run_tsdf_fusion_cuda(images_dir, bbox_min=fusion_params['bbox_min'],
+            bbox_max=fusion_params['bbox_max'], voxel_size=fusion_params['voxel_size'])
         gc.collect()
 
         print "converting tsdf to ply"
@@ -214,6 +220,13 @@ def extract_and_fuse_single_scene(log_full_path, downsample=True,
 
 
 if __name__ == "__main__":
+
+    # needed for TF server
+    rospy.init_node("fusion_extractor", anonymous=True)
+
+    global fs
+    fs = FusionServer()
+
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--logs_dir", type=str, required=False)

@@ -45,8 +45,41 @@ front:
 
     scan_left_center_2: [0.6698375183766715, 0.559392519569122, -0.153113573321695, -0.9964713431591212, -0.36870100694199537, 1.669491392305068, 0.910551101880687]
 
+    tall_boot_left:
+      - 0.7321923971176147
+      - 1.1954319477081299
+      - -0.8002036213874817
+      - 0.0010033192811533809
+      - -0.18336927890777588
+      - 2.007089138031006
+      - 0.6551423072814941
+    tall_boot_right:
+      - -0.8243304491043091
+      - 1.147495985031128
+      - 0.5346425175666809
+      - -0.29428941011428833
+      - 0.741133987903595
+      - 2.007316827774048
+      - 0.28098392486572266
+    tall_boot_right_2:
+      - -0.8453163504600525
+      - 1.1779865026474
+      - 0.6038098931312561
+      - -0.06931064277887344
+      - 0.6189544200897217
+      - 2.0073635578155518
+      - 0.35824498534202576
 
-  scan_pose_list: ['scan_left_close', 'scan_left_center_2', 'scan_above_table', 'scan_right_center', 'scan_right_close']
+
+  scan_pose_list:
+    - 'scan_left_close'
+    - 'scan_left_center_2'
+    - 'tall_boot_left'
+    - 'scan_above_table'
+    - 'tall_boot_right_2'
+    - 'scan_right_center'
+    - 'scan_right_close'
+
   find_best_match_pose_list: ['scan_left_center_2', 'scan_above_table', 'scan_right_center']
 
   grasp:
@@ -126,10 +159,12 @@ speed:
   pre_grasp: 45
   grasp: 30
   nominal: 30
-  fast: 30
+  fast: 45
+  super_fast: 60
   slow: 20
   stow: 30
   cartesian_grasp: 0.05 # meters/second
+  pickup: 30
 
 gripper_fingertip_to_ee:
   translation:
@@ -154,7 +189,10 @@ gripper_palm_to_ee:
     z: -0.00107904
 
 
-pre_grasp_distance: 0.10 # distance (in meters) to push back grasp for pre-grasp
-force_threshold_magnitude: 10 # Newtons, force threshold at which to stop and execute grasp
-grasp_push_in_distance: 0.0 # distance (in meters) to push "past" the planned grasp
+pre_grasp_distance: 0.15 # distance (in meters) to push back grasp for pre-grasp
+force_threshold_magnitude: 30 # Newtons, force threshold at which to stop and execute grasp
+grasp_push_in_distance: 0.02 # distance (in meters) to push "past" the planned grasp
 gripper_width_offset: 0.015 # how much narrower the fingers are due to the rubber pads
+
+
+shoe_offset: 0.15 # distance between shoes

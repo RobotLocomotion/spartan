@@ -1,0 +1,49 @@
+mesh: "logs_proto/2019-02-27-01-17-00/processed/fusion_mesh_foreground.ply"
+
+poses:
+  front: # location of the mug rack
+    quaternion:
+      w: 1
+      x: 0.0
+      y: 0.0
+      z: 0
+    translation:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  left_side_table_v1:
+    quaternion:
+      w: 0.70563930047959
+      x: -0.0026779594730699514
+      y: 0.002666916563688988
+      z: 0.7085611432387303
+    translation:
+      x: 0.1493096386297628
+      y: -0.10488875332467817
+      z: -0.024193096290937022
+
+  left_side_table_v2:
+    quaternion:
+      w: 0.7056393004795904
+      x: -0.002677959473069953
+      y: 0.00266691656368899
+      z: 0.7085611432387308
+    translation:
+      x: 0.2106936579319592
+      y: -0.23106176379997845
+      z: -0.0262905078264197
+  left_side_table:
+    quaternion:
+      w: 0.7056393004795904
+      x: -0.002677959473069953
+      y: 0.00266691656368899
+      z: 0.7085611432387308
+    translation:
+      x: 0.21035342533257284
+      y: -0.14872416407500277
+      z: -0.026912900937897694
+
+
+plane: # these are in shoe rack frame
+  point_on_plane: [0.73953, -0.09395, 0.28844]
+  normal: [0,0,1]

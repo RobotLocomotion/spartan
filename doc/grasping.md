@@ -5,10 +5,6 @@ Shows the gripper palm frame and the gripper fingertip frame. They are aligned b
 ![alt text](gripper_frames.png "Gripper Frames")
 
 
-![alt text](gripper_and_palm_frame.png "Gripper And Palm Frame")
-The camera is mounted on the side of the gripper closest to the robot base in this picture.
-
-
 ## Spartan Grasp
 We use `spartan_grasp` as our grasp planner. See the [README](https://github.com/manuelli/spartan_grasp) for instructions on launching the service.
 
@@ -31,4 +27,6 @@ graspSupervisor.test_request_spartan_grasp()
 
 #### Params
 There are many parameters governing grasping behavior. They live in [`params.yaml`](https://github.com/RobotLocomotion/spartan/blob/master/src/catkin_projects/station_config/RLG_iiwa_1/manipulation/params.yaml)
+
+
 
