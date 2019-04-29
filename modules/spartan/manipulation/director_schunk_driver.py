@@ -19,6 +19,10 @@ class DirectorSchunkDriver(object):
         time.sleep(delay)
         self.sendOpenGripperCommand()
 
+    def sendDelayedOpenGripperCommand(self, delay=5.0):
+        time.sleep(delay)
+        self.sendCloseGripperCommand()
+
     def sendCloseGripperCommand(self):
         self.taskRunner.callOnThread(self.schunkDriver.sendCloseGripperCommand)
 
