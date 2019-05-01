@@ -38,6 +38,32 @@ import math
 
 from teleop_mouse_manager import TeleopMouseManager
 
+# the plane in which the mouse moves the robot
+KEY_MAP = "XY_plane"
+KEY_MAP_TYPES = ["XZ_plane", "XY_plane"]
+
+ROLL_DELTA = 0.01
+YAW_DELTA = 0.01
+PITCH_DELTA = 0.01
+
+MOUSE_TO_ROBOT_CMD = dict()
+if KEY_MAP == "XY_plane":
+    X_SCALE = 1e-4
+    Y_SCALE = 1e-4
+    Z_SCALE = 1e-3
+
+    MOUSE_TO_ROBOT_CMD['delta_x'] = np.array([0,1,0])*Y_SCALE
+    MOUSE_TO_ROBOT_CMD['delta_y'] = np.array([1,0,0])*X_SCALE
+    MOUSE_TO_ROBOT_CMD['w'] = np.array([0,0,1])*Z_SCALE
+elif KEY_MAP == "XZ_plane":
+    X_SCALE = 1e-3
+    Y_SCALE = 1e-4
+    Z_SCALE = 1e-4
+
+    MOUSE_TO_ROBOT_CMD['delta_x'] = np.array([0,1,0])*Y_SCALE
+    MOUSE_TO_ROBOT_CMD['delta_y'] = np.array([0,0,-1])*Z_SCALE
+    MOUSE_TO_ROBOT_CMD['w'] = np.array([1,0,0])*X_SCALE
+
 
 def make_cartesian_gains_msg(kp_rot, kp_trans):
     msg = robot_msgs.msg.CartesianGain()
@@ -220,37 +246,36 @@ def do_main():
                 if len(saved_pose_dict) > 0:
                     spartan_utils.saveToYaml(saved_pose_dict, "saved_poses.yaml")
                 sys.exit(0)
-            
-            scale_down = 0.0001
-            delta_x = events["delta_x"]*scale_down
-            delta_y = events["delta_y"]*-scale_down
 
-            delta_forward = 0.0
-            forward_scale = 0.001
-            if events["w"]:
-                delta_forward -= forward_scale
+
+            target_translation = np.array([0.0,0.0,0.0])
+            target_translation += events['delta_x']*MOUSE_TO_ROBOT_CMD['delta_x']
+            target_translation += events['delta_y']*MOUSE_TO_ROBOT_CMD['delta_y']
+
+            if events['w']:
+                target_translation += MOUSE_TO_ROBOT_CMD['w']                
             if events["s"]:
-                delta_forward += forward_scale
+                target_translation -= MOUSE_TO_ROBOT_CMD['w']
 
             # extract and normalize quat from tf
             if events["rotate_left"]:
-                roll_goal += 0.01
+                roll_goal += ROLL_DELTA
             if events["rotate_right"]:
-                roll_goal -= 0.01
+                roll_goal -= ROLL_DELTA
             roll_goal = np.clip(roll_goal, a_min = -0.9, a_max = 0.9)
             
             if events["side_button_back"]:
-                yaw_goal += 0.01
+                yaw_goal += YAW_DELTA
                 print("side button back")
             if events["side_button_forward"]:
-                yaw_goal -= 0.01
+                yaw_goal -= YAW_DELTA
                 print("side side_button_forward")
             yaw_goal = np.clip(yaw_goal, a_min = -1.314, a_max = 1.314)
 
             if events["d"]:
-                pitch_goal += 0.01
+                pitch_goal += PITCH_DELTA
             if events["a"]:
-                pitch_goal -= 0.01
+                pitch_goal -= PITCH_DELTA
             pitch_goal = np.clip(pitch_goal, a_min = -1.314, a_max = 1.314)
 
 
@@ -262,8 +287,7 @@ def do_main():
             above_table_quat_ee = transformations.quaternion_from_matrix(R.dot(ee_tf_above_table))
             above_table_quat_ee = np.array(above_table_quat_ee) / np.linalg.norm(above_table_quat_ee)
 
-            # calculate controller position delta and add to start position to get target ee position
-            target_translation = np.asarray([delta_forward, delta_x, delta_y])
+            
             empty_matrx = np.zeros_like(ee_tf_last_commanded)
             empty_matrx[:3, 3] = target_translation
             ee_tf_last_commanded += empty_matrx
