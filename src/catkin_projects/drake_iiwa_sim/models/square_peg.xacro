@@ -29,6 +29,7 @@
         </geometry>
     </collision>
     <xacro:default_inertial mass="0.01"/>
+    <contact_coefficients mu="0.0" kp="1000" kd="1" />
     <!-- A bunch of stuff cut -->
 </xacro:macro>
 
