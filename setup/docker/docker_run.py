@@ -16,7 +16,7 @@ CONFIG_FILE = os.path.join(os.getcwd(), 'setup/docker/docker_run_config.yaml')
 
 if __name__ == "__main__":
     user_name = getpass.getuser()
-    default_image_name = user_name + "-spartan-kPAM-demo"
+    default_image_name = user_name + "-spartan-kpam-demo"
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--image", type=str,
                         help="(required) name of the image that this container is derived from",
