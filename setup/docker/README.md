@@ -6,7 +6,7 @@ The following is all of the steps to build spartan with docker from a fresh Ubun
 
 1) Install [Docker for Ubuntu](https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/)
   - Make sure to `sudo usermod -aG docker your-user` and then not run below docker scripts as `sudo`. After applying this change you made need to log out and then log back in for the changes to take effect.
-2) Install [`nvidia-docker`](https://github.com/NVIDIA/nvidia-docker). Make sure to use `nvidia-docker2` not `nvidia-docker1`.
+2) Install [`nvidia-docker`](https://github.com/NVIDIA/nvidia-docker). We are now using `nvidia-docker2`.
 
 and then restart your machine.
 
