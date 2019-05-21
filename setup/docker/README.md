@@ -7,15 +7,11 @@ The following is all of the steps to build spartan with docker from a fresh Ubun
 1) Install [Docker for Ubuntu](https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/)
   - Make sure to `sudo usermod -aG docker your-user` and then not run below docker scripts as `sudo`. After applying this change you made need to log out and then log back in for the changes to take effect.
 2) Install [`nvidia-docker`](https://github.com/NVIDIA/nvidia-docker). Make sure to use `nvidia-docker2` not `nvidia-docker1`.
-You can test that your nvidia-docker installation is working by running
-```
-nvidia-docker run --rm nvidia/cuda nvidia-smi
-```
-If you get errors about nvidia-modprobe not being installed, install it by running
-```
-sudo apt-get install nvidia-modprobe
-```
+
 and then restart your machine.
+
+NOTE: it would be nice to do a minimal nvidia-docker test.  The one we used to run here doesn't seem to work with nvidia-docker2.
+
 
 3) Clone, setup, and build Spartan: You need to have ssh keys setup to clone the submodules. Make sure that these ssh keys don't have a password, otherwise it will not work.
 ```
