@@ -1,5 +1,10 @@
 # Spartan inside Docker
 
+## Disclaimer (not supported for public use)
+
+This is a project repository for robotics research and applications using
+[Drake](https://drake.mit.edu/) and [Director](https://github.com/RobotLocomotion/director). This repository is meant as an internal tool for the Robot Locomotion Group. **It contains private submodules and is not supported for external use**. 
+
 ## Quickstart
 
 The following is all of the steps to build spartan with docker from a fresh Ubuntu installation:
