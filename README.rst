@@ -11,9 +11,13 @@ Spartan
 .. image:: http://spartan-jenkins.csail.mit.edu:8080/buildStatus/icon?job=spartan-master-on-drake-and-director-master
    :target: http://spartan-jenkins.csail.mit.edu:8080/job/spartan-master-on-drake-and-director-master
 
+Documentation on how to operate the Kuka robot hardware `can be found here`_.
+
+Disclaimer (not supported for public use)
+==========
 
 This is a project repository for robotics research and applications using
-Drake_ and Director_. This repository is meant as an internal tool for the Robot Locomotion Group. **It contains private submodules and is not supported for external use**. Documentation on how to operate the Kuka robot hardware `can be found here`_.
+Drake_ and Director_. This repository is meant as an internal tool for the Robot Locomotion Group. **It contains private submodules and is not supported for external use**. 
 
 .. _Drake: https://www.github.com/RobotLocomotion/drake
 .. _Director: https://www.github.com/RobotLocomotion/director
