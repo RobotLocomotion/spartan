@@ -113,7 +113,8 @@ ENV NVIDIA_DRIVER_CAPABILITIES \
 # USER original_user
 ###### END BLOCK ###########
 
-RUN pip install https://download.pytorch.org/whl/cu100/torch-1.0.1.post2-cp27-cp27mu-linux_x86_64.whl
+RUN pip install https://download.pytorch.org/whl/cu100/torch-1.1.0-cp27-cp27mu-linux_x86_64.whl
+#RUN pip install https://download.pytorch.org/whl/cu100/torch-1.0.1.post2-cp27-cp27mu-linux_x86_64.whl
 RUN pip install torchvision
 
 ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh && source ~/spartan/src/catkin_projects/pytorch-dense-correspondence-private/docker/entrypoint.sh && /bin/bash"

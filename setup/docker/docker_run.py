@@ -63,6 +63,8 @@ if __name__=="__main__":
 	if True:
 		os.system("mkdir -p " + DATA_DIRECTORY_ON_HOST)
 		cmd += " -v %s:%s/data_volume " %(DATA_DIRECTORY_ON_HOST, spartan_source_dir)
+		cmd += " -v /media:/media" 
+		cmd += " -v ~/.torch:%(home_directory)s/.torch " % {'home_directory': home_directory}  # mount torch folder 
 
 	# expose UDP ports
 	if not args.no_udp:
