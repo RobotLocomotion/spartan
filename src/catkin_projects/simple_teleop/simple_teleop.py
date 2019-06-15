@@ -94,11 +94,6 @@ def do_main():
     # init gripper
     handDriver = SchunkDriver()
     
-    # init mouse manager
-    mouse_manager = TeleopMouseManager()
-    roll_goal = 0.0
-    yaw_goal = 0.0
-    pitch_goal = 0.0
 
     # Start by moving to an above-table pregrasp pose that we know
     # EE control will work well from (i.e. far from singularity)
@@ -107,13 +102,13 @@ def do_main():
     above_table_pre_grasp = stored_poses_dict["Grasping"]["above_table_pre_grasp"]
     
     robotService = ros_utils.RobotService.makeKukaRobotService()
-    success = robotService.moveToJointPosition(above_table_pre_grasp, timeout=5)
+    success = robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=30, timeout=5) # in sim, can do 60
     print("Moved to position")
 
     gripper_goal_pos = 0.0
     handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
     print("sent close goal to gripper")
-    time.sleep(2)
+    time.sleep(2) # in sim, this can just be 0.1
     gripper_goal_pos = 0.1
     handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
     print("sent open goal to gripper")
@@ -181,6 +176,7 @@ def do_main():
     
     if len(sys.argv) > 1 and sys.argv[1] == "--bag":
         start_bagging_imitation_data_client()
+        time.sleep(0.5)
         rospy.wait_for_service('save_scene_point_cloud', timeout=1.0)
         save_scene_point_cloud = rospy.ServiceProxy('save_scene_point_cloud', SaveScenePointCloud)
         resp1 = save_scene_point_cloud()
@@ -188,6 +184,12 @@ def do_main():
     pose_save_counter = 0
     saved_pose_dict = dict()
     saved_pose_counter = 0
+
+    # init mouse manager
+    mouse_manager = TeleopMouseManager()
+    roll_goal = 0.0
+    yaw_goal = 0.0
+    pitch_goal = 0.0
 
     try:
 
