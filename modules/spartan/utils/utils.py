@@ -16,6 +16,10 @@ def getSpartanSourceDir():
     return os.getenv("SPARTAN_SOURCE_DIR")
 
 
+def get_data_dir():
+    return os.getenv("DATA_DIR")
+
+
 def getDictFromYamlFilename(filename):
     """
     Read data from a YAML files
