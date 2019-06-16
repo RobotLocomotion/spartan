@@ -37,7 +37,11 @@ export -f use_handical
 export -f kip
 
 # location where data is mounted inside the container
-export DATA_DIR=~/spartan/data_volume
+
+export SPARTAN_SANDBOX_DIR=~/sandbox
+export POSER_SANDBOX_DIR=$SPARTAN_SANDBOX_DIR/poser
+export DATA_DIR=~/data
+export SPARTAN_DATA_DIR=$DATA_DIR/spartan
 
 exec "$@"
 
