@@ -1,5 +1,5 @@
 geometry_msgs/PointStamped xyz_point
-geometry_msgs/Point xyz_d_point
+geometry_msgs/Point xyz_d_point # feed-forward velocity
 geometry_msgs/Quaternion quaternion
 
 robot_msgs/CartesianGain gain

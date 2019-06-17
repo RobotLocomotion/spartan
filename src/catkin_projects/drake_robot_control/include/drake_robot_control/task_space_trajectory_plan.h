@@ -39,8 +39,8 @@ namespace robot_plan_runner {
 
 // This Plan uses double-geodesic PD control law (whatever that means...)
 // to track rotation. For more information, please refer page 7 of Twan's paper:
-// Design of a momentum-based control framework and application to the humandoid
-// robot atlas.
+// "Design of a momentum-based control framework and application to the humandoid
+// robot atlas."
 
 // Force threshold is in Newtons.
 

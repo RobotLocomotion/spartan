@@ -57,6 +57,7 @@ add_message_files(
    ExternalForceGuard.msg
    CartesianGain.msg
    CartesianGoalPoint.msg
+   CartesianPlanInfo.msg
 )
 
 ## Generate services in the 'srv' folder

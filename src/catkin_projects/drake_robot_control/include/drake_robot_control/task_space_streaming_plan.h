@@ -2,9 +2,12 @@
 
 #include "ros/ros.h"
 #include "robot_msgs/CartesianGoalPoint.h"
+#include "robot_msgs/CartesianPlanInfo.h"
 
 #include <drake/math/roll_pitch_yaw.h>
 #include <drake/math/rigid_transform.h>
+#include <drake/multibody/rigid_body.h>
+#include "drake/multibody/rigid_body_frame.h"
 #include <drake_robot_control/trajectory_plan_base.h>
 
 // ROS
@@ -22,6 +25,9 @@ public:
       nh.subscribe(
         "/plan_runner/task_space_streaming_setpoint", 1,
         &TaskSpaceStreamingPlan::HandleSetpoint, this));
+
+
+    cartesian_plan_info_publisher_ = std::make_shared<ros::Publisher>(nh.advertise<robot_msgs::CartesianPlanInfo>("/plan_runner/TaskSpaceStreamingPlan/info", 1));
   }
 
   // Current robot state x = [q,v]
@@ -44,6 +50,8 @@ public:
     // This is the frame on the robot that is attempted to be
     // aligned to the above pose:
     int body_index_ee_frame_;
+    std::shared_ptr<RigidBodyFrame<double>> ee_frame_;
+    std::shared_ptr<RigidBodyFrame<double>> ee_goal_expressed_in_frame_;
     bool have_goal_;
 
     std::shared_ptr<ros::Subscriber> setpoint_subscriber_;
@@ -58,6 +66,10 @@ public:
     Eigen::Vector3d kp_translation_;
 
     double last_control_update_t_ = 0.;
+    robot_msgs::CartesianGoalPoint::ConstPtr cartesian_goal_point_msg_;
+    robot_msgs::CartesianPlanInfo cartesian_plan_info_msg_;
+    std::shared_ptr<ros::Publisher> cartesian_plan_info_publisher_;
+
 };
 
 } // namespace robot_plan_runner

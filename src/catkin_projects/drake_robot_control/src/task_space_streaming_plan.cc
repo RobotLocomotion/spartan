@@ -2,6 +2,7 @@
 
 // ROS
 #include <ros/console.h>
+#include <eigen_conversions/eigen_msg.h>
 
 #include <Eigen/Dense>
 #include <drake_robot_control/task_space_streaming_plan.h>
@@ -36,6 +37,8 @@ void TaskSpaceStreamingPlan::Step(
   Eigen::VectorXd v = x.tail(this->get_num_positions());
   cache_measured_state_.initialize(q, v);
   tree_->doKinematics(cache_measured_state_);
+
+
 
   // check if the plan has been stopped
   // if so just echo the last command
@@ -76,12 +79,8 @@ void TaskSpaceStreamingPlan::Step(
   Eigen::VectorXd q_measured = x.head(this->get_num_positions());
   q = q_commanded_prev_;
 
-  // std::cout << "Starting control in measured config " << q_measured << " but commanded " << q << std::endl;
-  // std::cout << "xyz_ee_goal: " << xyz_ee_goal_ << std::endl;
-  // std::cout << "xyz_d_ee_goal: " << xyz_d_ee_goal_ << std::endl;
-  // std::cout << "quat_ee_goal_: " << quat_ee_goal_.matrix() << std::endl;
-
-  cache_.initialize(q, v);
+  // do kinematics for previously commanded control
+  cache_.initialize(q_commanded_prev_, v);
   tree_->doKinematics(cache_);
 
   math::RotationMatrixd R_WEr(quat_ee_goal_);
@@ -94,18 +93,12 @@ void TaskSpaceStreamingPlan::Step(
   H_WEr_.set_translation(xyz_ee_goal_);
   Eigen::Isometry3d H_WEr = H_WEr_.GetAsIsometry3();
 
-  std::cout << "H_WEr: " << H_WEr.matrix() << std::endl;
 
-  if (body_index_ee_frame_ >= 0){
-    H_WE_ = tree_->CalcBodyPoseInWorldFrame(cache_, tree_->get_body(body_index_ee_frame_));
-  } else {
-    // frames start at -2 and count down.
-    H_WE_ = tree_->CalcFramePoseInWorldFrame(cache_, *tree_->get_frames()[-body_index_ee_frame_ - 2]);
-  }
-  std::cout << "H_WE_: " << H_WE_.matrix() << std::endl;
+  H_WE_ = tree_->CalcFramePoseInWorldFrame(cache_, *this->ee_frame_);
+
+
   Eigen::Isometry3d H_EW = H_WE_.inverse();
   Eigen::Isometry3d H_EEr = H_EW * H_WEr;
-  std::cout << "HEEr: " << H_EEr.matrix() << std::endl;
 
   // Compute the PD part of the control
   // K_{p,w} log_{SO(3)}(R_EEr)
@@ -145,7 +138,6 @@ void TaskSpaceStreamingPlan::Step(
   // singularities.
   svd.setThreshold(0.01);
   Eigen::VectorXd q_dot_cmd = svd.solve(T_WE_E_cmd);
-  std::cout << "Final q dot cmd: " << q_dot_cmd << std::endl;
   *q_commanded = q + q_dot_cmd * dt;
   *v_commanded = q_dot_cmd; // This is ignored when constructing iiwa_command.
 
@@ -168,6 +160,90 @@ void TaskSpaceStreamingPlan::Step(
     std::cout << "H_ErE.translation() " << H_ErE.translation() << std::endl;
   }
   // debugging prints for when things are nan . . .
+
+
+  
+  // construct the ROS message for use in behavior cloning
+  auto & msg  = cartesian_plan_info_msg_;
+  msg.header.stamp = ros::Time::now();
+  msg.cartesian_goal_point_cmd = *this->cartesian_goal_point_msg_;
+
+  msg.q_measured.resize(this->get_num_positions());
+  msg.q_cmd_prev.resize(this->get_num_positions());
+  
+  msg.q_cmd.resize(this->get_num_positions());
+
+  for(int i = 0; i < this->get_num_positions(); i++){
+    msg.q_measured[i] = q_measured(i);
+    msg.q_cmd_prev[i] = q_commanded_prev_(i);
+    msg.q_cmd[i] = (*q_commanded)(i);
+  }
+
+  msg.v_cmd.resize(this->get_num_velocities());
+  msg.v_measured.resize(this->get_num_velocities());
+  for(int i = 0; i < this->get_num_velocities(); i++){
+    msg.v_cmd[i] = (*v_commanded)(i);
+    msg.v_measured[i] = v(i);
+  }
+
+  msg.ee_twist_cmd_expressed_in_body.angular.x = T_WE_E_cmd(0);
+  msg.ee_twist_cmd_expressed_in_body.angular.y = T_WE_E_cmd(1);
+  msg.ee_twist_cmd_expressed_in_body.angular.z = T_WE_E_cmd(2);
+
+  msg.ee_twist_cmd_expressed_in_body.linear.x = T_WE_E_cmd(3);
+  msg.ee_twist_cmd_expressed_in_body.linear.y = T_WE_E_cmd(4);
+  msg.ee_twist_cmd_expressed_in_body.linear.z = T_WE_E_cmd(5);
+
+  auto & angular_world_frame = H_WE_.linear() * T_WE_E_cmd.head(3);
+  auto & linear_world_frame = H_WE_.linear() * T_WE_E_cmd.tail(3);
+
+  msg.linear_velocity_cmd_expressed_in_world.x = linear_world_frame(0);
+  msg.linear_velocity_cmd_expressed_in_world.y = linear_world_frame(1);
+  msg.linear_velocity_cmd_expressed_in_world.z = linear_world_frame(2);
+
+  msg.angular_velocity_cmd_expressed_in_world.x = angular_world_frame(0);
+  msg.angular_velocity_cmd_expressed_in_world.y = angular_world_frame(1);
+  msg.angular_velocity_cmd_expressed_in_world.z = angular_world_frame(2);
+
+
+  // H_W_E, this uses q_cmd
+  auto & tf_msg_q_cmd = msg.end_effector_to_world_w_q_cmd;
+  tf_msg_q_cmd.header.frame_id = "base";
+  tf_msg_q_cmd.header.stamp = ros::Time::now();
+  tf_msg_q_cmd.child_frame_id = msg.cartesian_goal_point_cmd.ee_frame_id;
+
+
+  tf_msg_q_cmd.transform.translation.x = H_WE_.translation()(0);
+  tf_msg_q_cmd.transform.translation.y = H_WE_.translation()(1);
+  tf_msg_q_cmd.transform.translation.z = H_WE_.translation()(2);
+
+  Eigen::Quaterniond H_WE_quat = Eigen::Quaterniond(H_WE_.linear());
+  tf_msg_q_cmd.transform.rotation.w = H_WE_quat.w();
+  tf_msg_q_cmd.transform.rotation.x = H_WE_quat.x();
+  tf_msg_q_cmd.transform.rotation.y = H_WE_quat.y();
+  tf_msg_q_cmd.transform.rotation.z = H_WE_quat.z();
+
+  // H_W_E with q_meas
+  H_WE_ = tree_->CalcFramePoseInWorldFrame(cache_measured_state_, *this->ee_frame_);
+
+  auto & tf_msg_q_meas = msg.end_effector_to_world;
+  tf_msg_q_meas.header.frame_id = "base";
+  tf_msg_q_meas.header.stamp = ros::Time::now();
+  tf_msg_q_meas.child_frame_id = msg.cartesian_goal_point_cmd.ee_frame_id;
+
+
+  tf_msg_q_meas.transform.translation.x = H_WE_.translation()(0);
+  tf_msg_q_meas.transform.translation.y = H_WE_.translation()(1);
+  tf_msg_q_meas.transform.translation.z = H_WE_.translation()(2);
+
+  H_WE_quat = Eigen::Quaterniond(H_WE_.linear());
+  tf_msg_q_meas.transform.rotation.w = H_WE_quat.w();
+  tf_msg_q_meas.transform.rotation.x = H_WE_quat.x();
+  tf_msg_q_meas.transform.rotation.y = H_WE_quat.y();
+  tf_msg_q_meas.transform.rotation.z = H_WE_quat.z();
+
+
+  this->cartesian_plan_info_publisher_->publish(msg);
 }
 
 void TaskSpaceStreamingPlan::HandleSetpoint(
@@ -177,13 +253,20 @@ void TaskSpaceStreamingPlan::HandleSetpoint(
     this->setpoint_subscriber_->shutdown();
   }
   std::lock_guard<std::mutex> lock(goal_mutex_);
+  this->cartesian_goal_point_msg_ = msg; // store message for later use
+  
   //std::cout << "Starting to handle setpoint... " << std::endl;
   // Extract the body index in the RBT that this msg
   // is referring to.
   // These will throw if the frame isn't unique or doesn't exist.
-  body_index_ee_goal_ = tree_->findFrame(
-    msg->xyz_point.header.frame_id)->get_frame_index();
-  body_index_ee_frame_ = tree_->findFrame(msg->ee_frame_id)->get_frame_index();
+
+  ee_frame_ = tree_->findFrame(msg->ee_frame_id);
+  ee_goal_expressed_in_frame_ = tree_->findFrame(
+          msg->xyz_point.header.frame_id);
+
+  body_index_ee_goal_ = ee_goal_expressed_in_frame_->get_frame_index();
+  body_index_ee_frame_ = ee_frame_->get_frame_index();
+
 
   tree_->doKinematics(cache_measured_state_);
 

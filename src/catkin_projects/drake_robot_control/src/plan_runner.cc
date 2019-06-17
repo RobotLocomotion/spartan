@@ -814,11 +814,12 @@ void RobotPlanRunner::ExecuteCartesianTrajectoryAction(
     ROS_ERROR("%s", ex.what());
     ros::Duration(1.0).sleep();
   }
+
   // convert to Eigen transform
   Eigen::Affine3d T_local_to_world =
       spartan::drake_robot_control::utils::transformToEigen(transform_tf);
 
-  //
+  
   // lookup current position of ee_frame_id
   geometry_msgs::TransformStamped ee_frame_tf;
   try {
