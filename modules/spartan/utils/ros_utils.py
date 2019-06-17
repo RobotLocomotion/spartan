@@ -313,7 +313,7 @@ class SimpleSubscriber(object):
         self.hasNewMessage = False
         self.lastMsg = None
 
-    def start(self, queue_size=None):
+    def start(self, queue_size=1):
         self.subscriber = rospy.Subscriber(self.topic, self.messageType, self.callback, queue_size=queue_size)
         
     def stop(self):
