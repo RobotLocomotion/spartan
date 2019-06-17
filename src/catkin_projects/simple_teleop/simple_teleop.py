@@ -137,7 +137,7 @@ def do_main():
     
     print("Started task space streaming")
     pub = rospy.Publisher('plan_runner/task_space_streaming_setpoint',
-        robot_msgs.msg.CartesianGoalPoint, queue_size=1);
+        robot_msgs.msg.CartesianGoalPoint, queue_size=1)
 
 
     def cleanup():
@@ -175,7 +175,10 @@ def do_main():
     from capture_imitation_data_client import start_bagging_imitation_data_client, stop_bagging_imitation_data_client
     
     if len(sys.argv) > 1 and sys.argv[1] == "--bag":
-        start_bagging_imitation_data_client()
+        bagging_started = start_bagging_imitation_data_client()
+        if not bagging_started:
+            raise ValueError("bagging failed to start")
+
         time.sleep(0.5)
         rospy.wait_for_service('save_scene_point_cloud', timeout=1.0)
         save_scene_point_cloud = rospy.ServiceProxy('save_scene_point_cloud', SaveScenePointCloud)
@@ -190,6 +193,9 @@ def do_main():
     roll_goal = 0.0
     yaw_goal = 0.0
     pitch_goal = 0.0
+
+    
+    ee_tf_last_commanded = get_initial_pose()
 
     try:
 
