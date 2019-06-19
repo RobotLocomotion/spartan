@@ -83,52 +83,81 @@ void TaskSpaceStreamingPlan::Step(
   cache_.initialize(q_commanded_prev_, v);
   tree_->doKinematics(cache_);
 
-  math::RotationMatrixd R_WEr(quat_ee_goal_);
-  math::RotationMatrixd R_ErW = R_WEr.inverse();
+  
 
   J_ee_E_ = tree_->geometricJacobian(cache_, 0, body_index_ee_frame_, body_index_ee_frame_);
   J_ee_W_ = tree_->geometricJacobian(cache_, 0, body_index_ee_frame_, 0);
-
-  H_WEr_.set_rotation(R_WEr);
-  H_WEr_.set_translation(xyz_ee_goal_);
-  Eigen::Isometry3d H_WEr = H_WEr_.GetAsIsometry3();
-
-
   H_WE_ = tree_->CalcFramePoseInWorldFrame(cache_, *this->ee_frame_);
 
-
-  Eigen::Isometry3d H_EW = H_WE_.inverse();
-  Eigen::Isometry3d H_EEr = H_EW * H_WEr;
-
-  // Compute the PD part of the control
-  // K_{p,w} log_{SO(3)}(R_EEr)
-  Eigen::Vector3d log_R_EEr =
-      spartan::drake_robot_control::utils::LogSO3(H_EEr.linear());
-
-  TwistVectord twist_pd;
-  // we need to do elementwise multiplication, hence the use of array instead
-  // of Vector
-  twist_pd.head(3) = this->kp_rotation_.array() * log_R_EEr.array();
-  twist_pd.tail(3) =
-      this->kp_translation_.array() * H_EEr.translation().array();
-
-  // Compute the feed forward part of the control
-  // Need twist of reference trajectory with respect to world
-  // easiest to compute this as expressed in Er frame,
-  // then transform that twist to E frame using adjoint
-  TwistVectord T_WEr_Er;
-
-  T_WEr_Er.head(3) = Eigen::Vector3d::Zero(); // hack for now
-  T_WEr_Er.tail(3) = R_WEr * xyz_d_ee_goal_;
   
-  Eigen::Matrix<double, 6, 6> Ad_H_EEr =
-      spartan::drake_robot_control::utils::AdjointSE3(H_EEr.linear(),
-                                                      H_EEr.translation());
-  TwistVectord T_WEr_E = Ad_H_EEr * T_WEr_Er;
+  // We want to compute Twist command for end-effector. Frames are as follows
+  // from: end-effector (E),
+  // to: world (W)
+  // expressed in: end-effector (E)
+  // start with it set to zero, will fill it in later depending on what mode we are in
+  // Note EE frame is computed using forward kinematics from q_commanded_prev_ not q_measured_
+  
+  // drake::TwistVectord
+  TwistVectord T_WE_E_cmd;
 
-  // Total desired twist
-  // Can add these this twists since both expressed in frame E
-  TwistVectord T_WE_E_cmd = twist_pd + T_WEr_E;
+  if (this->use_ee_velocity_mode_){ // velocity goal mode
+    // here we just need to apply the correct rotation matrices.
+    // Note that we are using velocities not twists
+
+    auto R_angular = tree_->relativeTransform(
+    cache_, this->ee_frame_->get_frame_index(), this->angular_velocity_cmd_expressed_in_frame_->get_frame_index()).linear();
+
+    auto R_linear = tree_->relativeTransform(
+    cache_, this->ee_frame_->get_frame_index(), this->linear_velocity_cmd_expressed_in_frame_->get_frame_index()).linear();
+
+    T_WE_E_cmd.head(3) = R_angular * this->angular_velocity_cmd_;
+    T_WE_E_cmd.tail(3) = R_linear * this->linear_velocity_cmd_;
+
+  } else{ // position goal mode    
+
+    math::RotationMatrixd R_WEr(quat_ee_goal_);
+    math::RotationMatrixd R_ErW = R_WEr.inverse();
+
+    H_WEr_.set_rotation(R_WEr);
+    H_WEr_.set_translation(xyz_ee_goal_);
+    Eigen::Isometry3d H_WEr = H_WEr_.GetAsIsometry3();
+
+    Eigen::Isometry3d H_EW = H_WE_.inverse();
+    Eigen::Isometry3d H_EEr = H_EW * H_WEr;
+
+    // Compute the PD part of the control
+    // K_{p,w} log_{SO(3)}(R_EEr)
+    Eigen::Vector3d log_R_EEr =
+        spartan::drake_robot_control::utils::LogSO3(H_EEr.linear());
+
+    TwistVectord twist_pd;
+    // we need to do elementwise multiplication, hence the use of array instead
+    // of Vector
+    twist_pd.head(3) = this->kp_rotation_.array() * log_R_EEr.array();
+    twist_pd.tail(3) =
+        this->kp_translation_.array() * H_EEr.translation().array();
+
+    // Compute the feed forward part of the control
+    // Need twist of reference trajectory with respect to world
+    // easiest to compute this as expressed in Er frame,
+    // then transform that twist to E frame using adjoint
+    TwistVectord T_WEr_Er;
+
+    T_WEr_Er.head(3) = Eigen::Vector3d::Zero(); // hack for now
+    T_WEr_Er.tail(3) = R_WEr * xyz_d_ee_goal_;
+    
+    Eigen::Matrix<double, 6, 6> Ad_H_EEr =
+        spartan::drake_robot_control::utils::AdjointSE3(H_EEr.linear(),
+                                                        H_EEr.translation());
+    TwistVectord T_WEr_E = Ad_H_EEr * T_WEr_Er;
+
+    // Total desired twist
+    // Can add these this twists since both expressed in frame E
+    T_WE_E_cmd = twist_pd + T_WEr_E;
+  }
+
+
+  // alternatively do direct velocity command
 
   // q_dot_cmd = J_ee.pseudo_inverse()*T_WE_E_cmd
   auto svd = J_ee_E_.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -151,18 +180,6 @@ void TaskSpaceStreamingPlan::Step(
     std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
   }
 
-  bool debug = false;
-  if (debug) {
-    std::cout << "\n-------\n";
-    std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
-
-    Eigen::Isometry3d H_ErE = H_EEr.inverse();
-    std::cout << "H_ErE.translation() " << H_ErE.translation() << std::endl;
-  }
-  // debugging prints for when things are nan . . .
-
-
-  
   // construct the ROS message for use in behavior cloning
   auto & msg  = cartesian_plan_info_msg_;
   msg.header.stamp = ros::Time::now();
@@ -252,7 +269,9 @@ void TaskSpaceStreamingPlan::HandleSetpoint(
     std::cout << "In callback, but plan is stopped... forcefully unregistering." << std::endl;
     this->setpoint_subscriber_->shutdown();
   }
-  std::lock_guard<std::mutex> lock(goal_mutex_);
+
+  
+  goal_mutex_.lock();
   this->cartesian_goal_point_msg_ = msg; // store message for later use
   
   //std::cout << "Starting to handle setpoint... " << std::endl;
@@ -261,11 +280,31 @@ void TaskSpaceStreamingPlan::HandleSetpoint(
   // These will throw if the frame isn't unique or doesn't exist.
 
   ee_frame_ = tree_->findFrame(msg->ee_frame_id);
+  body_index_ee_frame_ = ee_frame_->get_frame_index();
+  tree_->doKinematics(cache_measured_state_);
+
+
+  // parse the velocity goals
+  this->use_ee_velocity_mode_ = msg->use_end_effector_velocity_mode;
+  if(this->use_ee_velocity_mode_){
+    
+    linear_velocity_cmd_expressed_in_frame_ = tree_->findFrame(msg->linear_velocity.header.frame_id);
+    angular_velocity_cmd_expressed_in_frame_ = tree_->findFrame(msg->angular_velocity.header.frame_id);
+
+    this->linear_velocity_cmd_ = Eigen::Vector3d(msg->linear_velocity.vector.x,
+                                 msg->linear_velocity.vector.y,
+                                 msg->linear_velocity.vector.z);
+
+    this->angular_velocity_cmd_ = Eigen::Vector3d(msg->angular_velocity.vector.x,
+                                 msg->angular_velocity.vector.y,
+                                 msg->angular_velocity.vector.z);
+  } else{
+
   ee_goal_expressed_in_frame_ = tree_->findFrame(
           msg->xyz_point.header.frame_id);
 
   body_index_ee_goal_ = ee_goal_expressed_in_frame_->get_frame_index();
-  body_index_ee_frame_ = ee_frame_->get_frame_index();
+  
 
 
   tree_->doKinematics(cache_measured_state_);
@@ -297,7 +336,14 @@ void TaskSpaceStreamingPlan::HandleSetpoint(
   kp_translation_ = Eigen::Vector3d(msg->gain.translation.x,
                                     msg->gain.translation.y,
                                     msg->gain.translation.z);
+
+  }
+
+
   have_goal_ = true;
+  goal_mutex_.unlock();
+
+  
   //std::cout << "Finished handling setpoint from config " << q_commanded_prev_ << std::endl;
 }
 

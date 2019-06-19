@@ -53,6 +53,7 @@ public:
     std::shared_ptr<RigidBodyFrame<double>> ee_frame_;
     std::shared_ptr<RigidBodyFrame<double>> ee_goal_expressed_in_frame_;
     bool have_goal_;
+    bool use_ee_velocity_mode_;
 
     std::shared_ptr<ros::Subscriber> setpoint_subscriber_;
 
@@ -64,6 +65,13 @@ public:
   
     Eigen::Vector3d kp_rotation_;
     Eigen::Vector3d kp_translation_;
+
+    Eigen::Vector3d linear_velocity_cmd_;
+    std::shared_ptr<RigidBodyFrame<double>> linear_velocity_cmd_expressed_in_frame_;
+    
+
+    Eigen::Vector3d angular_velocity_cmd_;
+    std::shared_ptr<RigidBodyFrame<double>> angular_velocity_cmd_expressed_in_frame_;
 
     double last_control_update_t_ = 0.;
     robot_msgs::CartesianGoalPoint::ConstPtr cartesian_goal_point_msg_;

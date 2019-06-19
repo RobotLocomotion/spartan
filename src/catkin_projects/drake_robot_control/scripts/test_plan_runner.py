@@ -286,14 +286,78 @@ def test_task_space_streaming():
     init = std_srvs.srv.TriggerRequest()
     print sp(init)
 
+
+def test_task_space_streaming_velocity_control():
+    """
+    Moves the robot down in z for 1 second at 10 cm/second
+    """
+    rospy.wait_for_service("plan_runner/init_task_space_streaming")
+    sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
+        robot_msgs.srv.StartStreamingPlan)
+    init = robot_msgs.srv.StartStreamingPlanRequest()
+    init.force_guard.append(make_force_guard_msg())
+    print sp(init)
+    pub = rospy.Publisher('plan_runner/task_space_streaming_setpoint',
+        robot_msgs.msg.CartesianGoalPoint, queue_size=1)
+    robotSubscriber = ros_utils.JointStateSubscriber("/joint_states")
+    print("Waiting for full kuka state...")
+    while len(robotSubscriber.joint_positions.keys()) < 3:
+        rospy.sleep(0.1)
+    print("got full state")
+
+    start_time = time.time()
+
+    msg = robot_msgs.msg.CartesianGoalPoint()
+    msg.ee_frame_id = "iiwa_link_ee"
+    msg.use_end_effector_velocity_mode = True
+    
+
+    msg.linear_velocity.header.frame_id = "base"
+    msg.linear_velocity.vector.x = 0
+    msg.linear_velocity.vector.y = 0
+    msg.linear_velocity.vector.z = -0.05
+
+    msg.angular_velocity.header.frame_id = "base"
+    msg.angular_velocity.vector.x = 0
+    msg.angular_velocity.vector.y = 0
+    msg.angular_velocity.vector.z = 0.0
+
+
+    r = rospy.Rate(30)
+    while (time.time() - start_time < 2.0):
+        print("moving")
+        print("\n\n")
+        print(msg)
+        pub.publish(msg)
+        r.sleep()
+
+    start_time = time.time()
+    msg = robot_msgs.msg.CartesianGoalPoint()
+    msg.ee_frame_id = "iiwa_link_ee"
+    msg.use_end_effector_velocity_mode = True
+    msg.linear_velocity.header.frame_id = "base"
+    msg.angular_velocity.header.frame_id = "base"
+    while (time.time() - start_time < 1.0):
+        print("staying still")
+        pub.publish(msg)
+        r.sleep()
+
+    rospy.wait_for_service("plan_runner/stop_plan")
+    sp = rospy.ServiceProxy('plan_runner/stop_plan',
+        std_srvs.srv.Trigger)
+    init = std_srvs.srv.TriggerRequest()
+    print sp(init)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--movement", type=str,
         help="(optional) type of movement, can be gripper_frame or world_frame", default="gripper_frame")
     rospy.init_node("test_plan_runner")
     args = parser.parse_args()
-    test_joint_trajectory_action()
+    # test_joint_trajectory_action()
     # test_cartesian_trajectory_action(move_type=args.movement)
     # test_joint_trajectory_action_with_force_guard()
     #test_joint_space_streaming()
-    test_task_space_streaming()
+    # test_task_space_streaming()
+    test_task_space_streaming_velocity_control()
