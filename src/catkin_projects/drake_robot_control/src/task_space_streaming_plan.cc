@@ -341,10 +341,28 @@ void TaskSpaceStreamingPlan::HandleSetpoint(
 
 
   have_goal_ = true;
-  goal_mutex_.unlock();
-
   
-  //std::cout << "Finished handling setpoint from config " << q_commanded_prev_ << std::endl;
+
+
+  // if (!this->use_ee_velocity_mode_){
+  //   // publish out the goal frame via tf
+
+
+  //   this->transformStamped_.header.stamp = ros::Time::now();
+  //   this->transformStamped_.header.frame_id = "base";
+  //   this->transformStamped_.child_frame_id = "teleop_frame";
+  //   this->transformStamped_.transform.translation.x = xyz_ee_goal_(0);
+  //   this->transformStamped_.transform.translation.y = xyz_ee_goal_(1);
+  //   this->transformStamped_.transform.translation.z = xyz_ee_goal_(2);
+  //   this->transformStamped_.transform.rotation.x = quat_ee_goal_.x();
+  //   this->transformStamped_.transform.rotation.y = quat_ee_goal_.y();
+  //   this->transformStamped_.transform.rotation.z = quat_ee_goal_.z();
+  //   this->transformStamped_.transform.rotation.w = quat_ee_goal_.w();
+
+  //   this->br_.sendTransform(this->transformStamped_);
+  // } 
+
+  goal_mutex_.unlock();
 }
 
 } // namespace robot_plan_runner
