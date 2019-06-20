@@ -39,6 +39,9 @@ import math
 from teleop_mouse_manager import TeleopMouseManager
 from imitation_tools.srv import *
 
+DEBUG = False
+VISUALIZE_FRAME = True
+
 def make_cartesian_gains_msg(kp_rot, kp_trans):
     msg = robot_msgs.msg.CartesianGain()
 
@@ -83,6 +86,8 @@ def do_main():
     tfBuffer = tf2_ros.Buffer()
     listener = tf2_ros.TransformListener(tfBuffer)
     robotSubscriber = JointStateSubscriber("/joint_states")
+    tf2_broadcaster = tf2_ros.TransformBroadcaster()
+    tf_stamped = geometry_msgs.msg.TransformStamped()
     
     # wait until robot state found
     robotSubscriber = ros_utils.JointStateSubscriber("/joint_states")
@@ -115,6 +120,7 @@ def do_main():
 
     frame_name = "iiwa_link_ee" # end effector frame name
 
+    ee_tf_above_table = None
     for i in range(10):
         if i == 9:
             print "Couldn't find robot pose"
@@ -196,7 +202,8 @@ def do_main():
 
     
     ee_tf_last_commanded = get_initial_pose()
-
+    initial_pose = get_initial_pose()
+    initial_quat = transformations.quaternion_from_matrix(initial_pose[:3,:3])
     try:
 
         # control loop
@@ -295,10 +302,16 @@ def do_main():
             target_trans_ee = ee_tf_last_commanded[:3, 3]
             
 
+
+            if DEBUG:
+                target_trans_ee = initial_pose[:3, 3]
+                above_table_quat_ee = initial_quat
+
             # publish target pose as cartesian goal point
             new_msg = robot_msgs.msg.CartesianGoalPoint()
+            new_msg.use_end_effector_velocity_mode = False
             new_msg.xyz_point.header.stamp = rospy.Time.now()
-            new_msg.xyz_point.header.frame_id = "world"
+            new_msg.xyz_point.header.frame_id = "world" # should be a DRAKE frame
             new_msg.xyz_point.point.x = target_trans_ee[0]
             new_msg.xyz_point.point.y = target_trans_ee[1]
             new_msg.xyz_point.point.z = target_trans_ee[2]
@@ -315,6 +328,22 @@ def do_main():
             new_msg.gain = make_cartesian_gains_msg(5., 10.)
             new_msg.ee_frame_id = frame_name
             pub.publish(new_msg)
+
+
+            if VISUALIZE_FRAME:
+                tf_stamped.header.stamp = rospy.Time.now()
+                tf_stamped.header.frame_id = "base"
+                tf_stamped.child_frame_id = "simple_teleop_frame"
+                tf_stamped.transform.translation.x = new_msg.xyz_point.point.x
+                tf_stamped.transform.translation.y = new_msg.xyz_point.point.y
+                tf_stamped.transform.translation.z = new_msg.xyz_point.point.z
+                
+                tf_stamped.transform.rotation.x = new_msg.quaternion.x
+                tf_stamped.transform.rotation.y = new_msg.quaternion.y
+                tf_stamped.transform.rotation.z = new_msg.quaternion.z
+                tf_stamped.transform.rotation.w = new_msg.quaternion.w
+
+                tf2_broadcaster.sendTransform(tf_stamped)
 
             #gripper
             if events["mouse_wheel_up"]:
