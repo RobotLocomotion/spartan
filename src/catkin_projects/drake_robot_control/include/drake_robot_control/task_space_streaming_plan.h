@@ -34,6 +34,8 @@ public:
 
 
     cartesian_plan_info_publisher_ = std::make_shared<ros::Publisher>(nh.advertise<robot_msgs::CartesianPlanInfo>("/plan_runner/TaskSpaceStreamingPlan/info", 1));
+
+    world_frame_ = tree_->findFrame("world");
   }
 
   // Current robot state x = [q,v]
@@ -48,23 +50,28 @@ public:
 
  private:
     std::mutex goal_mutex_;
-    Eigen::Vector3d xyz_ee_goal_;
-    Eigen::Vector3d xyz_d_ee_goal_;
-    Eigen::Quaterniond quat_ee_goal_;
-    // This is the frame the above goal points are expressed in:
-    int body_index_ee_goal_;
-    // This is the frame on the robot that is attempted to be
-    // aligned to the above pose:
-    int body_index_ee_frame_;
+    Eigen::Vector3d xyz_ee_goal_; // expressed in world frame
+    Eigen::Vector3d xyz_d_ee_goal_; // expressed in world frame
+    Eigen::Quaterniond quat_ee_goal_; // expressed in world frame
+
+
+    // these are the frames we need to keep track of
+    std::shared_ptr<RigidBodyFrame<double>> world_frame_;
     std::shared_ptr<RigidBodyFrame<double>> ee_frame_;
-    std::shared_ptr<RigidBodyFrame<double>> ee_goal_expressed_in_frame_;
+    std::shared_ptr<RigidBodyFrame<double>> position_cmd_expressed_in_frame_;
+    std::shared_ptr<RigidBodyFrame<double>> linear_velocity_cmd_expressed_in_frame_;
+    std::shared_ptr<RigidBodyFrame<double>> angular_velocity_cmd_expressed_in_frame_;
+
+    Eigen::Vector3d linear_velocity_cmd_; // directly read from message
+    Eigen::Vector3d angular_velocity_cmd_; // directly read from message
+    
+
     bool have_goal_;
     bool use_ee_velocity_mode_;
 
     std::shared_ptr<ros::Subscriber> setpoint_subscriber_;
 
     drake::TwistMatrix<double> J_ee_E_;
-    drake::TwistMatrix<double> J_ee_W_;
     Eigen::Isometry3d H_WE_; // ee to world, current homogeneous transform
     math::RigidTransform<double>
       H_WEr_; // end-effector to world, reference homogeneous transform
@@ -72,13 +79,8 @@ public:
     Eigen::Vector3d kp_rotation_;
     Eigen::Vector3d kp_translation_;
 
-    Eigen::Vector3d linear_velocity_cmd_;
-    std::shared_ptr<RigidBodyFrame<double>> linear_velocity_cmd_expressed_in_frame_;
     
-
-    Eigen::Vector3d angular_velocity_cmd_;
-    std::shared_ptr<RigidBodyFrame<double>> angular_velocity_cmd_expressed_in_frame_;
-
+    
     double last_control_update_t_ = 0.;
     robot_msgs::CartesianGoalPoint::ConstPtr cartesian_goal_point_msg_;
     robot_msgs::CartesianPlanInfo cartesian_plan_info_msg_;

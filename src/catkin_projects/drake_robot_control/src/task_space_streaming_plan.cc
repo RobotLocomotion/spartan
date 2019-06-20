@@ -24,6 +24,8 @@ void TaskSpaceStreamingPlan::Step(
   last_control_update_t_ = t;
   dt = std::max(std::min(dt, 0.01), 0.0001);
 
+  std::cout << "\n in Step()" << std::endl;
+
   PlanStatus not_started_status = PlanStatus::NOT_STARTED;
   PlanStatus running_status = PlanStatus::RUNNING;
 
@@ -84,10 +86,14 @@ void TaskSpaceStreamingPlan::Step(
   tree_->doKinematics(cache_);
 
   
-
-  J_ee_E_ = tree_->geometricJacobian(cache_, 0, body_index_ee_frame_, body_index_ee_frame_);
-  J_ee_W_ = tree_->geometricJacobian(cache_, 0, body_index_ee_frame_, 0);
+  // the args are (base, end-effector, expressed_in)
+  std::cout << "right before geometricJacobian" << std::endl;
+  J_ee_E_ = tree_->geometricJacobian(cache_, world_frame_->get_frame_index(), ee_frame_->get_frame_index(), ee_frame_->get_frame_index());
+  std::cout << "right after geometricJacobian" << std::endl;
+  // J_ee_W_ = tree_->geometricJacobian(cache_, world_frame_->get_frame_index(), ee_frame_->get_frame_index(), world_frame_->get_frame_index());
   H_WE_ = tree_->CalcFramePoseInWorldFrame(cache_, *this->ee_frame_);
+
+  std::cout << "test1" << std::endl;
 
   
   // We want to compute Twist command for end-effector. Frames are as follows
@@ -180,6 +186,8 @@ void TaskSpaceStreamingPlan::Step(
     std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
   }
 
+  std::cout << "test2" << std::endl;
+
   // construct the ROS message for use in behavior cloning
   auto & msg  = cartesian_plan_info_msg_;
   msg.header.stamp = ros::Time::now();
@@ -270,22 +278,21 @@ void TaskSpaceStreamingPlan::HandleSetpoint(
     this->setpoint_subscriber_->shutdown();
   }
 
-  
+  bool debug = false;
+
   goal_mutex_.lock();
-  this->cartesian_goal_point_msg_ = msg; // store message for later use
+
+  // if plan hasn't started yet then don't do this
+  this->have_goal_ = false;
+  if ((this->get_plan_status() != PlanStatus::RUNNING)){
+    return;
+  }
   
-  //std::cout << "Starting to handle setpoint... " << std::endl;
-  // Extract the body index in the RBT that this msg
-  // is referring to.
-  // These will throw if the frame isn't unique or doesn't exist.
-
-  ee_frame_ = tree_->findFrame(msg->ee_frame_id);
-  body_index_ee_frame_ = ee_frame_->get_frame_index();
-  tree_->doKinematics(cache_measured_state_);
-
-
-  // parse the velocity goals
+  this->cartesian_goal_point_msg_ = msg; // store message for later use
+  ee_frame_ = tree_->findFrame(msg->ee_frame_id); // extract command frame
   this->use_ee_velocity_mode_ = msg->use_end_effector_velocity_mode;
+  
+
   if(this->use_ee_velocity_mode_){
     
     linear_velocity_cmd_expressed_in_frame_ = tree_->findFrame(msg->linear_velocity.header.frame_id);
@@ -300,67 +307,87 @@ void TaskSpaceStreamingPlan::HandleSetpoint(
                                  msg->angular_velocity.vector.z);
   } else{
 
-  ee_goal_expressed_in_frame_ = tree_->findFrame(
-          msg->xyz_point.header.frame_id);
+    position_cmd_expressed_in_frame_ = tree_->findFrame(
+            msg->xyz_point.header.frame_id); // usually this is world frame   
+    
 
-  body_index_ee_goal_ = ee_goal_expressed_in_frame_->get_frame_index();
-  
+    tree_->doKinematics(cache_measured_state_);
 
 
-  tree_->doKinematics(cache_measured_state_);
+    xyz_ee_goal_ = Eigen::Vector3d(msg->xyz_point.point.x,
+                                   msg->xyz_point.point.y,
+                                   msg->xyz_point.point.z);
 
-  xyz_ee_goal_ = Eigen::Vector3d(msg->xyz_point.point.x,
-                                 msg->xyz_point.point.y,
-                                 msg->xyz_point.point.z);
-  // Transform to world frame at last observed robot posture
-  auto R = tree_->relativeTransform(
-    cache_measured_state_, 0, body_index_ee_goal_)
-    .matrix().block<3, 3>(0, 0);
-  xyz_ee_goal_ = tree_->transformPoints(
-    cache_measured_state_, xyz_ee_goal_, body_index_ee_goal_, 0);
-  xyz_d_ee_goal_ = Eigen::Vector3d(msg->xyz_d_point.x,
-                                   msg->xyz_d_point.y,
-                                   msg->xyz_d_point.z);
-  xyz_d_ee_goal_ = R*xyz_d_ee_goal_;
-  quat_ee_goal_ =  Eigen::Quaterniond(msg->quaternion.w,
-                                     msg->quaternion.x,
-                                     msg->quaternion.y,
-                                     msg->quaternion.z);
-  quat_ee_goal_ = 
-    (drake::math::RotationMatrixd(R)*
-     drake::math::RotationMatrixd(quat_ee_goal_)).ToQuaternion();
 
-  kp_rotation_ = Eigen::Vector3d(msg->gain.rotation.x,
-                                 msg->gain.rotation.y,
-                                 msg->gain.rotation.z);
-  kp_translation_ = Eigen::Vector3d(msg->gain.translation.x,
-                                    msg->gain.translation.y,
+    // Transform to world frame at last observed robot posture
+    // should be identity but it's not
+    auto T_W_cmd = tree_->relativeTransform(cache_measured_state_, world_frame_->get_frame_index(), position_cmd_expressed_in_frame_->get_frame_index());
+
+    
+    const auto & R = T_W_cmd.linear();
+    xyz_ee_goal_ = tree_->transformPoints(
+      cache_measured_state_, xyz_ee_goal_, position_cmd_expressed_in_frame_->get_frame_index(), world_frame_->get_frame_index());
+
+    
+
+    // transform velocity into world frame
+    xyz_d_ee_goal_ = Eigen::Vector3d(msg->xyz_d_point.x,
+                                     msg->xyz_d_point.y,
+                                     msg->xyz_d_point.z);
+    xyz_d_ee_goal_ = R*xyz_d_ee_goal_;
+
+
+    quat_ee_goal_ =  Eigen::Quaterniond(msg->quaternion.w,
+                                       msg->quaternion.x,
+                                       msg->quaternion.y,
+                                       msg->quaternion.z);
+
+    // now in world frame
+    quat_ee_goal_ = 
+      (drake::math::RotationMatrixd(R)*
+       drake::math::RotationMatrixd(quat_ee_goal_)).ToQuaternion();
+
+    kp_rotation_ = Eigen::Vector3d(msg->gain.rotation.x,
+                                   msg->gain.rotation.y,
+                                   msg->gain.rotation.z);
+    kp_translation_ = Eigen::Vector3d(msg->gain.translation.x,
+                                      msg->gain.translation.y,
                                     msg->gain.translation.z);
 
+
+    if (debug){
+      std::cout << "expressed in frame: " << msg->xyz_point.header.frame_id << std::endl;
+      std::cout << "expressed in frame index " << position_cmd_expressed_in_frame_->get_frame_index() << std::endl;
+      std::cout << "world_frame_index_ " << world_frame_->get_frame_index() << std::endl;
+      std::cout << "R\n" << R << std::endl;
+      std::cout << "T_W_cmd.translation()" << T_W_cmd.translation() << std::endl; 
+      Eigen::Quaterniond quat(T_W_cmd.linear());
+      std::cout << "quat [w,x,y,z]" << quat.w() << quat.x() << quat.y() << quat.z() << std::endl;
+
+    }
   }
 
 
-  have_goal_ = true;
-  
+  have_goal_ = true; 
 
 
-  // if (!this->use_ee_velocity_mode_){
-  //   // publish out the goal frame via tf
+  if (!this->use_ee_velocity_mode_){
+    // publish out the goal frame via tf
 
 
-  //   this->transformStamped_.header.stamp = ros::Time::now();
-  //   this->transformStamped_.header.frame_id = "base";
-  //   this->transformStamped_.child_frame_id = "teleop_frame";
-  //   this->transformStamped_.transform.translation.x = xyz_ee_goal_(0);
-  //   this->transformStamped_.transform.translation.y = xyz_ee_goal_(1);
-  //   this->transformStamped_.transform.translation.z = xyz_ee_goal_(2);
-  //   this->transformStamped_.transform.rotation.x = quat_ee_goal_.x();
-  //   this->transformStamped_.transform.rotation.y = quat_ee_goal_.y();
-  //   this->transformStamped_.transform.rotation.z = quat_ee_goal_.z();
-  //   this->transformStamped_.transform.rotation.w = quat_ee_goal_.w();
+    this->transformStamped_.header.stamp = ros::Time::now();
+    this->transformStamped_.header.frame_id = "base";
+    this->transformStamped_.child_frame_id = "teleop_frame";
+    this->transformStamped_.transform.translation.x = xyz_ee_goal_(0);
+    this->transformStamped_.transform.translation.y = xyz_ee_goal_(1);
+    this->transformStamped_.transform.translation.z = xyz_ee_goal_(2);
+    this->transformStamped_.transform.rotation.x = quat_ee_goal_.x();
+    this->transformStamped_.transform.rotation.y = quat_ee_goal_.y();
+    this->transformStamped_.transform.rotation.z = quat_ee_goal_.z();
+    this->transformStamped_.transform.rotation.w = quat_ee_goal_.w();
 
-  //   this->br_.sendTransform(this->transformStamped_);
-  // } 
+    this->br_.sendTransform(this->transformStamped_);
+  } 
 
   goal_mutex_.unlock();
 }
