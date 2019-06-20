@@ -24,7 +24,6 @@ void TaskSpaceStreamingPlan::Step(
   last_control_update_t_ = t;
   dt = std::max(std::min(dt, 0.01), 0.0001);
 
-  std::cout << "\n in Step()" << std::endl;
 
   PlanStatus not_started_status = PlanStatus::NOT_STARTED;
   PlanStatus running_status = PlanStatus::RUNNING;
@@ -87,13 +86,11 @@ void TaskSpaceStreamingPlan::Step(
 
   
   // the args are (base, end-effector, expressed_in)
-  std::cout << "right before geometricJacobian" << std::endl;
   J_ee_E_ = tree_->geometricJacobian(cache_, world_frame_->get_frame_index(), ee_frame_->get_frame_index(), ee_frame_->get_frame_index());
-  std::cout << "right after geometricJacobian" << std::endl;
   // J_ee_W_ = tree_->geometricJacobian(cache_, world_frame_->get_frame_index(), ee_frame_->get_frame_index(), world_frame_->get_frame_index());
   H_WE_ = tree_->CalcFramePoseInWorldFrame(cache_, *this->ee_frame_);
 
-  std::cout << "test1" << std::endl;
+  
 
   
   // We want to compute Twist command for end-effector. Frames are as follows
@@ -186,7 +183,7 @@ void TaskSpaceStreamingPlan::Step(
     std::cout << "\nT_WE_E_cmd:\n" << T_WE_E_cmd << std::endl;
   }
 
-  std::cout << "test2" << std::endl;
+  
 
   // construct the ROS message for use in behavior cloning
   auto & msg  = cartesian_plan_info_msg_;
