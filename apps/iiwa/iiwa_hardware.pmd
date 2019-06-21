@@ -138,7 +138,7 @@ group "8.ROS" {
   }
 
   cmd "3.rviz" {
-    exec = "rosrun rviz rviz -d $SPARTAN_SOURCE_DIR/src/catkin_projects/station_config/RLG_iiwa_1/rviz.rviz";
+    exec = "rosrun rviz rviz -d $SPARTAN_SOURCE_DIR/src/catkin_projects/station_config/RLG_iiwa_1/imitation_learning.rviz";
     host = "localhost";
   }
 
@@ -171,9 +171,6 @@ group "8.ROS" {
     exec = "roslaunch razer_hydra hydra.launch";
     host = "localhost";
   }
-
-
-
 }
 
 
@@ -181,7 +178,7 @@ group "8.ROS" {
 group "9.iiwa_sim" {
 
   cmd "0.drake_iiwa_sim" {
-    exec = "bash -c 'rosrun drake_iiwa_sim kuka_schunk_station_simulation -config $(rospack find drake_iiwa_sim)/config/sim_config_multicamera_manipulation.yaml'";
+    exec = "bash -c 'rosrun drake_iiwa_sim kuka_schunk_station_simulation -config $(rospack find drake_iiwa_sim)/config/sim_config_externalcameras_manipulation.yaml'";
     host = "localhost";
   }
 
@@ -200,7 +197,32 @@ group "9.iiwa_sim" {
     host = "localhost";
   }
 
+  cmd "4.sim_d415_left" {
+    exec = "roslaunch camera_config openni2_drake_iiwa_sim.launch camera_serial_number:=sim_d415_left";
+    host = "localhost";
+  }
+
+  cmd "5.sim_d415_right" {
+    exec = "roslaunch camera_config openni2_drake_iiwa_sim.launch camera_serial_number:=sim_d415_right";
+    host = "localhost";
+  }
 }
+
+group "imitation" {
+
+  cmd "0.imitation_bagging" {
+    exec = "roslaunch imitation_tools imitation_bagging.launch";
+    host = "localhost";
+  }
+
+  cmd "1.contact_detector" {
+    exec = "roslaunch imitation_tools contact_detector.launch";
+    host = "localhost";
+  }
+
+}
+
+
 
 
 script "1.1.robot_full_startup" {
@@ -285,4 +307,13 @@ script "6.start_drake_iiwa_sim"
   start cmd "1.plan-runner";
   start cmd "2.state-translator";
   start cmd "4.director";
+
+  wait ms 3000;
+  start group "imitation";
+}
+
+script "7.reset_sim_and_plan_runner"
+{
+    restart cmd "1.plan-runner";
+    restart cmd "0.drake_iiwa_sim";
 }
