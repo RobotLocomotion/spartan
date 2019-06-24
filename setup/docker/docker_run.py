@@ -71,6 +71,10 @@ if __name__ == "__main__":
               'home_directory': home_directory}  # mount bazel build artifact dirs
     cmd += " --user %s " % user_name  # login as current user
 
+    # mount torch model folder
+    cmd += " -v ~/.cache/torch:%(home_directory)s/.cache/torch" %{'home_directory': home_directory}
+
+
     # mount the data volume
     data_directory_host_machine = None
     sandbox_directory_host_machine = None
@@ -105,6 +109,8 @@ if __name__ == "__main__":
 
     if args.host_network:
         cmd += " --network=host "
+
+    cmd += " --ipc=host "
 
     cmd += " " + args.passthrough + " "
 
