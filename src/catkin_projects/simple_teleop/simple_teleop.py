@@ -111,12 +111,13 @@ def do_main():
     print("Moved to position")
 
     gripper_goal_pos = 0.0
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.15, timeout=0.01)
     print("sent close goal to gripper")
-    time.sleep(2) # in sim, this can just be 0.1
+    time.sleep(1) # in sim, this can just be 0.1
     gripper_goal_pos = 0.1
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.15, timeout=0.01)
     print("sent open goal to gripper")
+    time.sleep(0.5)
 
     frame_name = "iiwa_link_ee" # end effector frame name
 
@@ -186,9 +187,9 @@ def do_main():
             raise ValueError("bagging failed to start")
 
         time.sleep(0.5)
-        rospy.wait_for_service('save_scene_point_cloud', timeout=1.0)
-        save_scene_point_cloud = rospy.ServiceProxy('save_scene_point_cloud', SaveScenePointCloud)
-        resp1 = save_scene_point_cloud()
+        #rospy.wait_for_service('save_scene_point_cloud', timeout=1.0)
+        #save_scene_point_cloud = rospy.ServiceProxy('save_scene_point_cloud', SaveScenePointCloud)
+        #resp1 = save_scene_point_cloud()
     
     pose_save_counter = 0
     saved_pose_dict = dict()
@@ -220,21 +221,21 @@ def do_main():
                 ee_tf_last_commanded = get_initial_pose()
                 res = sp(init)
 
-            if events["h"]:
-                rospy.wait_for_service('save_hand_point_cloud', timeout=1.0)
-                save_hand_point_cloud = rospy.ServiceProxy('save_hand_point_cloud', SaveHandPointCloud)
-                for i in np.arange(0.0, 0.105, 0.005)[::-1]:
-                    handDriver.sendGripperCommand(i, speed=0.2, stream=True)
-                    time.sleep(0.4)
-                    resp1 = save_hand_point_cloud()
-                time.sleep(2)
-                gripper_goal_pos = 0.1
-                handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
+            # if events["h"]:
+            #     rospy.wait_for_service('save_hand_point_cloud', timeout=1.0)
+            #     save_hand_point_cloud = rospy.ServiceProxy('save_hand_point_cloud', SaveHandPointCloud)
+            #     for i in np.arange(0.0, 0.105, 0.005)[::-1]:
+            #         handDriver.sendGripperCommand(i, speed=0.2, stream=True)
+            #         time.sleep(0.4)
+            #         resp1 = save_hand_point_cloud()
+            #     time.sleep(2)
+            #     gripper_goal_pos = 0.1
+            #     handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
 
-            if events["n"]:
-                rospy.wait_for_service('save_scene_point_cloud', timeout=1.0)
-                save_scene_point_cloud = rospy.ServiceProxy('save_scene_point_cloud', SaveScenePointCloud)
-                resp1 = save_scene_point_cloud()
+            # if events["n"]:
+            #     rospy.wait_for_service('save_scene_point_cloud', timeout=1.0)
+            #     save_scene_point_cloud = rospy.ServiceProxy('save_scene_point_cloud', SaveScenePointCloud)
+            #     resp1 = save_scene_point_cloud()
 
             pose_save_counter += 1
             if events["o"] and pose_save_counter >= 100: # this make it not happen to much

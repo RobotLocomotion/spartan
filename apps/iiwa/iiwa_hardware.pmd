@@ -215,11 +215,6 @@ group "imitation" {
     host = "localhost";
   }
 
-  cmd "1.contact_detector" {
-    exec = "roslaunch imitation_tools contact_detector.launch";
-    host = "localhost";
-  }
-
 }
 
 
