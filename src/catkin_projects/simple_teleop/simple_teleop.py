@@ -39,6 +39,8 @@ import math
 from teleop_mouse_manager import TeleopMouseManager
 from imitation_tools.srv import *
 
+from imitation_agent.deploy.software_safety import SoftwareSafety
+
 DEBUG = False
 VISUALIZE_FRAME = True
 
@@ -111,11 +113,11 @@ def do_main():
     print("Moved to position")
 
     gripper_goal_pos = 0.0
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.15, timeout=0.01)
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
     print("sent close goal to gripper")
-    time.sleep(1) # in sim, this can just be 0.1
+    time.sleep(2) # in sim, this can just be 0.1
     gripper_goal_pos = 0.1
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.15, timeout=0.01)
+    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
     print("sent open goal to gripper")
     time.sleep(0.5)
 
@@ -174,9 +176,7 @@ def do_main():
                 rate.sleep()
                 continue
 
-    print ee_tf_last_commanded
     ee_tf_last_commanded = get_initial_pose()
-    print ee_tf_last_commanded
 
     sys.path.append("../imitation_tools/scripts")
     from capture_imitation_data_client import start_bagging_imitation_data_client, stop_bagging_imitation_data_client
@@ -195,11 +195,21 @@ def do_main():
     saved_pose_dict = dict()
     saved_pose_counter = 0
 
-    # init mouse manager
-    mouse_manager = TeleopMouseManager()
+
     roll_goal = 0.0
     yaw_goal = 0.0
     pitch_goal = 0.0
+
+    software_safety = SoftwareSafety()
+    xyz = ee_tf_last_commanded[:3, 3]
+    rpy = np.asarray([roll_goal, pitch_goal, yaw_goal])
+    
+    software_safety.set_initial_goal(xyz, rpy)
+
+
+    # init mouse manager
+    mouse_manager = TeleopMouseManager()
+
 
     
     ee_tf_last_commanded = get_initial_pose()
@@ -270,7 +280,7 @@ def do_main():
                 roll_goal += 0.01
             if events["rotate_right"]:
                 roll_goal -= 0.01
-            roll_goal = np.clip(roll_goal, a_min = -0.9, a_max = 0.9)
+            roll_goal = np.clip(roll_goal, a_min = -1.0, a_max = 1.0)
             
             if events["side_button_back"]:
                 yaw_goal += 0.01
@@ -328,7 +338,11 @@ def do_main():
             new_msg.yaw = yaw_goal
             new_msg.gain = make_cartesian_gains_msg(5., 10.)
             new_msg.ee_frame_id = frame_name
+
+            software_safety.sys_exit_if_not_safe(new_msg)
+
             pub.publish(new_msg)
+
 
 
             if VISUALIZE_FRAME:
