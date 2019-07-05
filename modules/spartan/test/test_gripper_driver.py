@@ -7,7 +7,7 @@ import rospy
 import actionlib
 import wsg_50_common.msg
 
-from spartan.manipulation.schunk_driver import SchunkDriver
+from spartan.utils.schunk_driver import SchunkDriver
 
 
 def open_gripper():

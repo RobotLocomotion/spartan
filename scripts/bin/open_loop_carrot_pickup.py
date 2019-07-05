@@ -21,7 +21,7 @@ import tf2_ros
 from spartan.utils.ros_utils import JointStateSubscriber
 from spartan.utils.ros_utils import RobotService
 import spartan.utils.ros_utils as rosUtils
-from spartan.manipulation.schunk_driver import SchunkDriver
+from spartan.utils.schunk_driver import SchunkDriver
 import spartan.utils.utils as spartan_utils
 import spartan.utils.transformations as transformations
 import robot_control.control_utils as control_utils
