@@ -16,9 +16,6 @@
 [submodule "src/catkin_projects/spartan_grasp_msgs"]
 	path = src/catkin_projects/spartan_grasp_msgs
 	url = git@github.com:manuelli/spartan_grasp_msgs.git
-[submodule "modules/spartan/mcubeUROP"]
-	path = modules/spartan/mcubeUROP
-	url = git@github.com:manuelli/mcubeUROP.git
 [submodule "src/ElasticFusion"]
 	path = src/ElasticFusion
 	url = git@github.com:RobotLocomotion/ElasticFusion.git
