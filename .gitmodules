@@ -10,9 +10,6 @@
 [submodule "src/ObjectDetection/data"]
 	path = src/ObjectDetection/data
 	url = https://github.com/gizatt/object_detection_test_data
-[submodule "src/LabelFusion"]
-	path = src/LabelFusion
-	url = https://github.com/RobotLocomotion/LabelFusion.git
 [submodule "src/catkin_projects/spartan_grasp_msgs"]
 	path = src/catkin_projects/spartan_grasp_msgs
 	url = git@github.com:manuelli/spartan_grasp_msgs.git
