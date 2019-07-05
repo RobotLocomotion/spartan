@@ -1,28 +1,22 @@
 # Spartan inside Docker
 
+## Disclaimer (not supported for public use)
+
+This is a project repository for robotics research and applications using
+[Drake](https://drake.mit.edu/) and [Director](https://github.com/RobotLocomotion/director). This repository is meant as an internal tool for the Robot Locomotion Group. **It contains private submodules and is not supported for external use**. 
+
 ## Quickstart
 
 The following is all of the steps to build spartan with docker from a fresh Ubuntu installation:
 
 1) Install [Docker for Ubuntu](https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/)
   - Make sure to `sudo usermod -aG docker your-user` and then not run below docker scripts as `sudo`. After applying this change you made need to log out and then log back in for the changes to take effect.
-2) Install [`nvidia-docker`](https://github.com/NVIDIA/nvidia-docker). Make sure to use `nvidia-docker1` not `nvidia-docker2` as it has a known issue with OpenGL. See [this](https://github.com/RobotLocomotion/spartan/issues/201) issue. Follow the instructions on their webpage but replace
-```
-sudo apt-get install -y nvidia-docker2
-```
-with
-```
-sudo apt-get install -y nvidia-docker
-```
-You can test that your nvidia-docker installation is working by running
-```
-nvidia-docker run --rm nvidia/cuda nvidia-smi
-```
-If you get errors about nvidia-modprobe not being installed, install it by running
-```
-sudo apt-get install nvidia-modprobe
-```
+2) Install [`nvidia-docker`](https://github.com/NVIDIA/nvidia-docker). We are now using `nvidia-docker2`.
+
 and then restart your machine.
+
+NOTE: it would be nice to do a minimal nvidia-docker test.  The one we used to run here doesn't seem to work with nvidia-docker2.
+
 
 3) Clone, setup, and build Spartan: You need to have ssh keys setup to clone the submodules. Make sure that these ssh keys don't have a password, otherwise it will not work.
 ```

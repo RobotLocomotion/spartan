@@ -310,6 +310,12 @@ Then
 python run_handical_rlg_fixed_mount.py
 ```
 
+THERE IS ONE MORE THING
+
+A `camera_info.yaml` file has been automatically placed at the `camera_config/data/.../master/` location.
+
+Go into that file and change `rgb:` to `color:`.  Very important!
+
 ## Once calibrated:
 
 Check out the KukaHardware D415.md readme for how to launch with calibration.

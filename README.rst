@@ -11,9 +11,13 @@ Spartan
 .. image:: http://spartan-jenkins.csail.mit.edu:8080/buildStatus/icon?job=spartan-master-on-drake-and-director-master
    :target: http://spartan-jenkins.csail.mit.edu:8080/job/spartan-master-on-drake-and-director-master
 
+Documentation on how to operate the Kuka robot hardware `can be found here`_.
+
+Disclaimer (not supported for public use)
+==========
 
 This is a project repository for robotics research and applications using
-Drake_ and Director_. This repository is meant as an internal tool for the Robot Locomotion Group. **It contains private submodules and is not supported for external use**. Documentation on how to operate the Kuka robot hardware `can be found here`_.
+Drake_ and Director_. This repository is meant as an internal tool for the Robot Locomotion Group. **It contains private submodules and is not supported for external use**. 
 
 .. _Drake: https://www.github.com/RobotLocomotion/drake
 .. _Director: https://www.github.com/RobotLocomotion/director
@@ -216,34 +220,10 @@ Code Style
 - C++ code should follow the Google style guide https://google.github.io/styleguide/cppguide.html
 - Python code should follow the Google style guide https://github.com/google/styleguide/blob/gh-pages/pyguide.md
 
-
-CI with Jenkins
-============================
-CI is provided by Jenkins, presently running on a DRC laptop running Ubuntu
-16.04 with nvidia-375 and CUDA 8, plus docker and nvidia-docker. Two Jenkins jobs test
-our build:
-
-- A nightly-plus-whenever-it-is-updated build of the master branch. Master is tested by following the build-and-test routine described below.
-
-- A whenever-it-is-requested build of PR branches, which can be requested by including the phrase "Jenkins please test" in a comment on the PR. The branches are tested by merging them into master (if possible) and then following the build-and-test routine described below. For now, tests can only be demanded by `gizatt`, `manuelli`, and `peteflorence`. Anyone else can *request* a test, but one of those admins will have to confirm to Jenkins that the test can be run. This feature uses [this tool](https://github.com/jenkinsci/ghprb-plugin) under the hood, so admins can use the command `ok to test` to accept a PR for testing, and `add to whitelist` to add the author of the PR to the whitelist forever.
-
-Jenkins clones a completely fresh copy of the repository into a working directory,
-run `git submodule update --init`, and then runs::
-
-    python ${WORKSPACE}/setup/docker/docker_build.py
-    python ${WORKSPACE}/setup/docker/docker_run.py --entrypoint "/home/jenkins/spartan/setup/docker/run_jenkins.sh"
-
-
-If any step of this returns a nonzero error code, the build is considered failed.
-That includes failures in initializing any submodule; errors provisioning or
-launching a docker container; or errors detected by the `run_jenkins` script,
-which contains its own error checking on the CMake configuration and the build.
-Eventually, we'll be able to test a full simulation stack too!
-
-
 Other useful documentation
 ==========================
 - `Testing <doc/testing.md>`_
+- `CI with Jenkins <doc/jenkins.md>`_
 - `Camera Calibration <modules/spartan/calibration/README.md>`_
 - `Razer Hydra teleop guide <doc/hydra_guide.md>`_
 - `Schunk driving and usage guide <doc/schunk_driving_guide.md>`_
