@@ -45,7 +45,7 @@ apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD
 
 apt-get update
 
-apt install -y --no-install-recommends \
+apt install -y --no-install-recommends --allow-unauthenticated \
   ros-kinetic-desktop \
   ros-kinetic-moveit \
   ros-kinetic-openni2-launch \
