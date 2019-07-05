@@ -19,9 +19,6 @@
 [submodule "modules/spartan/mcubeUROP"]
 	path = modules/spartan/mcubeUROP
 	url = git@github.com:manuelli/mcubeUROP.git
-[submodule "src/Mask_RCNN"]
-	path = src/Mask_RCNN
-	url = git@github.com:matterport/Mask_RCNN.git
 [submodule "src/ElasticFusion"]
 	path = src/ElasticFusion
 	url = git@github.com:RobotLocomotion/ElasticFusion.git
