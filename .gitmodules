@@ -32,9 +32,6 @@
 [submodule "src/tsdf-fusion"]
 	path = src/tsdf-fusion
 	url = git@github.com:RobotLocomotion/tsdf-fusion.git
-[submodule "src/catkin_projects/pdc_ros_msgs"]
-	path = src/catkin_projects/pdc_ros_msgs
-	url = git@github.com:RobotLocomotion/pdc_ros_msgs.git
 [submodule "src/catkin_projects/iiwa_driver"]
 	path = src/catkin_projects/iiwa_driver
 	url = git@github.com:RobotLocomotion/iiwa_driver.git
