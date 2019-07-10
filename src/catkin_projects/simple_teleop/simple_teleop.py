@@ -186,7 +186,7 @@ def do_main():
         if not bagging_started:
             raise ValueError("bagging failed to start")
 
-        time.sleep(0.5)
+        #time.sleep(0.5)
         #rospy.wait_for_service('save_scene_point_cloud', timeout=1.0)
         #save_scene_point_cloud = rospy.ServiceProxy('save_scene_point_cloud', SaveScenePointCloud)
         #resp1 = save_scene_point_cloud()
