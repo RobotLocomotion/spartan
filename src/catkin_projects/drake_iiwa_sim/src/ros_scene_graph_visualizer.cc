@@ -206,6 +206,11 @@ EventStatus RosSceneGraphVisualizer::DoInitialization(const Context<double>& con
 
 EventStatus RosSceneGraphVisualizer::DoPeriodicPublish(
     const Context<double>& context) const {
+  
+  std_msgs::Header header;
+  header.stamp = ros::Time::now();
+  header.frame_id = "base";
+
   const drake::systems::AbstractValue* input =
       this->EvalAbstractInput(context, 0);
   DRAKE_ASSERT(input != nullptr);
@@ -224,9 +229,10 @@ EventStatus RosSceneGraphVisualizer::DoPeriodicPublish(
     pose_msg.orientation.y = q.y();
     pose_msg.orientation.z = q.z();
 
+
     int robot_num = pose_bundle.get_model_instance_id(frame_i);
     std::string full_name = MakeFullName(pose_bundle.get_name(frame_i), robot_num);
-    server_.setPose(full_name, pose_msg);
+    server_.setPose(full_name, pose_msg, header);
   }
   server_.applyChanges();
   ros::spinOnce();
