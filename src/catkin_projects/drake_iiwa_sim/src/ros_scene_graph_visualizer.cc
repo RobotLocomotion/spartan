@@ -82,6 +82,17 @@ EventStatus RosSceneGraphVisualizer::DoInitialization(const Context<double>& con
     int_marker.header.stamp = ros::Time();
     int_marker.name = full_name.c_str();
 
+    // Hack city: Pete's doing to only publish the sugar
+    std::cout << int_marker.name << std::endl;
+    if (int_marker.name.find("sugar") != std::string::npos) {
+       std::cout << "found a sugar!" << std::endl;
+       std::cout << "it was: " << int_marker.name << std::endl;
+    } else {
+      std::cout << "not adding" << int_marker.name << std::endl;
+      continue;
+    }
+    // Hack city: Pete's doing to only publish the sugar
+
     visualization_msgs::InteractiveMarkerControl control_marker;
     control_marker.always_visible = true;
 
