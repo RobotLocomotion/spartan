@@ -1,40 +1,25 @@
-import unittest
-import subprocess
-import psutil
 import sys
-import os
 import numpy as np
 import time
-import socket
 
 # ROS
 import rospy
-import actionlib
-import sensor_msgs.msg
 import geometry_msgs.msg
-import trajectory_msgs.msg
-import rosgraph
 import std_srvs.srv
 import tf2_ros
 import tf
 
 
 # spartan
-from spartan.utils.ros_utils import SimpleSubscriber, JointStateSubscriber
-from spartan.utils.ros_utils import RobotService
+from spartan.utils.ros_utils import JointStateSubscriber
 import spartan.utils.ros_utils as ros_utils
 import spartan.utils.utils as spartan_utils
 import spartan.utils.transformations as transformations
-import robot_control.control_utils as control_utils
+import spartan.utils.constants as constants
 from spartan.manipulation.schunk_driver import SchunkDriver
 # spartan ROS
 import robot_msgs.msg
 import geometry_msgs.msg
-import sensor_msgs.msg
-import tf2_msgs.msg
-
-import math
-
 
 from teleop_mouse_manager import TeleopMouseManager
 from imitation_tools.srv import *
@@ -213,7 +198,11 @@ def do_main():
 
     
     ee_tf_last_commanded = get_initial_pose()
-    initial_pose = get_initial_pose()
+    initial_pose = get_initial_pose() # T_W_E0
+    T_W_E0 = initial_pose
+    T_W_cmd0 = np.matmul(T_W_E0, constants.T_E_cmd)
+    T_W_cmd = T_W_cmd0 # current command
+    T_W_E = T_W_E0
     initial_quat = transformations.quaternion_from_matrix(initial_pose[:3,:3])
     try:
 
@@ -276,44 +265,64 @@ def do_main():
                 delta_forward += forward_scale
 
             # extract and normalize quat from tf
+            delta_roll = 0.0
+            delta_pitch = 0.0
+            delta_yaw = 0.0
+
             if events["rotate_left"]:
                 roll_goal += 0.01
+                delta_roll += 0.01
             if events["rotate_right"]:
                 roll_goal -= 0.01
-            roll_goal = np.clip(roll_goal, a_min = -1.0, a_max = 1.0)
+                delta_roll -= 0.01
             
             if events["side_button_back"]:
                 yaw_goal += 0.01
+                delta_yaw += 0.01
                 print("side button back")
             if events["side_button_forward"]:
                 yaw_goal -= 0.01
+                delta_yaw -= 0.01
                 print("side side_button_forward")
+
             yaw_goal = np.clip(yaw_goal, a_min = -1.314, a_max = 1.314)
 
             if events["d"]:
                 pitch_goal += 0.01
+                delta_pitch += 0.01
             if events["a"]:
                 pitch_goal -= 0.01
+                delta_pitch -= 0.01
+
             pitch_goal = np.clip(pitch_goal, a_min = -1.314, a_max = 1.314)
 
 
-            R = transformations.euler_matrix(pitch_goal, roll_goal, yaw_goal, 'syxz')
-            # third is "yaw", when in above table pre-grasp
-            # second is "roll", ''
-            # first must be "pitch"
+            R_cmd_cmd_nxt = transformations.euler_matrix(delta_pitch, delta_roll, delta_yaw, 'syxz')[:3, :3]
+            R_W_cmd_nxt = np.matmul(T_W_cmd[:3, :3], R_cmd_cmd_nxt)
 
-            above_table_quat_ee = transformations.quaternion_from_matrix(R.dot(ee_tf_above_table))
-            above_table_quat_ee = np.array(above_table_quat_ee) / np.linalg.norm(above_table_quat_ee)
 
-            # calculate controller position delta and add to start position to get target ee position
             target_translation = np.asarray([delta_forward, delta_x, delta_y])
-            empty_matrx = np.zeros_like(ee_tf_last_commanded)
-            empty_matrx[:3, 3] = target_translation
-            ee_tf_last_commanded += empty_matrx
-            target_trans_ee = ee_tf_last_commanded[:3, 3]
+            T_W_cmd_nxt = np.eye(4)
+            T_W_cmd_nxt[:3, 3] = T_W_cmd[:3, 3] + target_translation
+            T_W_cmd_nxt[:3,:3] = R_W_cmd_nxt
+
+            T_W_E_nxt = np.matmul(T_W_cmd_nxt, constants.T_cmd_E)
+
+
+            # # above_table_quat_ee = transformations.quaternion_from_matrix(R.dot(ee_tf_above_table))
+            # above_table_quat_ee = transformations.quaternion_from_matrix(ee_tf_above_table.dot(R))
+            # above_table_quat_ee = np.array(above_table_quat_ee) / np.linalg.norm(above_table_quat_ee)
+            #
+            # # calculate controller position delta and add to start position to get target ee position
+            # target_translation = np.asarray([delta_forward, delta_x, delta_y])
+            # empty_matrx = np.zeros_like(ee_tf_last_commanded)
+            # empty_matrx[:3, 3] = target_translation
+            # ee_tf_last_commanded += empty_matrx
+            # target_trans_ee = ee_tf_last_commanded[:3, 3]
             
 
-
+            target_ee_pos = T_W_E_nxt[:3, 3]
+            target_ee_quat = transformations.quaternion_from_matrix(T_W_E_nxt)
             if DEBUG:
                 target_trans_ee = initial_pose[:3, 3]
                 above_table_quat_ee = initial_quat
@@ -323,26 +332,30 @@ def do_main():
             new_msg.use_end_effector_velocity_mode = False
             new_msg.xyz_point.header.stamp = rospy.Time.now()
             new_msg.xyz_point.header.frame_id = "world" # should be a DRAKE frame
-            new_msg.xyz_point.point.x = target_trans_ee[0]
-            new_msg.xyz_point.point.y = target_trans_ee[1]
-            new_msg.xyz_point.point.z = target_trans_ee[2]
+            new_msg.xyz_point.point.x = target_ee_pos[0]
+            new_msg.xyz_point.point.y = target_ee_pos[1]
+            new_msg.xyz_point.point.z = target_ee_pos[2]
             new_msg.xyz_d_point.x = 0.0
             new_msg.xyz_d_point.y = 0.0
             new_msg.xyz_d_point.z = 0.0
-            new_msg.quaternion.w = above_table_quat_ee[0]
-            new_msg.quaternion.x = above_table_quat_ee[1]
-            new_msg.quaternion.y = above_table_quat_ee[2]
-            new_msg.quaternion.z = above_table_quat_ee[3]
-            new_msg.roll = roll_goal 
-            new_msg.pitch = pitch_goal
-            new_msg.yaw = yaw_goal
+            new_msg.quaternion.w = target_ee_quat[0]
+            new_msg.quaternion.x = target_ee_quat[1]
+            new_msg.quaternion.y = target_ee_quat[2]
+            new_msg.quaternion.z = target_ee_quat[3]
+
+
+            # not sure what these should be exactly
+            # new_msg.roll = roll_goal
+            # new_msg.pitch = pitch_goal
+            # new_msg.yaw = yaw_goal
             new_msg.gain = make_cartesian_gains_msg(5., 10.)
             new_msg.ee_frame_id = frame_name
 
             software_safety.sys_exit_if_not_safe(new_msg)
-
             pub.publish(new_msg)
 
+            T_W_cmd = T_W_cmd_nxt
+            T_W_E = T_W_E_nxt
 
 
             if VISUALIZE_FRAME:
@@ -359,6 +372,27 @@ def do_main():
                 tf_stamped.transform.rotation.w = new_msg.quaternion.w
 
                 tf2_broadcaster.sendTransform(tf_stamped)
+
+
+                # fingertip frame
+                tf_stamped.header.stamp = rospy.Time.now()
+                tf_stamped.header.frame_id = "base"
+                tf_stamped.child_frame_id = "simple_teleop_fingertip_frame"
+                tf_stamped.transform.translation.x = T_W_cmd[:3, 3][0]
+                tf_stamped.transform.translation.y = T_W_cmd[:3, 3][1]
+                tf_stamped.transform.translation.z = T_W_cmd[:3, 3][2]
+
+
+                quat_tmp = transformations.quaternion_from_matrix(T_W_cmd)
+                tf_stamped.transform.rotation.w = quat_tmp[0]
+                tf_stamped.transform.rotation.x = quat_tmp[1]
+                tf_stamped.transform.rotation.y = quat_tmp[2]
+                tf_stamped.transform.rotation.z = quat_tmp[3]
+
+
+                tf2_broadcaster.sendTransform(tf_stamped)
+
+
 
             #gripper
             if events["mouse_wheel_up"]:
