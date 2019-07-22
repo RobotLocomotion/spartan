@@ -270,11 +270,9 @@ def do_main():
             delta_yaw = 0.0
 
             if events["rotate_left"]:
-                roll_goal += 0.01
-                delta_roll += 0.01
+                delta_pitch += 0.01
             if events["rotate_right"]:
-                roll_goal -= 0.01
-                delta_roll -= 0.01
+                delta_pitch -= 0.01
             
             if events["side_button_back"]:
                 yaw_goal += 0.01
@@ -288,11 +286,9 @@ def do_main():
             yaw_goal = np.clip(yaw_goal, a_min = -1.314, a_max = 1.314)
 
             if events["d"]:
-                pitch_goal += 0.01
-                delta_pitch += 0.01
+                delta_roll += 0.01
             if events["a"]:
-                pitch_goal -= 0.01
-                delta_pitch -= 0.01
+                delta_roll -= 0.01
 
             pitch_goal = np.clip(pitch_goal, a_min = -1.314, a_max = 1.314)
 
