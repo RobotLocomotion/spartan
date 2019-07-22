@@ -1,5 +1,6 @@
 __author__ = 'manuelli'
 import numpy as np
+from scipy.spatial.transform import Rotation
 import collections
 import yaml
 from yaml import CLoader
@@ -113,6 +114,19 @@ def getQuaternionFromDict(d):
 
     return quat
 
+def get_translation_from_dict(d):
+    translation = None
+    names = ['position', 'translation']
+    for name in names:
+        if name in d:
+            translation = d[name]
+
+
+    if translation is None:
+        raise ValueError("Error when trying to extract translation from dict, your dict doesn't contain a key in ['translation', 'position']")
+
+    return translation
+
 def get_current_time_unique_name():
     """
     Converts current date to a unique name
@@ -132,10 +146,11 @@ def homogenous_transform_from_dict(d):
     :param d:
     :return:
     """
+    pos_dict = get_translation_from_dict(d)
     pos = [0]*3
-    pos[0] = d['translation']['x']
-    pos[1] = d['translation']['y']
-    pos[2] = d['translation']['z']
+    pos[0] = pos_dict['x']
+    pos[1] = pos_dict['y']
+    pos[2] = pos_dict['z']
 
     quatDict = getQuaternionFromDict(d)
     quat = [0]*4
@@ -208,6 +223,23 @@ def compute_angle_between_quaternions(q, r):
     theta = 2*np.arccos(2 * np.dot(q,r)**2 - 1)
     return theta
 
+
+def angle_axis_from_rotation_matrix(R):
+    """
+    Compute angle-axis representation from rotation matrix
+    :param R:
+    :type R:
+    :return:
+    :rtype:
+    """
+    # lowercase denotes scipy Rotation objects
+    r = Rotation.from_dcm(R)
+    return r.as_rotvec()
+
+def rotation_matrix_from_angle_axis(rotvec):
+    r = Rotation.from_rotvec(rotvec)
+    return r.as_dcm()
+
 def compute_translation_distance_between_poses(pose_a, pose_b):
     """
     Computes the linear difference between pose_a and pose_b
@@ -239,6 +271,7 @@ def compute_angle_between_poses(pose_a, pose_b):
     quat_b = transformations.quaternion_from_matrix(pose_b)
 
     return compute_angle_between_quaternions(quat_a, quat_b)
+
 
 def get_kuka_joint_names():
     return [
