@@ -28,6 +28,7 @@ from imitation_agent.deploy.software_safety import SoftwareSafety
 
 DEBUG = False
 VISUALIZE_FRAME = True
+MOVE_HOME = True
 
 def make_cartesian_gains_msg(kp_rot, kp_trans):
     msg = robot_msgs.msg.CartesianGain()
@@ -94,18 +95,21 @@ def do_main():
     above_table_pre_grasp = stored_poses_dict["Grasping"]["above_table_pre_grasp"]
     
     robotService = ros_utils.RobotService.makeKukaRobotService()
-    success = robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=30, timeout=5) # in sim, can do 60
-    print("Moved to position")
 
-    gripper_goal_pos = 0.0
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
-    print("sent close goal to gripper")
-    time.sleep(2) # in sim, this can just be 0.1
+    if MOVE_HOME:
+        success = robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=30, timeout=5) # in sim, can do 60
+        print("Moved to position")
+
+        gripper_goal_pos = 0.0
+        handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
+        print("sent close goal to gripper")
+        time.sleep(2) # in sim, this can just be 0.1
+        gripper_goal_pos = 0.1
+        handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
+        print("sent open goal to gripper")
+        time.sleep(0.5)
+
     gripper_goal_pos = 0.1
-    handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
-    print("sent open goal to gripper")
-    time.sleep(0.5)
-
     frame_name = "iiwa_link_ee" # end effector frame name
 
     ee_tf_above_table = None
