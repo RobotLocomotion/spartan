@@ -32,6 +32,9 @@
 #include "drake/multibody/plant/externally_applied_spatial_force.h"
 
 #include <ros/ros.h>
+#include "std_msgs/String.h"
+#include "std_msgs/Float64.h"
+#include "sensor_msgs/JointState.h"
 
 
 namespace drake {
@@ -49,6 +52,10 @@ class BoxDisturber : public systems::LeafSystem<double> {
         &BoxDisturber::CalcSpatialForceGravityCompensation);
 
     this->sugar_index = sugar_index;
+
+    //DeclarePeriodicPublishEvent(0.03, 0.0, &BoxDisturber::DoPeriodicPublish);
+
+    sub = nh_.subscribe("/box_rotate", 1000, &BoxDisturber::chatterCallback, this);
   }
 
  private:
@@ -56,11 +63,22 @@ class BoxDisturber : public systems::LeafSystem<double> {
       const Context<double>& context,
       std::vector<ExternallyAppliedSpatialForce<double>>* output) const {
 
-    const Vector3<double> p(1, 2, 3);
+    //std::cout << "I am inside calc" << std::endl;
+
+    const Vector3<double> p(1, 1, 0);
+    //const Vector3<double> r(0, 0, rotate_amount);
     
-    const Vector3<double> up_W(0, 0, 1);
+    const Vector3<double> up_W(0, up_amount, 0);
+
+    Vector3<double> r;
+    if (up_amount < 1e9) {
+      r = Vector3<double>::Zero();
+    } else {
+      r = Vector3<double>(0,0,up_amount);
+    }
+
     const SpatialForce<double> F_L1q_W(
-        Vector3<double>::Zero() /* no torque */,
+        r,
         up_W);
     
     output->resize(1 /* number of forces */);
@@ -70,7 +88,26 @@ class BoxDisturber : public systems::LeafSystem<double> {
 
   }
 
+  // systems::EventStatus DoPeriodicPublish(
+  //   const Context<double>& context) const {
+    
+  //   std::cout << "in periodic publish" << std::endl;
+
+  //   ros::spinOnce();
+  //   return systems::EventStatus::Succeeded();
+  // }
+
+  void chatterCallback(const std_msgs::Float64 msg)
+  {
+    std::cout << "I heard some joints" << msg.data << std::endl;
+    up_amount = msg.data + 1e-3;
+  }
+
+
   BodyIndex sugar_index;
+  mutable ros::NodeHandle nh_;
+  ros::Subscriber sub;
+  double up_amount = 0.0;
 
 };
 
