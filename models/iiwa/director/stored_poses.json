@@ -1226,6 +1226,23 @@
       "nominal_handedness": "left"
     }
   ],
+  "imitation": [
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": -0.22534529864788055,
+        "iiwa_joint_2": 0.9856639504432678,
+        "iiwa_joint_3": -0.0466277115046978,
+        "iiwa_joint_4": -1.4239407777786255,
+        "iiwa_joint_5": 0.12049949914216995,
+        "iiwa_joint_6": 0.7430949807167053,
+        "iiwa_joint_7": 0.05023166909813881
+      },
+      "name": "push_box_start",
+      "nominal_handedness": "left"
+    }
+  ],
   "object_interaction": [
     {
       "allow_mirror": true,
