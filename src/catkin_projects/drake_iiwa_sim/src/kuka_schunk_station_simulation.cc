@@ -29,7 +29,92 @@
 #include "drake/systems/primitives/matrix_gain.h"
 #include "drake/systems/sensors/dev/rgbd_camera.h"
 
+#include "drake/multibody/plant/externally_applied_spatial_force.h"
+
 #include <ros/ros.h>
+#include "std_msgs/String.h"
+#include "std_msgs/Float64.h"
+#include "sensor_msgs/JointState.h"
+
+
+namespace drake {
+
+using systems::Context;
+using systems::VectorBase;
+
+namespace multibody {
+
+class BoxDisturber : public systems::LeafSystem<double> {
+ public:
+  explicit BoxDisturber(BodyIndex sugar_index) {
+    this->DeclareAbstractOutputPort(
+        "spatial_forces",
+        &BoxDisturber::CalcSpatialForceGravityCompensation);
+
+    this->sugar_index = sugar_index;
+
+    //DeclarePeriodicPublishEvent(0.03, 0.0, &BoxDisturber::DoPeriodicPublish);
+
+    sub = nh_.subscribe("/box_rotate", 1000, &BoxDisturber::chatterCallback, this);
+  }
+
+ private:
+  void CalcSpatialForceGravityCompensation(
+      const Context<double>& context,
+      std::vector<ExternallyAppliedSpatialForce<double>>* output) const {
+
+    //std::cout << "I am inside calc" << std::endl;
+
+    const Vector3<double> p(1, 1, 0);
+    //const Vector3<double> r(0, 0, rotate_amount);
+    
+    const Vector3<double> up_W(0, up_amount, 0);
+
+    Vector3<double> r;
+    if (up_amount < 1e9) {
+      r = Vector3<double>::Zero();
+    } else {
+      r = Vector3<double>(0,0,up_amount);
+    }
+
+    const SpatialForce<double> F_L1q_W(
+        r,
+        up_W);
+    
+    output->resize(1 /* number of forces */);
+    (*output)[0].body_index = this->sugar_index;
+    (*output)[0].p_BoBq_B = p;
+    (*output)[0].F_Bq_W = F_L1q_W;
+
+  }
+
+  // systems::EventStatus DoPeriodicPublish(
+  //   const Context<double>& context) const {
+    
+  //   std::cout << "in periodic publish" << std::endl;
+
+  //   ros::spinOnce();
+  //   return systems::EventStatus::Succeeded();
+  // }
+
+  void chatterCallback(const std_msgs::Float64 msg)
+  {
+    std::cout << "I heard some joints" << msg.data << std::endl;
+    up_amount = msg.data + 1e-3;
+  }
+
+
+  BodyIndex sugar_index;
+  mutable ros::NodeHandle nh_;
+  ros::Subscriber sub;
+  double up_amount = 0.0;
+
+};
+
+} // namespace multibody
+} // namespace drake
+
+
 
 namespace drake_iiwa_sim {
 namespace {
@@ -77,6 +162,7 @@ RigidTransform<double> load_tf_from_yaml(YAML::Node tf_yaml) {
                                 tf_yaml["translation"]["z"].as<double>()));
   return tf;
 }
+
 
 int do_main(int argc, char* argv[]) {
   ros::init(argc, argv, "kuka_schunk_station_simulation");
@@ -157,7 +243,9 @@ int do_main(int argc, char* argv[]) {
     }
   }
 
+
   station->Finalize();
+
 
   // TODO(gizatt) Merge this into the Schunk Station, or its own
   // class?
@@ -330,8 +418,40 @@ int do_main(int argc, char* argv[]) {
   builder.Connect(station->GetOutputPort("wsg_force_measured"),
                   wsg_ros_actionserver->get_measured_force_input_port());
 
+  // Initialize object poses uses initialization list
+  // generated when loading them in.
+  multibody::BodyIndex sugar_index;
+  for (const auto& initialization : initializations_to_do) {
+  
+        const auto& sugar = plant->GetBodyByName(initialization.body_name,
+                             initialization.model_instance);
+        std::cout << sugar.index() << " was that anything " << std::endl;
+        sugar_index = sugar.index();
+  }
 
+  // Add the system that applies inverse gravitational forces to the link
+  // endpoints.
+  auto box_disturber =
+      builder.AddSystem<multibody::BoxDisturber>(sugar_index);
+
+  // auto plant_something = builder.AddSystem<>();
+
+  box_disturber->get_output_port(0);
+  station->GetInputPort("applied_spatial_force");
+  //&station->get_applied_spatial_force_input_port();
+  std::cout << "could call these ports " << std::endl;
+
+  //Connect the system to the MBP.
+  builder.Connect(
+      box_disturber->get_output_port(0),
+      station->GetInputPort("applied_spatial_force"));
+
+ 
   auto diagram = builder.Build();
+
+
+
+
 
   systems::Simulator<double> simulator(*diagram);
   auto& context = simulator.get_mutable_context();
@@ -350,6 +470,8 @@ int do_main(int argc, char* argv[]) {
   station->SetIiwaPosition(&station_context, q0);
   const VectorXd qdot0 = VectorXd::Zero(7);
   station->SetIiwaVelocity(&station_context, qdot0);
+
+
 
   // Initialize object poses uses initialization list
   // generated when loading them in.

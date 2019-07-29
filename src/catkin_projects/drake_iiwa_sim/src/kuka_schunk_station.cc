@@ -264,6 +264,8 @@ void KukaSchunkStation<T>::Finalize() {
                          "iiwa_state_estimated");
   }
 
+  builder.ExportInput(plant_->get_applied_spatial_force_input_port(), "applied_spatial_force");
+
   // Add the IIWA controller "stack".
   {
     owned_controller_plant_->Finalize();
