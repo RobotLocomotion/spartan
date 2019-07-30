@@ -72,7 +72,10 @@ if __name__ == "__main__":
     cmd += " --user %s " % user_name  # login as current user
 
     # mount torch model folder
-    cmd += " -v ~/.cache/torch:%(home_directory)s/.cache/torch" %{'home_directory': home_directory}
+    # cmd += " -v ~/.cache/torch:%(home_directory)s/.cache/torch" %{'home_directory': home_directory}
+
+    # mount torch model folder
+    cmd += " -v ~/.cache:%(home_directory)s/.cache" %{'home_directory': home_directory}
 
 
     # mount the data volume
