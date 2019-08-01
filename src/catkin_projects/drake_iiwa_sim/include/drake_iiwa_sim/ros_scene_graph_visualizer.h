@@ -11,6 +11,7 @@
 
 #include <interactive_markers/interactive_marker_server.h>
 #include "ros/ros.h"
+#include "geometry_msgs/PoseStamped.h"
 
 namespace drake_iiwa_sim {
 
@@ -38,6 +39,7 @@ class RosSceneGraphVisualizer : public drake::systems::LeafSystem<double> {
   const drake::geometry::SceneGraph<double>& scene_graph_{};
   mutable ros::NodeHandle nh_;
   mutable interactive_markers::InteractiveMarkerServer server_;
+  mutable ros::Publisher cheat_pose_publisher_;
 };
 
 }  // namespace drake_iiwa_sim
