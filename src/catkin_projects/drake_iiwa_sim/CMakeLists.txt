@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   sensor_msgs
+  robot_msgs
   std_msgs
   actionlib
   interactive_markers

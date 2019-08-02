@@ -25,3 +25,9 @@ T_W_E_init = transformations.quaternion_matrix(quat)
 T_W_E_init[:3, 3] = pos
 
 T_W_cmd_init = np.matmul(T_W_E_init, T_E_cmd)
+
+# nominal box pose
+pos = [0.61, 0.0, 0.05]
+rpy = [0.0, 0.0, np.pi/2.0]
+T_W_B_init = transformations.euler_matrix(rpy[0], rpy[1], rpy[2])
+T_W_B_init[:3, 3] = pos

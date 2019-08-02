@@ -28,7 +28,7 @@ from imitation_agent.deploy.software_safety import SoftwareSafety
 
 DEBUG = False
 VISUALIZE_FRAME = True
-MOVE_HOME = True
+MOVE_HOME = False
 
 def make_cartesian_gains_msg(kp_rot, kp_trans):
     msg = robot_msgs.msg.CartesianGain()
@@ -189,11 +189,11 @@ def do_main():
     yaw_goal = 0.0
     pitch_goal = 0.0
 
-    software_safety = SoftwareSafety()
-    xyz = ee_tf_last_commanded[:3, 3]
-    rpy = np.asarray([roll_goal, pitch_goal, yaw_goal])
-    
-    software_safety.set_initial_goal(xyz, rpy)
+    # software_safety = SoftwareSafety()
+    # xyz = ee_tf_last_commanded[:3, 3]
+    # rpy = np.asarray([roll_goal, pitch_goal, yaw_goal])
+    #
+    # software_safety.set_initial_goal(xyz, rpy)
 
 
     # init mouse manager
@@ -351,7 +351,7 @@ def do_main():
             new_msg.gain = make_cartesian_gains_msg(5., 10.)
             new_msg.ee_frame_id = frame_name
 
-            software_safety.sys_exit_if_not_safe(new_msg)
+            # software_safety.sys_exit_if_not_safe(new_msg)
             pub.publish(new_msg)
 
             T_W_cmd = T_W_cmd_nxt

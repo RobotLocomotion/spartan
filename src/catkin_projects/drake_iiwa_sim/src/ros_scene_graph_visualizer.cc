@@ -34,7 +34,9 @@ RosSceneGraphVisualizer::RosSceneGraphVisualizer(
     : server_(server_name),
       scene_graph_(scene_graph),
       pose_bundle_input_port_(DeclareAbstractInputPort(
-          drake::systems::kUseDefaultName, Value<PoseBundle<double>>()).get_index())
+          drake::systems::kUseDefaultName, Value<PoseBundle<double>>()).get_index()),
+      cheat_pose_publisher_(nh_.advertise<geometry_msgs::PoseStamped>(
+          "/dynamic_gt_object_pose", 1))
       {
   DeclareInitializationPublishEvent(&RosSceneGraphVisualizer::DoInitialization);
   DeclarePeriodicPublishEvent(draw_period, 0.0, &RosSceneGraphVisualizer::DoPeriodicPublish);
@@ -233,6 +235,14 @@ EventStatus RosSceneGraphVisualizer::DoPeriodicPublish(
     int robot_num = pose_bundle.get_model_instance_id(frame_i);
     std::string full_name = MakeFullName(pose_bundle.get_name(frame_i), robot_num);
     server_.setPose(full_name, pose_msg, header);
+
+    if (full_name.find("sugar") != std::string::npos) {
+      geometry_msgs::PoseStamped pose_stamped_msg;
+      pose_stamped_msg.header = header;
+      pose_stamped_msg.pose = pose_msg;
+      cheat_pose_publisher_.publish(pose_stamped_msg);
+    } 
+
   }
   server_.applyChanges();
   ros::spinOnce();

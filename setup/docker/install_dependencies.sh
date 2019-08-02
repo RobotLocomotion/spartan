@@ -39,5 +39,5 @@ pip install \
   matplotlib==1.5.3 \
   scikit-image \
   pytest-xdist \
-  vispy \
-  rospy_message_converter
+  rospy_message_converter \
+  trimesh

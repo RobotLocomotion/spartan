@@ -58,6 +58,7 @@ add_message_files(
    CartesianGain.msg
    CartesianGoalPoint.msg
    CartesianPlanInfo.msg
+   ExternallyAppliedSpatialForce.msg
 )
 
 ## Generate services in the 'srv' folder
