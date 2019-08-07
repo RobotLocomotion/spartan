@@ -28,7 +28,12 @@ from imitation_agent.deploy.software_safety import SoftwareSafety
 
 DEBUG = False
 VISUALIZE_FRAME = True
-MOVE_HOME = False
+MOVE_HOME = True
+
+
+# Task config
+DO_PUSH_BOX = False
+#
 
 def make_cartesian_gains_msg(kp_rot, kp_trans):
     msg = robot_msgs.msg.CartesianGain()
@@ -92,24 +97,43 @@ def do_main():
     # EE control will work well from (i.e. far from singularity)
 
     stored_poses_dict = spartan_utils.getDictFromYamlFilename("../station_config/RLG_iiwa_1/stored_poses.yaml")
+    
+    # standard start, i.e. for shoe demo
     above_table_pre_grasp = stored_poses_dict["Grasping"]["above_table_pre_grasp"]
+
+    # carrot start
+    #above_table_pre_grasp = stored_poses_dict["Grasping"]["carrot_task"]
+
     
     robotService = ros_utils.RobotService.makeKukaRobotService()
+
+
+    if DO_PUSH_BOX:
+        gripper_goal_pos = 0.0
+    else:
+        gripper_goal_pos = 0.1
 
     if MOVE_HOME:
         success = robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=30, timeout=5) # in sim, can do 60
         print("Moved to position")
 
-        gripper_goal_pos = 0.0
-        handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
+        handDriver.sendGripperCommand(0.0, speed=0.1, timeout=0.01)
         print("sent close goal to gripper")
-        time.sleep(2) # in sim, this can just be 0.1
-        gripper_goal_pos = 0.1
-        handDriver.sendGripperCommand(gripper_goal_pos, speed=0.1, timeout=0.01)
-        print("sent open goal to gripper")
+        time.sleep(1) # in sim, this can just be 0.1
+
+        if DO_PUSH_BOX:
+            start_pose = stored_poses_dict["imitation"]["push_box_start_REAL"]
+            success = robotService.moveToJointPosition(start_pose, maxJointDegreesPerSecond=20, timeout=5)
+            print("Moved to push box start")
+            print("Sleeping so you can put box in position...")
+            time.sleep(0.5)
+        else:
+            handDriver.sendGripperCommand(0.1, speed=0.1, timeout=0.01)
+            print("sent open goal to gripper")
+            
         time.sleep(0.5)
 
-    gripper_goal_pos = 0.1
+    
     frame_name = "iiwa_link_ee" # end effector frame name
 
     ee_tf_above_table = None
@@ -189,11 +213,16 @@ def do_main():
     yaw_goal = 0.0
     pitch_goal = 0.0
 
+
     # software_safety = SoftwareSafety()
     # xyz = ee_tf_last_commanded[:3, 3]
     # rpy = np.asarray([roll_goal, pitch_goal, yaw_goal])
     #
     # software_safety.set_initial_goal(xyz, rpy)
+
+    software_safety = SoftwareSafety()
+    software_safety.set_initial_goal(ee_tf_last_commanded)
+
 
 
     # init mouse manager
@@ -218,9 +247,6 @@ def do_main():
 
             if events["r"]:
                 success = robotService.moveToJointPosition(above_table_pre_grasp, timeout=3)
-                roll_goal = 0.0
-                yaw_goal = 0.0
-                pitch_goal = 0.0
                 ee_tf_last_commanded = get_initial_pose()
                 res = sp(init)
 
@@ -252,9 +278,9 @@ def do_main():
                 pose_save_counter = 0
 
             if events["escape"]:
-                stop_bagging_imitation_data_client()
                 if len(saved_pose_dict) > 0:
                     spartan_utils.saveToYaml(saved_pose_dict, "saved_poses.yaml")
+                stop_bagging_imitation_data_client()
                 sys.exit(0)
             
             scale_down = 0.0001
@@ -279,27 +305,26 @@ def do_main():
                 delta_pitch -= 0.01
             
             if events["side_button_back"]:
-                yaw_goal += 0.01
-                delta_yaw += 0.01
+                delta_yaw -= 0.01
                 print("side button back")
             if events["side_button_forward"]:
-                yaw_goal -= 0.01
-                delta_yaw -= 0.01
+                delta_yaw += 0.01
                 print("side side_button_forward")
-
-            yaw_goal = np.clip(yaw_goal, a_min = -1.314, a_max = 1.314)
 
             if events["d"]:
                 delta_roll += 0.01
             if events["a"]:
                 delta_roll -= 0.01
 
-            pitch_goal = np.clip(pitch_goal, a_min = -1.314, a_max = 1.314)
+
 
 
             R_cmd_cmd_nxt = transformations.euler_matrix(delta_pitch, delta_roll, delta_yaw, 'syxz')[:3, :3]
             R_W_cmd_nxt = np.matmul(T_W_cmd[:3, :3], R_cmd_cmd_nxt)
 
+            if DO_PUSH_BOX:
+                # this delta is in mouse frame
+                delta_y = 0.0
 
             target_translation = np.asarray([delta_forward, delta_x, delta_y])
             T_W_cmd_nxt = np.eye(4)
@@ -307,18 +332,6 @@ def do_main():
             T_W_cmd_nxt[:3,:3] = R_W_cmd_nxt
 
             T_W_E_nxt = np.matmul(T_W_cmd_nxt, constants.T_cmd_E)
-
-
-            # # above_table_quat_ee = transformations.quaternion_from_matrix(R.dot(ee_tf_above_table))
-            # above_table_quat_ee = transformations.quaternion_from_matrix(ee_tf_above_table.dot(R))
-            # above_table_quat_ee = np.array(above_table_quat_ee) / np.linalg.norm(above_table_quat_ee)
-            #
-            # # calculate controller position delta and add to start position to get target ee position
-            # target_translation = np.asarray([delta_forward, delta_x, delta_y])
-            # empty_matrx = np.zeros_like(ee_tf_last_commanded)
-            # empty_matrx[:3, 3] = target_translation
-            # ee_tf_last_commanded += empty_matrx
-            # target_trans_ee = ee_tf_last_commanded[:3, 3]
             
 
             target_ee_pos = T_W_E_nxt[:3, 3]
