@@ -627,7 +627,8 @@ class HandEyeCalibration(object):
         self.config['rgb_raw_topic'] = topic_name
          # setup header information for storing along with the log
         calibrationHeaderData = dict()
-        calibrationHeaderData['camera'] = "d415_02"
+        camera_name = topic_name.split("camera_")[-1].split("/color")[0]
+        calibrationHeaderData['camera'] = camera_name
         calibrationHeaderData['image_type'] = 'rgb'
         calibrationHeaderData['target'] = self.config['calibration_target']
         calibrationHeaderData['target']['square_edge_length'] = 0.01322
