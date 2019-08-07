@@ -62,7 +62,7 @@ class TeleopMouseManager():
             o = True
         
         w = a = s = d = False
-        h = n = False
+        h = n = q = e = False
         if keys[K_w]:
             w = True
         if keys[K_a]:
@@ -75,6 +75,11 @@ class TeleopMouseManager():
             h = True
         if keys[K_n]:
             n = True
+        if keys[K_q]:
+            q = True
+        if keys[K_e]:
+            e = True
+
 
         r = False
         if keys[K_r]:
@@ -97,8 +102,8 @@ class TeleopMouseManager():
         events["mouse_wheel_down"] = mouse_wheel_down
         events["rotate_left"] = rotate_left
         events["rotate_right"] = rotate_right
-        events["side_button_back"] = self.side_button_back_DOWN
-        events["side_button_forward"] = self.side_button_fwd_DOWN
+        events["side_button_back"] = self.side_button_back_DOWN or e
+        events["side_button_forward"] = self.side_button_fwd_DOWN or q
 
         events["o"] = o
         return events
