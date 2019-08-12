@@ -11,29 +11,18 @@ import spartan.utils.transformations as transformations
 pos = np.array([ 0.15012376, -0.0003506 , -0.00126868])
 quat = np.array([0.58659034, 0.39440466, 0.58897855, 0.39174098])
 T_E_cmd = transformations.quaternion_matrix(quat)
-# T_E_cmd[:3, 3] = pos
+
+# uncomment this line to do fingertip rotations
+#T_E_cmd[:3, 3] = pos
 
 # T_E_cmd = np.eye(4)
 T_cmd_E = np.linalg.inv(T_E_cmd)
 
-
-
 # above table pre grasp
-# pos = np.array([0.51151917, 0.01527382, 0.50183972])
-# quat = np.array([ 0.68753504,  0.15386359,  0.69881696, -0.12359783])
-# T_W_E_init = transformations.quaternion_matrix(quat)
-# T_W_E_init[:3, 3] = pos
-
-
-# carrot flip
-# T_W_E_init = np.asarray([[-0.00666542,  0.38384232,  0.9233746,   0.7925802 ],
-#  [ 0.01898259,  0.92327729, -0.38366484, -0.01592885],
-#  [-0.9997976,   0.01497076, -0.01344035,  0.26536946],
-#  [ 0.,          0.,          0.,          1.        ]])
-T_W_E_init = np.asarray([[-0.00714052,  0.38309528,  0.92368123,  0.7636582 ],
- [ 0.02952701,  0.92338278, -0.38274324, -0.01763667],
- [-0.99953848,  0.02454056, -0.01790509,  0.23705875],
- [ 0.        ,  0.        ,  0.        ,  1.        ]])
+pos = np.array([0.51151917, 0.01527382, 0.50183972])
+quat = np.array([ 0.68753504,  0.15386359,  0.69881696, -0.12359783])
+T_W_E_init = transformations.quaternion_matrix(quat)
+T_W_E_init[:3, 3] = pos
 
 
 T_W_cmd_init = np.matmul(T_W_E_init, T_E_cmd)

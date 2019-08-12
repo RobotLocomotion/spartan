@@ -15,8 +15,14 @@ Panels:
         - /PointCloud24
         - /InteractiveMarkers1
         - /InteractiveMarkers2
-      Splitter Ratio: 0.576470613
-    Tree Height: 1100
+        - /DepthCloud1
+        - /DepthCloud1/Auto Size1
+        - /DepthCloud2
+        - /DepthCloud2/Auto Size1
+        - /PointCloud25
+        - /PointCloud26
+      Splitter Ratio: 0.440129459
+    Tree Height: 1260
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -35,7 +41,9 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: DepthCloud
+Toolbars:
+  toolButtonStyle: 2
 Visualization Manager:
   Class: ""
   Displays:
@@ -78,18 +86,48 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        ar_marker_0:
+          Value: true
+        ar_marker_8:
+          Value: true
         base:
           Value: true
         camera_carmine_1_depth_frame:
           Value: false
         camera_carmine_1_depth_optical_frame:
-          Value: true
+          Value: false
         camera_carmine_1_link:
           Value: false
         camera_carmine_1_rgb_frame:
           Value: false
         camera_carmine_1_rgb_optical_frame:
-          Value: true
+          Value: false
+        camera_d415_01_aligned_depth_to_color_frame:
+          Value: false
+        camera_d415_01_color_frame:
+          Value: false
+        camera_d415_01_color_optical_frame:
+          Value: false
+        camera_d415_01_depth_frame:
+          Value: false
+        camera_d415_01_depth_optical_frame:
+          Value: false
+        camera_d415_01_link:
+          Value: false
+        camera_d415_02_aligned_depth_to_color_frame:
+          Value: false
+        camera_d415_02_color_frame:
+          Value: false
+        camera_d415_02_color_optical_frame:
+          Value: false
+        camera_d415_02_depth_frame:
+          Value: false
+        camera_d415_02_depth_optical_frame:
+          Value: false
+        camera_d415_02_link:
+          Value: false
+        gripper_fingertip:
+          Value: false
         iiwa_link_0:
           Value: false
         iiwa_link_1:
@@ -131,12 +169,15 @@ Visualization Manager:
       Show Names: true
       Tree:
         base:
-          camera_carmine_1_depth_frame:
-            camera_carmine_1_depth_optical_frame:
+          camera_d415_01_color_frame:
+            camera_d415_01_color_optical_frame:
               {}
-          camera_carmine_1_rgb_frame:
-            camera_carmine_1_rgb_optical_frame:
-              {}
+          camera_d415_02_color_frame:
+            camera_d415_02_color_optical_frame:
+              ar_marker_0:
+                {}
+              ar_marker_8:
+                {}
           iiwa_link_0:
             iiwa_link_1:
               iiwa_link_2:
@@ -146,9 +187,17 @@ Visualization Manager:
                       iiwa_link_6:
                         iiwa_link_7:
                           iiwa_link_ee:
+                            gripper_fingertip:
+                              {}
                             iiwa_link_ee_gripper_aligned:
                               {}
                             wsg_50_base_link:
+                              camera_carmine_1_depth_frame:
+                                camera_carmine_1_depth_optical_frame:
+                                  {}
+                              camera_carmine_1_rgb_frame:
+                                camera_carmine_1_rgb_optical_frame:
+                                  {}
                               wsg_50_gripper_left:
                                 wsg_50_finger_left:
                                   {}
@@ -315,6 +364,184 @@ Visualization Manager:
       Show Visual Aids: false
       Update Topic: /scene_graph/update
       Value: true
+    - Alpha: 1
+      Auto Size:
+        Auto Size Factor: 1
+        Value: true
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/DepthCloud
+      Color: 255; 255; 255
+      Color Image Topic: /camera_d415_01/color/image_raw
+      Color Transformer: RGB8
+      Color Transport Hint: raw
+      Decay Time: 0
+      Depth Map Topic: /camera_d415_01/aligned_depth_to_color/image_raw
+      Depth Map Transport Hint: raw
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: DepthCloud
+      Occlusion Compensation:
+        Occlusion Time-Out: 30
+        Value: false
+      Position Transformer: XYZ
+      Queue Size: 5
+      Selectable: true
+      Size (Pixels): 3
+      Style: Flat Squares
+      Topic Filter: true
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Auto Size:
+        Auto Size Factor: 1
+        Value: true
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/DepthCloud
+      Color: 255; 255; 255
+      Color Image Topic: /camera_d415_02/color/image_raw
+      Color Transformer: RGB8
+      Color Transport Hint: raw
+      Decay Time: 0
+      Depth Map Topic: /camera_d415_02/aligned_depth_to_color/image_raw
+      Depth Map Transport Hint: raw
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: DepthCloud
+      Occlusion Compensation:
+        Occlusion Time-Out: 30
+        Value: false
+      Position Transformer: XYZ
+      Queue Size: 5
+      Selectable: true
+      Size (Pixels): 3
+      Style: Flat Squares
+      Topic Filter: true
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz/Image
+      Enabled: false
+      Image Topic: /camera_d415_01/color/image_raw
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Image
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Unreliable: false
+      Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.00999999978
+      Style: Points
+      Topic: /hand_point_cloud
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /contact_point
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 0; 0; 255
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.00999999978
+      Style: Points
+      Topic: /scene_point_cloud
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz/Camera
+      Enabled: false
+      Image Rendering: background and overlay
+      Image Topic: /camera_d415_02/color/image_raw
+      Name: Camera
+      Overlay Alpha: 0.5
+      Queue Size: 2
+      Transport Hint: raw
+      Unreliable: false
+      Value: false
+      Visibility:
+        DepthCloud: true
+        Grid: true
+        Image: true
+        InteractiveMarkers: true
+        Marker: true
+        MarkerArray: true
+        PointCloud2: true
+        RobotModel: true
+        TF: true
+        Value: true
+      Zoom Factor: 1
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -340,33 +567,37 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 5.69497013
+      Distance: 0.977824152
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.440048277
-        Y: 0.0599983297
-        Z: 0.232078344
+        X: 0.440800071
+        Y: -0.0181305725
+        Z: 0.0797943175
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.544797719
+      Pitch: 0.194796562
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.90067816
+      Yaw: 0.0306289494
     Saved: ~
 Window Geometry:
-  Displays:
+  Camera:
     collapsed: false
-  Height: 1388
-  Hide Left Dock: false
+  Displays:
+    collapsed: true
+  Height: 1548
+  Hide Left Dock: true
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000001c7000004d4fc020000000afb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afc0000003a000004d4000000c600fffffffa000000010100000002fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb000000100044006900730070006c00610079007301000000000000016b0000015600fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a0049006d0061006700650000000437000000d70000000000000000fb0000000a0049006d006100670065030000010500000178000002f8000002400000000100000100000004d4fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003a000004d40000009e00fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000055f0000003efc0100000002fb0000000800540069006d006501000000000000055f0000024400fffffffb0000000800540069006d0065010000000000000450000000000000000000000392000004d400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Image:
+    collapsed: false
+  QMainWindow State: 000000ff00000000fd00000004000000000000026c00000574fc020000000cfb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730200000780000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afc0000003a000005740000000000fffffffaffffffff0100000002fb0000000a0049006d0061006700650000000000ffffffff0000005a00fffffffb000000100044006900730070006c00610079007300000000000000016b0000015600fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a0049006d0061006700650000000437000000d70000000000000000fb0000000a0049006d006100670065030000010500000178000002f800000240fb0000000a0049006d0061006700650300000057000003d2000002bf000001e0fb0000000c00430061006d00650072006102000007c5000001f9000004840000037d0000000100000100000004d4fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003a000004d40000009e00fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004e00000003efc0100000002fb0000000800540069006d00650100000000000004e00000024400fffffffb0000000800540069006d00650100000000000004500000000000000000000004e00000057400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -375,6 +606,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: false
-  Width: 1375
-  X: 55
-  Y: 83
+  Width: 1248
+  X: 3232
+  Y: 24

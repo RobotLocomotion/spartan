@@ -1,0 +1,36 @@
+ir_raw_topic: /camera_carmine_1/ir/image
+camera_serial_number: 1
+camera_type: 'carmine'
+poses:
+  direction_to_target:
+  - 1
+  - 0
+  - 0
+  distance:
+    max: 0.7
+    min: 0.5
+    step_size: 0.15
+  pitch:
+    max: 45
+    min: 0
+    step_size: 15
+  target_location:
+  - 0.6
+  - 0
+  - 0
+  yaw:
+    max: 180
+    min: -180
+    step_size: 30
+
+  min_distance_between_poses: 0.1
+calibration_target:
+  width: 7
+  height: 6
+  square_edge_length: 0.0256
+rgb_raw_topic: /camera_carmine_1/rgb/image_raw
+encoding:
+  ir: "mono16"
+  rgb: "bgr8"
+
+filename_extension: "jpg"

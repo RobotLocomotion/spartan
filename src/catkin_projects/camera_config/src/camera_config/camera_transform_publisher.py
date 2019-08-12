@@ -19,7 +19,8 @@ class CameraTransformPublisher:
 		rospy.loginfo("camera_info_filename  = %s", self.cameraInfoFilename)
 
 		cameraInfoYamlDict = spartanUtils.getDictFromYamlFilename(self.cameraInfoFilename)
-		self.cameraTypes = ['rgb','depth']
+		#self.cameraTypes = ['rgb','depth']
+		self.cameraTypes = ['color']
 		self.parseCameraInfo(cameraInfoYamlDict)
 
 		self.broadcaster = tf2_ros.TransformBroadcaster()

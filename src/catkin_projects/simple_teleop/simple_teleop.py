@@ -33,6 +33,7 @@ MOVE_HOME = True
 
 # Task config
 DO_PUSH_BOX = False
+DO_HANG_HAT = False
 #
 
 def make_cartesian_gains_msg(kp_rot, kp_trans):
@@ -91,6 +92,12 @@ def do_main():
 
     # init gripper
     handDriver = SchunkDriver()
+
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--just-open":
+        time.sleep(2)
+        handDriver.sendGripperCommand(0.1, speed=0.1, timeout=0.01)
+        sys.exit(0)
     
 
     # Start by moving to an above-table pregrasp pose that we know
@@ -114,12 +121,12 @@ def do_main():
         gripper_goal_pos = 0.1
 
     if MOVE_HOME:
-        success = robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=30, timeout=5) # in sim, can do 60
+        success = robotService.moveToJointPosition(above_table_pre_grasp, maxJointDegreesPerSecond=20, timeout=5) # in sim, can do 60
         print("Moved to position")
 
         handDriver.sendGripperCommand(0.0, speed=0.1, timeout=0.01)
         print("sent close goal to gripper")
-        time.sleep(1) # in sim, this can just be 0.1
+        time.sleep(2.0) # in sim, this can just be 0.1
 
         if DO_PUSH_BOX:
             start_pose = stored_poses_dict["imitation"]["push_box_start_REAL"]
@@ -130,8 +137,13 @@ def do_main():
         else:
             handDriver.sendGripperCommand(0.1, speed=0.1, timeout=0.01)
             print("sent open goal to gripper")
+
+        if DO_HANG_HAT:
+            start_pose = stored_poses_dict["imitation"]["hat_task_start"]
+            success = robotService.moveToJointPosition(start_pose, maxJointDegreesPerSecond=30, timeout=5)
+            print("ready to hang the hat!")
             
-        time.sleep(0.5)
+        time.sleep(1.0)
 
     
     frame_name = "iiwa_link_ee" # end effector frame name
@@ -149,6 +161,10 @@ def do_main():
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             print("Troubling looking up robot pose...")
             time.sleep(0.1)
+
+    # print("ee_tf_above_table")
+    # print(ee_tf_above_table)
+    # import sys; sys.exit(0)
 
     # Then kick off task space streaming
     sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
@@ -199,7 +215,7 @@ def do_main():
         if not bagging_started:
             raise ValueError("bagging failed to start")
 
-        #time.sleep(0.5)
+        time.sleep(0.5)
         #rospy.wait_for_service('save_scene_point_cloud', timeout=1.0)
         #save_scene_point_cloud = rospy.ServiceProxy('save_scene_point_cloud', SaveScenePointCloud)
         #resp1 = save_scene_point_cloud()
@@ -220,7 +236,7 @@ def do_main():
     #
     # software_safety.set_initial_goal(xyz, rpy)
 
-    software_safety = SoftwareSafety()
+    software_safety = SoftwareSafety(dict())
     software_safety.set_initial_goal(ee_tf_last_commanded)
 
 
@@ -364,7 +380,7 @@ def do_main():
             new_msg.gain = make_cartesian_gains_msg(5., 10.)
             new_msg.ee_frame_id = frame_name
 
-            # software_safety.sys_exit_if_not_safe(new_msg)
+            software_safety.sys_exit_if_not_safe(new_msg)
             pub.publish(new_msg)
 
             T_W_cmd = T_W_cmd_nxt
