@@ -169,15 +169,6 @@ ExternalProject_Add(signal-scope
   DEPENDS director
 )
 
-ExternalProject_Add(ContactParticleFilter
-  SOURCE_DIR ${source_dir}/src/ContactParticleFilter
-  BINARY_DIR ${build_dir}/ContactParticleFilter
-  BUILD_ALWAYS 1
-  CMAKE_CACHE_ARGS
-    ${CMAKE_ARGS_FOR_EXTERNALS}
-  DEPENDS drake
-)
-
 ExternalProject_Add(spartan_lcmtypes
   SOURCE_DIR ${source_dir}/spartan_lcmtypes
   BINARY_DIR ${build_dir}/spartan_lcmtypes
@@ -186,26 +177,6 @@ ExternalProject_Add(spartan_lcmtypes
     ${CMAKE_ARGS_FOR_EXTERNALS}
   DEPENDS drake
 )
-
-# ExternalProject_Add(RemoteTreeViewer
-#   SOURCE_DIR ${source_dir}/src/RemoteTreeViewer
-#   BINARY_DIR ${build_dir}/RemoteTreeViewer
-#   BUILD_ALWAYS 1
-#   CMAKE_CACHE_ARGS
-#     ${CMAKE_ARGS_FOR_EXTERNALS}
-#   DEPENDS drake
-# )
-
-# if (WITH_REACHABILITY_ANALYZER)
-#   ExternalProject_Add(ReachabilityAnalyzer
-#   SOURCE_DIR ${source_dir}/src/ReachabilityAnalyzer
-#   BINARY_DIR ${build_dir}/ReachabilityAnalyzer
-#   BUILD_ALWAYS 1
-#   CMAKE_CACHE_ARGS
-#     ${CMAKE_ARGS_FOR_EXTERNALS}
-#   DEPENDS drake director RemoteTreeViewer common_utils
-#   )
-# endif()
 
 if (WITH_BULLET3)
   set(BULLET3_GIT_REPOSITORY
