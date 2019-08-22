@@ -1,6 +1,6 @@
 import time
 
-from spartan.manipulation.schunk_driver import SchunkDriver
+from spartan.utils.schunk_driver import SchunkDriver
 from spartan.utils.taskrunner import TaskRunner
 
 

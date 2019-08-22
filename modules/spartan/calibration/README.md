@@ -253,30 +253,9 @@ cal.runFixedMount("/camera/color/image_raw", "/home/peteflo/spartan/modules/spar
 
 The above will save out a folder called something like `~/spartan/calibration_data/20190330-185613_rgb`.
 
-You just need to a couple more things:
+You just need to a another more thing:
 
-1. Make an `rgb_camera_info.yaml` for the camera with its intrinsics (haven't yet written a script for this) and put it also in the folder above
-2. Edit the `robot_data.yaml` to make sure the following header is what you want (for example you may want to change the camera name)
-
-```
-header:
-  camera: d415_02
-  image_type: rgb
-  target:
-    height: 6
-    square_edge_length: 0.01322
-    transform_to_hand_frame:
-      quaternion:
-        w: -0.48883249
-        x: 0.49894425
-        y: 0.50080633
-        z: 0.51116578
-      translation:
-        x: 0.0
-        y: 0.0
-        z: 0.0931
-    width: 7
-```
+- Make an `rgb_camera_info.yaml` for the camera with its intrinsics (haven't yet written a script for this) and put it also in the folder above
 
 ## Step 5: Run handical
 

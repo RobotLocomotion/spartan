@@ -1,3 +1,0 @@
-channels:
-  publish: "RESIDUAL_OBSERVER_STATE"
-  receive: "IIWA_STATUS"

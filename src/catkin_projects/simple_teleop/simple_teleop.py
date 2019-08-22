@@ -26,7 +26,7 @@ import spartan.utils.ros_utils as ros_utils
 import spartan.utils.utils as spartan_utils
 import spartan.utils.transformations as transformations
 import robot_control.control_utils as control_utils
-from spartan.manipulation.schunk_driver import SchunkDriver
+from spartan.utils.schunk_driver import SchunkDriver
 # spartan ROS
 import robot_msgs.msg
 import geometry_msgs.msg

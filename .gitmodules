@@ -7,31 +7,10 @@
 [submodule "signal-scope"]
 	path = signal-scope
 	url = https://github.com/openhumanoids/signal-scope.git
-[submodule "src/ObjectDetection/data"]
-	path = src/ObjectDetection/data
-	url = https://github.com/gizatt/object_detection_test_data
-[submodule "src/LabelFusion"]
-	path = src/LabelFusion
-	url = https://github.com/RobotLocomotion/LabelFusion.git
-[submodule "src/catkin_projects/spartan_grasp_msgs"]
-	path = src/catkin_projects/spartan_grasp_msgs
-	url = git@github.com:manuelli/spartan_grasp_msgs.git
-[submodule "modules/spartan/mcubeUROP"]
-	path = modules/spartan/mcubeUROP
-	url = git@github.com:manuelli/mcubeUROP.git
-[submodule "src/Mask_RCNN"]
-	path = src/Mask_RCNN
-	url = git@github.com:matterport/Mask_RCNN.git
 [submodule "src/ElasticFusion"]
 	path = src/ElasticFusion
 	url = git@github.com:RobotLocomotion/ElasticFusion.git
 	branch = master
-[submodule "src/catkin_projects/drake_trajectory_planning_msgs"]
-	path = src/catkin_projects/drake_trajectory_planning_msgs
-	url = git@github.com:manuelli/drake_trajectory_planning_msgs.git
-[submodule "src/catkin_projects/drake_ros_systems"]
-	path = src/catkin_projects/drake_ros_systems
-	url = git@github.com:gizatt/drake_ros_systems
 [submodule "models/rlg_misc_models"]
 	path = models/rlg_misc_models
 	url = https://github.com/gizatt/rlg_misc_models
@@ -44,15 +23,9 @@
 [submodule "src/tsdf-fusion"]
 	path = src/tsdf-fusion
 	url = git@github.com:RobotLocomotion/tsdf-fusion.git
-[submodule "src/catkin_projects/pdc_ros_msgs"]
-	path = src/catkin_projects/pdc_ros_msgs
-	url = git@github.com:RobotLocomotion/pdc_ros_msgs.git
 [submodule "src/catkin_projects/iiwa_driver"]
 	path = src/catkin_projects/iiwa_driver
 	url = git@github.com:RobotLocomotion/iiwa_driver.git
 [submodule "src/catkin_projects/wsg50-ros-pkg"]
 	path = src/catkin_projects/wsg50-ros-pkg
 	url = git@github.com:RobotLocomotion/wsg50-ros-pkg
-[submodule "src/catkin_projects/razer_hydra_ros"]
-	path = src/catkin_projects/razer_hydra_ros
-	url = git@github.com:aleeper/razer_hydra_ros
