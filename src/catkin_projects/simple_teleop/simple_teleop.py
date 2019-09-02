@@ -28,7 +28,7 @@ from imitation_agent.deploy.software_safety import SoftwareSafety
 
 DEBUG = False
 VISUALIZE_FRAME = True
-MOVE_HOME = False
+MOVE_HOME = True
 
 def make_cartesian_gains_msg(kp_rot, kp_trans):
     msg = robot_msgs.msg.CartesianGain()
