@@ -89,7 +89,11 @@ EventStatus RosSceneGraphVisualizer::DoInitialization(const Context<double>& con
     if (int_marker.name.find("sugar") != std::string::npos) {
        std::cout << "found a sugar!" << std::endl;
        std::cout << "it was: " << int_marker.name << std::endl;
-    } else {
+    } else if (int_marker.name.find("plate") != std::string::npos) {
+       std::cout << "found a plate!" << std::endl;
+       std::cout << "it was: " << int_marker.name << std::endl;
+    } 
+    else {
       std::cout << "not adding" << int_marker.name << std::endl;
       continue;
     }
@@ -236,7 +240,8 @@ EventStatus RosSceneGraphVisualizer::DoPeriodicPublish(
     std::string full_name = MakeFullName(pose_bundle.get_name(frame_i), robot_num);
     server_.setPose(full_name, pose_msg, header);
 
-    if (full_name.find("sugar") != std::string::npos) {
+    // warning: of course, this won't support sugar and plate at same time
+    if ((full_name.find("sugar") != std::string::npos) || (full_name.find("plate") != std::string::npos)) {
       geometry_msgs::PoseStamped pose_stamped_msg;
       pose_stamped_msg.header = header;
       pose_stamped_msg.pose = pose_msg;
