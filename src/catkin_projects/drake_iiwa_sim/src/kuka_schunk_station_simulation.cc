@@ -47,7 +47,7 @@ namespace multibody {
 
 class BoxDisturber : public systems::LeafSystem<double> {
  public:
-  explicit BoxDisturber(BodyIndex sugar_index) {
+  explicit BoxDisturber(BodyIndex sugar_index, std::string topic) {
     this->DeclareAbstractOutputPort(
         "spatial_forces",
         &BoxDisturber::CalcSpatialForceGravityCompensation);
@@ -60,7 +60,7 @@ class BoxDisturber : public systems::LeafSystem<double> {
 
     //DeclarePeriodicPublishEvent(0.03, 0.0, &BoxDisturber::DoPeriodicPublish);
 
-    sub = nh_.subscribe("/box_rotate", 1000, &BoxDisturber::chatterCallback, this);
+    sub = nh_.subscribe(topic, 1000, &BoxDisturber::chatterCallback, this);
   }
 
  private:
@@ -99,6 +99,11 @@ class BoxDisturber : public systems::LeafSystem<double> {
     torque(0) = msg.wrench.torque.x;
     torque(1) = msg.wrench.torque.y;
     torque(2) = msg.wrench.torque.z;
+
+    // std::cout << "\n\n";
+    // std::cout << "got a spatial force" << std::endl;
+    // std::cout << "force\n" << force << std::endl;
+
   }
 
 
@@ -420,38 +425,56 @@ int do_main(int argc, char* argv[]) {
 
   // Initialize object poses uses initialization list
   // generated when loading them in.
-  multibody::BodyIndex sugar_index;
-  for (const auto& initialization : initializations_to_do) {
   
-        const auto& sugar = plant->GetBodyByName(initialization.body_name,
-                             initialization.model_instance);
-        std::cout << sugar.index() << " was that anything " << std::endl;
-        sugar_index = sugar.index();
+  // add ExternallyAppliedSpatial force for sugar box and plate
+  // multibody::BodyIndex sugar_index;
+  multibody::BodyIndex body_index;
+  int counter = 0;
+  std::string topic;
+  for (const auto& initialization : initializations_to_do) {
+
+        const auto& obj = plant->GetBodyByName(initialization.body_name,
+                           initialization.model_instance);
+
+        // if we found sugar box or plate, then add ExternallyAppliedSpatialForce
+        if (initialization.body_name == "base_link_sugar"){
+
+          topic = "/box_rotate";
+          body_index = obj.index();
+          counter += 1;
+        }
+        // if we found sugar box or plate, then add ExternallyAppliedSpatialForce
+        if (initialization.body_name == "ikea_dinera_plate_8in"){
+
+          topic = "/plate_external_wrench";
+          body_index = obj.index();
+          counter += 1;
+        }
+
   }
 
-  // Add the system that applies inverse gravitational forces to the link
-  // endpoints.
-  auto box_disturber =
-      builder.AddSystem<multibody::BoxDisturber>(sugar_index);
+  if (counter > 1){
+    throw std::runtime_error("More than one object you are trying to apply an ExternalSpatialForce to, support at most one");
+  }
 
-  // auto plant_something = builder.AddSystem<>();
+  if (counter == 1){
+    auto disturber =
+    builder.AddSystem<multibody::BoxDisturber>(body_index, topic);
 
-  box_disturber->get_output_port(0);
-  station->GetInputPort("applied_spatial_force");
-  //&station->get_applied_spatial_force_input_port();
-  std::cout << "could call these ports " << std::endl;
+    // auto plant_something = builder.AddSystem<>();
 
-  //Connect the system to the MBP.
-  builder.Connect(
-      box_disturber->get_output_port(0),
-      station->GetInputPort("applied_spatial_force"));
+    disturber->get_output_port(0);
+    station->GetInputPort("applied_spatial_force");
+    //&station->get_applied_spatial_force_input_port();
+    std::cout << "could call these ports " << std::endl;
 
+    //Connect the system to the MBP.
+    builder.Connect(
+        disturber->get_output_port(0),
+        station->GetInputPort("applied_spatial_force"));
+  }
  
   auto diagram = builder.Build();
-
-
-
-
 
   systems::Simulator<double> simulator(*diagram);
   auto& context = simulator.get_mutable_context();
