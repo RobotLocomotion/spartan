@@ -416,7 +416,10 @@ class RobotService(object):
         ikServiceName = 'robot_control/IkService'
         rospy.wait_for_service(ikServiceName, timeout=timeout)
         s = rospy.ServiceProxy(ikServiceName, robot_msgs.srv.RunIK)
-        response = s(poseStamped)
+
+        req = robot_msgs.srv.RunIKRequest()
+        req.pose_stamped = poseStamped
+        response = s(req)
 
         joint_state = response.joint_state
 
