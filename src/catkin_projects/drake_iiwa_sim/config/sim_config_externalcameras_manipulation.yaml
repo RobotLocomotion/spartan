@@ -28,6 +28,7 @@ models:
   mustard: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/imitation_tools/models/mustard.sdf"
   sugar: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/imitation_tools/models/004_sugar_box.sdf"
   ikea_dinera_plate_8in: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/imitation_tools/models/plate/ikea_dinera_plate_8in.sdf"
+  foam_brick: "${SPARTAN_SOURCE_DIR}/src/catkin_projects/imitation_tools/models/foam_brick.sdf"
 
 instances:
   # - model: "sugar"
@@ -36,7 +37,7 @@ instances:
   #   body_name: "base_link_sugar"
 
   - model: "ikea_dinera_plate_8in"
-    q0: [0.61, 0.0, 0.3, 1.57, 0.0, 0.0]
+    q0: [0.61, 0.0, 0.1, 1.57, 0.0, 0.0]
     fixed: false
     body_name: "ikea_dinera_plate_8in"
 
