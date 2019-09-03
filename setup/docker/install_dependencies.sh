@@ -40,4 +40,5 @@ pip install \
   scikit-image \
   pytest-xdist \
   rospy_message_converter \
-  trimesh
+  trimesh \
+  imgaug
