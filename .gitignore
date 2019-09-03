@@ -10,4 +10,4 @@
 *snopt.out
 
 # The package in development
-/src/catkin_projects/arm_runner/*
+/src/catkin_projects/arm_runner/
