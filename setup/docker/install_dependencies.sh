@@ -39,5 +39,4 @@ pip install \
   matplotlib==1.5.3 \
   scikit-image \
   pytest-xdist \
-  vispy \
   trimesh
