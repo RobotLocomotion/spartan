@@ -9,3 +9,5 @@
 /calibration_data
 *snopt.out
 
+# The package in development
+/src/catkin_projects/arm_runner/*
