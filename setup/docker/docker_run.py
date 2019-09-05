@@ -10,6 +10,8 @@ import socket
 user_name = getpass.getuser()
 host_name = socket.gethostname()
 DATA_DIRECTORY_ON_HOST = '/home/' + user_name + '/data/spartan'
+DATA_DIRECTORY_2_ON_HOST = None # use this to mount second data directory
+
 
 
 CONFIG_FILE = os.path.join(os.getcwd(), 'setup/docker/docker_run_config.yaml')
@@ -95,6 +97,9 @@ if __name__ == "__main__":
         os.system("mkdir -p " + data_directory_host_machine)
 
     cmd += " -v %s:%s/data " % (data_directory_host_machine, home_directory)
+
+    if DATA_DIRECTORY_2_ON_HOST is not None:
+        cmd += " -v %s:%s/data_2 " % (DATA_DIRECTORY_2_ON_HOST, home_directory)
 
     if sandbox_directory_host_machine is None:
         sandbox_directory_host_machine = os.path.join('~', 'sandbox')
