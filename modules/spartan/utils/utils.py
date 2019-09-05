@@ -1,6 +1,7 @@
 __author__ = 'manuelli'
 import numpy as np
 import random
+import json
 from scipy.spatial.transform import Rotation
 import collections
 import yaml
@@ -31,6 +32,10 @@ def getDictFromYamlFilename(filename):
 def saveToYaml(data, filename):
     with open(filename, 'w') as outfile:
         yaml.dump(data, outfile, default_flow_style=False)
+
+def save_to_json(data, filename):
+    with open(filename, 'w') as outfile:
+        json.dump(data, outfile)
 
 def poseFromTransform(transform):
     pos, quat = transformUtils.poseFromTransform(transform)
