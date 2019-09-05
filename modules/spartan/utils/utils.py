@@ -1,5 +1,6 @@
 __author__ = 'manuelli'
 import numpy as np
+import random
 from scipy.spatial.transform import Rotation
 import collections
 import yaml
@@ -278,3 +279,8 @@ def get_kuka_joint_names():
      'iiwa_joint_1', 'iiwa_joint_2', 'iiwa_joint_3',
      'iiwa_joint_4', 'iiwa_joint_5', 'iiwa_joint_6',
      'iiwa_joint_7']
+
+
+def set_random_seed(seed):
+    np.random.seed(seed)
+    random.seed(seed)
