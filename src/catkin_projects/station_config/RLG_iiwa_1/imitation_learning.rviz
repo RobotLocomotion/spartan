@@ -8,9 +8,12 @@ Panels:
         - /RobotModel1
         - /TF1
         - /TF1/Frames1
+        - /Marker1
         - /InteractiveMarkers1
         - /PointCloud21
         - /PointCloud22
+        - /Marker2
+        - /Marker2/Status1
       Splitter Ratio: 0.576470613
     Tree Height: 1257
   - Class: rviz/Selection
@@ -215,6 +218,10 @@ Visualization Manager:
           Value: false
         iiwa_link_ee_kuka:
           Value: false
+        task_space_control_goal:
+          Value: true
+        teleop_frame:
+          Value: true
         wsg_50_base_link:
           Value: false
         wsg_50_finger_left:
@@ -274,6 +281,10 @@ Visualization Manager:
                               {}
                           iiwa_link_ee_kuka:
                             {}
+          task_space_control_goal:
+            {}
+          teleop_frame:
+            {}
       Update Interval: 0
       Value: true
     - Class: rviz/Marker
@@ -353,6 +364,14 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /visualization_marker
+      Name: Marker
+      Namespaces:
+        "": true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -378,7 +397,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.94048476
+      Distance: 1.88852465
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
@@ -393,10 +412,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.251474708
+      Pitch: 1.2247963
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 6.26651287
+      Yaw: 0.433323473
     Saved: ~
 Window Geometry:
   Displays:
