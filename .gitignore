@@ -12,3 +12,4 @@
 # The package in development
 /src/catkin_projects/arm_runner/
 /src/catkin_projects/pyrunner_ros/
+/src/catkin_projects/robot_msgs/
