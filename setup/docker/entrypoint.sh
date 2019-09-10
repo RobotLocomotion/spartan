@@ -31,7 +31,7 @@ function use_handical()
     export PYTHONPATH=$PYTHONPATH:$SPARTAN_SOURCE_DIR/src/handical/build/cython/handical
 }
 
-function use_arm_runner()
+function use_pyrunner()
 {
 	export PYTHONPATH=$PYTHONPATH:~/spartan/src/catkin_projects/pyrunner_ros
 }
@@ -46,7 +46,7 @@ export -f use_ros
 export -f use_spartan_ros
 export -f use_handical
 export -f kip
-export -f use_arm_runner
+export -f use_pyrunner
 
 
 exec "$@"
