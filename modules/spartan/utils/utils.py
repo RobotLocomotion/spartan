@@ -33,6 +33,11 @@ def saveToYaml(data, filename):
     with open(filename, 'w') as outfile:
         yaml.dump(data, outfile, default_flow_style=False)
 
+def read_json(filename):
+    with open(filename) as json_file:
+        return json.load(json_file)
+
+
 def save_to_json(data, filename):
     with open(filename, 'w') as outfile:
         json.dump(data, outfile)

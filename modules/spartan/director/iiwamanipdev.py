@@ -2,6 +2,10 @@
 import os
 import time 
 
+# director
+from director.debugVis import DebugData
+import director.visualization as vis
+
 # spartan
 import spartan.manipulation.grasp_supervisor
 import spartan.manipulation.background_subtraction
@@ -56,6 +60,21 @@ def setupRLGDirector(globalsDict=None):
     cal = spartan.calibration.handeyecalibration.HandEyeCalibration(globalsDict['robotSystem'], configFilename=handEyeCalibrationConfigFilename)
     cal.loadConfigFromFile()
     globalsDict['cal'] = cal
+
+    # add sphere
+    d = DebugData()
+    center = [0.61, 0.15, 0.0]
+    d.addSphere(center, radius=0.015, color=[0,1,0])
+    vis.showPolyData(d.getPolyData(), "goal position",  color=[0,1,0])
+
+    # add line
+    # # add sphere
+    # d = DebugData()
+    # y_pos = 0.176
+    # start = [0.39, y_pos, 0.005]
+    # end = [1.09, y_pos, 0.005]
+    # d.addLine(start, end, radius=0.01, color=[0, 1, 0])
+    # vis.showPolyData(d.getPolyData(), "goal line", color=[0, 1, 0])
 
     # set rate limit on RemoteTreeViewer
     # fix for https://github.com/RobotLocomotion/spartan/issues/244
