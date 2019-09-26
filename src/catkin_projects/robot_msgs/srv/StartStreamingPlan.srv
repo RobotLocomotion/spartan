@@ -1,6 +1,0 @@
-# optional force threshold
-ForceGuard[] force_guard
----
-# result
-PlanStatus status
-int32 plan_number

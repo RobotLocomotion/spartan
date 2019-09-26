@@ -89,12 +89,12 @@ if __name__ == "__main__":
 
     cmd += " -v %s:%s/data " % (data_directory_host_machine, home_directory)
 
-    if sandbox_directory_host_machine is None:
-        sandbox_directory_host_machine = os.path.join('~', 'sandbox')
-        if not os.path.exists(sandbox_directory_host_machine):
-            os.makedirs(sandbox_directory_host_machine)
+    #if sandbox_directory_host_machine is None:
+    #    sandbox_directory_host_machine = os.path.join('~', 'sandbox')
+    #    if not os.path.exists(sandbox_directory_host_machine):
+    #        os.makedirs(sandbox_directory_host_machine)
 
-    cmd += " -v %s:%s/sandbox " % (sandbox_directory_host_machine, home_directory)
+    #cmd += " -v %s:%s/sandbox " % (sandbox_directory_host_machine, home_directory)
 
     # expose UDP ports
     if not args.no_udp:

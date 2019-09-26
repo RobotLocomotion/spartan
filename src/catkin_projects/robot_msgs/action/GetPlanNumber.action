@@ -1,7 +1,0 @@
-# goal (unused)
----
-# result
-int32 plan_number
----
-# feedback
-int32 plan_number

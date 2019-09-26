@@ -1,4 +1,0 @@
-sensor_msgs/JointState joint_state
-float64 max_joint_degrees_per_second
----
-bool success
