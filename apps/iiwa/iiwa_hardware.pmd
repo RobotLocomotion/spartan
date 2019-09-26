@@ -71,7 +71,7 @@ group "2.iiwa-drivers" {
   }
 
   cmd "1.plan-runner" {
-    exec = "roslaunch drake_robot_control plan_runner.launch";
+    exec = "roslaunch plan_runner lcm_kuka_hw.launch";
     host = "localhost";
   }
 
