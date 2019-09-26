@@ -32,3 +32,6 @@
 [submodule "src/catkin_projects/plan_runner"]
 	path = src/catkin_projects/plan_runner
 	url = git@github.com:weigao95/plan_runner.git
+[submodule "src/catkin_projects/pyrunner_ros"]
+	path = src/catkin_projects/pyrunner_ros
+	url = git@github.com:weigao95/pyrunner_ros.git
