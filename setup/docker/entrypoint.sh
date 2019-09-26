@@ -7,7 +7,7 @@ export DATA_DIR=~/data
 export SPARTAN_DATA_DIR=$DATA_DIR/spartan
 
 
-function use_spartan()
+function use_spartan_env()
 {
 	. ~/spartan/build/setup_environment.sh
 }
@@ -31,9 +31,14 @@ function use_handical()
     export PYTHONPATH=$PYTHONPATH:$SPARTAN_SOURCE_DIR/src/handical/build/cython/handical
 }
 
-function use_pyrunner()
+function use_python_packages()
 {
 	export PYTHONPATH=$PYTHONPATH:~/spartan/src/catkin_projects/pyrunner_ros
+}
+
+function use_spartan()
+{
+	use_spartan_env && use_python_packages
 }
 
 function kip()
@@ -41,12 +46,13 @@ function kip()
 	use_ros && use_spartan && kuka_iiwa_procman
 }
 
+export -f use_spartan_env
+export -f use_python_packages
 export -f use_spartan
 export -f use_ros
 export -f use_spartan_ros
 export -f use_handical
 export -f kip
-export -f use_pyrunner
 
 
 exec "$@"
