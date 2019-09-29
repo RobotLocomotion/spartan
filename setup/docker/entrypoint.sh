@@ -33,7 +33,7 @@ function use_handical()
 
 function use_python_packages()
 {
-	export PYTHONPATH=$PYTHONPATH:~/spartan/src/catkin_projects/pyrunner_ros
+	export PYTHONPATH="~/spartan/src/catkin_projects/pyrunner_ros:$PYTHONPATH"
 }
 
 function use_spartan()
