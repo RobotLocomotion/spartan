@@ -42,23 +42,13 @@ group "0.sim" {
 
 group "1.vision-drivers" {
 
-  cmd "0.openni-driver" {
-    exec = "openni2-camera-lcm";
+  cmd "0.d415_01_extrinsic" {
+    exec = "roslaunch camera_config camera_transform_publisher.launch camera_serial_number:=d415_01";
     host = "localhost";
   }
 
-  cmd "1.apriltag-driver" {
-    exec = "drc-apriltags-driver --quiet=true --window=false --config=$SPARTAN_SOURCE_DIR/apps/iiwa/tri_iiwa_apriltags.yaml";
-    host = "localhost";
-  }
-
-  cmd "2.optitrack-driver" {
-    exec = "$SPARTAN_SOURCE_DIR/drake/bazel-bin/external/optitrack_driver/src/optitrack_client";
-    host = "localhost";
-  }
-
-  cmd "3.rgbd-viewer" {
-    exec = "directorPython -m director.imageviewapp --bot-config $SPARTAN_SOURCE_DIR/apps/iiwa/iiwaManip.cfg --channel OPENNI_FRAME --rgbd --pointcloud";
+  cmd "1.d415_02_extrinsic" {
+    exec = "roslaunch camera_config camera_transform_publisher.launch camera_serial_number:=d415_02";
     host = "localhost";
   }
 }
