@@ -51,6 +51,11 @@ group "1.vision-drivers" {
     exec = "roslaunch camera_config camera_transform_publisher.launch camera_serial_number:=d415_02";
     host = "localhost";
   }
+
+  cmd "2.d415_03_extrinsic" {
+    exec = "roslaunch camera_config camera_transform_publisher.launch camera_serial_number:=d415_03";
+    host = "localhost";
+  }
 }
 
 group "2.iiwa-drivers" {
