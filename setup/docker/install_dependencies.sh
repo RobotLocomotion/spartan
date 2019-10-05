@@ -40,4 +40,5 @@ pip install \
   scikit-image \
   pytest-xdist \
   trimesh \
-  typing
+  typing \
+  open3d-python==0.5.0.0
