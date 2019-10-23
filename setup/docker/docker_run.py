@@ -37,8 +37,6 @@ if __name__ == "__main__":
     parser.add_argument("--no_nvidia", action='store_true',
                         help="(optional) use docker rather than nvidia-docker (for CI)")
 
-    parser.add_argument("-hn", "--host_network", action='store_true', help="(optional) whether to use the host's network")
-
     args = parser.parse_args()
     print("running docker container derived from image %s" % args.image)
     source_dir = os.getcwd()
@@ -103,13 +101,14 @@ if __name__ == "__main__":
         cmd += " -p 1500:1500/udp "  # expose udp ports for schunk
         cmd += " -p 1501:1501/udp "  # expose udp ports for schunk
 
-    if args.host_network:
-        cmd += " --network=host "
+    # Use host network, required for realsense and meshcat
+    cmd += " --network=host "
+
+    cmd += " --ipc=host "
 
     cmd += " " + args.passthrough + " "
 
     cmd += " --privileged -v /dev/bus/usb:/dev/bus/usb "  # allow usb access
-    cmd += " --privileged -v /dev/hydra:/dev/hydra "  # allow razer hydra alias
 
     cmd += " --rm "  # remove the image when you exit
 
