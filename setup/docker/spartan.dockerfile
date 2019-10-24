@@ -41,6 +41,9 @@ RUN yes "Y" | TRAVIS_OS_NAME=linux /tmp/director_travis_install_prereqs.sh
 COPY ./setup/docker/install_handical_dependencies.sh /tmp/install_handical_dependencies.sh
 RUN yes "Y" | /tmp/install_handical_dependencies.sh
 
+COPY ./setup/docker/install_pytorch.sh /tmp/install_pytorch.sh
+RUN yet "Y" | /tmp/install_pytorch.sh
+
 # needed to get OpenGL running inside the docker
 # https://github.com/machinekoder/nvidia-opengl-docker
 

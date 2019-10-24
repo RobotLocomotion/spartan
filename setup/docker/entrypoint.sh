@@ -34,6 +34,7 @@ function use_handical()
 function use_python_packages()
 {
 	export PYTHONPATH=$PYTHONPATH:$SPARTAN_SOURCE_DIR/src/catkin_projects/pyrunner_ros
+	export PYTHONPATH=$PYTHONPATH:$SPARTAN_SOURCE_DIR/src/catkin_projects/mankey_ros
 }
 
 function use_spartan()
@@ -46,6 +47,11 @@ function kip()
 	use_ros && use_spartan && kuka_iiwa_procman
 }
 
+function use_kpam_all()
+{
+	use_ros && use_spartan && use_spartan_ros
+}
+
 export -f use_spartan_env
 export -f use_python_packages
 export -f use_spartan
@@ -53,6 +59,7 @@ export -f use_ros
 export -f use_spartan_ros
 export -f use_handical
 export -f kip
+export -f use_kpam_all
 
 
 exec "$@"
