@@ -49,15 +49,15 @@ RUN mkdir -p .config/terminator
 COPY ./setup/docker/terminator_config .config/terminator/config
 RUN chown $USER_NAME:$USER_NAME -R .config
 
-# PDC
-COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_dependencies.sh /tmp/pdc_install_dependencies.sh
-RUN yes "Y" | /tmp/pdc_install_dependencies.sh
+# # PDC
+# COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_dependencies.sh /tmp/pdc_install_dependencies.sh
+# RUN yes "Y" | /tmp/pdc_install_dependencies.sh
 
-COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_more.sh /tmp/pdc_install_more.sh
-RUN yes "Y" | /tmp/pdc_install_more.sh
+# COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_more.sh /tmp/pdc_install_more.sh
+# RUN yes "Y" | /tmp/pdc_install_more.sh
 
-COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_poser.sh /tmp/pdc_install_poser.sh
-RUN yes "Y" | /tmp/pdc_install_poser.sh
+# COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_poser.sh /tmp/pdc_install_poser.sh
+# RUN yes "Y" | /tmp/pdc_install_poser.sh
 # PDC
 
 
@@ -113,9 +113,23 @@ ENV NVIDIA_DRIVER_CAPABILITIES \
 # USER original_user
 ###### END BLOCK ###########
 
-RUN pip install https://download.pytorch.org/whl/cu100/torch-1.1.0-cp27-cp27mu-linux_x86_64.whl
-#RUN pip install https://download.pytorch.org/whl/cu100/torch-1.0.1.post2-cp27-cp27mu-linux_x86_64.whl
-RUN pip install torchvision
+# torch 1.2, torchvision 0.4
+# CUDA 10.0
+RUN pip install torch==1.2.0 torchvision==0.4.0 -f https://download.pytorch.org/whl/torch_stable.html
+# RUN pip install torch torchvision
+
+# key_dynam
+COPY ./modules/key_dynam/requirements.txt /tmp/key_dynam_requirements.txt
+RUN pip install -r /tmp/key_dynam_requirements.txt
+
+# vrep
+RUN cd $USER_HOME_DIR
+RUN mkdir vrep && cd vrep
+RUN wget http://www.coppeliarobotics.com/files/V-REP_PRO_EDU_V3_6_2_Ubuntu16_04.tar.xz
+RUN tar -xJf V-REP_PRO_EDU_V3_6_2_Ubuntu16_04.tar.xz
+ENV VREP_ROOT=$USER_HOME_DIR/vrep/V-REP_PRO_EDU_V3_6_2_Ubuntu16_04
+
+
 
 ENTRYPOINT bash -c "source ~/spartan/setup/docker/entrypoint.sh && source ~/spartan/src/catkin_projects/pytorch-dense-correspondence-private/docker/entrypoint.sh && /bin/bash"
 
