@@ -56,6 +56,7 @@ add_message_files(
    EEVelocityGoal.msg
    CartesianTrajectory.msg
    ForceGuard.msg
+   ForceTorque.msg
    ExternalForceGuard.msg
    CartesianGain.msg
    CartesianGoalPoint.msg
