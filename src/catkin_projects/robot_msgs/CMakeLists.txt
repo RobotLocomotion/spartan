@@ -69,6 +69,7 @@ add_service_files(
   MoveToJointPosition.srv
   RunIK.srv
   StartStreamingPlan.srv
+  ResetForceEstimatorEE.srv
 )
 
 ## Generate actions in the 'action' folder
