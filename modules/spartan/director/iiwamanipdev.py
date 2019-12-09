@@ -8,15 +8,15 @@ import director.visualization as vis
 from director import ioUtils
 
 # spartan
-import spartan.manipulation.grasp_supervisor
-import spartan.manipulation.background_subtraction
+#import spartan.manipulation.grasp_supervisor
+#import spartan.manipulation.background_subtraction
 import spartan.calibration.handeyecalibration
 import spartan.utils.utils as spartanUtils
 import spartan.utils.director_utils as director_utils
-from spartan.manipulation.object_manipulation import ObjectManipulation
-from spartan.poser.poser_visualizer import PoserVisualizer
+#from spartan.manipulation.object_manipulation import ObjectManipulation
+#from spartan.poser.poser_visualizer import PoserVisualizer
 from spartan.utils.taskrunner import TaskRunner
-from spartan.manipulation.category_manipulation import CategoryManipulation
+#from spartan.manipulation.category_manipulation import CategoryManipulation
 from spartan.utils.director_ros_visualizer import DirectorROSVisualizer
 
 
@@ -44,19 +44,8 @@ class TFWrapper(object):
 
 
 def setupRLGDirector(globalsDict=None):
-
     tfWrapper = TFWrapper()
     tfBuffer = tfWrapper.getBuffer()
-
-    graspSupervisor = spartan.manipulation.grasp_supervisor.GraspSupervisor.makeDefault(tfBuffer=tfBuffer)
-    graspSupervisor.robotSystem = globalsDict['robotSystem'] # for visualization
-    globalsDict['graspSupervisor'] = graspSupervisor
-
-    
-    backgroundSubtraction = spartan.manipulation.background_subtraction.BackgroundSubtractionDataCapture.makeDefault(tfBuffer=tfBuffer)
-    globalsDict['backgroundSubtraction'] = backgroundSubtraction
-
-
 
     spartanSourceDir = spartanUtils.getSpartanSourceDir()
     handEyeCalibrationConfigFilename = os.path.join(spartanSourceDir, "src/catkin_projects/station_config/RLG_iiwa_1/hand_eye_calibration/carmine_1.yaml")
@@ -86,37 +75,6 @@ def setupRLGDirector(globalsDict=None):
     robotSystem = globalsDict['robotSystem']
     robotStateModel = robotSystem.robotStateModel
 
-
-    category_manip = CategoryManipulation(robotStateModel)
-    category_manip.load_side_table()
-    category_manip.load_mug_rack()
-    # category_manip.setup_horizontal_mug_grasp()
-    # category_manip.load_mug_platform()
-    # category_manip.load_shoe_rack()
-
-
-    graspSupervisor._category_manip = category_manip
-
-
-    def visualize_background():
-        if not os.path.exists(background_ply_file):
-            return
-
-
-        parent = om.getOrCreateContainer("scene")
-        poly_data = ioUtils.readPolyData(background_ply_file)
-        vis.updatePolyData(poly_data, 'table', parent=parent)
-
-
-    visualize_background()
-
-    poser_vis = PoserVisualizer.make_default()
-    object_manip = ObjectManipulation()
-    globalsDict['object_manip'] = object_manip
-    globalsDict['o'] = object_manip
-    globalsDict['c'] = category_manip
-    globalsDict['poser_vis'] = poser_vis
-    globalsDict['g'] = graspSupervisor
 
 
 

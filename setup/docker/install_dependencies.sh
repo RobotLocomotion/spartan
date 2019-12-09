@@ -39,5 +39,6 @@ pip install \
   matplotlib==1.5.3 \
   scikit-image \
   pytest-xdist \
-  vispy \
-  trimesh
+  trimesh \
+  typing \
+  open3d-python==0.5.0.0

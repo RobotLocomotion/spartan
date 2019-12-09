@@ -29,3 +29,6 @@
 [submodule "src/catkin_projects/wsg50-ros-pkg"]
 	path = src/catkin_projects/wsg50-ros-pkg
 	url = git@github.com:RobotLocomotion/wsg50-ros-pkg
+[submodule "src/catkin_projects/plan_runner"]
+	path = src/catkin_projects/plan_runner
+	url = git@github.com:weigao95/plan_runner.git

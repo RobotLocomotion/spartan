@@ -6,9 +6,12 @@ import rospy
 # ROS custom imports
 from camera_config.camera_transform_publisher import CameraTransformPublisher
 
-if __name__=="__main__":
+# Avoid name colliding
+import random
 
-	rospy.init_node("camera_transform_publisher")
+if __name__=="__main__":
+	node_name = "camera_transform_publisher" + str(random.randint(0, 100000000))
+	rospy.init_node(node_name)
 	CameraTransformPublisher = CameraTransformPublisher()
 
 	rate = rospy.Rate(10) # 10Hz

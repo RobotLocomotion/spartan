@@ -1,0 +1,3 @@
+geometry_msgs/Vector3 force_applied_point_in_ee
+---
+bool success

@@ -187,9 +187,9 @@ def onFitCamera():
 def setupToolBar():
     toolBar = applogic.findToolBar('Main Toolbar')
     app.addToolBarAction(toolBar, 'Gripper Open', icon='', callback=schunkDriver.sendOpenGripperCommand)
-    app.addToolBarAction(toolBar, 'Gripper Open (delay)', icon='', callback=schunkDriver.sendDelayedOpenGripperCommand)
+    #app.addToolBarAction(toolBar, 'Gripper Open (delay)', icon='', callback=schunkDriver.sendDelayedOpenGripperCommand)
     app.addToolBarAction(toolBar, 'Gripper Close', icon='', callback=schunkDriver.sendCloseGripperCommand)
-    app.addToolBarAction(toolBar, 'Gripper Close (delay)', icon='', callback=schunkDriver.sendDelayedCloseGripperCommand)
+    #app.addToolBarAction(toolBar, 'Gripper Close (delay)', icon='', callback=schunkDriver.sendDelayedCloseGripperCommand)
     app.addToolBarAction(toolBar, 'Task Panel', icon='', callback=onOpenTaskPanel)
     app.addToolBarAction(toolBar, 'Fit Camera', icon='', callback=onFitCamera)
 
@@ -348,8 +348,8 @@ if useKukaRLGDev:
 
     channelName = "OPENNI_FRAME_LEFT"
 
-    import spartan.perception.cameratransform
-    cameraTransform = spartan.perception.cameratransform.CameraTransform.fromConfigFilename(robotSystem, cameraConfigFilename, channelName)
+    #import spartan.perception.cameratransform
+    #cameraTransform = spartan.perception.cameratransform.CameraTransform.fromConfigFilename(robotSystem, cameraConfigFilename, channelName)
 
     # import spartan.perception.dev as devUtils
     # efusion = devUtils.ElasticFusionReconstruction()

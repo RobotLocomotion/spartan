@@ -1,3 +1,4 @@
+StreamingType streaming_type
 # optional force threshold
 ForceGuard[] force_guard
 ---

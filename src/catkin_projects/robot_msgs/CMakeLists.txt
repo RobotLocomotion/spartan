@@ -52,8 +52,11 @@ add_message_files(
    RobotConfiguration.msg
    RobotJointNames.msg
    PlanStatus.msg
+   StreamingType.msg
+   EEVelocityGoal.msg
    CartesianTrajectory.msg
    ForceGuard.msg
+   ForceTorque.msg
    ExternalForceGuard.msg
    CartesianGain.msg
    CartesianGoalPoint.msg
@@ -66,6 +69,7 @@ add_service_files(
   MoveToJointPosition.srv
   RunIK.srv
   StartStreamingPlan.srv
+  ResetForceEstimatorEE.srv
 )
 
 ## Generate actions in the 'action' folder
