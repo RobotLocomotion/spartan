@@ -24,11 +24,24 @@ WORKDIR /home/$USER_NAME
 COPY ./setup/docker/install_dependencies.sh /tmp/install_dependencies.sh
 RUN yes "Y" | /tmp/install_dependencies.sh
 
+RUN python -m pip install cython
+
+RUN python -m pip install \
+  	numpy \
+  	scipy \
+  	pyassimp \
+  	pyglet \
+  	plyfile \
+  	matplotlib==1.5.3 \
+  	scikit-image \
+  	pytest-xdist \
+  	trimesh
+
 COPY ./setup/ubuntu/16.04/install_prereqs.sh /tmp/spartan_install_prereqs.sh
 RUN yes "Y" | /tmp/spartan_install_prereqs.sh
 
-COPY ./drake/setup/ubuntu /tmp/drake_setup
-RUN yes "Y" | /tmp/drake_setup/install_prereqs.sh
+# COPY ./drake/setup/ubuntu /tmp/drake_setup
+# RUN yes "Y" | /tmp/drake_setup/install_prereqs.sh
 
 # Hack needed to deal with bazel issue, see https://github.com/bazelbuild/bazel/issues/4483
 #COPY ./setup/docker/install_dependencies_drake.sh /tmp/drake_install_prereqs.sh
@@ -36,10 +49,6 @@ RUN yes "Y" | /tmp/drake_setup/install_prereqs.sh
 
 COPY ./director/distro/travis/install_deps.sh /tmp/director_travis_install_prereqs.sh
 RUN yes "Y" | TRAVIS_OS_NAME=linux /tmp/director_travis_install_prereqs.sh
-
-# install handical
-COPY ./setup/docker/install_handical_dependencies.sh /tmp/install_handical_dependencies.sh
-RUN yes "Y" | /tmp/install_handical_dependencies.sh
 
 # needed to get OpenGL running inside the docker
 # https://github.com/machinekoder/nvidia-opengl-docker

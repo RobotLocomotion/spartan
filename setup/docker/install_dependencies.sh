@@ -35,9 +35,4 @@ pip install \
   scipy \
   pyassimp \
   pyglet \
-  plyfile \
-  matplotlib==1.5.3 \
-  scikit-image \
-  pytest-xdist \
-  vispy \
-  trimesh
+
