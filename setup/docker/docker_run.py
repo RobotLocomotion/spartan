@@ -58,6 +58,7 @@ if __name__ == "__main__":
     cmd += " -e DISPLAY -e QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix:rw "  # enable graphics
     cmd += " -v %(source_dir)s:%(home_directory)s/spartan " \
            % {'source_dir': source_dir, 'home_directory': home_directory}  # mount source
+    cmd += " -v ~/fullstack/src/log_robot:%(home_directory)s/log_robot " % {'home_directory': home_directory}  # mount log data
     cmd += " -v ~/.ssh:%(home_directory)s/.ssh " % {'home_directory': home_directory}  # mount ssh keys
 
     # Make Bazel artifact dir if it doesn't exist
