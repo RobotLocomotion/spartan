@@ -58,6 +58,7 @@ RUN yes "Y" | TRAVIS_OS_NAME=linux /tmp/director_travis_install_prereqs.sh
 # USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
+        screen \
         libxau-dev \
         libxdmcp-dev \
         libxcb1-dev \
