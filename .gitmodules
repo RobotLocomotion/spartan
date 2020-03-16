@@ -29,3 +29,6 @@
 [submodule "src/catkin_projects/wsg50-ros-pkg"]
 	path = src/catkin_projects/wsg50-ros-pkg
 	url = git@github.com:RobotLocomotion/wsg50-ros-pkg
+[submodule "src/catkin_projects/fusion_server"]
+	path = src/catkin_projects/fusion_server
+	url = git@github.com:DexaiRobotics/fusion_server.git
