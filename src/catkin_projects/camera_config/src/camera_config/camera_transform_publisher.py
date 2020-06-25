@@ -9,6 +9,7 @@ import spartan.utils.utils as spartanUtils
 import spartan.utils.ros_utils as rosUtils
 import director.transformUtils as transformUtils
 
+USE_D415_HACK = True
 
 class CameraTransformPublisher:
 
@@ -20,6 +21,10 @@ class CameraTransformPublisher:
 
 		cameraInfoYamlDict = spartanUtils.getDictFromYamlFilename(self.cameraInfoFilename)
 		self.cameraTypes = ['rgb','depth']
+
+		if USE_D415_HACK:
+			self.cameraTypes = ["color"]
+			
 		self.parseCameraInfo(cameraInfoYamlDict)
 
 		self.broadcaster = tf2_ros.TransformBroadcaster()

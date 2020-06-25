@@ -218,6 +218,22 @@ group "imitation" {
 }
 
 
+group "realsense" {
+
+  cmd "0.d415_01-camera-transform" {
+    exec = "roslaunch camera_config camera_transform_publisher.launch camera_serial_number:=d415_01";
+    host = "localhost";
+  }
+
+  cmd "0.d415_02-camera-transform" {
+    exec = "roslaunch camera_config camera_transform_publisher.launch camera_serial_number:=d415_02";
+    host = "localhost";
+  }
+
+}
+
+
+
 
 
 script "1.1.robot_full_startup" {
