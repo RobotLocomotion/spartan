@@ -250,10 +250,12 @@ def do_main():
                 saved_pose_counter += 1
                 saved_pose_dict[new_pose_name] = joint_position_vector.tolist()
                 pose_save_counter = 0
+                spartan_utils.saveToYaml(saved_pose_dict, "saved_poses.yaml")
 
             if events["escape"]:
                 stop_bagging_imitation_data_client()
                 if len(saved_pose_dict) > 0:
+                    print("saving poses to disk")
                     spartan_utils.saveToYaml(saved_pose_dict, "saved_poses.yaml")
                 sys.exit(0)
             
