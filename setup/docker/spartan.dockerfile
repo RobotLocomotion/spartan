@@ -50,14 +50,14 @@ COPY ./setup/docker/terminator_config .config/terminator/config
 RUN chown $USER_NAME:$USER_NAME -R .config
 
 # PDC
-COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_dependencies.sh /tmp/pdc_install_dependencies.sh
-RUN yes "Y" | /tmp/pdc_install_dependencies.sh
+# COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_dependencies.sh # tmp/pdc_install_dependencies.sh
+# RUN yes "Y" | /tmp/pdc_install_dependencies.sh
 
-COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_more.sh /tmp/pdc_install_more.sh
-RUN yes "Y" | /tmp/pdc_install_more.sh
+# COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_more.sh /tmp/pdc_install_more.sh
+# RUN yes "Y" | /tmp/pdc_install_more.sh
 
-COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_poser.sh /tmp/pdc_install_poser.sh
-RUN yes "Y" | /tmp/pdc_install_poser.sh
+#COPY ./src/catkin_projects/pytorch-dense-correspondence-private/docker/install_poser.sh /tmp/pdc_install_poser.sh
+# RUN yes "Y" | /tmp/pdc_install_poser.sh
 # PDC
 
 

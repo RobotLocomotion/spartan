@@ -52,4 +52,5 @@ apt install -y --no-install-recommends --allow-unauthenticated \
   ros-kinetic-openni2-launch \
   ros-kinetic-image-pipeline \
   ros-kinetic-perception-pcl \
-  ros-kinetic-ros-numpy
+  ros-kinetic-ros-numpy \
+  ros-kinetic-rospy-message-converter
