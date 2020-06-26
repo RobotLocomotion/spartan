@@ -296,7 +296,7 @@ class HandEyeCalibration(object):
         cmd = "timeout %s %s -i %s" % (str(duration), chessboardDetetctionVisualizerExecutable, filename)
         os.system(cmd)
 
-    def captureCurrentRobotAndImageData(self, captureRGB=False, captureIR=False, prefix=None):
+    def captureCurrentRobotAndImageData(self, captureRGB=False, captureIR=False, prefix=None, visualize_chessboard=False):
 
         assert prefix is not None
 
@@ -338,8 +338,10 @@ class HandEyeCalibration(object):
 
 
             self.saveSingleImage(topic, fullImageFilename, encoding)
+            
             # todo: sync this timeout with some variable
-            self.displayChessboardDetection(fullImageFilename, duration=1.5)
+            if visualize_chessboard:
+                self.displayChessboardDetection(fullImageFilename, duration=1.5)
 
             singleImgData = dict()
             singleImgData['filename'] = imageFilename
