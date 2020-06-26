@@ -9,10 +9,11 @@ import socket
 
 user_name = getpass.getuser()
 host_name = socket.gethostname()
-DATA_DIRECTORY_ON_HOST = '/home/' + user_name + '/data/spartan'
+
+# actually this is unused for whatever reason
+# DATA_DIRECTORY_ON_HOST = '/home/' + user_name + '/data/spartan'
+
 DATA_DIRECTORY_2_ON_HOST = None # use this to mount second data directory
-
-
 
 CONFIG_FILE = os.path.join(os.getcwd(), 'setup/docker/docker_run_config.yaml')
 
