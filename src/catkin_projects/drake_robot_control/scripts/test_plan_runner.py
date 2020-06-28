@@ -11,6 +11,7 @@ import trajectory_msgs.msg
 import geometry_msgs.msg
 import sensor_msgs.msg
 import std_srvs.srv
+import tf2_ros
 
 import robot_control.control_utils as control_utils
 import spartan.utils.ros_utils as ros_utils
@@ -287,6 +288,67 @@ def test_task_space_streaming():
     print sp(init)
 
 
+def test_task_space_streaming_setpoint_velocity_control():
+    rospy.wait_for_service("plan_runner/init_task_space_streaming")
+    sp = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
+        robot_msgs.srv.StartStreamingPlan)
+    init = robot_msgs.srv.StartStreamingPlanRequest()
+    init.force_guard.append(make_force_guard_msg())
+    print sp(init)
+    pub = rospy.Publisher('plan_runner/task_space_streaming_setpoint',
+        robot_msgs.msg.CartesianGoalPoint, queue_size=1)
+    robotSubscriber = ros_utils.JointStateSubscriber("/joint_states")
+    print("Waiting for full kuka state...")
+    while len(robotSubscriber.joint_positions.keys()) < 3:
+        rospy.sleep(0.1)
+    print("got full state")
+
+    tfBuffer = tf2_ros.Buffer()
+    listener = tf2_ros.TransformListener(tfBuffer)
+    tf2_broadcaster = tf2_ros.TransformBroadcaster()
+
+
+
+    new_msg = robot_msgs.msg.CartesianGoalPoint()
+    new_msg.setpoint_linear_velocity_mode = True
+    new_msg.setpoint_linear_velocity.x = 0.0
+    new_msg.setpoint_linear_velocity.y = 0.05
+    new_msg.setpoint_linear_velocity.z = 0
+    new_msg.gain = make_cartesian_gains_msg()
+    new_msg.ee_frame_id = "iiwa_link_ee"
+
+
+
+    rate = rospy.Rate(5)
+    print(new_msg)
+    start_time = time.time()
+    while (time.time() - start_time < 3.0):
+        print("moving")
+        pub.publish(new_msg)
+        rate.sleep()
+
+
+    new_msg = robot_msgs.msg.CartesianGoalPoint()
+    new_msg.setpoint_linear_velocity_mode = True
+    new_msg.setpoint_linear_velocity.x = 0.0
+    new_msg.setpoint_linear_velocity.y = 0.0
+    new_msg.setpoint_linear_velocity.z = 0
+    new_msg.gain = make_cartesian_gains_msg()
+    new_msg.ee_frame_id = "iiwa_link_ee"
+
+    start_time = time.time()
+    while (time.time() - start_time < 1.0):
+        print("staying still")
+        pub.publish(new_msg)
+        rate.sleep()
+
+
+    rospy.wait_for_service("plan_runner/stop_plan")
+    sp = rospy.ServiceProxy('plan_runner/stop_plan',
+        std_srvs.srv.Trigger)
+    init = std_srvs.srv.TriggerRequest()
+    print sp(init)
+
 def test_task_space_streaming_velocity_control():
     """
     Moves the robot down in z for 1 second at 10 cm/second
@@ -360,4 +422,5 @@ if __name__ == "__main__":
     # test_joint_trajectory_action_with_force_guard()
     #test_joint_space_streaming()
     # test_task_space_streaming()
-    test_task_space_streaming_velocity_control()
+    # test_task_space_streaming_velocity_control()
+    test_task_space_streaming_setpoint_velocity_control()

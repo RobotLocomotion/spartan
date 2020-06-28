@@ -12,6 +12,10 @@ bool use_end_effector_velocity_mode
 geometry_msgs/Vector3Stamped linear_velocity
 geometry_msgs/Vector3Stamped angular_velocity
 
+# sets linear velocity of the setpoint (basically the setpoint updates over time)
+bool setpoint_linear_velocity_mode
+geometry_msgs/Vector3 setpoint_linear_velocity # setpoint velocity is always in world frame
+
 # this is just for redundant logging (to preserve
 # correct rpy)
 float64 roll

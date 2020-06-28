@@ -64,14 +64,19 @@ public:
 
     Eigen::Vector3d linear_velocity_cmd_; // directly read from message
     Eigen::Vector3d angular_velocity_cmd_; // directly read from message
+
+    Eigen::Vector3d setpoint_linear_velocity_cmd_; // directly read from message
     
 
     bool have_goal_;
-    bool use_ee_velocity_mode_;
+    bool have_processed_first_setpoint_message_ = false;
+    bool use_ee_velocity_mode_ = false;
+    bool setpoint_velocity_mode_ = false;
+
 
     std::shared_ptr<ros::Subscriber> setpoint_subscriber_;
 
-    drake::TwistMatrix<double> J_ee_E_;
+    drake::TwistMatrix<double> J_ee_E_; // desired end-effector twist?
     Eigen::Isometry3d H_WE_; // ee to world, current homogeneous transform
     math::RigidTransform<double>
       H_WEr_; // end-effector to world, reference homogeneous transform
