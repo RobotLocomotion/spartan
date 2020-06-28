@@ -68,7 +68,7 @@ def tf_matrix_from_pose(pose):
     return mat
 
 def do_main():
-    rospy.init_node('simple_teleop', anonymous=True)
+
 
     # setup listener for tf2s (used for ee and controller poses)
     tfBuffer = tf2_ros.Buffer()
