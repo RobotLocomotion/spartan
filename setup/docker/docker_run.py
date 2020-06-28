@@ -40,6 +40,9 @@ if __name__ == "__main__":
     parser.add_argument("--no_nvidia", action='store_true',
                         help="(optional) use docker rather than nvidia-docker (for CI)")
 
+    parser.add_argument("-nd1", "--nvidia_docker_1", action='store_true', default=False,
+                        help="run with the old nvidia-docker1")
+
     parser.add_argument("-hn", "--host_network", action='store_true', help="(optional) whether to use the host's network")
 
     args = parser.parse_args()
@@ -50,11 +53,21 @@ if __name__ == "__main__":
     home_directory = '/home/' + user_name
     spartan_source_dir = os.path.join(home_directory, 'spartan')
 
-    cmd = "xhost +local:root \n"
+    cmd = ""
     if args.no_nvidia:
+        cmd += "xhost +local:root \n"
         cmd += "docker run "
     else:
-        cmd += "nvidia-docker run "
+
+        if args.nvidia_docker_1:
+            print("running with nvidia-docker 1")
+            cmd += "xhost +local:root \n"
+            cmd += "nvidia-docker run "
+        else:
+            print("running with nvidia-docker 2")
+            cmd = "docker run --gpus all"
+
+
     if args.container:
         cmd += " --name %(container_name)s " % {'container_name': args.container}
 

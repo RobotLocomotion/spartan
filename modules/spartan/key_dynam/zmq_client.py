@@ -7,25 +7,19 @@
 from __future__ import print_function
 
 import zmq
-import msgpack
 import time
 import numpy as np
+import msgpack
 
-
-def send_array(socket, A, flags=0, copy=True, track=False):
-    """send a numpy array with metadata"""
-    md = dict(
-        dtype = str(A.dtype),
-        shape = A.shape,
-    )
-    socket.send_json(md, flags|zmq.SNDMORE)
-    return socket.send(A, flags, copy=copy, track=track)
-
+import msgpack_numpy as m
+m.patch()
 
 
 # serialization = "JSON"
 # serialization = "MSGPACK"
-serialization = "ARRAY"
+serialization = "MSGPACK-PYTHON"
+# serialization = "ARRAY"
+
 
 
 context = zmq.Context()
@@ -34,16 +28,27 @@ print("Connecting to Hello World server")
 socket = context.socket(zmq.REQ)
 socket.connect("tcp://localhost:5555")
 
+# socket2 = context.socket(zmq.REQ)
+# socket2.connect("tcp://localhost:5556")
+
 #  Do 10 requests, waiting each time for a response
 for request in range(100):
     print("Sending request %s" % request)
 
-    img = np.random.rand(640, 480, 3).astype(np.uint8)
-    msg = img
-    # msg["image"] = [1,2,3]
+
+    img = np.random.rand(640, 480, 3).astype(np.int16)
+    img2 = np.random.rand(640, 480, 3).astype(np.int16)
+
 
     start_time = time.time()
     if serialization == "MSGPACK":
+        msg = {'img': zmq_utils.pack_array(img),
+               'img2': zmq_utils.pack_array(img2)}
+        msg_packed = msgpack.packb(msg)
+        socket.send(msg_packed)
+    elif serialization == "MSGPACK-PYTHON":
+        msg = {'img': img,
+               'img2': img2}
         msg_packed = msgpack.packb(msg)
         socket.send(msg_packed)
     elif serialization == "JSON":
@@ -51,11 +56,9 @@ for request in range(100):
     elif serialization == "ARRAY":
         send_array(socket, img)
 
-    print("time to send", time.time() - start_time)
+    # wait for response
+    socket.recv()
+    end_time = time.time() - start_time
+    print("round trip took:", end_time)
 
-    #  Get the reply.
-    message = socket.recv()
-    print("elapsed until reply received", time.time() - start_time)
-
-    time.sleep(1.0)
-    print("Received reply %s [ %s ]" % (request, message))
+    time.sleep(0.2)
