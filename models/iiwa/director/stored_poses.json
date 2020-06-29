@@ -1258,6 +1258,98 @@
       "nominal_handedness": "left"
     }
   ],
+  "key_dynam": [
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": -0.157211035490036,
+        "iiwa_joint_2": 0.8923677802085876,
+        "iiwa_joint_3": -0.05591323971748352,
+        "iiwa_joint_4": -1.4254893064498901,
+        "iiwa_joint_5": 0.0857107937335968,
+        "iiwa_joint_6": 0.839815080165863,
+        "iiwa_joint_7": 0.14431804418563843
+      },
+      "name": "safe_pose_slightly_high",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": -0.15816959738731384,
+        "iiwa_joint_2": 0.9463084936141968,
+        "iiwa_joint_3": -0.053411055356264114,
+        "iiwa_joint_4": -1.423567533493042,
+        "iiwa_joint_5": 0.08882966637611389,
+        "iiwa_joint_6": 0.7885429263114929,
+        "iiwa_joint_7": 0.1422632336616516
+      },
+      "name": "correct_height",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.06734714657068253,
+        "iiwa_joint_2": 0.4953049123287201,
+        "iiwa_joint_3": -0.04570819437503815,
+        "iiwa_joint_4": -1.7541520595550537,
+        "iiwa_joint_5": 0.08561070263385773,
+        "iiwa_joint_6": 0.910862386226654,
+        "iiwa_joint_7": 0.36839088797569275
+      },
+      "name": "above_table_ready_pose",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": -0.4122963547706604,
+        "iiwa_joint_2": 1.047279715538025,
+        "iiwa_joint_3": -0.04627019166946411,
+        "iiwa_joint_4": -1.2193036079406738,
+        "iiwa_joint_5": 0.07114794850349426,
+        "iiwa_joint_6": 0.8985219597816467,
+        "iiwa_joint_7": -0.08535069227218628
+      },
+      "name": "start_pose_left",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": 0.6391216516494751,
+        "iiwa_joint_2": 1.1567432880401611,
+        "iiwa_joint_3": -0.08013977110385895,
+        "iiwa_joint_4": -0.9866690039634705,
+        "iiwa_joint_5": 0.1222417801618576,
+        "iiwa_joint_6": 1.0000275373458862,
+        "iiwa_joint_7": 0.9370055198669434
+      },
+      "name": "start_pose_right",
+      "nominal_handedness": "left"
+    },
+    {
+      "allow_mirror": true,
+      "description": "",
+      "joints": {
+        "iiwa_joint_1": -0.012826116755604744,
+        "iiwa_joint_2": 0.7681878805160522,
+        "iiwa_joint_3": -0.03517334163188934,
+        "iiwa_joint_4": -1.865872859954834,
+        "iiwa_joint_5": 0.10042272508144379,
+        "iiwa_joint_6": 0.525936484336853,
+        "iiwa_joint_7": 0.26941239833831787
+      },
+      "name": "start_pose_center_back",
+      "nominal_handedness": "left"
+    }
+  ],
   "object_interaction": [
     {
       "allow_mirror": true,

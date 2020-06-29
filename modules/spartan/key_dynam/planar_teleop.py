@@ -1,4 +1,6 @@
 from __future__ import print_function
+
+import os
 from enum import Enum
 import time
 import pygame
@@ -14,9 +16,9 @@ import std_srvs.srv
 from spartan.utils.control_utils import make_cartesian_gains_msg
 from spartan.key_dynam.teleop_mouse_manager import TeleopMouseManager
 from spartan.key_dynam.utils import start_bagging_imitation_data_client, stop_bagging_imitation_data_client
-from spartan.utils.ros_utils import JointStateSubscriber
+import spartan.utils.utils as spartan_utils
+from spartan.utils.ros_utils import JointStateSubscriber, RobotService
 import robot_msgs.msg
-
 
 
 def test_teleop_mouse_manager():
@@ -50,6 +52,8 @@ class MouseTeleop(object):
     - f = start bagging
     - g = stop bagging
     - esc = quit/shutdown
+    - r = reset (stop streaming, stop bagging, move to "above_table_ready_pose", then "start_pose_left"
+    - e, w (resets to different poses)
 
     SPECIAL KEYS: from TeleopMouseManager()
     - RETURN: grab mouse focus
@@ -70,12 +74,18 @@ class MouseTeleop(object):
         self.setup_service_proxies()
         self.wait_for_robot_state()
 
+        # movement service
+        self._robotService = RobotService.makeKukaRobotService()
+
         self._state = MouseTeleopState.STOPPED
         self._kp_rot = kp_rot
         self._kp_trans = kp_trans
         rospy.on_shutdown(self.on_shutdown)
 
+        self._stored_poses_dict = spartan_utils.getDictFromYamlFilename(os.path.join(spartan_utils.getSpartanSourceDir(), "src/catkin_projects/station_config/RLG_iiwa_1/stored_poses.yaml"))
 
+    def reset(self, key=None):
+        raise NotImplementedError("subclass must implement this method")
 
     def setup_publishers(self):
         """
@@ -168,8 +178,8 @@ class MouseTeleop(object):
         :return:
         :rtype:
         """
-        stop_bagging_imitation_data_client()
 
+        stop_bagging_imitation_data_client()
 
     def main_loop(self):
         """
@@ -197,6 +207,19 @@ class MouseTeleop(object):
             print("\n\n---STOP BAGGING REQUEST---")
             self.stop_bagging()
             print("bag stopped")
+        elif pygame.locals.K_r in events['keydown']:
+            print("keydown: r")
+            print("\n\n-----RESETTING------")
+            self.reset(key='r')
+        elif pygame.locals.K_e in events['keydown']:
+            print("keydown: e")
+            print('\n\n-----RESETTING----')
+            self.reset(key='e')
+        elif pygame.locals.K_w in events['keydown']:
+            print("keydown: w")
+            print('\n\n-----RESETTING----')
+            self.reset(key='w')
+
 
         # if it's running, then send out the message
         if self._state == MouseTeleopState.RUNNING:
@@ -274,6 +297,38 @@ class PlanarMouseTeleop(MouseTeleop):
         msg.setpoint_linear_velocity.y = v_y
 
         return msg
+
+    def reset(self, key='r'):
+        """
+        Resets for the next data collection
+
+        - stop teleop
+        - stop bagging
+        - move to safe position then move to start position
+
+        :return:
+        """
+        self.stop_teleop()
+        self.stop_bagging()
+
+        # move to safe pose above table
+        pose = self._stored_poses_dict["key_dynam"]["above_table_ready_pose"]
+        success = self._robotService.moveToJointPosition(pose, maxJointDegreesPerSecond=30, timeout=5)
+
+        # move to start pose
+        pose = None
+        if key == 'r':
+            pose = self._stored_poses_dict["key_dynam"]["start_pose_left"]
+        elif key == 'e':
+            pose = self._stored_poses_dict["key_dynam"]["start_pose_right"]
+        elif key == 'w':
+            pose = self._stored_poses_dict["key_dynam"]["start_pose_center_back"]
+        else:
+            raise ValueError("unknown key type in reset")
+
+        success = self._robotService.moveToJointPosition(pose, maxJointDegreesPerSecond=30, timeout=5)
+
+
 
 
 
