@@ -10,6 +10,7 @@ def start_bagging_imitation_data_client():
     print "Waiting for 'start_bagging_imitation_data' service..."
     rospy.wait_for_service('start_bagging_imitation_data', timeout=1.0)
     print "Found it!, starting bagging..."
+
     try:
         start_bagging_imitation_data = rospy.ServiceProxy('start_bagging_imitation_data', StartBaggingImitationData)
         resp1 = start_bagging_imitation_data()
@@ -19,14 +20,20 @@ def start_bagging_imitation_data_client():
 
 
 def stop_bagging_imitation_data_client():
-    print "Waiting for 'stop_bagging_imitation_data' service..."
-    rospy.wait_for_service('stop_bagging_imitation_data', timeout=1.0)
-    print "Found it!, stopping bagging..."
+
+    try:
+        print "Waiting for 'stop_bagging_imitation_data' service..."
+        rospy.wait_for_service('stop_bagging_imitation_data', timeout=1.0)
+        print "Found it!, stopping bagging..."
+    except rospy.ROSException as e:
+        print e
+        return
+
     try:
         stop_bagging_imitation_data = rospy.ServiceProxy('stop_bagging_imitation_data', StopBaggingImitationData)
         resp1 = stop_bagging_imitation_data()
         return resp1.status
-    except rospy.ServiceException, e:
+    except rospy.ServiceException as e:
         print "Service call failed: %s" % e
 
 

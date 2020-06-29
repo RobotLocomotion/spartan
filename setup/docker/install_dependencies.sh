@@ -46,6 +46,9 @@ pip install \
   scikit-image \
   pytest-xdist \
   trimesh \
+  pyzmq \
+  msgpack \
+  msgpack-numpy \
   # imgaug \
 
 
