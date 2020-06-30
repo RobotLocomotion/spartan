@@ -1,7 +1,9 @@
 import zmq
 import pickle
 import numpy
-
+import msgpack
+import msgpack_numpy as m
+m.patch()
 
 def send_pyobj(socket, data):
     pickle_data = pickle.dumps(data)
@@ -31,53 +33,36 @@ def recv_array(socket, flags=0, copy=True, track=False):
     return A.reshape(md['shape'])
 
 
-class ZMQControllerHelperREQ(object):
-    """
-    Handles REP duties
-    """
+class ZMQClient(object):
 
-    def __init__(self):
+    def __init__(self, port=5555):
+        """
+        Setup the sockets and connect
+        :param port:
+        """
         self._context = zmq.Context()
-        context = self._context
+        self._socket = self._context.socket(zmq.REQ)
+        self._socket.connect("tcp://localhost:%d" %(port))
 
-        # setup the sockets
-        self._sockets = dict()
-
-        # for streaming rgb images
-        self._sockets['rgb'] = context.socket(zmq.REQ)
-        self._sockets['rgb'].bind("tcp://localhost:5555")
-
-        # for streaming depth images over
-        self._sockets['depth'] = context.socket(zmq.REQ)
-        self._sockets['depth'].bind("tcp://localhost:5556")
-
-        # for streaming robot data over
-        self._sockets['robot_data'] = context.socket(zmq.REQ)
-        self._sockets['robot_data'].bind("tcp://localhost:5557")
-
-        # add another socket for sending the plan across . . .
-
-    def send_rgb(self, array):
-        """Reads the rgb image"""
-        return send_array(self._sockets['rgb'], array)
-
-    def send_depth(self, array):
-        """Reads the rgb image"""
-        return send_array(self._sockets['depth'], array)
-
-    def send_robot_data(self, data):
-        """Reads the robot data"""
-        return send_pyobj(self._sockets['robot_data'], data)
-
-    def get_response(self):
+    def send_data(self,
+                  data, # dict, only non-primitive type is numpy.array
+                  ):
         """
-        Respond to rgb, depth sockets
-        Send the controller data back over the 'robot_data' socket
+        Send data to server over ZMQServer
+
+        Strings are always a problem https://stackoverflow.com/questions/36735773/interoperability-problems-python2-python3
+        :param data:
+        :return:
+        """
+        self._socket.send(msgpack.packb(data))
+
+    def recv_data(self):
+        """
+        Receives the response from the server over socket
+        Returns the data
+        :return:
         """
 
-        # respond to the rgb, depth sockets
-        # this is just to satisfy the REQ/REP protocol
-        self._sockets['rgb'].recv()
-        self._sockets['depth'].recv()
-        data = recv_pyobj(self._sockets['robot_data'])
-        return data
+        data_raw = self._socket.recv()
+        return msgpack.unpackb(data_raw)
+

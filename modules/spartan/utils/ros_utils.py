@@ -208,6 +208,18 @@ def depth_image_to_cv2_uint16(depth_image_msg, bridge=None, encoding="32FC1"):
 
     return cv_img
 
+
+def rgb_image_to_cv2_uint8(rgb_image_msg, bridge=None, encoding="passthrough"):
+    if bridge is None:
+        bridge = CvBridge()
+
+    cv_image = bridge.imgmsg_to_cv2(rgb_image_msg, desired_encoding=encoding)
+    if encoding == 'bgr8':
+        cv_image = cv_image[:, :, ::-1] # convert to rgb from bgr
+
+    return cv_image
+
+
 """
 Saves a single image to a filename using an external executable
 """
