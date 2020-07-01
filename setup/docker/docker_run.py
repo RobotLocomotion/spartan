@@ -13,10 +13,10 @@ host_name = socket.gethostname()
 # actually this is unused for whatever reason
 # DATA_DIRECTORY_ON_HOST = '/home/' + user_name + '/data/spartan'
 
-DATA_DIRECTORY_2_ON_HOST = None # use this to mount second data directory
+DATA_DIRECTORY_2_ON_HOST = "/home/manuelli/data" # use this to mount second data directory
 
 CONFIG_FILE = os.path.join(os.getcwd(), 'setup/docker/docker_run_config.yaml')
-
+rain_
 if __name__ == "__main__":
     user_name = getpass.getuser()
     default_image_name = user_name + '-spartan'
