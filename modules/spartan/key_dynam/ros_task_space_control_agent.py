@@ -1,5 +1,12 @@
 from __future__ import print_function
 
+
+#####
+# note this is needed for python 2 --> 3 communication with
+# msgpack because of unicode stuff
+#####
+from __future__ import unicode_literals
+
 # system
 import threading
 import numpy as np
@@ -21,25 +28,17 @@ import visualization_msgs.msg
 # spartan
 import robot_msgs.msg
 from spartan.utils.ros_utils import SimpleSubscriber, RobotService
+from spartan.utils import ros_utils
 import spartan.utils.utils as spartan_utils
 from spartan.manipulation.schunk_driver import SchunkDriver
 import wsg_50_common.msg
 from spartan.utils import transformations
 from spartan.utils import constants
+from spartan.key_dynam.zmq_utils import ZMQClient
 
 # imitation_tools
 from imitation_tools.kinematics_utils import IiwaKinematicsHelper
 
-
-# imitation_agent
-
-DEBUG = True
-PUBLISH = True
-
-ee_tf_above_table = np.asarray([[-0.01389096,  0.38503428,  0.92279773,  0.51080192],
-                                [ 0.04755021,  0.92209702, -0.38402613,  0.01549765],
-                                [-0.99877226,  0.03854474, -0.03111728,  0.50188255],
-                                [ 0.,          0.,          0.,          1.,       ]])
 
 
 class ROSTaskSpaceControlAgent(object):
@@ -55,40 +54,44 @@ class ROSTaskSpaceControlAgent(object):
     input as a ROS msg, namely as a robot_msgs.msg.CartesianGoalPoint
     """
 
-    def __init__(self, tf_buffer=None, config=None):
+    def __init__(self,
+                 tf_buffer=None,
+                 config=None,
+                 ):
         self._tf_buffer = tf_buffer
         self._config = config
-        self._lock = threading.RLock() # re-entrant lock
-        self._data_list = [] # list holding recent information for extracting input to policy
-        self._max_data_list_size = 50 # max number of elements to store
 
-        self._last_robot_joint_state_msg = None
-        self._last_gripper_joint_state_msg = None
 
-        # variable that holds imitation episode object
-        # used for making the data that
-        self._imitation_episode = None
-        self.bridge = None
+        self._zmq_client = ZMQClient()
+
+        self.bridge = CvBridge()
 
         self._robot_service = RobotService.makeKukaRobotService()
-        self._gripper_driver = SchunkDriver()
 
         stored_poses_file  = os.path.join(spartan_utils.getSpartanSourceDir(), "src/catkin_projects/station_config/RLG_iiwa_1/stored_poses.yaml")
         self._stored_poses_dict = spartan_utils.getDictFromYamlFilename(stored_poses_file)
 
-        self._tf2_broadcaster = tf2_ros.TransformBroadcaster()
         self._setup_robot_model()
         self.setup_subscribers()
-        self.setup_publishers()
-        self.control_rate = 30
+
+        rospy.on_shutdown(self.on_shutdown)
+
+        self.wait_for_initial_messages()
+
+    def on_shutdown(self):
+        pass
+
+    def wait_for_initial_messages(self):
+
+        for key, subscriber in self._subscriber_dict.iteritems():
+            subscriber.waitForNextMessage()
+
 
     def convert_ros_to_numpy(self, rgb_image_ros):
-        if self.bridge is None:
-            self.bridge = CvBridge()
-
         cv_image = self.bridge.imgmsg_to_cv2(rgb_image_ros, "bgr8")
         numpy_img = cv_image[:, :, ::-1].copy() # open and convert between BGR and
         return numpy_img
+
 
     def _setup_robot_model(self):
         """
@@ -104,24 +107,60 @@ class ROSTaskSpaceControlAgent(object):
         :return:
         :rtype:
         """
-        # subscribe to image channel (RGB)
-        self._robot_joint_states_subscriber = SimpleSubscriber("/joint_states", sensor_msgs.msg.JointState, externalCallback=self.on_joint_states_msg)
-        self._robot_joint_states_subscriber.start()
+        self._subscriber_dict = dict()
 
-        self._gripper_status_subscriber = SimpleSubscriber("/wsg50_driver/wsg50/status", wsg_50_common.msg.Status)
-        self._gripper_status_subscriber.start()
+        # # subscribe to image channel (RGB)
+        # self._robot_joint_states_subscriber = SimpleSubscriber("/joint_states", sensor_msgs.msg.JointState, externalCallback=self.on_joint_states_msg)
+        # self._robot_joint_states_subscriber.start()
 
-        # self.camera_serial_number = "d415_02"
-        # self._rgb_image_subscriber = SimpleSubscriber("/camera_"+self.camera_serial_number+"/color/image_raw", sensor_msgs.msg.Image)
-        
-        camera_name = "/camera_sim_d415_right/"
-        self._rgb_image_subscriber = SimpleSubscriber(camera_name + "/rgb/image_rect_color", sensor_msgs.msg.Image)
-
+        # subscribe to color image
+        self.camera_serial_number = "d415_01"
+        self._rgb_image_subscriber = SimpleSubscriber("/camera_"+self.camera_serial_number+"/color/image_raw", sensor_msgs.msg.Image)
         self._rgb_image_subscriber.start()
 
-        self._object_pose_cheat_subscriber = SimpleSubscriber("/scene_graph/update", visualization_msgs.msg.InteractiveMarkerUpdate)
-        self._object_pose_cheat_subscriber.start()
+        self._subscriber_dict['rgb'] = self._rgb_image_subscriber
 
+        # subscribe to depth image
+        self._depth_image_subscriber = SimpleSubscriber("/camera_"+self.camera_serial_number+"/aligned_depth_to_color/image_raw", sensor_msgs.msg.Image)
+        self._depth_image_subscriber.start()
+        self._subscriber_dict['depth'] = self._depth_image_subscriber
+
+    def get_latest_image_data(self):
+        rgb_msg = self._rgb_image_subscriber.last_message
+
+        rgb = ros_utils.rgb_image_to_cv2_uint8(rgb_msg, bridge=self.bridge)
+        # print("rgb.dtype", rgb.dtype)
+
+        depth_msg = self._depth_image_subscriber.last_message
+        depth = ros_utils.depth_image_to_cv2_uint16(depth_msg, bridge=self.bridge,
+                                                    encoding="passthrough")
+
+        # print("depth.dtype", depth.dtype)
+
+        image_data = {'rgb': rgb,
+                      'depth_int16': depth,
+                      }
+        image_data['rgb'] = rgb
+
+        return image_data
+
+    def get_latest_data(self):
+        """
+
+
+        returns a dict with keys
+        ['observations', 'actions', 'control']
+        :return:
+        """
+
+        # return a dict with the latest observation data
+
+        data = dict()
+        data['observations'] = dict()
+        data['observations']['images'] = dict()
+        data['observations']['images'][self.camera_serial_number] = self.get_latest_image_data()
+
+        return data
 
     def get_latest_images(self): # type -> dict
         msg = self._rgb_image_subscriber.last_message
@@ -133,36 +172,10 @@ class ROSTaskSpaceControlAgent(object):
         # get depth image as well
         return data
 
-
-    def setup_publishers(self):
-        """
-        Sets up the ROS publishers
-        :return:
-        :rtype:
-        """
-        self._control_publisher = rospy.Publisher('plan_runner/task_space_streaming_setpoint',
-        robot_msgs.msg.CartesianGoalPoint, queue_size=1)
-
-
-    def on_joint_states_msg(self, msg):
-        """
-        Deals with accepting both gripper and robot state joint messages
-        :param msg:
-        :type msg:
-        :return:
-        :rtype:
-        """
-        # if DEBUG:
-        #     print("got /joint_states msg")
-
-        if "iiwa_joint_1" in msg.name:
-            self._last_robot_joint_state_msg = msg
-
-
     def compute_euler_from_homogenous_transform(self, T_W_E):
         quat = transformations.quaternion_from_matrix(T_W_E[0:3,0:3])
         quat = np.asarray(quat)
-        
+
         def quat_to_euler(quat):
             x = transformations.quaternion_matrix(quat)
             T_delta = np.dot(x,np.linalg.inv(ee_tf_above_table))
@@ -176,7 +189,7 @@ class ROSTaskSpaceControlAgent(object):
         return d
 
 
-    def get_latest_data(self):
+    def get_latest_data_old(self):
         """
         Grab the latest data, do forward kinematics if needed, insert it into the data list
         :return:
@@ -213,22 +226,6 @@ class ROSTaskSpaceControlAgent(object):
 
         return True, data
 
-    @property
-    def control_function(self):
-        return self._control_function
-
-    @control_function.setter
-    def control_function(self, val):
-        self._control_function = val
-
-    @property
-    def imitation_episode(self):
-        return self._imitation_episode
-
-
-    @property
-    def data_list(self):
-        return self._data_list
 
     def compute_control_action(self):
         """
@@ -236,6 +233,7 @@ class ROSTaskSpaceControlAgent(object):
         :return:
         :rtype:
         """
+        raise NotImplementedError
         msg = self.control_function(self)
         # apply safety checks???
         return msg
@@ -262,91 +260,30 @@ class ROSTaskSpaceControlAgent(object):
         print("sent open goal to gripper")
         time.sleep(2.0)
 
-
-
     def run(self):
 
-        # start the TaskSpaceStreamingController
-        service_proxy = rospy.ServiceProxy('plan_runner/init_task_space_streaming',
-        robot_msgs.srv.StartStreamingPlan)
+        rate = rospy.Rate(self._config['rate'])
 
-        init = robot_msgs.srv.StartStreamingPlanRequest()
-        res = service_proxy(init)
-
-        rate = rospy.Rate(self.control_rate)  # 30 Hz rate
-
-        def cleanup():
-            rospy.wait_for_service("plan_runner/stop_plan")
-            sp = rospy.ServiceProxy('plan_runner/stop_plan',
-                                    std_srvs.srv.Trigger)
-            init = std_srvs.srv.TriggerRequest()
-            sp(init)
-            print("Done cleaning up and stopping streaming plan")
-
-        rospy.on_shutdown(cleanup)
-
-        start_time = time.time()
         while not rospy.is_shutdown():
-            # grab the lock
-            try:
-                self._lock.acquire()
-                self.step() 
 
-            finally:
-                self._lock.release()
-
+            data = self.get_latest_data()
+            start_time = time.time()
+            self._zmq_client.send_data(data)
+            resp = self._zmq_client.recv_data()
+            elapsed = time.time() - start_time
+            print("elapsed time:", elapsed)
             rate.sleep()
-
-
-    def step(self):
-        valid, data = self.get_latest_data()
-
-        if not valid:
-            if DEBUG:
-                print("data wasn't valid, skipping")
-            return
-
-        self._data_list.append(data)
-        self._data_list = self._data_list[-self._max_data_list_size:]
-
-        msg, gripper_goal = self.compute_control_action()
-        if PUBLISH:
-            self._control_publisher.publish(msg)
-            self._gripper_driver.sendGripperCommand(gripper_goal, speed=0.2, stream=True)
-           
-        self.visualize_command_frame(msg)
-        # publish control input
-
-
-
-
-    def visualize_command_frame(self, msg):
-        """
-        Publishes command frame to TF if in position control mode
-        :return:
-        :rtype:
-        """
-        #if msg.use_end_effector_velocity_mode:
-        #    return
-
-        tf_stamped = geometry_msgs.msg.TransformStamped()
-        tf_stamped.header.stamp = rospy.Time.now()
-        tf_stamped.header.frame_id = "base"
-        tf_stamped.child_frame_id = "task_space_control_goal"
-        tf_stamped.transform.translation.x = msg.xyz_point.point.x
-        tf_stamped.transform.translation.y = msg.xyz_point.point.y
-        tf_stamped.transform.translation.z = msg.xyz_point.point.z
-
-        tf_stamped.transform.rotation.x = msg.quaternion.x
-        tf_stamped.transform.rotation.y = msg.quaternion.y
-        tf_stamped.transform.rotation.z = msg.quaternion.z
-        tf_stamped.transform.rotation.w = msg.quaternion.w
-
-        self._tf2_broadcaster.sendTransform(tf_stamped)
-
 
     @staticmethod
     def default_config():
         config = dict()
         config["control_publish_channel"] = "/plan_runner/"
         return config
+
+
+if __name__ == "__main__":
+    config_file = os.path.join(spartan_utils.getSpartanSourceDir(), 'modules/spartan/key_dynam/controller_config.yaml')
+    config = spartan_utils.getDictFromYamlFilename(config_file)
+    rospy.init_node("key_dynam_controller")
+    controller = ROSTaskSpaceControlAgent(config=config)
+    controller.run()
