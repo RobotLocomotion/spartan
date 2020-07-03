@@ -95,10 +95,30 @@ def remove_masks_folders():
                 shutil.rmtree(folder)
 
 
+def copy_raw_folders():
+    src_dir = "/media/manuelli/Extreme SSD/key_dynam/hardware_experiments/push_box_hardware"
+    dst_dir = "/home/manuelli/data/key_dynam/dataset/push_box_hardware"
+
+    log_names = os.listdir(src_dir)
+    log_names.sort()
+
+    for log in log_names:
+        raw_dir = os.path.join(src_dir, log, 'raw')
+        raw_dir_dst = os.path.join(dst_dir, log, 'raw')
+
+        if os.path.exists(raw_dir_dst):
+            print("Already copied %s, skipping" %(log))
+        else:
+            print("Copying %s" %(log))
+            shutil.copytree(raw_dir, raw_dir_dst)
+
+
+
 if __name__ == "__main__":
     # zip_and_copy()
     # unzip_logs()
-    remove_masks_folders()
+    # remove_masks_folders()
+    copy_raw_folders()
 
 
 
