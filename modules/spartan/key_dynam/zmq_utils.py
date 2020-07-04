@@ -1,8 +1,11 @@
+# total hack
+
 import zmq
 import pickle
 import numpy
 import msgpack
 import msgpack_numpy as m
+
 m.patch()
 
 def send_pyobj(socket, data):
@@ -44,6 +47,9 @@ class ZMQClient(object):
         self._socket = self._context.socket(zmq.REQ)
         self._socket.connect("tcp://localhost:%d" %(port))
 
+        self._last_sent_data = None
+        self._last_recv_data = None
+
     def send_data(self,
                   data, # dict, only non-primitive type is numpy.array
                   ):
@@ -55,6 +61,7 @@ class ZMQClient(object):
         :return:
         """
         self._socket.send(msgpack.packb(data))
+        self._last_sent_data = data
 
     def recv_data(self):
         """
@@ -64,5 +71,6 @@ class ZMQClient(object):
         """
 
         data_raw = self._socket.recv()
-        return msgpack.unpackb(data_raw)
+        self._last_recv_data = msgpack.unpackb(data_raw)
+        return self._last_recv_data
 

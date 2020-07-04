@@ -114,6 +114,25 @@ def copy_raw_folders():
 
 
 
+def remove_masks_folders():
+    logs_dir = "/home/manuelli/data/key_dynam/dataset/push_box_hardware"
+    log_names = os.listdir(logs_dir)
+    log_names.sort()
+
+    for log in log_names:
+        processed_dir = os.path.join(logs_dir, log, 'processed')
+
+        folder_list = []
+        folder_list.append(os.path.join(processed_dir, 'images_camera_0', 'image_masks'))
+        folder_list.append(os.path.join(processed_dir, 'images_camera_1', 'image_masks'))
+
+
+        for folder in folder_list:
+            print("folder", folder)
+
+            if os.path.isdir(folder):
+                shutil.rmtree(folder)
+
 if __name__ == "__main__":
     # zip_and_copy()
     # unzip_logs()

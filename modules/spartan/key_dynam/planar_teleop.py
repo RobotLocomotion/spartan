@@ -19,6 +19,8 @@ from spartan.key_dynam.utils import start_bagging_imitation_data_client, stop_ba
 import spartan.utils.utils as spartan_utils
 from spartan.utils.ros_utils import JointStateSubscriber, RobotService
 import robot_msgs.msg
+from spartan.key_dynam.data_capture import DataCapture
+from spartan.key_dynam.task_space_streaming import TaskSpaceStreaming
 
 
 def test_teleop_mouse_manager():
@@ -62,8 +64,6 @@ class MouseTeleop(object):
 
     """
 
-
-
     def __init__(self, rate=5, kp_rot=5, kp_trans=10):
         self._rate = rate
         self._mouse_manager = TeleopMouseManager() # note this grabs mouse focus
@@ -71,8 +71,10 @@ class MouseTeleop(object):
 
         self.setup_publishers()
         self.setup_subscribers()
-        self.setup_service_proxies()
+        # self.setup_service_proxies()
         self.wait_for_robot_state()
+
+        self._task_space_streaming = TaskSpaceStreaming()
 
         # movement service
         self._robotService = RobotService.makeKukaRobotService()
@@ -93,8 +95,9 @@ class MouseTeleop(object):
         :return:
         :rtype:
         """
-        self._task_space_streaming_pub = rospy.Publisher('plan_runner/task_space_streaming_setpoint',
-                              robot_msgs.msg.CartesianGoalPoint, queue_size=1)
+        # self._task_space_streaming_pub = rospy.Publisher('plan_runner/task_space_streaming_setpoint',
+        #                       robot_msgs.msg.CartesianGoalPoint, queue_size=1)
+        pass
 
 
     def setup_subscribers(self):
@@ -148,8 +151,9 @@ class MouseTeleop(object):
         print("\n\n-----STARTING TELEOP----")
         self._mouse_manager.grab_mouse_focus()
 
-        init_msg = robot_msgs.srv.StartStreamingPlanRequest()
-        res = self._init_task_space_streaming_proxy(init_msg)
+        self._task_space_streaming.start_streaming()
+        # init_msg = robot_msgs.srv.StartStreamingPlanRequest()
+        # res = self._init_task_space_streaming_proxy(init_msg)
 
         self._state = MouseTeleopState.RUNNING
 
@@ -160,7 +164,8 @@ class MouseTeleop(object):
         :rtype:
         """
         print("stopping teleop plan")
-        self._stop_plan_service_proxy(std_srvs.srv.TriggerRequest())
+        self._task_space_streaming.stop_streaming()
+        # self._stop_plan_service_proxy(std_srvs.srv.TriggerRequest())
         self._state = MouseTeleopState.STOPPED
 
     def start_bagging(self):
@@ -224,7 +229,7 @@ class MouseTeleop(object):
         # if it's running, then send out the message
         if self._state == MouseTeleopState.RUNNING:
             msg = self.get_task_space_streaming_message(events)
-            self._task_space_streaming_pub.publish(msg)
+            self._task_space_streaming.publish(msg)
 
         # print("heartbeat")
 
@@ -330,7 +335,69 @@ class PlanarMouseTeleop(MouseTeleop):
 
 
 
+class KeyDynamController(PlanarMouseTeleop):
 
+    def __init__(self):
+        super(KeyDynamController, self).__init__()
+        self._data_capture = DataCapture()
+
+
+    def main_loop(self):
+        """
+        Single pass through main loop
+        :return:
+        :rtype:
+        """
+        events = self._mouse_manager.get_events()
+
+        # can only do one of these
+
+        if pygame.locals.K_s in events["keydown"]:
+            print("keydown: s")
+            self.start_teleop()
+        elif pygame.locals.K_t in events["keydown"]:
+            print("keydown:t")
+            self.stop_teleop()
+        elif pygame.locals.K_f in events["keydown"]:
+            print("keydown:f")
+            print("\n\n---START BAGGING REQUEST---")
+            self.start_bagging()
+            print("bag started")
+        elif pygame.locals.K_g in events["keydown"]:
+            print("keydown:f")
+            print("\n\n---STOP BAGGING REQUEST---")
+            self.stop_bagging()
+            print("bag stopped")
+        elif pygame.locals.K_r in events['keydown']:
+            print("keydown: r")
+            print("\n\n-----RESETTING------")
+            self.reset(key='r')
+        elif pygame.locals.K_e in events['keydown']:
+            print("keydown: e")
+            print('\n\n-----RESETTING----')
+            self.reset(key='e')
+        elif pygame.locals.K_w in events['keydown']:
+            print("keydown: w")
+            print('\n\n-----RESETTING----')
+            self.reset(key='w')
+        elif pygame.locals.K_d in events['keydown']:
+            print("keydown: d")
+            self.debug_action()
+
+    def debug_action(self):
+        data = DataCapture.get_latest_data()
+        print("data.keys()", data.keys())
+
+    def run(self):
+        """
+        Runs main loop at given speed, 5 Hz
+        :return:
+        :rtype:
+        """
+        rate = rospy.Rate(self._rate)
+        while not rospy.is_shutdown():
+            self.main_loop()
+            rate.sleep()
 
 if __name__ == "__main__":
     rospy.init_node('planar_teleop', anonymous=True)

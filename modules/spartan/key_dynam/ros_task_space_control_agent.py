@@ -1,12 +1,6 @@
 from __future__ import print_function
 
 
-#####
-# note this is needed for python 2 --> 3 communication with
-# msgpack because of unicode stuff
-#####
-from __future__ import unicode_literals
-
 # system
 import threading
 import numpy as np
@@ -43,15 +37,7 @@ from imitation_tools.kinematics_utils import IiwaKinematicsHelper
 
 class ROSTaskSpaceControlAgent(object):
     """
-    This class collects sensor data at 30Hz and stores it in a dict format
-    similar to what is used as the state_dict in ImitationEpisode.
-
-    note: (manuelli) will need to be a bit careful about how images are stored.
-    No images for now, just proprioceptive information.
-
-    To switch between different actual agents/network architectures the user simply
-    needs to set the property `compute_control_input`. This function returns the control
-    input as a ROS msg, namely as a robot_msgs.msg.CartesianGoalPoint
+    Collects and sends data over ZMQ to the key_dynam node on the Python3 side
     """
 
     def __init__(self,
@@ -60,7 +46,6 @@ class ROSTaskSpaceControlAgent(object):
                  ):
         self._tf_buffer = tf_buffer
         self._config = config
-
 
         self._zmq_client = ZMQClient()
 
@@ -187,45 +172,6 @@ class ROSTaskSpaceControlAgent(object):
         d["roll"] = euler[1]
         d["yaw"] = euler[2]
         return d
-
-
-    def get_latest_data_old(self):
-        """
-        Grab the latest data, do forward kinematics if needed, insert it into the data list
-        :return:
-        :rtype: bool, dict
-        """
-
-        data = dict()
-        if self._last_robot_joint_state_msg is None:
-            if DEBUG:
-                print("no robot state msg found")
-            return False, data
-
-        if self._gripper_status_subscriber.last_message is None:
-            if DEBUG:
-                print("no gripper message found")
-            return False, data
-
-        data['observations'] = dict()
-        obs = data['observations']
-
-        q = np.array(self._last_robot_joint_state_msg.position)
-        T_W_E = self._iiwa_kinematics_helper.compute_ee_forward_kinematics(q)
-        obs['ee_to_world'] = spartan_utils.dict_from_homogenous_transform(T_W_E)
-        obs['gripper_state'] = message_converter.convert_ros_message_to_dictionary(self._gripper_status_subscriber.last_message)
-
-        obs['ee_to_world']["rpy"] = self.compute_euler_from_homogenous_transform(T_W_E)
-
-
-        # object_pose = self.build_object_pose_dict()
-        # obs['object_pose_cheat_data'] = object_pose
-
-        data["T_W_C"] = np.matmul(T_W_E, constants.T_E_cmd)
-
-
-        return True, data
-
 
     def compute_control_action(self):
         """

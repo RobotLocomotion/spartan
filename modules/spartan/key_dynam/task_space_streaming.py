@@ -15,11 +15,16 @@ class TaskSpaceStreamingState(Enum):
     RUNNING = 2
 
 class TaskSpaceStreaming(object):
+    """
+    Helper method for managing the task space streaming
+    """
 
     def __init__(self):
         self._state = TaskSpaceStreamingState.STOPPED
         self.setup_publishers()
         self.setup_service_proxies()
+
+        self.reset_cache()
 
     def setup_publishers(self):
         """
@@ -49,11 +54,17 @@ class TaskSpaceStreaming(object):
         Start the streaming plan
         :return:
         """
+        self.reset_cache()
         print("starting streaming plan")
         init_msg = robot_msgs.srv.StartStreamingPlanRequest()
         res = self._init_task_space_streaming_proxy(init_msg)
         print("start streaming response:\n", res)
         self._state = TaskSpaceStreamingState.RUNNING
+
+
+    def publish(self, msg):
+        self._task_space_streaming_pub.publish(msg)
+        self._state_data['msgs'].append(msg)
 
     def stop_streaming(self):
         """
@@ -63,3 +74,23 @@ class TaskSpaceStreaming(object):
         print("stopping streaming plan")
         self._stop_plan_service_proxy(std_srvs.srv.TriggerRequest())
         self._state = TaskSpaceStreamingState.STOPPED
+
+
+    def reset_cache(self):
+        self._state_data = {'msgs': []}
+
+
+    def get_last_published_message(self):
+        """
+        Returns the last message that was published
+        :return:
+        """
+
+        msg = None
+        try:
+            msg = self._state_data['msgs'][-1]
+        except KeyError or IndexError:
+            msg = None
+
+        return msg
+
