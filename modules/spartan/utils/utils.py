@@ -4,6 +4,7 @@ __author__ = 'manuelli'
 import numpy as np
 import random
 import json
+import pickle
 from scipy.spatial.transform import Rotation
 import collections
 import yaml
@@ -38,6 +39,15 @@ def saveToYaml(data, filename):
 def save_to_json(data, filename):
     with open(filename, 'w') as outfile:
         json.dump(data, outfile)
+
+def save_pickle(data, filename):
+    with open(filename, 'wb') as f:
+        pickle.dump(data, f)
+
+def load_pickle(filename):
+    with open(filename, 'rb') as f:
+        data = pickle.load(f)
+    return data
 
 def poseFromTransform(transform):
     pos, quat = transformUtils.poseFromTransform(transform)

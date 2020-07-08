@@ -75,7 +75,6 @@ class TaskSpaceStreaming(object):
         self._stop_plan_service_proxy(std_srvs.srv.TriggerRequest())
         self._state = TaskSpaceStreamingState.STOPPED
 
-
     def reset_cache(self):
         self._state_data = {'msgs': []}
 
@@ -89,7 +88,7 @@ class TaskSpaceStreaming(object):
         msg = None
         try:
             msg = self._state_data['msgs'][-1]
-        except KeyError or IndexError:
+        except (KeyError, IndexError):
             msg = None
 
         return msg
