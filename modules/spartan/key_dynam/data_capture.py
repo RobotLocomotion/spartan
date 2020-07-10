@@ -30,6 +30,7 @@ from spartan.utils import transformations
 from spartan.utils import constants
 from spartan.key_dynam.zmq_utils import ZMQClient
 
+
 # imitation_tools
 from imitation_tools.kinematics_utils import IiwaKinematicsHelper
 
@@ -61,8 +62,11 @@ class DataCapture(object):
         self.world_frame = "base"
         self.end_effector_frame = "iiwa_link_ee"
 
+        self._robot_joint_names = spartan_utils.get_kuka_joint_names()
+
         rospy.on_shutdown(self.on_shutdown)
         self.wait_for_initial_messages()
+        self.get_camera_info()
 
     def on_shutdown(self):
         pass
@@ -83,6 +87,9 @@ class DataCapture(object):
         :return:
         :rtype:
         """
+        self._joint_state_subscriber = ros_utils.JointStateSubscriber()
+        self._subscribers_list.append(self._joint_state_subscriber.subscriber)
+
         self._image_subscribers = dict()
         for camera_name in self.camera_names:
             rgb_sub = SimpleSubscriber("/camera_"+camera_name+"/color/image_raw", sensor_msgs.msg.Image)
@@ -96,7 +103,40 @@ class DataCapture(object):
             self._subscribers_list.append(rgb_sub)
             self._subscribers_list.append(depth_sub)
 
+
+        # get camera info K_matrix and T_world_camera for each one
+        
+    def get_camera_info(self):
+        
+        # get K and T_world_camera for each one
+        self._camera_info = dict()
+        for camera_name in self.camera_names:
+            print("getting camera info for ", camera_name)
+            camera_info_topic = "/camera_%s/color/camera_info" %(camera_name)
+
+
+            sub = SimpleSubscriber(camera_info_topic, sensor_msgs.msg.CameraInfo)
+            sub.start()
+            msg = sub.waitForNextMessage()
+            sub.stop()
+            K = np.array(msg.K).reshape([3,3])
+
+
+            rgb_optical_frame = "camera_%s_color_optical_frame" %(camera_name)
+            transform_msg = self._tf_buffer.lookup_transform(self.world_frame, rgb_optical_frame, rospy.Time()).transform
+            pos, quat = ros_utils.poseFromROSTransformMsg(transform_msg)
+            T_world_camera = spartan_utils.transform_matrix_from_pose(pos, quat)
+            camera_info = {'K': K,
+                           'T_world_camera': T_world_camera,
+                           }
+
+            self._camera_info[camera_name] = camera_info
+
     def get_latest_image_data(self):
+        """
+        todo: get camera intrinsics/extrinsics here just in case
+        :return:
+        """
         image_data = dict()
 
         for camera_name in self.camera_names:
@@ -107,9 +147,13 @@ class DataCapture(object):
             depth = ros_utils.depth_image_to_cv2_uint16(depth_msg, bridge=self.bridge,
                                                         encoding="passthrough")
 
+            K = np.copy(self._camera_info[camera_name]['K'])
+            T_world_camera = np.copy(self._camera_info[camera_name]['T_world_camera'])
             image_data[camera_name] = {'rgb': rgb,
                                        'depth_16U': depth,
                                        'depth_int16': depth,
+                                       'K': K,
+                                       'T_world_camera': T_world_camera,
                                        }
 
         return image_data
@@ -125,6 +169,7 @@ class DataCapture(object):
 
         transform_dict = spartan_utils.dictFromPosQuat(pos, quat)
         return transform_dict
+
 
     def get_latest_data(self):
         """
@@ -163,6 +208,7 @@ class DataCapture(object):
         data['observations']['ee_to_world'] = self.get_ee_to_world()
         data['observations']['timestamp'] = rospy.Time.now().to_nsec()
         data['observations']['timestamp_system'] = time.time()
+        data['observations']['joint_positions'] = self._joint_state_subscriber.get_position_vector_from_joint_names(self._robot_joint_names)
 
         data['observation'] = data['observations'] # for compatibility w/ key_dynam
 

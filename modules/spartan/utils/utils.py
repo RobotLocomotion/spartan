@@ -97,6 +97,12 @@ def transformFromPose(d):
 
     return transformUtils.transformFromPose(pos, quat)
 
+def transform_matrix_from_pose(position, quaternion):
+    mat = transformations.quaternion_matrix(quaternion)
+    mat[:3, 3] = position
+    return mat
+
+
 def transformFromROSPoseMsg(msg):
     pos = [msg.position.x, msg.position.y, msg.position.z]
     quat = [msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z]
