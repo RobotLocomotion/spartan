@@ -30,6 +30,7 @@ class KeyDynamControllerState(Enum):
     STOPPED = 0
     DEMONSTRATION_QUEUED = 1
     DEMONSTRATION_IN_PROGRESS = 2
+    KEYFRAME_DEMONSTRATION = 3
 
 
 class KeyDynamController(PlanarMouseTeleop):
@@ -99,38 +100,43 @@ class KeyDynamController(PlanarMouseTeleop):
             print("\n\n----captured GOAL STATE data-----")
             data = self.collect_latest_data()
             self._cache['goal_data'] = data
+        # elif pygame.locals.K_k in events['keydown']:
+        #     print("\n\n------saving data to disk----")
+        #     compute_control_action_msg = {'type': "COMPUTE_CONTROL_ACTION",
+        #                                   'data': self._cache['start_data']}
+        #
+        #     save_dir = os.path.join("/home/manuelli/data/key_dynam/sandbox",
+        #                             spartan_utils.get_current_YYYY_MM_DD_hh_mm_ss())
+        #
+        #     if not os.path.exists(save_dir):
+        #         os.makedirs(save_dir)
+        #
+        #     spartan_utils.save_pickle(compute_control_action_msg,
+        #                               os.path.join(save_dir, 'compute_control_action_msg.p'))
+        #
+        #     plan_msg = {'type': "PLAN",
+        #                 'data': [self._cache['goal_data']],
+        #                 }
+        #     spartan_utils.save_pickle(plan_msg, os.path.join(save_dir, 'plan_msg.p'))
+        # elif pygame.locals.K_p in events['keydown']:
+        #     print("\n\n----sending saved plan message----\n\n")
+        #     plan_msg_file = "/home/manuelli/data/key_dynam/sandbox/2020-07-07-20-09-54_push_right_box_horizontal/plan_msg.p"
+        #     plan_msg = spartan_utils.load_pickle(plan_msg_file)
+        #     self.send_single_frame_plan(msg=plan_msg)
         elif pygame.locals.K_k in events['keydown']:
-            print("\n\n------saving data to disk----")
-            compute_control_action_msg = {'type': "COMPUTE_CONTROL_ACTION",
-                                          'data': self._cache['start_data']}
-
-            save_dir = os.path.join("/home/manuelli/data/key_dynam/sandbox",
-                                    spartan_utils.get_current_YYYY_MM_DD_hh_mm_ss())
-
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-
-            spartan_utils.save_pickle(compute_control_action_msg,
-                                      os.path.join(save_dir, 'compute_control_action_msg.p'))
-
-            plan_msg = {'type': "PLAN",
-                        'data': [self._cache['goal_data']],
-                        }
-            spartan_utils.save_pickle(plan_msg, os.path.join(save_dir, 'plan_msg.p'))
-        elif pygame.locals.K_p in events['keydown']:
-            print("\n\n----sending saved plan message----\n\n")
-            plan_msg_file = "/home/manuelli/data/key_dynam/sandbox/2020-07-07-20-09-54_push_right_box_horizontal/plan_msg.p"
-            plan_msg = spartan_utils.load_pickle(plan_msg_file)
-            self.send_single_frame_plan(msg=plan_msg)
-        elif pygame.locals.K_o in events['keydown']:
-            print("\n\n----Executing Open Loop Plan-----")
+            print("starting keyframe plan")
+            self._controller_state = KeyDynamControllerState.KEYFRAME_DEMONSTRATION
+        elif pygame.locals.K_c in events['keydown']:
+            if self._controller_state == KeyDynamControllerState.KEYFRAME_DEMONSTRATION:
+                print("collected a keyframe")
+                data = self.collect_latest_data()
+                self._cache['plan_data'].append(data)
 
             # debugging
             # compute_control_action_msg_file = "/home/manuelli/data/key_dynam/sandbox/2020-07-07-20-09-54_push_right_box_horizontal/compute_control_action_msg.p"
             # compute_control_action_msg = spartan_utils.load_pickle(compute_control_action_msg_file)
             # self.execute_plan_open_loop(msg=compute_control_action_msg)
-
-            self.execute_plan_open_loop(msg=None)
+            # self.execute_plan_open_loop(msg=None)
 
         # if it's running, then send out the message
         if self._state == MouseTeleopState.RUNNING:
@@ -316,8 +322,8 @@ class KeyDynamController(PlanarMouseTeleop):
 
     def execute_plan_closed_loop(self):
 
-        print("\n---EXECUTING CLOSED LOOP PLAN----")
 
+        print("\n---EXECUTING CLOSED LOOP PLAN----")
         data = self.collect_latest_data()
         msg = {'type': 'COMPUTE_CONTROL_ACTION',
                'data': data,
@@ -350,53 +356,62 @@ class KeyDynamController(PlanarMouseTeleop):
         elapsed_time_dict = OrderedDict()
         prev_time = time.time()
         counter = 0
-        while True:
-            counter += 1
-            print("\n\n---- Control Step %d ----" % (counter))
-            time1 = time.time()
-            data = self.collect_latest_data()
-            elapsed_time_dict['collect_data'] = time.time() - time1
+        try:
+            while True:
+                events = self._mouse_manager.get_events()
+                if pygame.locals.K_t in events['keydown']:
+                    print("terminating plan")
+                    self.send_zero_velocity_message()
+                    self._task_space_streaming.stop_streaming()
+                    break
 
-            time2 = time.time()
-            msg = {'type': 'COMPUTE_CONTROL_ACTION',
-                   'data': data,
-                   'debug': 0,
-                   }
-            self._zmq_client.send_data(msg)
-            resp = self._zmq_client.recv_data()
-            elapsed_time_dict['compute_control_action'] = time.time() - time2
+                counter += 1
+                print("\n\n---- Control Step %d ----" % (counter))
+                time1 = time.time()
+                data = self.collect_latest_data()
+                elapsed_time_dict['collect_data'] = time.time() - time1
 
-            if resp['type'] != "CONTROL_ACTION":
-                print("got message of type %s, stopping streaming" % (resp['type']))
-                self.send_zero_velocity_message()
-                break
+                time2 = time.time()
+                msg = {'type': 'COMPUTE_CONTROL_ACTION',
+                       'data': data,
+                       'debug': 0,
+                       }
+                self._zmq_client.send_data(msg)
+                resp = self._zmq_client.recv_data()
+                elapsed_time_dict['compute_control_action'] = time.time() - time2
 
-            # extract the control action
-            action = resp['data']['action']
-            x = print("action", action)
+                if resp['type'] != "CONTROL_ACTION":
+                    print("got message of type %s, stopping streaming" % (resp['type']))
+                    self.send_zero_velocity_message()
+                    break
 
-            control_msg.setpoint_linear_velocity.x = action[0]
-            control_msg.setpoint_linear_velocity.y = action[1]
+                # extract the control action
+                action = resp['data']['action']
+                x = print("action", action)
 
-            # check if it's a safe action to send
-            if not self._software_safety.check_message(control_msg):
-                print("unsafe control, breaking off")
-                self.send_zero_velocity_message()
-                break
+                control_msg.setpoint_linear_velocity.x = action[0]
+                control_msg.setpoint_linear_velocity.y = action[1]
 
-            self._task_space_streaming.publish(control_msg)
-            elapsed_time_dict['total'] = time.time() - time1
-            elapsed_time_dict['time_since_prev'] = time.time() - prev_time
+                # check if it's a safe action to send
+                if not self._software_safety.check_message(control_msg):
+                    print("unsafe control, breaking off")
+                    self.send_zero_velocity_message()
+                    break
 
-            # print("elapsed_times:\n", elapsed_time_dict)
-            print("time:", elapsed_time_dict['total'])
-            if False:
-                for key, val in elapsed_time_dict.iteritems():
-                    print("%s:%.3f" % (key, val))
-            prev_time = time.time()
-            rate.sleep()
+                self._task_space_streaming.publish(control_msg)
+                elapsed_time_dict['total'] = time.time() - time1
+                elapsed_time_dict['time_since_prev'] = time.time() - prev_time
 
-        self._task_space_streaming.stop_streaming()
+                # print("elapsed_times:\n", elapsed_time_dict)
+                print("time:", elapsed_time_dict['total'])
+                if False:
+                    for key, val in elapsed_time_dict.iteritems():
+                        print("%s:%.3f" % (key, val))
+                prev_time = time.time()
+                rate.sleep()
+        finally:
+            self._task_space_streaming.stop_streaming()
+            self._mouse_manager.release_mouse_focus()
 
     def reset_to_start_position(self, ):
         """
@@ -436,6 +451,7 @@ class KeyDynamController(PlanarMouseTeleop):
         """
         # clear the cache
         self._cache = {'plan_data': [],  # list of keyframes for plan (at 5Hz)
+                       'plan_type': "DEMONSTRATION"
                        }
         self._controller_state = KeyDynamControllerState.DEMONSTRATION_QUEUED
 
@@ -462,7 +478,10 @@ class KeyDynamController(PlanarMouseTeleop):
 
         print("plan length", len(self._cache['plan_data']))
 
-        data = {'plan_data': plan_data}
+        data = {'plan_data': plan_data,
+                'plan_type': self._cache['plan_type'],
+                }
+
         msg = {'type': "PLAN",
                'data': data}
 
@@ -521,27 +540,44 @@ def test_closed_loop_control(controller,
 def test_closed_loop_trajectory_control(controller,
                                         move_to_start_position=True):
 
-    if move_to_start_position:
-        print("moving to reset position")
-        controller.reset_to_start_position()
-        raw_input("press Enter to continue")
+
 
     # folder = "2020-07-09-23-59-56_push_long"
     # folder = "2020-07-10-00-01-58_push_short_fast"
     # folder = "2020-07-10-00-15-41_box_vertical"
-    folder = "2020-07-10-00-42-58_long_push_top_towards_right"
+    # folder = "2020-07-10-00-42-58_long_push_top_towards_right"
+    folder = "2020-07-10-16-10-59_push_box_right_short"
     plan_msg_file = "/home/manuelli/data/key_dynam/hardware_experiments/demonstrations/stable/%s/plan_msg.p" %(folder)
     plan_msg = spartan_utils.load_pickle(plan_msg_file)
+
+    if move_to_start_position:
+        print("moving to reset position")
+        # figure out plan starting position if it is trajectory plan
+        # plan_data = plan_msg['data']['plan_data']
+        # if len(plan_data) > 0:
+        #     print("plan has length larger than one")
+
+        controller.reset_to_start_position()
+        raw_input("press Enter to continue")
+
+
     controller.send_single_frame_plan(msg=plan_msg)
-
-
-
     controller.execute_plan_closed_loop()
+
+    msg = {'type': 'SAVE',
+           'data': 'SAVE',
+           }
+
+    print("sending save data message")
+    controller._zmq_client.send_data(msg)
+    resp = controller._zmq_client.recv_data()
+    print("resp\n", resp)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--teleop", action='store_true', default=False, help="indicates you want to teleop")
+    parser.add_argument("-r", "--reset", action='store_true', default=False, help='reset the robot to the plan starting position')
     args = parser.parse_args()
 
 
@@ -554,13 +590,14 @@ if __name__ == "__main__":
         # debug(controller)
 
         if args.teleop:
-            controller.reset_to_start_position()
+            if args.reset:
+                controller.reset_to_start_position()
             controller._mouse_manager.grab_mouse_focus()
             controller.run()
         else:
             controller._mouse_manager.release_mouse_focus()
             test_closed_loop_trajectory_control(controller,
-                                                move_to_start_position=True)
+                                                move_to_start_position=args.reset)
     finally:
         controller._mouse_manager.release_mouse_focus()
 
