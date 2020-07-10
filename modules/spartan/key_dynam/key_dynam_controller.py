@@ -8,11 +8,14 @@ import pygame
 import cv2
 from collections import OrderedDict
 import argparse
+from threading import Thread
 
 # ROS
 import rospy
+import sensor_msgs
 import std_srvs.srv
 from rospy_message_converter import message_converter
+from cv_bridge import CvBridge
 
 # spartan
 from spartan.utils import utils as spartan_utils
@@ -46,8 +49,16 @@ class KeyDynamController(PlanarMouseTeleop):
         self._software_safety = SoftwareSafety(tf_buffer=self._data_capture._tf_buffer)
         self._controller_state = KeyDynamControllerState.STOPPED
 
+        self.setup_publishers()
+        self._cv_bridge = CvBridge()
+
         if use_zmq:
             self._zmq_client = ZMQClient()
+
+    def setup_publishers(self):
+
+        self._publishers = dict()
+        self._image_pub = rospy.Publisher("key_dynam/start_image", sensor_msgs.msg.Image, queue_size=1)
 
     def main_loop(self):
         """
@@ -151,6 +162,7 @@ class KeyDynamController(PlanarMouseTeleop):
             if np.linalg.norm(np.array([vx,vy])) > tol:
                 self._controller_state = KeyDynamControllerState.DEMONSTRATION_IN_PROGRESS
                 print("DEMONSTRATION_IN_PROGRESS")
+                self._cache['start_data'] = self.collect_latest_data()
 
         if self._controller_state == KeyDynamControllerState.DEMONSTRATION_IN_PROGRESS:
             data = self.collect_latest_data()
@@ -277,6 +289,44 @@ class KeyDynamController(PlanarMouseTeleop):
 
         print("plan finished")
 
+    def visualize_start_image_and_wait(self,
+                                       start_data,
+                                       camera_name="d415_01"):
+        """
+        Visualizes the start image blended with current image
+        Waits for user to hit 's' to continue
+        :return:
+        """
+
+        rgb_start = start_data['observations']['images'][camera_name]['rgb']
+
+
+
+        user_input = [None]
+        # spawn a new thread to wait for input
+        def get_user_input(user_input_ref):
+            print("\n\n----RESET OBJECT TO START POSITION----")
+            print("see rviz for image")
+            user_input_ref[0] = raw_input("press Enter to continue")
+
+        mythread = Thread(target=get_user_input, args=(user_input,))
+        mythread.daemon = True
+        mythread.start()
+
+        rate = rospy.Rate(10)
+
+
+        while user_input[0] is None:
+            data = self.collect_latest_data()
+            rgb = data['observations']['images'][camera_name]['rgb']
+
+            alpha = 0.5
+            blend = cv2.addWeighted(rgb_start, alpha, rgb, 1 - alpha, gamma=0.0)
+            msg = self._cv_bridge.cv2_to_imgmsg(blend, "rgb8")
+            self._image_pub.publish(msg)
+            rate.sleep()
+
+
     def test_control_rate(self):
 
         # send the plan msg
@@ -322,13 +372,13 @@ class KeyDynamController(PlanarMouseTeleop):
 
     def execute_plan_closed_loop(self):
 
-
         print("\n---EXECUTING CLOSED LOOP PLAN----")
         data = self.collect_latest_data()
         msg = {'type': 'COMPUTE_CONTROL_ACTION',
                'data': data,
                'debug': 1,  # send number instead
                }
+
         start_time = time.time()
         self._zmq_client.send_data(msg)
         resp = self._zmq_client.recv_data()
@@ -482,6 +532,9 @@ class KeyDynamController(PlanarMouseTeleop):
                 'plan_type': self._cache['plan_type'],
                 }
 
+        if 'start_data' in self._cache:
+            data['start_data'] = self._cache['start_data']
+
         msg = {'type': "PLAN",
                'data': data}
 
@@ -531,8 +584,18 @@ def test_closed_loop_control(controller,
 
     if move_to_start_position:
         print("moving to reset position")
-        controller.reset_to_start_position()
-        raw_input("press Enter to continue")
+        if 'start_data' in plan_msg:
+            print("start_data was in plan_msg")
+            q_robot = plan_msg['start_data']['observations']['joint_positions']
+            print("q_robot\n", q_robot)
+            quit()
+        else:
+            controller.reset_to_start_position()
+            raw_input("press Enter to continue")
+
+
+    # loop while showing alpha blend of start and goal image
+    # wait for user to press a key
 
     controller.execute_plan_closed_loop()
 
@@ -541,25 +604,37 @@ def test_closed_loop_trajectory_control(controller,
                                         move_to_start_position=True):
 
 
-
+    # old
     # folder = "2020-07-09-23-59-56_push_long"
     # folder = "2020-07-10-00-01-58_push_short_fast"
     # folder = "2020-07-10-00-15-41_box_vertical"
     # folder = "2020-07-10-00-42-58_long_push_top_towards_right"
-    folder = "2020-07-10-16-10-59_push_box_right_short"
+    # folder = "2020-07-10-16-10-59_push_box_right_short"
+
+
+    # new
+    # folder = "2020-07-10-20-43-46_push_box_w_start_data"
+    # folder = "2020-07-10-21-29-11_long_push"
+    folder = "2020-07-10-22-16-08_long_push_on_long_side"
+
+
     plan_msg_file = "/home/manuelli/data/key_dynam/hardware_experiments/demonstrations/stable/%s/plan_msg.p" %(folder)
     plan_msg = spartan_utils.load_pickle(plan_msg_file)
+    print("plan_msg['data'].keys()", plan_msg['data'].keys())
 
     if move_to_start_position:
-        print("moving to reset position")
-        # figure out plan starting position if it is trajectory plan
-        # plan_data = plan_msg['data']['plan_data']
-        # if len(plan_data) > 0:
-        #     print("plan has length larger than one")
+        if 'start_data' in plan_msg['data']:
+            print("start_data was in plan_msg")
+            robot_start_pose = plan_msg['data']['start_data']['observations']['joint_positions']
 
-        controller.reset_to_start_position()
+            controller.stop_teleop()
+            success = controller._robotService.moveToJointPosition(robot_start_pose, maxJointDegreesPerSecond=30, timeout=5)
+
+    if 'start_data' in plan_msg['data']:
+        start_data = plan_msg['data']['start_data']
+        controller.visualize_start_image_and_wait(start_data=start_data)
+    else:
         raw_input("press Enter to continue")
-
 
     controller.send_single_frame_plan(msg=plan_msg)
     controller.execute_plan_closed_loop()
