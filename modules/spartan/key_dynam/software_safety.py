@@ -26,7 +26,8 @@ class SoftwareSafety(object):
         self.end_effector_frame = end_effector_frame
 
         if pos_min is None:
-            pos_min = np.array([0.47, -0.3631, 0])
+            # pos_min = np.array([0.47, -0.3631, 0])
+            pos_min = np.array([0.4, -0.3631, 0]) # needed for curved traj
 
         self._pos_min = pos_min
 

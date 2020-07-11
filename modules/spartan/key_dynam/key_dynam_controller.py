@@ -229,7 +229,7 @@ class KeyDynamController(PlanarMouseTeleop):
         self._zmq_client.send_data(msg)
         resp = self._zmq_client.recv_data()
 
-    def execute_plan_open_loop(self,
+    def execute_plan_open_loop_old(self,
                                msg=None,  # for debugging, optionally send a message that we already have somehow
                                ):
         print("\n---COMPUTE_CONTROL_ACTION REQUEST----")
@@ -463,6 +463,74 @@ class KeyDynamController(PlanarMouseTeleop):
             self._task_space_streaming.stop_streaming()
             self._mouse_manager.release_mouse_focus()
 
+
+    def execute_plan_open_loop(self,
+                               plan_msg):
+
+        plan_trajectory = plan_msg['data']['plan_data']
+        print("plan length:", len(plan_trajectory))
+
+        s = raw_input("\nexecute plan? y/n\n")
+        if s != "y":
+            print("aborting")
+            return
+        else:
+            print("executing plan")
+
+        self._mouse_manager.release_mouse_focus()
+        self._task_space_streaming.start_streaming()
+
+        rate = rospy.Rate(self._control_rate)
+        control_msg = self.make_empty_cartesian_goal_point_msg()
+        elapsed_time_dict = OrderedDict()
+        prev_time = time.time()
+        counter = 0
+        try:
+            for plan_data in plan_trajectory:
+                events = self._mouse_manager.get_events()
+                if pygame.locals.K_t in events['keydown']:
+                    print("terminating plan")
+                    self.send_zero_velocity_message()
+                    self._task_space_streaming.stop_streaming()
+                    break
+
+                setpoint_vel = plan_data['actions']['ee_setpoint']['setpoint_linear_velocity']
+                control_msg.setpoint_linear_velocity.x = setpoint_vel['x']
+                control_msg.setpoint_linear_velocity.y = setpoint_vel['y']
+
+                # check software safety
+                if not self._software_safety.check_message(control_msg):
+                    print("unsafe control, breaking off")
+                    self._task_space_streaming.stop_streaming()
+                    break
+
+                self._task_space_streaming.publish(control_msg)
+
+                counter += 1
+                print("\n\n---- Control Step %d ----" % (counter))
+                time1 = time.time()
+                data = self.collect_latest_data()
+                elapsed_time_dict['collect_data'] = time.time() - time1
+
+                time2 = time.time()
+                msg = {'type': 'COMPUTE_CONTROL_ACTION',
+                       'data': data,
+                       'debug': 0,
+                       }
+                self._zmq_client.send_data(msg)
+                resp = self._zmq_client.recv_data()
+                rate.sleep()
+        finally:
+            # send zero velocity message
+            control_msg = self.make_empty_cartesian_goal_point_msg()
+            self._task_space_streaming.publish(control_msg)
+
+            # kill the plan
+            self._task_space_streaming.stop_streaming()
+            self._mouse_manager.release_mouse_focus()
+
+        print("plan finished cleanly")
+
     def reset_to_start_position(self, ):
         """
         - First moves the robot to a safe position above the tabl
@@ -617,6 +685,9 @@ def test_closed_loop_trajectory_control(controller,
     # folder = "2020-07-10-21-29-11_long_push"
     folder = "2020-07-10-22-16-08_long_push_on_long_side"
 
+    # folder = "2020-07-10-23-51-59_curved"
+    # folder = "2020-07-11-00-14-07_spin_180"
+
 
     plan_msg_file = "/home/manuelli/data/key_dynam/hardware_experiments/demonstrations/stable/%s/plan_msg.p" %(folder)
     plan_msg = spartan_utils.load_pickle(plan_msg_file)
@@ -648,6 +719,119 @@ def test_closed_loop_trajectory_control(controller,
     resp = controller._zmq_client.recv_data()
     print("resp\n", resp)
 
+def test_closed_loop_trajectory_control_sequence(controller,
+                                        move_to_start_position=True):
+
+
+    # old
+    # folder = "2020-07-09-23-59-56_push_long"
+    # folder = "2020-07-10-00-01-58_push_short_fast"
+    # folder = "2020-07-10-00-15-41_box_vertical"
+    # folder = "2020-07-10-00-42-58_long_push_top_towards_right"
+    # folder = "2020-07-10-16-10-59_push_box_right_short"
+
+
+    # new
+    # folder = "2020-07-10-20-43-46_push_box_w_start_data"
+    # folder = "2020-07-10-21-29-11_long_push"
+    folder = "2020-07-10-22-16-08_long_push_on_long_side"
+
+    # name = "3_plan_sequence"
+    name = "2_plan_sequence"
+    sequence_folder = "/home/manuelli/data/key_dynam/hardware_experiments/demonstrations/stable/%s" %(name)
+
+    plan_folder_list = os.listdir(sequence_folder)
+    plan_folder_list.sort()
+
+    plan_msg_list = []
+    for plan_folder in plan_folder_list:
+        plan_msg_file = os.path.join(sequence_folder, plan_folder, 'plan_msg.p')
+        plan_msg = spartan_utils.load_pickle(plan_msg_file)
+        plan_msg_list.append(plan_msg)
+
+
+    plan_msg = plan_msg_list[0]
+
+    if move_to_start_position:
+        if 'start_data' in plan_msg['data']:
+            print("start_data was in plan_msg")
+            robot_start_pose = plan_msg['data']['start_data']['observations']['joint_positions']
+
+            controller.stop_teleop()
+            success = controller._robotService.moveToJointPosition(robot_start_pose, maxJointDegreesPerSecond=30, timeout=5)
+
+    # if 'start_data' in plan_msg['data']:
+    #     start_data = plan_msg['data']['start_data']
+    #     controller.visualize_start_image_and_wait(start_data=start_data)
+    # else:
+    #     raw_input("press Enter to continue")
+
+
+    for i, plan_msg in enumerate(plan_msg_list):
+        print("executing plan %d" %(i))
+
+        if 'start_data' in plan_msg['data']:
+            start_data = plan_msg['data']['start_data']
+            controller.visualize_start_image_and_wait(start_data=start_data)
+        else:
+            raw_input("press Enter to continue")
+
+        controller.send_single_frame_plan(msg=plan_msg)
+        controller.execute_plan_closed_loop()
+
+        msg = {'type': 'SAVE',
+               'data': 'SAVE',
+               }
+
+        print("sending save data message")
+        controller._zmq_client.send_data(msg)
+        resp = controller._zmq_client.recv_data()
+        print("resp\n", resp)
+
+
+def test_open_loop_trajectory(controller,
+                                move_to_start_position=True):
+
+
+
+    # new
+    # folder = "2020-07-10-21-29-11_long_push"
+    # folder = "2020-07-10-22-16-08_long_push_on_long_side"
+    # folder = "2020-07-10-23-51-59_curved"
+    folder = "2020-07-11-00-14-07_spin_180"
+
+
+    plan_msg_file = "/home/manuelli/data/key_dynam/hardware_experiments/demonstrations/stable/%s/plan_msg.p" %(folder)
+    plan_msg = spartan_utils.load_pickle(plan_msg_file)
+    print("plan_msg['data'].keys()", plan_msg['data'].keys())
+
+    if move_to_start_position:
+        if 'start_data' in plan_msg['data']:
+            print("start_data was in plan_msg")
+            robot_start_pose = plan_msg['data']['start_data']['observations']['joint_positions']
+
+            controller.stop_teleop()
+            success = controller._robotService.moveToJointPosition(robot_start_pose, maxJointDegreesPerSecond=30, timeout=5)
+
+    if 'start_data' in plan_msg['data']:
+        start_data = plan_msg['data']['start_data']
+        controller.visualize_start_image_and_wait(start_data=start_data)
+    else:
+        raw_input("press Enter to continue")
+
+
+    controller.send_single_frame_plan(msg=plan_msg)
+    controller.execute_plan_open_loop(plan_msg=plan_msg)
+
+    msg = {'type': 'SAVE',
+           'data': 'SAVE',
+           }
+
+    print("sending save data message")
+    controller._zmq_client.send_data(msg)
+    resp = controller._zmq_client.recv_data()
+    print("resp\n", resp)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -669,10 +853,15 @@ if __name__ == "__main__":
                 controller.reset_to_start_position()
             controller._mouse_manager.grab_mouse_focus()
             controller.run()
-        else:
+        elif True:
             controller._mouse_manager.release_mouse_focus()
-            test_closed_loop_trajectory_control(controller,
-                                                move_to_start_position=args.reset)
+            # test_closed_loop_trajectory_control(controller,
+            #                                     move_to_start_position=args.reset)
+
+            # test_closed_loop_trajectory_control_sequence(controller,
+            #                                              move_to_start_position=args.reset)
+            test_open_loop_trajectory(controller, move_to_start_position=args.reset)
+
     finally:
         controller._mouse_manager.release_mouse_focus()
 
