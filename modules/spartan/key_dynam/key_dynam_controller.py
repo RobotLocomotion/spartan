@@ -402,6 +402,7 @@ class KeyDynamController(PlanarMouseTeleop):
         rate = rospy.Rate(self._control_rate)
         control_msg = self.make_empty_cartesian_goal_point_msg()
         action_seq = resp_data['action_seq']
+        self._mouse_manager.grab_mouse_focus()
 
         elapsed_time_dict = OrderedDict()
         prev_time = time.time()
@@ -457,6 +458,7 @@ class KeyDynamController(PlanarMouseTeleop):
                 if False:
                     for key, val in elapsed_time_dict.iteritems():
                         print("%s:%.3f" % (key, val))
+
                 prev_time = time.time()
                 rate.sleep()
         finally:
@@ -669,7 +671,9 @@ def test_closed_loop_control(controller,
 
 
 def test_closed_loop_trajectory_control(controller,
-                                        move_to_start_position=True):
+                                        move_to_start_position=True,
+                                        loop=False,
+                                        save=True):
 
 
     # old
@@ -683,41 +687,49 @@ def test_closed_loop_trajectory_control(controller,
     # new
     # folder = "2020-07-10-20-43-46_push_box_w_start_data"
     # folder = "2020-07-10-21-29-11_long_push"
-    folder = "2020-07-10-22-16-08_long_push_on_long_side"
+    # folder = "2020-07-10-22-16-08_long_push_on_long_side"
 
     # folder = "2020-07-10-23-51-59_curved"
-    # folder = "2020-07-11-00-14-07_spin_180"
-
+    folder = "2020-07-11-00-14-07_spin_180"
 
     plan_msg_file = "/home/manuelli/data/key_dynam/hardware_experiments/demonstrations/stable/%s/plan_msg.p" %(folder)
     plan_msg = spartan_utils.load_pickle(plan_msg_file)
     print("plan_msg['data'].keys()", plan_msg['data'].keys())
 
-    if move_to_start_position:
+    while True:
+
+        if move_to_start_position:
+            if 'start_data' in plan_msg['data']:
+                print("start_data was in plan_msg")
+                robot_start_pose = plan_msg['data']['start_data']['observations']['joint_positions']
+
+                controller.stop_teleop()
+                success = controller._robotService.moveToJointPosition(robot_start_pose, maxJointDegreesPerSecond=30, timeout=5)
+
         if 'start_data' in plan_msg['data']:
-            print("start_data was in plan_msg")
-            robot_start_pose = plan_msg['data']['start_data']['observations']['joint_positions']
+            start_data = plan_msg['data']['start_data']
+            controller.visualize_start_image_and_wait(start_data=start_data)
+        else:
+            raw_input("press Enter to continue")
 
-            controller.stop_teleop()
-            success = controller._robotService.moveToJointPosition(robot_start_pose, maxJointDegreesPerSecond=30, timeout=5)
+        controller.send_single_frame_plan(msg=plan_msg)
+        # raw_input("press Enter to continue")
+        controller.execute_plan_closed_loop()
 
-    if 'start_data' in plan_msg['data']:
-        start_data = plan_msg['data']['start_data']
-        controller.visualize_start_image_and_wait(start_data=start_data)
-    else:
-        raw_input("press Enter to continue")
+        msg = {'type': 'SAVE',
+               'data': 'SAVE',
+               }
 
-    controller.send_single_frame_plan(msg=plan_msg)
-    controller.execute_plan_closed_loop()
+        if save:
+            print("sending save data message")
+            controller._zmq_client.send_data(msg)
+            resp = controller._zmq_client.recv_data()
+            print("resp\n", resp)
 
-    msg = {'type': 'SAVE',
-           'data': 'SAVE',
-           }
+        if not loop:
+            break
 
-    print("sending save data message")
-    controller._zmq_client.send_data(msg)
-    resp = controller._zmq_client.recv_data()
-    print("resp\n", resp)
+        raw_input("Enter to reset, move to starting position")
 
 def test_closed_loop_trajectory_control_sequence(controller,
                                         move_to_start_position=True):
@@ -837,6 +849,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--teleop", action='store_true', default=False, help="indicates you want to teleop")
     parser.add_argument("-r", "--reset", action='store_true', default=False, help='reset the robot to the plan starting position')
+
+    parser.add_argument("-l", "--loop", action='store_true', default=False,
+                        help='repeatedly loops same plan over and over')
+
+    parser.add_argument("-n", "--no_save", action='store_true', default=False)
     args = parser.parse_args()
 
 
@@ -855,12 +872,15 @@ if __name__ == "__main__":
             controller.run()
         elif True:
             controller._mouse_manager.release_mouse_focus()
-            # test_closed_loop_trajectory_control(controller,
-            #                                     move_to_start_position=args.reset)
+            test_closed_loop_trajectory_control(controller,
+                                                move_to_start_position=args.reset,
+                                                loop=args.loop,
+                                                save= (not args.no_save),
+                                                )
 
             # test_closed_loop_trajectory_control_sequence(controller,
             #                                              move_to_start_position=args.reset)
-            test_open_loop_trajectory(controller, move_to_start_position=args.reset)
+            # test_open_loop_trajectory(controller, move_to_start_position=args.reset)
 
     finally:
         controller._mouse_manager.release_mouse_focus()
